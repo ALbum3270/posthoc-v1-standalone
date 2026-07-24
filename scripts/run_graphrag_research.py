@@ -60,6 +60,14 @@ from open_deep_research.graphrag.graph.queries import (  # noqa: E402
     coverage_ratio_from_gaps,
     get_gap_status,
 )
+from open_deep_research.graphrag.reporting.evidence_pack import (  # noqa: E402
+    build_evidence_pack,
+    fetch_facts,
+)
+from open_deep_research.graphrag.reporting.report import (  # noqa: E402
+    build_source_index,
+    render_report,
+)
 from open_deep_research.graphrag.ontology import (  # noqa: E402
     INVESTIGATION_SCHEMA,
     iter_slots,
@@ -289,50 +297,17 @@ async def main(topic: str, max_rounds: int) -> int:
     print(f"轮次 {len(history)}，成功 {sum(1 for r in history if r[2])}")
     print(f"{'=' * 66}\n")
 
-    records, _, _ = await graphiti.driver.execute_query(
-        """
-        MATCH ()-[e:RELATES_TO {research_id: $rid}]->()
-        WHERE e.expired_at IS NULL
-        RETURN e.slot_id AS slot_id, e.fact AS fact, e.valid_at AS valid_at,
-               e.source_url AS url
-        ORDER BY e.slot_id, e.fact
-        """,
-        rid=research_id,
+    facts = await fetch_facts(graphiti, research_id=research_id)
+    pack = await build_evidence_pack(
+        graphiti, research_id=research_id, topic=topic, schema=INVESTIGATION_SCHEMA
     )
+    report = render_report(
+        pack, schema=INVESTIGATION_SCHEMA, sources=build_source_index(facts)
+    )
+    print(f"证据包：{len(pack.items)} 条事实，"
+          f"{len(pack.provenance)} 个来源 episode，"
+          f"{len(pack.unresolved_conflicts)} 处未消解冲突")
 
-    lines = [f"# 调查报告：{topic}", "",
-             f"> 图谱覆盖率：{len(filled)}/{len(all_slots)} 槽位（{coverage:.0%}）",
-             f"> research_id：`{research_id}`", ""]
-    by_slot: dict[str, list] = {}
-    for record in records:
-        by_slot.setdefault(record["slot_id"], []).append(record)
-
-    for dimension in ("WHO", "WHAT", "WHEN", "WHERE", "WHY", "HOW"):
-        dimension_slots = [s for s in iter_slots(INVESTIGATION_SCHEMA)
-                           if s.dimension == dimension]
-        if not dimension_slots:
-            continue
-        lines += [f"## {dimension}", ""]
-        for slot in dimension_slots:
-            rows = by_slot.get(slot.slot_id, [])
-            if not rows:
-                lines += [f"**{slot.label}** — ⚠️ 未查到相关证据", ""]
-                continue
-            lines.append(f"**{slot.label}**")
-            for record in rows:
-                dated = f" _(valid_at: {str(record['valid_at'])[:10]})_" if record["valid_at"] else ""
-                lines.append(f"  - {record['fact']}{dated}")
-            urls = sorted({r["url"] for r in rows if r["url"]})
-            if urls:
-                lines.append("  来源：" + "、".join(f"<{u}>" for u in urls))
-            lines.append("")
-
-    dated_facts = sum(1 for r in records if r["valid_at"])
-    lines += ["---",
-              f"*事实 {len(records)} 条，其中 {dated_facts} 条带经校验的日期；"
-              "无明确日期的事实不写 valid_at（§3.12）。未做冲突消解。*"]
-
-    report = "\n".join(lines)
     path = _BASE / f"graphrag_report_{research_id}.md"
     path.write_text(report, encoding="utf-8")
     print(f"报告已保存: {path}")
