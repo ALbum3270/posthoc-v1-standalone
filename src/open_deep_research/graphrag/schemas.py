@@ -184,6 +184,26 @@ class GraphEpisodePayload(BaseModel):
     claims: list[ExtractedClaim] = Field(default_factory=list)
 
 
+class VerifiedEpisodeInput(BaseModel):
+    """Structured payload for the verified write path.
+
+    Distinct from ``GraphEpisodePayload``: that one carries prose for Graphiti to
+    extract from, which is the double-extraction route that rewrote facts and
+    invented dates (SESSION_HANDOFF §3.12). This one carries already-extracted
+    triples and is written verbatim -- no LLM sees it again.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    research_id: str
+    slot_id: str
+    source: SourceDocument
+    triples: list[ExtractedTriple] = Field(default_factory=list)
+    group_id: str | None = None
+    episode_name: str | None = None
+    verification: ClaimVerificationResult | None = None
+
+
 class GraphWriteResult(BaseModel):
     """Minimal bookkeeping returned after a graph write."""
 
@@ -193,6 +213,7 @@ class GraphWriteResult(BaseModel):
     node_uuids: list[str] = Field(default_factory=list)
     edge_uuids: list[str] = Field(default_factory=list)
     conflict_ids: list[str] = Field(default_factory=list)
+    skipped_triples: list[str] = Field(default_factory=list)
 
 
 class EvidencePackItem(BaseModel):
