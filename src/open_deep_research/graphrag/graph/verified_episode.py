@@ -37,6 +37,7 @@ from open_deep_research.graphrag.schemas import (
     VerifiedEpisodeInput,
 )
 from open_deep_research.graphrag.validation.dates import resolve_valid_at, stated_years
+from open_deep_research.graphrag.validation.sources import publisher_identity
 
 # Writing any of these through `attributes` would collide with a core EntityEdge
 # field. `edges.py:359` does `edge_data.update(self.attributes or {})`, putting
@@ -141,7 +142,19 @@ def build_edge_attributes(
         "source_document_id": triple.source_document_id or payload.source.document_id,
         "source_url": payload.source.url or "",
         "source_title": payload.source.title,
+        "supporting_source_urls": [payload.source.url or ""],
+        "supporting_source_titles": [payload.source.title],
+        "supporting_source_identities": [
+            publisher_identity(
+                payload.source.url,
+                fallback=payload.source.document_id,
+            )
+        ],
+        "supporting_quotes": [fact_text],
         "extraction_confidence": float(triple.confidence),
+        "relevance_status": triple.relevance_status.value,
+        "relevance_confidence": triple.relevance_confidence,
+        "relevance_reason": triple.relevance_reason or "",
         "stated_years": sorted(stated_years(fact_text)),
         "conflicts_with": [],
     }
@@ -176,14 +189,32 @@ def resolve_reference_time(payload: VerifiedEpisodeInput) -> datetime:
 
 
 async def _lookup_entity_uuid_by_name(
-    driver: Any, group_id: str, normalized: str
+    driver: Any, group_id: str, name: str
 ) -> str | None:
     """Find an existing entity in this group whose normalized name matches."""
 
+    normalized = normalize_entity_name(name)
     records, _, _ = await driver.execute_query(
         """
         MATCH (n:Entity {group_id: $group_id})
-        WHERE toLower(trim(n.name)) = $normalized
+        WHERE toLower(trim(n.name)) = $exact_name
+        SET n.normalized_name = coalesce(n.normalized_name, $normalized)
+        RETURN n.uuid AS uuid
+        LIMIT 1
+        """,
+        group_id=group_id,
+        normalized=normalized,
+        exact_name=(name or "").strip().casefold(),
+    )
+    for record in records:
+        return record["uuid"]
+
+    # New M5 nodes carry this property. The exact-name query above also
+    # backfills it on reused pre-M5 nodes, avoiding a migration and making the
+    # normalized fallback progressively complete.
+    records, _, _ = await driver.execute_query(
+        """
+        MATCH (n:Entity {group_id: $group_id, normalized_name: $normalized})
         RETURN n.uuid AS uuid
         LIMIT 1
         """,
@@ -193,6 +224,109 @@ async def _lookup_entity_uuid_by_name(
     for record in records:
         return record["uuid"]
     return None
+
+
+async def _lookup_matching_claim_edge(
+    driver: Any,
+    *,
+    research_id: str,
+    slot_id: str,
+    group_id: str,
+    source_uuid: str,
+    target_uuid: str,
+    relation_name: str,
+) -> dict[str, Any] | None:
+    """Find the persisted claim represented by the same structured triple."""
+
+    records, _, _ = await driver.execute_query(
+        """
+        MATCH (s:Entity {uuid: $source_uuid})
+              -[e:RELATES_TO]->
+              (t:Entity {uuid: $target_uuid})
+        WHERE e.research_id = $research_id
+          AND e.slot_id = $slot_id
+          AND e.group_id = $group_id
+          AND e.name = $relation_name
+          AND e.expired_at IS NULL
+        RETURN e.uuid AS uuid,
+               e.episodes AS episodes,
+               e.source_url AS source_url,
+               e.source_title AS source_title,
+               e.fact AS fact,
+               e.supporting_source_urls AS supporting_source_urls,
+               e.supporting_source_titles AS supporting_source_titles,
+               e.supporting_source_identities AS supporting_source_identities,
+               e.supporting_quotes AS supporting_quotes
+        LIMIT 1
+        """,
+        research_id=research_id,
+        slot_id=slot_id,
+        group_id=group_id,
+        source_uuid=source_uuid,
+        target_uuid=target_uuid,
+        relation_name=relation_name,
+    )
+    for record in records:
+        return dict(record)
+    return None
+
+
+async def _append_claim_support(
+    driver: Any,
+    *,
+    match: dict[str, Any],
+    episode_uuid: str,
+    source_url: str,
+    source_title: str,
+    source_identity: str,
+    quote: str,
+) -> str:
+    """Attach one supporting episode and its source metadata to an existing claim."""
+
+    episodes = [str(item) for item in (match.get("episodes") or []) if item]
+    urls = [str(item or "") for item in (match.get("supporting_source_urls") or [])]
+    titles = [
+        str(item or "") for item in (match.get("supporting_source_titles") or [])
+    ]
+    identities = [
+        str(item or "")
+        for item in (match.get("supporting_source_identities") or [])
+    ]
+    quotes = [str(item or "") for item in (match.get("supporting_quotes") or [])]
+
+    # Seed arrays on edges written before M5.
+    if not urls and match.get("source_url") is not None:
+        legacy_url = str(match.get("source_url") or "")
+        urls.append(legacy_url)
+        titles.append(str(match.get("source_title") or ""))
+        identities.append(publisher_identity(legacy_url))
+        quotes.append(str(match.get("fact") or ""))
+
+    if episode_uuid not in episodes:
+        episodes.append(episode_uuid)
+        urls.append(source_url)
+        titles.append(source_title)
+        identities.append(source_identity)
+        quotes.append(quote)
+
+    await driver.execute_query(
+        """
+        MATCH ()-[e:RELATES_TO {uuid: $edge_uuid}]->()
+        SET e.episodes = $episodes,
+            e.supporting_source_urls = $supporting_source_urls,
+            e.supporting_source_titles = $supporting_source_titles,
+            e.supporting_source_identities = $supporting_source_identities,
+            e.supporting_quotes = $supporting_quotes
+        RETURN e.uuid AS uuid
+        """,
+        edge_uuid=str(match["uuid"]),
+        episodes=episodes,
+        supporting_source_urls=urls,
+        supporting_source_titles=titles,
+        supporting_source_identities=identities,
+        supporting_quotes=quotes,
+    )
+    return str(match["uuid"])
 
 
 async def add_verified_episode(
@@ -218,7 +352,11 @@ async def add_verified_episode(
 
     facts = [(triple, render_fact(triple)) for triple in payload.triples]
     usable = [(triple, text) for triple, text in facts if text]
-    skipped = [render_fact(t) or f"<empty triple for {payload.slot_id}>" for t, text in facts if not text]
+    skipped = [
+        render_fact(triple) or f"<empty triple for {payload.slot_id}>"
+        for triple, text in facts
+        if not text
+    ]
 
     episode = EpisodicNode(
         name=payload.episode_name
@@ -254,11 +392,18 @@ async def add_verified_episode(
         key = normalize_entity_name(name)
         if not key or key in uuid_by_key:
             continue
-        existing = await _lookup_entity_uuid_by_name(driver, group_id, key)
+        existing = await _lookup_entity_uuid_by_name(driver, group_id, name)
         if existing:
             uuid_by_key[key] = existing
             continue
-        node = EntityNode(name=name.strip(), group_id=group_id, labels=["Entity"])
+        if payload.support_only:
+            continue
+        node = EntityNode(
+            name=name.strip(),
+            group_id=group_id,
+            labels=["Entity"],
+            attributes={"normalized_name": key},
+        )
         new_nodes.append(node)
         uuid_by_key[key] = node.uuid
 
@@ -268,10 +413,16 @@ async def add_verified_episode(
             node.name_embedding = vector
             await node.save(driver)
 
-    # ---- fact edges: verbatim text, gated dates -----------------------------
-    fact_vectors = await embedder.create_batch([text for _, text in usable])
+    # ---- fact edges: merge true claim support, otherwise create -------------
     edges: list[Any] = []
-    for (triple, text), vector in zip(usable, fact_vectors, strict=True):
+    supported_edge_uuids: list[str] = []
+    new_candidates: list[tuple[ExtractedTriple, str, str, str, str]] = []
+    pending_claim_keys: set[tuple[str, str, str]] = set()
+    source_identity = publisher_identity(
+        payload.source.url,
+        fallback=payload.source.document_id,
+    )
+    for triple, text in usable:
         obj_name = (
             triple.object if isinstance(triple.object, str) else triple.object.name
         )
@@ -281,10 +432,57 @@ async def add_verified_episode(
             skipped.append(text)
             continue
 
+        relation_name = edge_relation_name(triple.predicate)
+        match = await _lookup_matching_claim_edge(
+            driver,
+            research_id=payload.research_id,
+            slot_id=payload.slot_id,
+            group_id=group_id,
+            source_uuid=source_uuid,
+            target_uuid=target_uuid,
+            relation_name=relation_name,
+        )
+        if match is not None:
+            supported_edge_uuids.append(
+                await _append_claim_support(
+                    driver,
+                    match=match,
+                    episode_uuid=episode.uuid,
+                    source_url=payload.source.url or "",
+                    source_title=payload.source.title,
+                    source_identity=source_identity,
+                    quote=text,
+                )
+            )
+            continue
+        if payload.support_only:
+            skipped.append(text)
+            continue
+        claim_key = (source_uuid, relation_name, target_uuid)
+        if claim_key in pending_claim_keys:
+            skipped.append(text)
+            continue
+        pending_claim_keys.add(claim_key)
+        new_candidates.append(
+            (triple, text, source_uuid, target_uuid, relation_name)
+        )
+
+    fact_vectors = (
+        await embedder.create_batch(
+            [text for _, text, _, _, _ in new_candidates]
+        )
+        if new_candidates
+        else []
+    )
+    for (triple, text, source_uuid, target_uuid, relation_name), vector in zip(
+        new_candidates,
+        fact_vectors,
+        strict=True,
+    ):
         edge = EntityEdge(
             source_node_uuid=source_uuid,
             target_node_uuid=target_uuid,
-            name=edge_relation_name(triple.predicate),
+            name=relation_name,
             fact=text,
             group_id=group_id,
             created_at=now,
@@ -307,12 +505,23 @@ async def add_verified_episode(
 
     # Must come last: get_nodes_and_edges_by_episode reads this field, and an
     # empty list makes every provenance lookup silently return nothing (§3.2).
-    episode.entity_edges = [edge.uuid for edge in edges]
+    supported_edge_uuids = list(dict.fromkeys(supported_edge_uuids))
+    episode.entity_edges = list(
+        dict.fromkeys(
+            [
+                *[edge.uuid for edge in edges],
+                *supported_edge_uuids,
+            ]
+        )
+    )
     await episode.save(driver)
 
+    created_edge_uuids = [edge.uuid for edge in edges]
     return GraphWriteResult(
         episode_uuid=episode.uuid,
         node_uuids=list(dict.fromkeys(uuid_by_key.values())),
-        edge_uuids=[edge.uuid for edge in edges],
+        edge_uuids=[*created_edge_uuids, *supported_edge_uuids],
+        created_edge_uuids=created_edge_uuids,
+        supported_edge_uuids=supported_edge_uuids,
         skipped_triples=skipped,
     )

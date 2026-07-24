@@ -20,7 +20,12 @@ from open_deep_research.graphrag.reporting.evidence_pack import (
     fetch_facts,
 )
 from open_deep_research.graphrag.reporting.report import build_source_index, render_report
-from open_deep_research.graphrag.schemas import EvidencePack, EvidencePackItem
+from open_deep_research.graphrag.schemas import (
+    EvidencePack,
+    EvidencePackItem,
+    SlotApplicability,
+    SlotApplicabilityStatus,
+)
 
 SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
     "WHO": (
@@ -219,6 +224,88 @@ def test_single_source_is_flagged_as_a_caveat() -> None:
     assert any("single source" in c for c in pack.items[0].caveats)
 
 
+def test_two_sources_in_one_slot_do_not_corroborate_different_claims() -> None:
+    graphiti = FakeGraphiti(
+        [
+            row(
+                uuid="a",
+                fact="FTX filed for bankruptcy",
+                source_url="https://a.example",
+                episodes=["ep-a"],
+            ),
+            row(
+                uuid="b",
+                fact="SBF resigned",
+                source_url="https://b.example",
+                episodes=["ep-b"],
+            ),
+        ]
+    )
+
+    pack = asyncio.run(
+        build_evidence_pack(graphiti, research_id="r-1", topic="FTX", schema=SCHEMA)
+    )
+
+    assert len(pack.items) == 2
+    assert all(not item.claim_corroborated for item in pack.items)
+    assert all(
+        any("single source" in caveat for caveat in item.caveats)
+        for item in pack.items
+    )
+
+
+def test_one_claim_with_two_supporting_episodes_is_corroborated() -> None:
+    graphiti = FakeGraphiti(
+        [
+            row(
+                episodes=["ep-a", "ep-b"],
+                supporting_source_urls=[
+                    "https://a.example/report",
+                    "https://b.example/report",
+                ],
+                supporting_source_titles=["A", "B"],
+                supporting_source_identities=["a.example", "b.example"],
+                supporting_quotes=[
+                    "FTX filed for bankruptcy",
+                    "FTX sought bankruptcy protection",
+                ],
+            )
+        ]
+    )
+
+    pack = asyncio.run(
+        build_evidence_pack(graphiti, research_id="r-1", topic="FTX", schema=SCHEMA)
+    )
+
+    item = pack.items[0]
+    assert item.claim_corroborated is True
+    assert item.source_count == 2
+    assert item.provenance_episode_ids == ["ep-a", "ep-b"]
+    assert not any("single source" in caveat for caveat in item.caveats)
+
+
+def test_runtime_source_limit_controls_the_reported_requirement() -> None:
+    critical_schema = {
+        "WHO": (
+            SCHEMA["WHO"][0].model_copy(update={"required_source_count": 2}),
+        )
+    }
+
+    pack = asyncio.run(
+        build_evidence_pack(
+            FakeGraphiti([row()]),
+            research_id="r-1",
+            topic="FTX",
+            schema=critical_schema,
+            max_required_source_count=1,
+        )
+    )
+
+    assert pack.items[0].required_source_count == 1
+    assert pack.items[0].support_requirement_met is True
+    assert not any("required" in caveat for caveat in pack.items[0].caveats)
+
+
 def test_undated_evidence_is_flagged() -> None:
     pack = asyncio.run(
         build_evidence_pack(
@@ -293,6 +380,25 @@ def test_sources_are_cited_when_an_index_is_supplied() -> None:
     assert "[Source A](https://a.example)" in report
 
 
+def test_each_supporting_episode_maps_to_its_own_source() -> None:
+    supported = fact(
+        "FTX",
+        "filed",
+        "bankruptcy",
+        episodes=["ep-1", "ep-2"],
+    )
+    supported.supporting_source_urls = [
+        "https://a.example/report",
+        "https://b.example/report",
+    ]
+    supported.supporting_source_titles = ["Source A", "Source B"]
+
+    index = build_source_index([supported])
+
+    assert index["ep-1"] == "[Source A](https://a.example/report)"
+    assert index["ep-2"] == "[Source B](https://b.example/report)"
+
+
 def test_conflicts_are_reported_not_resolved() -> None:
     conflicts = detect_conflicts([
         fact("FTX", "announced bankruptcy", "2023", uuid="a", episodes=["ep-1"],
@@ -327,6 +433,23 @@ def test_empty_pack_renders_an_honest_empty_report() -> None:
 
     assert report.count("未查到相关证据") == 3
     assert "调查报告" in report
+
+
+def test_not_applicable_slot_is_not_reported_as_missing() -> None:
+    pack = make_pack([])
+    pack.slot_applicability = [
+        SlotApplicability(
+            slot_id="when.event_time",
+            status=SlotApplicabilityStatus.NOT_APPLICABLE,
+            confidence=0.95,
+            reason="the topic has no event date",
+        )
+    ]
+
+    report = render_report(pack, schema=SCHEMA)
+
+    assert "事发时间** — ⏭️ 不适用" in report
+    assert report.count("未查到相关证据") == 2
 
 
 def test_one_fact_citing_two_figures_is_not_a_conflict() -> None:

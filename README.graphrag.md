@@ -13,13 +13,17 @@ path.
 The shared runtime executes:
 
 ```text
-ontology gap from Neo4j
+classify conditional ontology slots as optional / not applicable
+  → ontology gap from Neo4j
   → query with failure memory
   → Tavily search
+  → topic and full-name anchor filtering
   → relevant-passage selection
   → slot-directed extraction
   → exact source-quote and numeric checks
+  → pre-write semantic relevance gate
   → verbatim Graphiti write
+  → targeted independent support for high-impact claims
   → EvidencePack
   → report
 ```
@@ -28,9 +32,14 @@ Facts are written only when the extractor supplies a quote that can be located
 in the selected source text. The graph stores that source passage verbatim; it
 does not send the triple through Graphiti for a second LLM extraction.
 
-This proves source grounding, not universal truth. A real source passage can
-still be irrelevant to the assigned ontology slot. The regression suite
-measures that separately.
+Source grounding is not treated as universal truth. A grounded candidate must
+also pass the slot-relevance gate before it is written. High-impact facts keep
+their supporting episode, URL, publisher identity, and quote arrays on the same
+edge. A support-only round can attach provenance to an existing exact
+subject/predicate/object claim, but cannot create a nearby replacement claim.
+
+Coverage, slot-level source breadth, exact-claim corroboration, and
+high-impact support are separate metrics.
 
 ## Configuration
 
@@ -48,6 +57,12 @@ NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=...
 GRAPH_GROUP_ID=neo4j
+
+GRAPHRAG_MIN_SOURCES_PER_CLAIM=2
+GRAPHRAG_ENABLE_RELEVANCE_GATE=true
+GRAPHRAG_RELEVANCE_REJECT_THRESHOLD=0.8
+GRAPHRAG_ENABLE_SLOT_APPLICABILITY=true
+GRAPHRAG_APPLICABILITY_THRESHOLD=0.8
 ```
 
 The main LangGraph entry remains
@@ -62,7 +77,8 @@ supervisor/researcher workflow.
 python scripts/run_graphrag_research.py \
   "CrowdStrike global IT outage on July 19, 2024" \
   --max-rounds 24 \
-  --coverage-target 1.0
+  --coverage-target 1.0 \
+  --min-sources-per-claim 2
 ```
 
 The command writes:
@@ -70,10 +86,11 @@ The command writes:
 - `graphrag_report_<research_id>.md`
 - `graphrag_run_<research_id>.json`
 
-The JSON audit includes every query, coverage transition, API token count,
-provider-reported chat cost, grounding rejection count, and elapsed time.
-Embedding calls made inside Graphiti are not included in the reported chat
-cost.
+The JSON audit includes every query, coverage transition, applicability
+decision, pre-write relevance decision, support target edge, rejected search
+result count, API token count, provider-reported chat cost, grounding rejection
+count, and elapsed time. Embedding calls made inside Graphiti are not included
+in the reported chat cost.
 
 ## Running the fixed regression suite
 
@@ -83,7 +100,9 @@ The suite uses three stable historical incidents: FTX (2022), CrowdStrike
 ```bash
 python scripts/run_graphrag_regression.py \
   --max-rounds 24 \
-  --coverage-target 1.0
+  --coverage-target 1.0 \
+  --min-sources-per-claim 2 \
+  --strict
 ```
 
 This spends real Tavily, chat-model, and embedding calls. Results are written
@@ -98,9 +117,9 @@ python scripts/reevaluate_graphrag_results.py \
 
 That command makes no network calls.
 
-## 2026-07-24 measured baseline
+## 2026-07-24 measured history
 
-The committed run is in `regression_results/m4_20260724/`.
+The first committed M4 run is in `regression_results/m4_20260724/`.
 
 | Case | Graph coverage | Fixed checks | Citation coverage | Model-judged slot relevance | Sources | Chat cost |
 |---|---:|---:|---:|---:|---:|---:|
@@ -114,7 +133,7 @@ Across the suite:
 - 105 source-grounded facts;
 - zero duplicate queries;
 - every report item carries an Episode citation;
-- no slot had two independent sources, so cross-corroboration was 0%.
+- no slot had facts from two independent sources, so slot-level source breadth was 0%.
 
 The SVB run missed an explicit March 10 closure statement and the
 interest-rate/securities-loss explanation. It also placed unrelated facts about
@@ -125,11 +144,33 @@ Therefore `coverage=100%` means only “each slot has at least one persisted
 source-grounded fact.” It does not mean the report is complete or every fact is
 relevant.
 
-## Current next quality work
+### M4 metric correction
 
-The next work is not another loop rewrite. It is:
+`m4_verify_20260724` reported “94% cross-corroborated slots.” That name was
+wrong. The implementation only established that two sources contributed
+possibly different facts to the same slot. It did not establish that two
+independent publishers supported the same structured fact.
 
-1. reject source-grounded passages that do not answer their assigned slot;
-2. require two independent sources for high-impact conclusions;
-3. distinguish article body from navigation and bibliography text;
-4. improve document-level temporal context without inventing dates.
+M5 split that measurement into:
+
+- `multi_source_slot_rate`: source breadth within a slot;
+- `claim_corroboration_rate`: exact claims with at least two publisher identities;
+- `high_impact_support_rate`: high-impact claims meeting their configured source requirement.
+
+The diagnostic M5 run is committed in
+`regression_results/m5_initial_audit_20260724/`:
+
+| Case | Coverage | Fixed checks | Citations | Slot relevance* | Exact-claim corroboration | High-impact support |
+|---|---:|---:|---:|---:|---:|---:|
+| FTX | 100% | 100% | 100% | 100% | 2% | 6% |
+| CrowdStrike | 100% | 100% | 100% | 100% | 17% | 67% |
+| SVB | 100% | 83% | 100% | 100% | 4% | 14% |
+
+\* Model-judged after the run; the separate pre-write relevance gate is
+serialized in each run audit.
+
+This run is an audit baseline, not final M5 acceptance. It falsified the old
+94% interpretation and drove the later targeted-support, entity-lookup, and
+causal-query fixes. The current code passes 255 local tests plus compilation
+and diff checks. Final acceptance still requires a fresh SVB run followed by
+the full three-case live suite with the post-audit code.

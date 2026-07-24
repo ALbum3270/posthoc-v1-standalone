@@ -23,13 +23,19 @@ def result() -> GraphResearchResult:
                 conclusion="FTX filed for Chapter 11 bankruptcy on November 11, 2022.",
                 confidence=0.8,
                 provenance_episode_ids=["episode-1"],
-                caveats=["single source; no cross-corroboration"],
+                source_urls=["https://a.example"],
+                source_count=1,
+                caveats=["single source; no claim-level corroboration"],
             ),
             EvidencePackItem(
                 slot_id="who.primary_actor",
                 conclusion="Sam Bankman-Fried founded FTX.",
                 confidence=0.8,
-                provenance_episode_ids=["episode-2"],
+                provenance_episode_ids=["episode-2", "episode-3"],
+                source_urls=["https://b.example", "https://c.example"],
+                source_count=2,
+                claim_corroborated=True,
+                support_requirement_met=True,
                 caveats=[],
             ),
         ],
@@ -106,6 +112,8 @@ def test_case_metrics_keep_quality_dimensions_separate() -> None:
     assert evaluated.factual_check_pass_rate == 1.0
     assert evaluated.citation_coverage == 1.0
     assert evaluated.model_judged_slot_relevance == 0.75
+    assert evaluated.claim_corroboration_rate == 0.5
+    assert evaluated.multi_source_slot_rate == 0.5
     assert evaluated.cross_corroborated_slot_rate == 0.5
     assert evaluated.round_success_rate == 1.0
     assert evaluated.grounding_rejection_rate == 1 / 3
@@ -138,6 +146,42 @@ def test_expected_fact_missing_fails_without_affecting_forbidden_check() -> None
     assert evaluated.factual_check_pass_rate == 0.5
 
 
+def test_a_declared_explanation_check_can_span_multiple_causal_facts() -> None:
+    run = result()
+    run.evidence_pack.items = [
+        EvidencePackItem(
+            slot_id="why.trigger",
+            conclusion="Higher interest rates reduced asset values.",
+            confidence=0.8,
+            provenance_episode_ids=["ep-rate"],
+        ),
+        EvidencePackItem(
+            slot_id="how.mechanism",
+            conclusion="SVB sold securities at a $1.8 billion loss.",
+            confidence=0.8,
+            provenance_episode_ids=["ep-loss"],
+        ),
+    ]
+    causal = RegressionCase(
+        case_id="causal",
+        topic="SVB",
+        checks=[
+            FactCheck(
+                check_id="rates_and_securities",
+                description="both causal components",
+                patterns=[r"interest rate", r"securit.*loss|loss.*securit"],
+                slot_ids=["why.trigger", "how.mechanism"],
+                patterns_may_span_facts=True,
+            )
+        ],
+    )
+
+    evaluated = evaluate_case(run, causal)
+
+    assert evaluated.fact_checks[0].passed is True
+    assert len(evaluated.fact_checks[0].matching_facts) == 2
+
+
 def test_duplicate_queries_are_reported() -> None:
     run = result()
     run.rounds.append(
@@ -160,5 +204,6 @@ def test_markdown_summary_labels_model_judgement() -> None:
     rendered = render_regression_summary(RegressionSuiteResult(cases=[evaluated]))
 
     assert "Slot relevance*" in rendered
+    assert "Claim corroboration" in rendered
     assert "model-judged" in rendered
     assert "Fixed checks" in rendered

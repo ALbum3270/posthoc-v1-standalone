@@ -6,7 +6,7 @@ separate, named measurements:
 
 * fixed factual checks (expected anchors present, known false claims absent);
 * citation coverage;
-* source diversity and cross-corroboration;
+* source diversity, slot-level source breadth, and claim-level corroboration;
 * model-judged slot relevance, clearly labelled as such;
 * loop behaviour, tokens, provider-reported chat cost, and elapsed time.
 
@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from open_deep_research.graphrag.ontology import INVESTIGATION_SCHEMA, iter_slots
 from open_deep_research.graphrag.runtime import GraphResearchResult
+from open_deep_research.graphrag.validation.sources import publisher_identity
 
 
 class FactCheck(BaseModel):
@@ -37,6 +38,7 @@ class FactCheck(BaseModel):
     patterns: list[str] = Field(min_length=1)
     should_exist: bool = True
     slot_ids: list[str] = Field(default_factory=list)
+    patterns_may_span_facts: bool = False
 
 
 class RegressionCase(BaseModel):
@@ -75,7 +77,12 @@ class CaseEvaluation(BaseModel):
     citation_coverage: float
     model_judged_slot_relevance: float | None = None
     judged_item_count: int = 0
-    cross_corroborated_slot_rate: float
+    claim_corroboration_rate: float = 0.0
+    high_impact_support_rate: float = 0.0
+    multi_source_slot_rate: float = 0.0
+    # Deprecated compatibility field.  Before M5 this mislabeled slot-level
+    # source breadth as claim corroboration.
+    cross_corroborated_slot_rate: float = 0.0
     round_success_rate: float
     duplicate_query_count: int
     grounding_rejection_rate: float
@@ -86,6 +93,11 @@ class CaseEvaluation(BaseModel):
     rounds: int
     llm_calls: int
     search_calls: int
+    search_results_rejected: int = 0
+    relevance_accepted: int = 0
+    relevance_uncertain: int = 0
+    relevance_rejected: int = 0
+    support_rounds: int = 0
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -221,6 +233,7 @@ DEFAULT_REGRESSION_CASES = (
                     r"bond|securit|Treasur|债券|債券|证券|證券",
                 ],
                 slot_ids=["why.motivation", "why.trigger", "how.mechanism"],
+                patterns_may_span_facts=True,
             ),
             FactCheck(
                 check_id="svb_no_2022_closure",
@@ -251,13 +264,36 @@ def _evaluate_fact_checks(
     outcomes: list[FactCheckResult] = []
     for check in case.checks:
         allowed_slots = set(check.slot_ids)
+        eligible = [
+            item
+            for item in items
+            if not allowed_slots or item.slot_id in allowed_slots
+        ]
         matches = [
             item.conclusion
-            for item in items
-            if (not allowed_slots or item.slot_id in allowed_slots)
-            and _fact_matches(item.conclusion, check.patterns)
+            for item in eligible
+            if _fact_matches(item.conclusion, check.patterns)
         ]
-        passed = bool(matches) if check.should_exist else not matches
+        if check.patterns_may_span_facts:
+            spanning_matches = [
+                item.conclusion
+                for item in eligible
+                if any(
+                    re.search(pattern, item.conclusion, re.IGNORECASE)
+                    for pattern in check.patterns
+                )
+            ]
+            patterns_present = all(
+                any(
+                    re.search(pattern, item.conclusion, re.IGNORECASE)
+                    for item in eligible
+                )
+                for pattern in check.patterns
+            )
+            matches = list(dict.fromkeys([*matches, *spanning_matches]))
+            passed = patterns_present if check.should_exist else not patterns_present
+        else:
+            passed = bool(matches) if check.should_exist else not matches
         outcomes.append(
             FactCheckResult(
                 check_id=check.check_id,
@@ -290,21 +326,50 @@ def evaluate_case(
         else 1.0
     )
 
+    claim_corroboration = (
+        sum(
+            1
+            for item in items
+            if item.claim_corroborated or item.source_count >= 2
+        )
+        / len(items)
+        if items
+        else 0.0
+    )
+    high_impact = [item for item in items if item.required_source_count >= 2]
+    high_impact_support = (
+        sum(
+            1
+            for item in high_impact
+            if item.support_requirement_met
+            or item.source_count >= item.required_source_count
+        )
+        / len(high_impact)
+        if high_impact
+        else 1.0
+    )
+
     by_slot: dict[str, list[Any]] = {}
     for item in items:
         by_slot.setdefault(item.slot_id, []).append(item)
     filled_slot_groups = list(by_slot.values())
-    corroborated = sum(
+    multi_source_slots = sum(
         1
         for group in filled_slot_groups
-        if not any(
-            "single source; no cross-corroboration" in caveat
-            for item in group
-            for caveat in item.caveats
+        if len(
+            {
+                publisher_identity(url)
+                for item in group
+                for url in item.source_urls
+                if publisher_identity(url)
+            }
         )
+        >= 2
     )
-    cross_corroborated = (
-        corroborated / len(filled_slot_groups) if filled_slot_groups else 0.0
+    multi_source_slot_rate = (
+        multi_source_slots / len(filled_slot_groups)
+        if filled_slot_groups
+        else 0.0
     )
 
     queries = [round_trace.query.strip().casefold() for round_trace in result.rounds]
@@ -330,7 +395,10 @@ def evaluate_case(
         citation_coverage=citation_coverage,
         model_judged_slot_relevance=slot_relevance,
         judged_item_count=judged_item_count,
-        cross_corroborated_slot_rate=cross_corroborated,
+        claim_corroboration_rate=claim_corroboration,
+        high_impact_support_rate=high_impact_support,
+        multi_source_slot_rate=multi_source_slot_rate,
+        cross_corroborated_slot_rate=claim_corroboration,
         round_success_rate=success_rate,
         duplicate_query_count=duplicate_queries,
         grounding_rejection_rate=rejection_rate,
@@ -341,6 +409,13 @@ def evaluate_case(
         rounds=len(result.rounds),
         llm_calls=result.usage.llm_calls,
         search_calls=result.usage.search_calls,
+        search_results_rejected=result.usage.search_results_rejected,
+        relevance_accepted=result.usage.relevance_accepted,
+        relevance_uncertain=result.usage.relevance_uncertain,
+        relevance_rejected=result.usage.relevance_rejected,
+        support_rounds=sum(
+            1 for trace in result.rounds if trace.purpose == "support"
+        ),
         prompt_tokens=result.usage.prompt_tokens,
         completion_tokens=result.usage.completion_tokens,
         total_tokens=result.usage.total_tokens,
@@ -392,7 +467,11 @@ async def judge_slot_relevance(
                     "role": "system",
                     "content": (
                         "Judge only whether each fact directly helps answer its "
-                        "assigned question. Do not judge general truth. Return JSON "
+                        "assigned question. Do not judge general truth. For the "
+                        "primary-actor slot, a later buyer, responder, regulator, "
+                        "or affected party is irrelevant unless the fact also "
+                        "identifies the event's central subject or responsible "
+                        "actor. Return JSON "
                         'exactly as {"judgements":[{"index":0,"relevant":true}]}.'
                     ),
                 },
@@ -425,9 +504,10 @@ def render_regression_summary(suite: RegressionSuiteResult) -> str:
     lines = [
         "# GraphRAG Regression Summary",
         "",
-        "| Case | Coverage | Fixed checks | Citations | Slot relevance* | Sources | "
-        "Rounds | Tokens | Chat cost | Time |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Case | Coverage | Fixed checks | Citations | Slot relevance* | "
+        "Claim corroboration | Critical support | Sources | Rounds | Tokens | "
+        "Chat cost | Time |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for case in suite.cases:
         relevance = (
@@ -443,7 +523,9 @@ def render_regression_summary(suite: RegressionSuiteResult) -> str:
         lines.append(
             f"| {case.case_id} | {case.coverage_ratio:.0%} | "
             f"{case.factual_check_pass_rate:.0%} | {case.citation_coverage:.0%} | "
-            f"{relevance} | {case.source_count} | {case.rounds} | "
+            f"{relevance} | {case.claim_corroboration_rate:.0%} | "
+            f"{case.high_impact_support_rate:.0%} | {case.source_count} | "
+            f"{case.rounds} | "
             f"{case.total_tokens:,} | {cost} | {case.elapsed_seconds:.1f}s |"
         )
 
@@ -461,7 +543,15 @@ def render_regression_summary(suite: RegressionSuiteResult) -> str:
         lines.append(
             f"- Grounding rejections: {case.grounding_rejection_rate:.0%}; "
             f"dated facts: {case.dated_fact_rate:.0%}; "
-            f"cross-corroborated slots: {case.cross_corroborated_slot_rate:.0%}"
+            f"multi-source slots: {case.multi_source_slot_rate:.0%}; "
+            f"claim corroboration: {case.claim_corroboration_rate:.0%}"
+        )
+        lines.append(
+            f"- Pre-write relevance: {case.relevance_accepted} accepted, "
+            f"{case.relevance_uncertain} uncertain, "
+            f"{case.relevance_rejected} rejected; "
+            f"search results rejected: {case.search_results_rejected}; "
+            f"targeted support rounds: {case.support_rounds}"
         )
         for check in case.fact_checks:
             marker = "✅" if check.passed else "❌"

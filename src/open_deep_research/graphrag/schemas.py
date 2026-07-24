@@ -38,6 +38,23 @@ class VerificationStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class RelevanceStatus(str, Enum):
+    """Whether a grounded fact directly answers its assigned ontology slot."""
+
+    UNCHECKED = "unchecked"
+    ACCEPTED = "accepted"
+    UNCERTAIN = "uncertain"
+    REJECTED = "rejected"
+
+
+class SlotApplicabilityStatus(str, Enum):
+    """Per-investigation applicability of one ontology slot."""
+
+    REQUIRED = "required"
+    OPTIONAL = "optional"
+    NOT_APPLICABLE = "not_applicable"
+
+
 class SourceSpan(BaseModel):
     """Character offsets mapping extracted facts back to source content."""
 
@@ -89,6 +106,9 @@ class ExtractedTriple(BaseModel):
     source_document_id: str
     source_span: SourceSpan | None = None
     rationale: str | None = None
+    relevance_status: RelevanceStatus = RelevanceStatus.UNCHECKED
+    relevance_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    relevance_reason: str | None = None
 
 
 class ExtractedClaim(BaseModel):
@@ -164,9 +184,21 @@ class GapStatus(BaseModel):
     dimension: str
     question: str
     filled: bool = False
+    applicability: SlotApplicabilityStatus = SlotApplicabilityStatus.REQUIRED
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     supporting_episode_ids: list[str] = Field(default_factory=list)
     notes: str | None = None
+
+
+class SlotApplicability(BaseModel):
+    """Auditable per-topic decision about whether a slot should be researched."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slot_id: str
+    status: SlotApplicabilityStatus
+    confidence: float = Field(ge=0.0, le=1.0, default=1.0)
+    reason: str = ""
 
 
 class GraphEpisodePayload(BaseModel):
@@ -202,6 +234,7 @@ class VerifiedEpisodeInput(BaseModel):
     group_id: str | None = None
     episode_name: str | None = None
     verification: ClaimVerificationResult | None = None
+    support_only: bool = False
 
 
 class GraphWriteResult(BaseModel):
@@ -212,6 +245,8 @@ class GraphWriteResult(BaseModel):
     episode_uuid: str
     node_uuids: list[str] = Field(default_factory=list)
     edge_uuids: list[str] = Field(default_factory=list)
+    created_edge_uuids: list[str] = Field(default_factory=list)
+    supported_edge_uuids: list[str] = Field(default_factory=list)
     conflict_ids: list[str] = Field(default_factory=list)
     skipped_triples: list[str] = Field(default_factory=list)
 
@@ -225,6 +260,14 @@ class EvidencePackItem(BaseModel):
     conclusion: str
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     provenance_episode_ids: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(default_factory=list)
+    source_count: int = Field(default=0, ge=0)
+    required_source_count: int = Field(default=1, ge=1)
+    claim_corroborated: bool = False
+    support_requirement_met: bool = False
+    relevance_status: RelevanceStatus = RelevanceStatus.UNCHECKED
+    relevance_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    relevance_reason: str | None = None
     caveats: list[str] = Field(default_factory=list)
 
 
@@ -238,3 +281,4 @@ class EvidencePack(BaseModel):
     items: list[EvidencePackItem] = Field(default_factory=list)
     unresolved_conflicts: list[ConflictRecord] = Field(default_factory=list)
     provenance: list[str] = Field(default_factory=list)
+    slot_applicability: list[SlotApplicability] = Field(default_factory=list)

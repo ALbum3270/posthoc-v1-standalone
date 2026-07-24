@@ -18,6 +18,10 @@ from open_deep_research.graphrag.graph.queries import (
     get_open_slots_from_graph,
 )
 from open_deep_research.graphrag.ontology import INVESTIGATION_SCHEMA, OntologySlot
+from open_deep_research.graphrag.schemas import (
+    SlotApplicability,
+    SlotApplicabilityStatus,
+)
 
 SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
     "WHO": (
@@ -188,3 +192,37 @@ def test_defaults_to_the_real_investigation_schema() -> None:
     expected = sum(len(v) for v in INVESTIGATION_SCHEMA.values())
     assert len(statuses) == expected
     assert coverage_ratio_from_gaps(statuses) == 0.0
+
+
+def test_not_applicable_slot_is_excluded_from_coverage_and_work_queue() -> None:
+    applicability = {
+        "why.motive": SlotApplicability(
+            slot_id="why.motive",
+            status=SlotApplicabilityStatus.NOT_APPLICABLE,
+            confidence=0.95,
+            reason="accidental event has no intent",
+        )
+    }
+    graphiti = FakeGraphiti([row("who.primary_actor")])
+    statuses = asyncio.run(
+        get_gap_status(
+            graphiti,
+            research_id="r-1",
+            schema=SCHEMA,
+            applicability=applicability,
+        )
+    )
+    open_slots = asyncio.run(
+        get_open_slots_from_graph(
+            graphiti,
+            research_id="r-1",
+            schema=SCHEMA,
+            applicability=applicability,
+        )
+    )
+
+    assert coverage_ratio_from_gaps(statuses) == pytest.approx(1 / 2)
+    assert by_id(statuses)["why.motive"].applicability is (
+        SlotApplicabilityStatus.NOT_APPLICABLE
+    )
+    assert [slot.slot_id for slot in open_slots] == ["who.affected_parties"]

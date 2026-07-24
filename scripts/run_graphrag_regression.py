@@ -40,6 +40,9 @@ async def main(
     case_ids: list[str],
     max_rounds: int,
     coverage_target: float,
+    min_sources_per_claim: int,
+    enable_relevance_gate: bool,
+    enable_slot_applicability: bool,
     output_dir: Path | None,
     strict: bool,
 ) -> int:
@@ -66,6 +69,9 @@ async def main(
         model=os.environ.get("OPENAI_MODEL", "openai/gpt-4.1-mini"),
         max_rounds=max_rounds,
         coverage_target=coverage_target,
+        min_sources_per_claim=min_sources_per_claim,
+        enable_relevance_gate=enable_relevance_gate,
+        enable_slot_applicability=enable_slot_applicability,
     )
     llm = AsyncOpenAI(
         api_key=services.openai_api_key,
@@ -150,6 +156,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--max-rounds", type=int, default=24)
     parser.add_argument("--coverage-target", type=float, default=1.0)
+    parser.add_argument("--min-sources-per-claim", type=int, default=2)
+    parser.add_argument("--disable-relevance-gate", action="store_true")
+    parser.add_argument("--disable-slot-applicability", action="store_true")
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args()
@@ -159,6 +168,9 @@ if __name__ == "__main__":
                 case_ids=args.case,
                 max_rounds=args.max_rounds,
                 coverage_target=args.coverage_target,
+                min_sources_per_claim=args.min_sources_per_claim,
+                enable_relevance_gate=not args.disable_relevance_gate,
+                enable_slot_applicability=not args.disable_slot_applicability,
                 output_dir=args.output_dir,
                 strict=args.strict,
             )

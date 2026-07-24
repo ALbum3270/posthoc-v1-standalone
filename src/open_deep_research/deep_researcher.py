@@ -144,6 +144,17 @@ def graph_runtime_settings(configurable: Configuration) -> GraphResearchSettings
         max_chars_per_document=configurable.targeted_extraction_max_chars,
         search_results=configurable.graphrag_search_results,
         max_documents_per_round=configurable.graphrag_max_documents_per_round,
+        min_sources_per_claim=configurable.graphrag_min_sources_per_claim,
+        enable_relevance_gate=configurable.graphrag_enable_relevance_gate,
+        relevance_reject_threshold=(
+            configurable.graphrag_relevance_reject_threshold
+        ),
+        enable_slot_applicability=(
+            configurable.graphrag_enable_slot_applicability
+        ),
+        applicability_not_applicable_threshold=(
+            configurable.graphrag_applicability_threshold
+        ),
     )
 
 async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Command[Literal["write_research_brief", "__end__"]]:

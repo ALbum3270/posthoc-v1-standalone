@@ -33,6 +33,10 @@ from open_deep_research.graphrag.ontology import (
     iter_slots,
 )
 from open_deep_research.graphrag.schemas import GapStatus
+from open_deep_research.graphrag.schemas import (
+    SlotApplicability,
+    SlotApplicabilityStatus,
+)
 
 # Active facts only. §2.3: `expired_at IS NULL` is what "active" means -- there is
 # deliberately no separate status field, and a contested fact is still active,
@@ -91,6 +95,7 @@ async def get_gap_status(
     research_id: str,
     schema: dict[str, tuple[OntologySlot, ...]] | None = None,
     min_facts: int = 1,
+    applicability: dict[str, SlotApplicability] | None = None,
 ) -> list[GapStatus]:
     """Report, per ontology slot, whether the graph actually answers it.
 
@@ -105,6 +110,34 @@ async def get_gap_status(
 
     statuses: list[GapStatus] = []
     for slot in slots:
+        decision = (applicability or {}).get(slot.slot_id)
+        applicability_status = (
+            decision.status
+            if decision is not None
+            else (
+                SlotApplicabilityStatus.REQUIRED
+                if slot.applicability == "always"
+                else SlotApplicabilityStatus.OPTIONAL
+            )
+        )
+        if applicability_status is SlotApplicabilityStatus.NOT_APPLICABLE:
+            statuses.append(
+                GapStatus(
+                    slot_id=slot.slot_id,
+                    dimension=slot.dimension,
+                    question=slot.question,
+                    filled=False,
+                    applicability=applicability_status,
+                    confidence=decision.confidence if decision is not None else 1.0,
+                    notes=(
+                        f"not applicable: {decision.reason}"
+                        if decision is not None and decision.reason
+                        else "not applicable to this investigation"
+                    ),
+                )
+            )
+            continue
+
         found = evidence.get(slot.slot_id)
         if found is None:
             statuses.append(
@@ -113,6 +146,7 @@ async def get_gap_status(
                     dimension=slot.dimension,
                     question=slot.question,
                     filled=False,
+                    applicability=applicability_status,
                     confidence=0.0,
                     notes="no active facts in graph",
                 )
@@ -130,6 +164,7 @@ async def get_gap_status(
                 dimension=slot.dimension,
                 question=slot.question,
                 filled=fact_count >= min_facts,
+                applicability=applicability_status,
                 confidence=min(max(found["confidence"], 0.0), 1.0),
                 supporting_episode_ids=found["episode_uuids"],
                 notes=notes,
@@ -149,6 +184,7 @@ async def get_gap_status(
                 dimension="WHAT",
                 question=f"(slot '{slot_id}' is not in the active ontology)",
                 filled=found["fact_count"] >= min_facts,
+                applicability=SlotApplicabilityStatus.OPTIONAL,
                 confidence=min(max(found["confidence"], 0.0), 1.0),
                 supporting_episode_ids=found["episode_uuids"],
                 notes="orphan slot: present in graph, absent from schema",
@@ -166,7 +202,12 @@ def coverage_ratio_from_gaps(statuses: list[GapStatus]) -> float:
     ontology inflate the score.
     """
 
-    in_schema = [s for s in statuses if "orphan slot" not in (s.notes or "")]
+    in_schema = [
+        s
+        for s in statuses
+        if "orphan slot" not in (s.notes or "")
+        and s.applicability is not SlotApplicabilityStatus.NOT_APPLICABLE
+    ]
     if not in_schema:
         return 0.0
     return sum(1 for s in in_schema if s.filled) / len(in_schema)
@@ -178,15 +219,25 @@ async def get_open_slots_from_graph(
     research_id: str,
     schema: dict[str, tuple[OntologySlot, ...]] | None = None,
     min_facts: int = 1,
+    applicability: dict[str, SlotApplicability] | None = None,
 ) -> list[OntologySlot]:
     """Unfilled slots, highest priority first -- the supervisor's work queue."""
 
     statuses = await get_gap_status(
-        graphiti, research_id=research_id, schema=schema, min_facts=min_facts
+        graphiti,
+        research_id=research_id,
+        schema=schema,
+        min_facts=min_facts,
+        applicability=applicability,
     )
     filled = {status.slot_id for status in statuses if status.filled}
+    excluded = {
+        status.slot_id
+        for status in statuses
+        if status.applicability is SlotApplicabilityStatus.NOT_APPLICABLE
+    }
     open_slots = [
         slot for slot in iter_slots(schema or INVESTIGATION_SCHEMA)
-        if slot.slot_id not in filled
+        if slot.slot_id not in filled and slot.slot_id not in excluded
     ]
     return sorted(open_slots, key=lambda slot: (-slot.priority, slot.slot_id))

@@ -21,6 +21,9 @@ class OntologySlot(BaseModel):
     priority: int = Field(default=50, ge=0, le=100)
     dynamic: bool = False
     aliases: list[str] = Field(default_factory=list)
+    applicability: Literal["always", "conditional"] = "always"
+    required_source_count: int = Field(default=1, ge=1, le=5)
+    max_initial_claims: int | None = Field(default=None, ge=1, le=5)
 
 
 INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
@@ -29,9 +32,14 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             slot_id="who.primary_actor",
             dimension="WHO",
             label="Primary Actor",
-            question="Who is the main actor or primary subject involved?",
+            question=(
+                "Which person, organization, or system is the central subject "
+                "of the event, excluding later responders, buyers, and merely "
+                "affected parties?"
+            ),
             priority=100,
             aliases=["main actor", "primary subject"],
+            required_source_count=2,
         ),
         OntologySlot(
             slot_id="who.affected_parties",
@@ -54,6 +62,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Regulators",
             question="Which regulators, investigators, or authorities are involved?",
             priority=60,
+            applicability="conditional",
         ),
     ),
     "WHAT": (
@@ -63,6 +72,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Core Event",
             question="What exactly happened?",
             priority=100,
+            required_source_count=2,
         ),
         OntologySlot(
             slot_id="what.scale",
@@ -70,6 +80,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Scale",
             question="What is the scale, size, or material impact of the event?",
             priority=80,
+            required_source_count=2,
         ),
         OntologySlot(
             slot_id="what.products",
@@ -77,6 +88,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Products",
             question="Which products, services, or assets are involved?",
             priority=65,
+            applicability="conditional",
         ),
     ),
     "WHEN": (
@@ -86,6 +98,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Event Time",
             question="When did the key event occur?",
             priority=90,
+            required_source_count=2,
         ),
         OntologySlot(
             slot_id="when.discovery_time",
@@ -93,6 +106,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Discovery Time",
             question="When was the event discovered or disclosed?",
             priority=75,
+            applicability="conditional",
         ),
         OntologySlot(
             slot_id="when.intervention_time",
@@ -100,6 +114,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Intervention Time",
             question="When did an official intervention or response occur?",
             priority=60,
+            applicability="conditional",
         ),
     ),
     "WHERE": (
@@ -109,6 +124,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Jurisdiction",
             question="Where is the primary legal or operational jurisdiction?",
             priority=75,
+            applicability="conditional",
         ),
         OntologySlot(
             slot_id="where.asset_flow",
@@ -116,6 +132,7 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Asset Flow",
             question="Where did money, assets, or activity move?",
             priority=65,
+            applicability="conditional",
         ),
         OntologySlot(
             slot_id="where.event_location",
@@ -132,13 +149,19 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             label="Motivation",
             question="Why did the actor behave this way or pursue this action?",
             priority=60,
+            applicability="conditional",
         ),
         OntologySlot(
             slot_id="why.trigger",
             dimension="WHY",
             label="Trigger",
-            question="What trigger or catalyst explains the event?",
+            question=(
+                "What immediate trigger and underlying conditions caused or "
+                "catalyzed the event?"
+            ),
             priority=55,
+            required_source_count=2,
+            max_initial_claims=2,
         ),
     ),
     "HOW": (
@@ -146,8 +169,12 @@ INVESTIGATION_SCHEMA: dict[str, tuple[OntologySlot, ...]] = {
             slot_id="how.mechanism",
             dimension="HOW",
             label="Mechanism",
-            question="How did the event happen or how was it executed?",
+            question=(
+                "What causal mechanism made the event happen, or how was it "
+                "executed?"
+            ),
             priority=70,
+            required_source_count=2,
         ),
         OntologySlot(
             slot_id="how.sequence",

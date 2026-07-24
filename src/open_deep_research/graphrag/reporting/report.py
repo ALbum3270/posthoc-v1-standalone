@@ -16,6 +16,7 @@ from typing import Iterable
 from open_deep_research.graphrag.ontology import INVESTIGATION_SCHEMA, OntologySlot
 from open_deep_research.graphrag.reporting.evidence_pack import FactRecord
 from open_deep_research.graphrag.schemas import EvidencePack
+from open_deep_research.graphrag.schemas import SlotApplicabilityStatus
 
 _DIMENSION_ORDER = ("WHO", "WHAT", "WHEN", "WHERE", "WHY", "HOW")
 
@@ -25,11 +26,18 @@ def build_source_index(facts: Iterable[FactRecord]) -> dict[str, str]:
 
     index: dict[str, str] = {}
     for fact in facts:
-        label = fact.source_title or fact.source_url or ""
-        for episode in fact.episodes:
-            if episode not in index and (fact.source_url or label):
+        urls = fact.supporting_source_urls or [fact.source_url or ""]
+        titles = fact.supporting_source_titles or [fact.source_title or ""]
+        for position, episode in enumerate(fact.episodes):
+            url = urls[position] if position < len(urls) else (fact.source_url or "")
+            label = (
+                titles[position]
+                if position < len(titles) and titles[position]
+                else (fact.source_title or url)
+            )
+            if episode not in index and (url or label):
                 index[episode] = (
-                    f"[{label}]({fact.source_url})" if fact.source_url else label
+                    f"[{label}]({url})" if url else label
                 )
     return index
 
@@ -50,6 +58,9 @@ def render_report(
 
     active_schema = schema or INVESTIGATION_SCHEMA
     source_index = sources or {}
+    applicability = {
+        decision.slot_id: decision for decision in pack.slot_applicability
+    }
 
     by_slot: dict[str, list] = {}
     for item in pack.items:
@@ -58,13 +69,25 @@ def render_report(
         by_slot.setdefault(item.slot_id, []).append(item)
 
     all_slots = [slot for slots in active_schema.values() for slot in slots]
-    filled_count = sum(1 for slot in all_slots if by_slot.get(slot.slot_id))
+    applicable_slots = [
+        slot
+        for slot in all_slots
+        if applicability.get(slot.slot_id) is None
+        or applicability[slot.slot_id].status
+        is not SlotApplicabilityStatus.NOT_APPLICABLE
+    ]
+    filled_count = sum(
+        1 for slot in applicable_slots if by_slot.get(slot.slot_id)
+    )
+    corroborated_count = sum(item.claim_corroborated for item in pack.items)
 
     lines = [
         f"# 调查报告：{pack.topic}",
         "",
-        f"> **覆盖率** {filled_count}/{len(all_slots)} 槽位（{pack.coverage_ratio:.0%}）　"
-        f"**事实** {len(pack.items)} 条　**来源 episode** {len(pack.provenance)} 个",
+        f"> **覆盖率** {filled_count}/{len(applicable_slots)} 适用槽位"
+        f"（{pack.coverage_ratio:.0%}）　**事实** {len(pack.items)} 条　"
+        f"**结论级双源支持** {corroborated_count}/{len(pack.items)}　"
+        f"**来源 episode** {len(pack.provenance)} 个",
         "",
         "> 本报告仅消费图谱证据包。每条结论都标注了来源 episode；"
         "无证据的槽位如实标记为未查到，不做推断补全。",
@@ -78,6 +101,14 @@ def render_report(
         lines += [f"## {dimension}", ""]
         for slot in dimension_slots:
             items = by_slot.get(slot.slot_id, [])
+            decision = applicability.get(slot.slot_id)
+            if (
+                decision is not None
+                and decision.status is SlotApplicabilityStatus.NOT_APPLICABLE
+            ):
+                reason = f"：{decision.reason}" if decision.reason else ""
+                lines += [f"**{slot.label}** — ⏭️ 不适用{reason}", ""]
+                continue
             if not items:
                 lines += [f"**{slot.label}** — ⚠️ 未查到相关证据", ""]
                 continue
@@ -86,8 +117,13 @@ def render_report(
             for item in items:
                 citation = ""
                 if show_episode_ids and item.provenance_episode_ids:
-                    citation = f" `{item.provenance_episode_ids[0][:8]}`"
+                    citation = " " + " ".join(
+                        f"`{episode[:8]}`"
+                        for episode in item.provenance_episode_ids
+                    )
                 lines.append(f"  - {item.conclusion}{citation}")
+                if item.caveats:
+                    lines.append("    ⚠️ " + "；".join(sorted(item.caveats)))
 
             cited = {
                 source_index[episode]
@@ -97,9 +133,6 @@ def render_report(
             }
             if cited:
                 lines.append("  来源：" + "、".join(sorted(cited)))
-            caveats = sorted({c for item in items for c in item.caveats})
-            if caveats:
-                lines.append("  ⚠️ " + "；".join(caveats))
             lines.append("")
 
     if pack.unresolved_conflicts:

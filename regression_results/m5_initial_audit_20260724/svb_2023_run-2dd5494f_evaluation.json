@@ -1,0 +1,83 @@
+{
+  "case_id": "svb_2023",
+  "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+  "research_id": "run-2dd5494f",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 0.8333333333333334,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 27,
+  "claim_corroboration_rate": 0.037037037037037035,
+  "high_impact_support_rate": 0.14285714285714285,
+  "multi_source_slot_rate": 0.0625,
+  "cross_corroborated_slot_rate": 0.037037037037037035,
+  "round_success_rate": 0.8888888888888888,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.056338028169014086,
+  "dated_fact_rate": 0.5555555555555556,
+  "fact_count": 27,
+  "source_count": 8,
+  "episode_count": 17,
+  "rounds": 18,
+  "llm_calls": 86,
+  "search_calls": 18,
+  "prompt_tokens": 37073,
+  "completion_tokens": 8779,
+  "total_tokens": 45852,
+  "chat_provider_cost_usd": 0.028875600000000005,
+  "elapsed_seconds": 439.40175496198935,
+  "fact_checks": [
+    {
+      "check_id": "svb_closure_date",
+      "description": "SVB's closure is anchored to March 10, 2023",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On Friday, March 10, 2023, the California Department of Financial Protection and Innovation closed Silicon Valley Bank (“SVB”) and appointed the Federal Deposit Insurance Corporation (“FDIC”) as receiver.",
+        "Silicon Valley Bank, Santa Clara, California (“SVB”), was closed on Friday, March 10, 2023 by the California Department of Financial Protection & Innovation"
+      ]
+    },
+    {
+      "check_id": "svb_fdic",
+      "description": "The FDIC is identified as an intervening authority",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On March 26, 2023, the FDIC announced that First Citizens BancShares will acquire the commercial banking business of SVB."
+      ]
+    },
+    {
+      "check_id": "svb_bank_run",
+      "description": "Depositor withdrawals or a bank run appear in the mechanism",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run",
+        "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run",
+        "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run"
+      ]
+    },
+    {
+      "check_id": "svb_rates_bonds",
+      "description": "Interest rates and securities losses appear in the explanation",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_no_2022_closure",
+      "description": "SVB's closure is not dated to 2022",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_no_2024_closure",
+      "description": "SVB's closure is not dated to 2024",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

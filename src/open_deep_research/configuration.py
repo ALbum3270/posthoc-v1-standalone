@@ -222,6 +222,66 @@ class Configuration(BaseModel):
             }
         },
     )
+    graphrag_min_sources_per_claim: int = Field(
+        default=2,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 2,
+                "min": 1,
+                "max": 5,
+                "description": (
+                    "Independent publisher sources required for high-impact claims."
+                ),
+            }
+        },
+    )
+    graphrag_enable_relevance_gate: bool = Field(
+        default=True,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Reject clearly slot-irrelevant grounded facts before graph writes.",
+            }
+        },
+    )
+    graphrag_relevance_reject_threshold: float = Field(
+        default=0.8,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 0.8,
+                "min": 0.5,
+                "max": 1.0,
+                "step": 0.05,
+                "description": "Confidence required for the relevance gate to reject a fact.",
+            }
+        },
+    )
+    graphrag_enable_slot_applicability: bool = Field(
+        default=True,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Mark conditional ontology slots as applicable or not applicable.",
+            }
+        },
+    )
+    graphrag_applicability_threshold: float = Field(
+        default=0.8,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 0.8,
+                "min": 0.5,
+                "max": 1.0,
+                "step": 0.05,
+                "description": "Confidence required to exclude a slot as not applicable.",
+            }
+        },
+    )
     # Model Configuration
     summarization_model: str = Field(
         default="openai:gpt-4.1-mini",

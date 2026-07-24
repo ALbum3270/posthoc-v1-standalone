@@ -29,9 +29,11 @@ from open_deep_research.graphrag.schemas import (
     SourceDocument,
     VerifiedEpisodeInput,
 )
+from open_deep_research.graphrag.validation.sources import publisher_identity
 
 SearchFn = Callable[..., Awaitable[list[SourceDocument]]]
 ExtractFn = Callable[..., Awaitable[list[ExtractedTriple]]]
+SupportExtractFn = Callable[..., Awaitable[list[ExtractedTriple]]]
 
 
 class RoundResult(BaseModel):
@@ -44,15 +46,20 @@ class RoundResult(BaseModel):
     documents_seen: list[str] = Field(default_factory=list)
     triples_extracted: int = 0
     facts_written: int = 0
+    supports_added: int = 0
     episode_uuids: list[str] = Field(default_factory=list)
     contributing_sources: list[str] = Field(default_factory=list)
+    contributing_source_identities: list[str] = Field(default_factory=list)
+    target_edge_uuids: list[str] = Field(default_factory=list)
+    corroborated_edge_uuids: list[str] = Field(default_factory=list)
     note: str = ""
 
     @property
     def is_corroborated(self) -> bool:
-        """Whether more than one source contributed facts to this slot."""
+        """Whether every target claim received an independent supporting source."""
 
-        return len(self.contributing_sources) > 1
+        targets = set(self.target_edge_uuids)
+        return bool(targets) and targets.issubset(self.corroborated_edge_uuids)
 
     @property
     def succeeded(self) -> bool:
@@ -62,7 +69,7 @@ class RoundResult(BaseModel):
         made barren rounds look like progress.
         """
 
-        return self.facts_written > 0
+        return self.facts_written > 0 or self.supports_added > 0
 
 
 async def run_research_round(
@@ -74,6 +81,7 @@ async def run_research_round(
     query: str,
     search: SearchFn,
     extract: ExtractFn,
+    extract_support: SupportExtractFn | None = None,
     exclude_urls: list[str] | None = None,
     max_documents: int = 3,
     min_sources: int = 1,
@@ -81,12 +89,11 @@ async def run_research_round(
 ) -> RoundResult:
     """Search for one slot, extract, and write whatever survives.
 
-    ``min_sources`` is how many *distinct sources* must contribute facts before
-    the round stops early. At the default of 1 the round ends as soon as the slot
-    is answered, which is cheap but leaves every conclusion resting on a single
-    page -- the M4 regression measured 0% cross-corroboration across all three
-    topics for exactly this reason. Raising it to 2 buys a second, independent
-    source per slot at the cost of one more extraction call.
+    ``min_sources`` is how many independent publisher identities must support
+    the *same structured claim* before the round stops early.  The first source
+    establishes target triples.  Further documents are passed to
+    ``extract_support`` and written with ``support_only=True``: an unrelated fact
+    in the same broad slot cannot masquerade as corroboration.
 
     Documents that yield nothing are still reported, so their URLs are excluded
     next time round.
@@ -96,21 +103,48 @@ async def run_research_round(
     excluded = set(exclude_urls or [])
 
     documents = await search(query=query, exclude_urls=sorted(excluded))
-    candidates = [
-        document
-        for document in documents
-        if document.url not in excluded and document.content.strip()
-    ][:max_documents]
+    candidates: list[SourceDocument] = []
+    candidate_publishers: set[str] = set()
+    for document in documents:
+        if document.url in excluded or not document.content.strip():
+            continue
+        identity = publisher_identity(
+            document.url,
+            fallback=document.document_id,
+        )
+        if identity and identity in candidate_publishers:
+            continue
+        candidates.append(document)
+        if identity:
+            candidate_publishers.add(identity)
+        if len(candidates) >= max_documents:
+            break
 
     if not candidates:
         result.note = "search returned no usable documents"
         return result
 
+    primary_targets: list[ExtractedTriple] = []
     for document in candidates:
         if document.url:
             result.documents_seen.append(document.url)
 
-        triples = await extract(document=document, slot=slot)
+        identity = publisher_identity(
+            document.url,
+            fallback=document.document_id,
+        )
+        if primary_targets:
+            if identity in result.contributing_source_identities:
+                continue
+            if extract_support is None:
+                continue
+            triples = await extract_support(
+                document=document,
+                slot=slot,
+                targets=primary_targets,
+            )
+        else:
+            triples = await extract(document=document, slot=slot)
         if not triples:
             continue
         result.triples_extracted += len(triples)
@@ -123,27 +157,154 @@ async def run_research_round(
                 source=document,
                 triples=triples,
                 group_id=group_id,
+                support_only=bool(primary_targets),
             ),
             default_group_id=group_id,
         )
         result.episode_uuids.append(write.episode_uuid)
-        result.facts_written += len(write.edge_uuids)
+        result.facts_written += len(write.created_edge_uuids)
+        result.supports_added += len(write.supported_edge_uuids)
+        result.corroborated_edge_uuids.extend(write.supported_edge_uuids)
 
         if write.edge_uuids:
             source_key = document.url or document.document_id
             if source_key and source_key not in result.contributing_sources:
                 result.contributing_sources.append(source_key)
-            if len(result.contributing_sources) >= max(min_sources, 1):
+            if identity and identity not in result.contributing_source_identities:
+                result.contributing_source_identities.append(identity)
+
+        if not primary_targets and write.created_edge_uuids:
+            primary_targets = triples
+            result.target_edge_uuids = list(write.created_edge_uuids)
+
+        if write.supported_edge_uuids:
+            result.corroborated_edge_uuids = list(
+                dict.fromkeys(result.corroborated_edge_uuids)
+            )
+            if result.is_corroborated and (
+                len(result.contributing_source_identities) >= max(min_sources, 1)
+            ):
                 break
+        elif write.created_edge_uuids and min_sources <= 1:
+            break
 
     if result.succeeded and not result.is_corroborated and min_sources > 1:
+        missing = len(
+            set(result.target_edge_uuids) - set(result.corroborated_edge_uuids)
+        )
         result.note = (
-            f"only {len(result.contributing_sources)} source contributed; "
-            f"wanted {min_sources}"
+            f"{missing} structured claim(s) did not reach the requested "
+            f"independent support count of {min_sources}"
         )
     elif not result.succeeded and not result.note:
         result.note = (
             f"{len(result.documents_seen)} document(s) searched, "
             f"{result.triples_extracted} triple(s) extracted, none reached the graph"
+        )
+    return result
+
+
+async def run_support_round(
+    graphiti: Any,
+    *,
+    research_id: str,
+    slot: OntologySlot,
+    target: ExtractedTriple,
+    target_edge_uuid: str,
+    query: str,
+    search: SearchFn,
+    extract_support: SupportExtractFn,
+    exclude_urls: list[str] | None = None,
+    exclude_source_identities: list[str] | None = None,
+    max_documents: int = 3,
+    group_id: str = "neo4j",
+) -> RoundResult:
+    """Run a targeted follow-up whose only allowed outcome is claim support.
+
+    Coverage rounds search for an answer to a slot. This follow-up instead
+    searches for one already-persisted structured claim and uses
+    ``support_only=True``. It can add provenance to that exact edge, but it
+    cannot create a convenient new fact merely to make a support metric rise.
+    """
+
+    result = RoundResult(
+        slot_id=slot.slot_id,
+        query=query,
+        target_edge_uuids=[target_edge_uuid],
+    )
+    excluded_urls = set(exclude_urls or [])
+    excluded_identities = set(exclude_source_identities or [])
+
+    documents = await search(query=query, exclude_urls=sorted(excluded_urls))
+    candidates: list[SourceDocument] = []
+    candidate_publishers: set[str] = set()
+    for document in documents:
+        if document.url in excluded_urls or not document.content.strip():
+            continue
+        identity = publisher_identity(
+            document.url,
+            fallback=document.document_id,
+        )
+        if identity and (
+            identity in excluded_identities or identity in candidate_publishers
+        ):
+            continue
+        candidates.append(document)
+        if identity:
+            candidate_publishers.add(identity)
+        if len(candidates) >= max_documents:
+            break
+
+    if not candidates:
+        result.note = "support search returned no independent usable documents"
+        return result
+
+    for document in candidates:
+        if document.url:
+            result.documents_seen.append(document.url)
+        identity = publisher_identity(
+            document.url,
+            fallback=document.document_id,
+        )
+        triples = await extract_support(
+            document=document,
+            slot=slot,
+            targets=[target],
+        )
+        if not triples:
+            continue
+        result.triples_extracted += len(triples)
+
+        write: GraphWriteResult = await add_verified_episode(
+            graphiti,
+            VerifiedEpisodeInput(
+                research_id=research_id,
+                slot_id=slot.slot_id,
+                source=document,
+                triples=triples,
+                group_id=group_id,
+                support_only=True,
+            ),
+            default_group_id=group_id,
+        )
+        result.episode_uuids.append(write.episode_uuid)
+        result.supports_added += len(write.supported_edge_uuids)
+        result.corroborated_edge_uuids.extend(write.supported_edge_uuids)
+
+        if target_edge_uuid in write.supported_edge_uuids:
+            source_key = document.url or document.document_id
+            if source_key:
+                result.contributing_sources.append(source_key)
+            if identity:
+                result.contributing_source_identities.append(identity)
+            result.corroborated_edge_uuids = list(
+                dict.fromkeys(result.corroborated_edge_uuids)
+            )
+            break
+
+    if not result.succeeded:
+        result.note = (
+            f"{len(result.documents_seen)} independent document(s) searched; "
+            "none supported the exact structured claim"
         )
     return result

@@ -25,13 +25,24 @@ from open_deep_research.graphrag.runtime import (  # noqa: E402
 )
 
 
-async def main(topic: str, *, max_rounds: int, coverage_target: float) -> int:
+async def main(
+    topic: str,
+    *,
+    max_rounds: int,
+    coverage_target: float,
+    min_sources_per_claim: int,
+    enable_relevance_gate: bool,
+    enable_slot_applicability: bool,
+) -> int:
     """Execute one run and persist its report plus machine-readable audit."""
 
     settings = GraphResearchSettings(
         model=os.environ.get("OPENAI_MODEL", "openai/gpt-4.1-mini"),
         max_rounds=max_rounds,
         coverage_target=coverage_target,
+        min_sources_per_claim=min_sources_per_claim,
+        enable_relevance_gate=enable_relevance_gate,
+        enable_slot_applicability=enable_slot_applicability,
     )
     result = await run_live_graph_research(
         topic,
@@ -65,6 +76,9 @@ if __name__ == "__main__":
     parser.add_argument("topic")
     parser.add_argument("--max-rounds", type=int, default=24)
     parser.add_argument("--coverage-target", type=float, default=1.0)
+    parser.add_argument("--min-sources-per-claim", type=int, default=2)
+    parser.add_argument("--disable-relevance-gate", action="store_true")
+    parser.add_argument("--disable-slot-applicability", action="store_true")
     arguments = parser.parse_args()
     raise SystemExit(
         asyncio.run(
@@ -72,6 +86,9 @@ if __name__ == "__main__":
                 arguments.topic,
                 max_rounds=arguments.max_rounds,
                 coverage_target=arguments.coverage_target,
+                min_sources_per_claim=arguments.min_sources_per_claim,
+                enable_relevance_gate=not arguments.disable_relevance_gate,
+                enable_slot_applicability=not arguments.disable_slot_applicability,
             )
         )
     )

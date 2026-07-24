@@ -50,6 +50,11 @@ def test_graph_runtime_settings_map_application_controls(monkeypatch) -> None:
         graphrag_max_attempts_per_slot=2,
         graphrag_search_results=4,
         graphrag_max_documents_per_round=2,
+        graphrag_min_sources_per_claim=2,
+        graphrag_enable_relevance_gate=True,
+        graphrag_relevance_reject_threshold=0.85,
+        graphrag_enable_slot_applicability=True,
+        graphrag_applicability_threshold=0.9,
     )
 
     settings = main_graph.graph_runtime_settings(config)
@@ -60,6 +65,11 @@ def test_graph_runtime_settings_map_application_controls(monkeypatch) -> None:
     assert settings.max_attempts_per_slot == 2
     assert settings.search_results == 4
     assert settings.max_documents_per_round == 2
+    assert settings.min_sources_per_claim == 2
+    assert settings.enable_relevance_gate is True
+    assert settings.relevance_reject_threshold == 0.85
+    assert settings.enable_slot_applicability is True
+    assert settings.applicability_not_applicable_threshold == 0.9
 
 
 def test_graph_node_returns_the_evidence_only_report(monkeypatch) -> None:

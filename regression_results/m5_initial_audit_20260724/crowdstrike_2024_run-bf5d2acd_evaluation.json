@@ -1,0 +1,88 @@
+{
+  "case_id": "crowdstrike_2024",
+  "topic": "CrowdStrike global IT outage on July 19, 2024",
+  "research_id": "run-bf5d2acd",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 1.0,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 23,
+  "claim_corroboration_rate": 0.17391304347826086,
+  "high_impact_support_rate": 0.6666666666666666,
+  "multi_source_slot_rate": 0.26666666666666666,
+  "cross_corroborated_slot_rate": 0.17391304347826086,
+  "round_success_rate": 0.8823529411764706,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.22950819672131148,
+  "dated_fact_rate": 0.30434782608695654,
+  "fact_count": 23,
+  "source_count": 13,
+  "episode_count": 19,
+  "rounds": 17,
+  "llm_calls": 86,
+  "search_calls": 17,
+  "prompt_tokens": 36443,
+  "completion_tokens": 6700,
+  "total_tokens": 43143,
+  "chat_provider_cost_usd": 0.025297200000000002,
+  "elapsed_seconds": 359.03776247899805,
+  "fact_checks": [
+    {
+      "check_id": "crowdstrike_date",
+      "description": "The outage is anchored to July 19, 2024",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "| Date | 19 July 2024; 2 years ago (2024-07-19) |",
+        "On July 19, 2024, cybersecurity firm CrowdStrike pushed an update to its software that caused some devices running the Windows operating system to crash."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_falcon",
+      "description": "CrowdStrike Falcon is identified as the affected product",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "the American cybersecurity company CrowdStrike distributed a faulty update to its Falcon Sensor security software"
+      ]
+    },
+    {
+      "check_id": "crowdstrike_windows",
+      "description": "Windows systems are identified as affected",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "Computers running macOS and Linux were unaffected, as the problematic content file was only for Windows",
+        "The impact to companies in the Central United States was exacerbated by an unrelated outage with Microsoft Azure the previous day.",
+        "The issue impacted Microsoft Windows machines running Falcon sensor for Windows version 7.11.",
+        "On July 19, 2024, cybersecurity firm CrowdStrike pushed an update to its software that caused some devices running the Windows operating system to crash.",
+        "Update 9:45 a.m., EDT, July 21, 2024:\nMicrosoft released a recovery tool that uses a USB drive to boot and repair affected systems."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_update",
+      "description": "A faulty content/software update is identified as the trigger",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On July 19, 2024, a global IT outage was triggered by a faulty update from CrowdStrike, a leading cybersecurity firm.",
+        "The culprit? A faulty automatic sensor configuration update."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_no_2025_event",
+      "description": "The 2024 outage is not dated to 2025",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "crowdstrike_no_2026_event",
+      "description": "The 2024 outage is not dated to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

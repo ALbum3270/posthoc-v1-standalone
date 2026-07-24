@@ -44,12 +44,58 @@ class FakeDriver:
     def __init__(self, existing_entities: dict[str, str] | None = None) -> None:
         self.calls: list[dict] = []
         self.existing = existing_entities or {}
+        self.claim_edges: dict[tuple[str, ...], dict] = {}
 
     async def execute_query(self, query, **kwargs):
         self.calls.append({"query": str(query), **kwargs})
         if "normalized" in kwargs:
             uuid = self.existing.get(kwargs["normalized"])
             return ([{"uuid": uuid}] if uuid else []), None, None
+        if "entity_data" in kwargs:
+            data = kwargs["entity_data"]
+            self.existing[normalize_entity_name(data["name"])] = data["uuid"]
+        if "edge_data" in kwargs:
+            data = kwargs["edge_data"]
+            if data.get("research_id"):
+                key = (
+                    data["research_id"],
+                    data["slot_id"],
+                    data["group_id"],
+                    data["source_uuid"],
+                    data["target_uuid"],
+                    data["name"],
+                )
+                self.claim_edges[key] = dict(data)
+        if "relation_name" in kwargs:
+            key = (
+                kwargs["research_id"],
+                kwargs["slot_id"],
+                kwargs["group_id"],
+                kwargs["source_uuid"],
+                kwargs["target_uuid"],
+                kwargs["relation_name"],
+            )
+            found = self.claim_edges.get(key)
+            return ([dict(found)] if found else []), None, None
+        if "edge_uuid" in kwargs and "supporting_source_urls" in kwargs:
+            for edge in self.claim_edges.values():
+                if edge["uuid"] == kwargs["edge_uuid"]:
+                    edge.update(
+                        {
+                            "episodes": kwargs["episodes"],
+                            "supporting_source_urls": kwargs[
+                                "supporting_source_urls"
+                            ],
+                            "supporting_source_titles": kwargs[
+                                "supporting_source_titles"
+                            ],
+                            "supporting_source_identities": kwargs[
+                                "supporting_source_identities"
+                            ],
+                            "supporting_quotes": kwargs["supporting_quotes"],
+                        }
+                    )
+                    return [{"uuid": edge["uuid"]}], None, None
         return [], None, None
 
     # -- helpers ---------------------------------------------------------
@@ -71,6 +117,8 @@ class FakeDriver:
 
 class FakeEmbedder:
     async def create_batch(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            raise AssertionError("empty embedding batches must be skipped")
         return [[float(i)] * EMBED_DIM for i, _ in enumerate(texts)]
 
 
@@ -158,6 +206,8 @@ def test_edge_attributes_carry_the_queryable_contract() -> None:
     assert attributes["research_id"] == "r-123"
     assert attributes["slot_id"] == "what.core_event"
     assert attributes["source_url"] == "https://example.com/ftx"
+    assert attributes["supporting_source_urls"] == ["https://example.com/ftx"]
+    assert attributes["supporting_source_identities"] == ["example.com"]
     assert attributes["stated_years"] == [2022]
     assert not RESERVED_EDGE_ATTRIBUTES.intersection(attributes)
 
@@ -339,3 +389,86 @@ def test_empty_payload_still_anchors_an_episode() -> None:
     assert result.episode_uuid
     assert result.edge_uuids == []
     assert len(driver.episode_saves) == 1
+
+
+def test_second_source_merges_into_the_same_claim_edge() -> None:
+    """Corroboration means two episodes on one claim, not two facts in a slot."""
+
+    driver = FakeDriver()
+    graphiti = FakeGraphiti(driver)
+    first = make_payload(
+        [
+            make_triple(
+                "FTX",
+                "filed for",
+                "Chapter 11",
+                quote="FTX filed for Chapter 11.",
+            )
+        ]
+    )
+    first_result = asyncio.run(add_verified_episode(graphiti, first))
+
+    second = VerifiedEpisodeInput(
+        research_id="r-123",
+        slot_id="what.core_event",
+        source=SourceDocument(
+            document_id="doc-2",
+            title="Independent report",
+            url="https://independent.example/ftx",
+            content="A second source says FTX filed for Chapter 11.",
+        ),
+        triples=[
+            ExtractedTriple(
+                slot_id="what.core_event",
+                subject=first.triples[0].subject,
+                predicate=first.triples[0].predicate,
+                object=first.triples[0].object,
+                confidence=0.8,
+                source_document_id="doc-2",
+                source_span=SourceSpan(
+                    start_char=21,
+                    end_char=46,
+                    quote="FTX filed for Chapter 11.",
+                ),
+            )
+        ],
+        support_only=True,
+    )
+    second_result = asyncio.run(add_verified_episode(graphiti, second))
+
+    assert len(driver.edge_saves) == 1
+    assert second_result.created_edge_uuids == []
+    assert second_result.supported_edge_uuids == first_result.edge_uuids
+    stored = next(iter(driver.claim_edges.values()))
+    assert len(stored["episodes"]) == 2
+    assert stored["supporting_source_identities"] == [
+        "example.com",
+        "independent.example",
+    ]
+
+
+def test_support_only_payload_cannot_create_an_unrelated_claim() -> None:
+    driver = FakeDriver()
+    graphiti = FakeGraphiti(driver)
+    initial = make_payload([make_triple("FTX", "filed for", "Chapter 11")])
+    asyncio.run(add_verified_episode(graphiti, initial))
+
+    unrelated = VerifiedEpisodeInput(
+        research_id="r-123",
+        slot_id="what.core_event",
+        source=SourceDocument(
+            document_id="doc-2",
+            title="Other story",
+            url="https://other.example/story",
+            content="Binance discussed an acquisition.",
+        ),
+        triples=[
+            make_triple("Binance", "discussed", "an acquisition")
+        ],
+        support_only=True,
+    )
+    result = asyncio.run(add_verified_episode(graphiti, unrelated))
+
+    assert result.created_edge_uuids == []
+    assert result.supported_edge_uuids == []
+    assert "Binance discussed an acquisition" in result.skipped_triples

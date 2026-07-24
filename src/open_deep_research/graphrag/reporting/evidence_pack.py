@@ -42,7 +42,10 @@ from open_deep_research.graphrag.schemas import (
     ConflictRecord,
     EvidencePack,
     EvidencePackItem,
+    RelevanceStatus,
+    SlotApplicability,
 )
+from open_deep_research.graphrag.validation.sources import publisher_identity
 
 _FACT_QUERY = """
 MATCH (subject:Entity)-[e:RELATES_TO {research_id: $research_id}]->(object:Entity)
@@ -53,6 +56,13 @@ RETURN e.uuid AS uuid,
        e.valid_at AS valid_at,
        e.source_url AS source_url,
        e.source_title AS source_title,
+       e.supporting_source_urls AS supporting_source_urls,
+       e.supporting_source_titles AS supporting_source_titles,
+       e.supporting_source_identities AS supporting_source_identities,
+       e.supporting_quotes AS supporting_quotes,
+       e.relevance_status AS relevance_status,
+       e.relevance_confidence AS relevance_confidence,
+       e.relevance_reason AS relevance_reason,
        coalesce(e.extraction_confidence, 0.0) AS confidence,
        e.episodes AS episodes,
        e.name AS predicate,
@@ -91,10 +101,45 @@ class FactRecord:
     valid_at: Any | None = None
     source_url: str | None = None
     source_title: str | None = None
+    supporting_source_urls: list[str] = field(default_factory=list)
+    supporting_source_titles: list[str] = field(default_factory=list)
+    supporting_source_identities: list[str] = field(default_factory=list)
+    supporting_quotes: list[str] = field(default_factory=list)
+    relevance_status: RelevanceStatus = RelevanceStatus.UNCHECKED
+    relevance_confidence: float | None = None
+    relevance_reason: str | None = None
 
     @property
     def has_provenance(self) -> bool:
         return bool(self.episodes)
+
+    @property
+    def distinct_source_identities(self) -> list[str]:
+        """Publisher identities supporting this exact persisted claim."""
+
+        values = [
+            str(item)
+            for item in self.supporting_source_identities
+            if str(item).strip()
+        ]
+        if not values:
+            fallback = publisher_identity(self.source_url)
+            if fallback:
+                values.append(fallback)
+        return list(dict.fromkeys(values))
+
+    @property
+    def distinct_source_urls(self) -> list[str]:
+        """De-duplicated source URLs attached to this exact claim."""
+
+        values = [
+            str(item)
+            for item in self.supporting_source_urls
+            if str(item).strip()
+        ]
+        if not values and self.source_url:
+            values.append(self.source_url)
+        return list(dict.fromkeys(values))
 
 
 def _normalize(text: str) -> str:
@@ -140,6 +185,30 @@ async def fetch_facts(graphiti: Any, *, research_id: str) -> list[FactRecord]:
                 valid_at=record["valid_at"],
                 source_url=record["source_url"],
                 source_title=record["source_title"],
+                supporting_source_urls=[
+                    str(item)
+                    for item in (record.get("supporting_source_urls") or [])
+                ],
+                supporting_source_titles=[
+                    str(item)
+                    for item in (record.get("supporting_source_titles") or [])
+                ],
+                supporting_source_identities=[
+                    str(item)
+                    for item in (record.get("supporting_source_identities") or [])
+                ],
+                supporting_quotes=[
+                    str(item) for item in (record.get("supporting_quotes") or [])
+                ],
+                relevance_status=RelevanceStatus(
+                    record.get("relevance_status") or RelevanceStatus.UNCHECKED
+                ),
+                relevance_confidence=(
+                    float(record["relevance_confidence"])
+                    if record.get("relevance_confidence") is not None
+                    else None
+                ),
+                relevance_reason=record.get("relevance_reason") or None,
             )
         )
     return facts
@@ -235,18 +304,28 @@ def detect_conflicts(facts: list[FactRecord]) -> list[ConflictRecord]:
     return conflicts
 
 
-def _caveats(group: list[FactRecord]) -> list[str]:
-    """Qualifications a reader needs in order to weigh the evidence."""
+def _caveats(
+    fact: FactRecord,
+    *,
+    required_source_count: int,
+) -> list[str]:
+    """Qualifications attached to this exact conclusion, never its whole slot."""
 
     notes: list[str] = []
-    sources = {f.source_url for f in group if f.source_url}
-    if len(sources) == 1:
-        notes.append("single source; no cross-corroboration")
-    if not any(f.valid_at for f in group):
-        notes.append("no verified date: the sources did not state one explicitly")
-    low = [f for f in group if f.confidence < 0.5]
-    if low:
-        notes.append(f"{len(low)} fact(s) below 0.5 extraction confidence")
+    source_count = len(fact.distinct_source_identities)
+    if source_count < 2:
+        notes.append("single source; no claim-level corroboration")
+    if source_count < required_source_count:
+        notes.append(
+            f"claim has {source_count} independent source(s); "
+            f"{required_source_count} required"
+        )
+    if fact.valid_at is None:
+        notes.append("no verified date: this source did not state one explicitly")
+    if fact.confidence < 0.5:
+        notes.append("extraction confidence below 0.5")
+    if fact.relevance_status is RelevanceStatus.UNCERTAIN:
+        notes.append("slot relevance is uncertain")
     return notes
 
 
@@ -256,6 +335,8 @@ async def build_evidence_pack(
     research_id: str,
     topic: str,
     schema: dict[str, tuple[OntologySlot, ...]] | None = None,
+    applicability: dict[str, SlotApplicability] | None = None,
+    max_required_source_count: int | None = None,
 ) -> EvidencePack:
     """Assemble the pack the report is allowed to consume.
 
@@ -266,10 +347,22 @@ async def build_evidence_pack(
 
     active_schema = schema or INVESTIGATION_SCHEMA
     facts = await fetch_facts(graphiti, research_id=research_id)
-    citable = [fact for fact in facts if fact.has_provenance]
+    not_applicable = {
+        slot_id
+        for slot_id, decision in (applicability or {}).items()
+        if decision.status.value == "not_applicable"
+    }
+    citable = [
+        fact
+        for fact in facts
+        if fact.has_provenance and fact.slot_id not in not_applicable
+    ]
 
     statuses = await get_gap_status(
-        graphiti, research_id=research_id, schema=active_schema
+        graphiti,
+        research_id=research_id,
+        schema=active_schema,
+        applicability=applicability,
     )
     coverage = coverage_ratio_from_gaps(statuses)
 
@@ -283,15 +376,33 @@ async def build_evidence_pack(
             group = by_slot.get(slot.slot_id, [])
             if not group:
                 continue
-            caveats = _caveats(group)
+            required_source_count = (
+                min(slot.required_source_count, max_required_source_count)
+                if max_required_source_count is not None
+                else slot.required_source_count
+            )
             for fact in group:
+                source_count = len(fact.distinct_source_identities)
                 items.append(
                     EvidencePackItem(
                         slot_id=slot.slot_id,
                         conclusion=fact.fact,
                         confidence=fact.confidence,
                         provenance_episode_ids=list(fact.episodes),
-                        caveats=caveats,
+                        source_urls=fact.distinct_source_urls,
+                        source_count=source_count,
+                        required_source_count=required_source_count,
+                        claim_corroborated=source_count >= 2,
+                        support_requirement_met=(
+                            source_count >= required_source_count
+                        ),
+                        relevance_status=fact.relevance_status,
+                        relevance_confidence=fact.relevance_confidence,
+                        relevance_reason=fact.relevance_reason,
+                        caveats=_caveats(
+                            fact,
+                            required_source_count=required_source_count,
+                        ),
                     )
                 )
 
@@ -301,4 +412,5 @@ async def build_evidence_pack(
         items=items,
         unresolved_conflicts=detect_conflicts(citable),
         provenance=sorted({ep for fact in citable for ep in fact.episodes}),
+        slot_applicability=list((applicability or {}).values()),
     )
