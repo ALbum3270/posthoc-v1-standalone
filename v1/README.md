@@ -7,10 +7,12 @@
 | 有 | 没有 |
 |---|---|
 | 5W1H 硬编码槽位驱动搜索 | CurioCat 质检 |
+| 失败记忆、查询去重、槽位退避 | LLM 置信度停机 |
+| Tavily 摘要 + 相关正文选段 | 动态 Ontology |
 | 小模型三元组抽取 | 冲突检测 / flush 屏障 |
-| Graphiti 写入 + 检索 | 动态 Ontology |
-| Markdown 报告输出 | Provenance UUID 链 |
-| 最多 10 轮自动停止 | 冲突裁决 |
+| Graphiti 写入 + Episode 精确回溯 | 结构化边属性写入 |
+| 带来源 URL / Episode UUID 的报告 | 冲突裁决 |
+| 最多 24 轮，全部填满时提前停止 | 正式版控制流 |
 
 ## 环境配置
 
@@ -23,7 +25,7 @@ cp .env.example .env
 
 # 2. 确保 Neo4j 正在运行（默认端口 7687）
 # Docker 快速启动：
-docker compose up -d neo4j   # 使用根目录的 docker-compose.yml
+docker compose -f ../graphiti-main/docker-compose.yml up -d neo4j
 
 # 可选：覆盖默认连接
 export NEO4J_URI=bolt://localhost:7687
@@ -59,6 +61,10 @@ python -m v1.run "OpenAI GPT-4o release" --max-rounds 8
          • ...
 ```
 
+失败槽位不会在下一轮立即原样重试；Supervisor 会先调查其他未尝试槽位，
+之后使用不同查询和未访问过的 URL 再试。报告按本次运行实际写入的 Episode
+UUID 读取事实，避免不同槽位或历史任务之间串味。
+
 报告自动保存到 `v1_report_<research_id>.md`。
 
 ## 文件结构
@@ -78,8 +84,10 @@ v1/
 
 ## 依赖
 
-已在 `pyproject.toml` 中声明（主项目的 dependencies 均可用）：
+主项目依赖：
 - `openai`（直接调用，不走 langchain）
 - `tavily-python`
-- `graphiti-core`（从 `graphiti-main/` 目录安装）
 - `python-dotenv`
+
+`graphiti-core` 当前从同级 `graphiti-main/` 以 editable 方式安装；它尚未写入
+主项目的 `pyproject.toml`。

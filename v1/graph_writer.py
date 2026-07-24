@@ -1,13 +1,13 @@
 """
 Graphiti 写入封装（V1 极简版）。
 
-将抽取到的三元组序列化为 episode_body 文本，写入 Graphiti，
-metadata 中携带 ontology_slot 和 source_url，用于报告阶段 groupby。
+将抽取到的三元组序列化为 episode_body 文本，写入 Graphiti。
+研究 ID、槽位 ID 与 URL 保存在 Episode 名称/来源描述中；报告阶段使用
+返回的 Episode UUID 精确回溯，不再依赖模糊语义检索分组。
 """
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -16,11 +16,13 @@ async def write_slot_episode(
     graphiti: Any,
     *,
     group_id: str,
+    research_id: str,
     slot_id: str,
     slot_label: str,
     triples: list[dict],
     source_url: str,
     source_title: str,
+    previous_episode_uuids: list[str] | None = None,
 ) -> str:
     """
     将一批三元组作为一个 Episode 写入 Graphiti。
@@ -40,12 +42,18 @@ async def write_slot_episode(
     episode_body = "\n".join(lines)
 
     result = await graphiti.add_episode(
-        name=f"{slot_id}::{source_title[:60]}",
+        name=f"{research_id}::{slot_id}::{source_title[:60]}",
         episode_body=episode_body,
-        source_description=f"Web research — {source_url}",
+        source_description=(
+            "Web research"
+            f" | research_id={research_id}"
+            f" | slot_id={slot_id}"
+            f" | url={source_url}"
+        ),
         reference_time=datetime.now(timezone.utc),
         source=EpisodeType.text,
         group_id=group_id,
+        previous_episode_uuids=previous_episode_uuids,
     )
 
     uuid = getattr(result, "episode", None)
