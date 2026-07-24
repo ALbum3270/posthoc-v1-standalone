@@ -1,0 +1,1412 @@
+{
+  "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+  "research_id": "run-b426dc5e",
+  "stop_reason": "coverage_reached",
+  "stop_detail": "coverage 100% >= target 100%",
+  "coverage_ratio": 1.0,
+  "gap_status": [
+    {
+      "slot_id": "who.primary_actor",
+      "dimension": "WHO",
+      "question": "Who is the main actor or primary subject involved?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "f12aa2eb-60af-4944-bc83-46328adf12c5",
+        "34fd8036-62e6-4ad9-abd6-ab1af71545ea"
+      ],
+      "notes": "6 active fact(s)"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "dimension": "WHO",
+      "question": "Who is affected, targeted, or impacted?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "e9e8d6d7-300f-43be-ab4d-a06e05a56844",
+        "87d27f9f-36d5-4a92-bcc9-cd7851e56ae5"
+      ],
+      "notes": "4 active fact(s)"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "dimension": "WHO",
+      "question": "Which organizations, subsidiaries, or partners are involved?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "29f8944d-5ea3-4217-a309-9e75d303d293",
+        "6b7991f8-862c-4349-8942-12a8c6106433"
+      ],
+      "notes": "7 active fact(s)"
+    },
+    {
+      "slot_id": "who.regulators",
+      "dimension": "WHO",
+      "question": "Which regulators, investigators, or authorities are involved?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "6996129f-3fdc-42c2-8ad2-6305b962e7ed",
+        "a38eb8e5-974f-462f-9edd-12c5b8ac0dae"
+      ],
+      "notes": "4 active fact(s)"
+    },
+    {
+      "slot_id": "what.core_event",
+      "dimension": "WHAT",
+      "question": "What exactly happened?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "ecb152ff-6e8a-4dd7-8177-7d26a24f69c1",
+        "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+      ],
+      "notes": "13 active fact(s)"
+    },
+    {
+      "slot_id": "what.scale",
+      "dimension": "WHAT",
+      "question": "What is the scale, size, or material impact of the event?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "c6295fbf-eab7-4466-bb96-83e41b179d72",
+        "3b4a4d04-1f19-43bc-a1ed-9566f65e6158"
+      ],
+      "notes": "7 active fact(s)"
+    },
+    {
+      "slot_id": "what.products",
+      "dimension": "WHAT",
+      "question": "Which products, services, or assets are involved?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "67e8015e-9761-4d1f-8d12-bf502b99b1c9",
+        "e95863bb-1821-40a5-b1fb-c5988bc9c630"
+      ],
+      "notes": "8 active fact(s)"
+    },
+    {
+      "slot_id": "when.event_time",
+      "dimension": "WHEN",
+      "question": "When did the key event occur?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "65570db0-0f50-487b-9d23-76e39f2148c7",
+        "39dee66f-1d6d-4930-a417-b1f91b764ce6"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "dimension": "WHEN",
+      "question": "When was the event discovered or disclosed?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "fb77b046-0e74-46a6-ba37-70468a551d11",
+        "5a3bde30-248d-429e-8749-78948f804f25"
+      ],
+      "notes": "3 active fact(s)"
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "dimension": "WHEN",
+      "question": "When did an official intervention or response occur?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "8ac67e24-a478-4ec6-8b31-259e76999357",
+        "33f6a6e0-a094-461b-b10c-c5cece3d0c38"
+      ],
+      "notes": "3 active fact(s)"
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "dimension": "WHERE",
+      "question": "Where is the primary legal or operational jurisdiction?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "c1d91346-187b-4baf-a276-30ab132c1d91",
+        "58589ae9-21c6-4637-8e82-6083ebab2bf5"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "dimension": "WHERE",
+      "question": "Where did money, assets, or activity move?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "6e2896e7-00cb-4f35-8b1b-16678cdfca01",
+        "e38439c1-655a-4808-97bf-cb70786279c3"
+      ],
+      "notes": "3 active fact(s)"
+    },
+    {
+      "slot_id": "where.event_location",
+      "dimension": "WHERE",
+      "question": "Where did the event happen or become visible?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "28fce3d8-7bc1-4440-b8a1-375cc2cf15a2",
+        "928be7ae-9200-4a15-af2e-e30c15ee93a2"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "why.motivation",
+      "dimension": "WHY",
+      "question": "Why did the actor behave this way or pursue this action?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "1121c9b0-0b5b-4d20-8e3f-f267340d5a86",
+        "41597e55-2fbf-47b7-9a0a-ed3370832b98"
+      ],
+      "notes": "5 active fact(s)"
+    },
+    {
+      "slot_id": "why.trigger",
+      "dimension": "WHY",
+      "question": "What trigger or catalyst explains the event?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "90b1e4c0-a64a-447e-bbf0-d34009e66fe6",
+        "1b45e0fb-1707-4604-bcbe-2afd8ca572dc"
+      ],
+      "notes": "5 active fact(s)"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "dimension": "HOW",
+      "question": "How did the event happen or how was it executed?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "634979d1-0e8a-4697-af26-a91fa163aa9d",
+        "c2367dac-fb8c-4d72-a102-fffc15d3e668"
+      ],
+      "notes": "10 active fact(s)"
+    },
+    {
+      "slot_id": "how.sequence",
+      "dimension": "HOW",
+      "question": "How did the activity unfold step by step?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "f6d5bb6c-1fd7-4298-bc47-8ad966c3b7a0",
+        "9c3944a2-adbf-4f6d-8a70-9783731e9f6f"
+      ],
+      "notes": "12 active fact(s)"
+    }
+  ],
+  "evidence_pack": {
+    "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+    "coverage_ratio": 1.0,
+    "items": [
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f12aa2eb-60af-4944-bc83-46328adf12c5"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "Bankman-Fried was the CEO of both companies until he formally stepped down from his position at Alameda in October 2021",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f12aa2eb-60af-4944-bc83-46328adf12c5"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "In 2019, Bankman-Fried had the idea of starting a cryptocurrency exchange to help bring in revenue to fund Alameda's activities and founded FTX.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f12aa2eb-60af-4944-bc83-46328adf12c5"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "Sam Bankman-Fried and the Collapse of FTX",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "34fd8036-62e6-4ad9-abd6-ab1af71545ea"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "Sam Bankman-Fried and the Collapse of FTX",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "34fd8036-62e6-4ad9-abd6-ab1af71545ea"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "Sam Bankman-Fried cofounded Alameda Research, a cryptocurrency trading firm, in 2017.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f12aa2eb-60af-4944-bc83-46328adf12c5"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Institutional investors that stand to lose money due to their stakes in FTX include Tiger Global Management, the Ontario Teachers' Pension Plan, SoftBank Group, BlackRock, Lightspeed Venture Partners, Temasek, and Sequoia Capital.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e9e8d6d7-300f-43be-ab4d-a06e05a56844"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Prior to its collapse, FTX was the third-largest cryptocurrency exchange by volume and had over one million users.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e9e8d6d7-300f-43be-ab4d-a06e05a56844"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Throughout 2023, bankruptcy proceedings unfolded, revealing that the company owed billions to creditors.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "87d27f9f-36d5-4a92-bcc9-cd7851e56ae5"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "customers became unable to retrieve the money they had deposited in the exchange.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e9e8d6d7-300f-43be-ab4d-a06e05a56844"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "29f8944d-5ea3-4217-a309-9e75d303d293"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "29f8944d-5ea3-4217-a309-9e75d303d293"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "FTX cryptocurrency exchange, owned by Sam Bankman-Fried",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "6b7991f8-862c-4349-8942-12a8c6106433"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "On 11 November, FTX, Alameda Research, and over 100 affiliated entities filed for bankruptcy",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "29f8944d-5ea3-4217-a309-9e75d303d293"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "a competing cryptocurrency exchange, Binance, to sell all its shares of FTT",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "6b7991f8-862c-4349-8942-12a8c6106433"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "a deal with competitor Binance fell through",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "6b7991f8-862c-4349-8942-12a8c6106433"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "a trading company called Alameda Research, also owned by Bankman-Fried",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "6b7991f8-862c-4349-8942-12a8c6106433"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.regulators",
+        "conclusion": "Binance withdrew its offer the next day, citing reports of mishandled customer funds and U.S. agency investigations.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "6996129f-3fdc-42c2-8ad2-6305b962e7ed"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.regulators",
+        "conclusion": "On December 12, 2022, founder Sam Bankman-Fried was arrested by the Bahamian authorities for financial offences, at the request of the US government.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "6996129f-3fdc-42c2-8ad2-6305b962e7ed"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.regulators",
+        "conclusion": "the Department of Justice and the Securities and Exchange Commission are examining FTX to determine whether any criminal activity or securities offenses were committed.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "a38eb8e5-974f-462f-9edd-12c5b8ac0dae"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "who.regulators",
+        "conclusion": "the Department of Justice and the Securities and Exchange Commission are examining FTX to determine whether any criminal activity or securities offenses were committed.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "a38eb8e5-974f-462f-9edd-12c5b8ac0dae"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "Bankman-Fried resigned as FTX CEO and was replaced by John",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "In October 2023, all three testified that it was Bankman-Fried who directed them to commit fraud.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "On 2 November 2023, Sam Bankman-Fried was convicted of defrauding customers of FTX and lenders of Alameda Research.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "Prior to its collapse, FTX was the third-largest cryptocurrency exchange by volume and had over one million users.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "Sam was convicted of fraud and sent to prison for 25 years.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ecb152ff-6e8a-4dd7-8177-7d26a24f69c1"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "Still, there his relative was, telling Jonathan that the Bankman-Frieds believed the story about how FTX collapsed was all wrong.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ecb152ff-6e8a-4dd7-8177-7d26a24f69c1"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "The article triggered a spike in withdrawals from FTX, but eventually, customers became unable to retrieve the money they had deposited in the exchange.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "69d71519-d271-444c-9a7c-e71ac9f0b9a6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "The relative just had dinner with Barbara Fried and Joe Bankman.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ecb152ff-6e8a-4dd7-8177-7d26a24f69c1"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "an Jones got an unexpected phone call from a relative, who said he had a scoop for him.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ecb152ff-6e8a-4dd7-8177-7d26a24f69c1"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "they’re also the parents of the former cryptocurrency CEO Sam Bankman-Fried.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ecb152ff-6e8a-4dd7-8177-7d26a24f69c1"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "Bankman-Fried's net worth, estimated at $16 billion prior to the collapse, was reported as having been wiped out",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "3b4a4d04-1f19-43bc-a1ed-9566f65e6158"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "Prior to its collapse, FTX was the third-largest cryptocurrency exchange by volume",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "3b4a4d04-1f19-43bc-a1ed-9566f65e6158"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "Prior to its collapse, FTX was the third-largest cryptocurrency exchange by volume and had over one million users",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "3b4a4d04-1f19-43bc-a1ed-9566f65e6158"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "Some $473 million in funds were later taken from FTX in an \"unauthorized transaction\"",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "3b4a4d04-1f19-43bc-a1ed-9566f65e6158"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "The collapse of FTX resulted in a ripple effect across cryptocurrency markets, with the price of Bitcoin falling to its lowest level in two years",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "3b4a4d04-1f19-43bc-a1ed-9566f65e6158"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "3b4a4d04-1f19-43bc-a1ed-9566f65e6158"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "resulting in the collapse of token prices on November 6, shedding more than 80% of their value in 3 days",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c6295fbf-eab7-4466-bb96-83e41b179d72"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "Alameda Research, another company owned by Bankman-Fried, held a large amount of FTX's cryptocurrency token, FTT",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "67e8015e-9761-4d1f-8d12-bf502b99b1c9"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "Binance, to sell all its shares of FTT",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "67e8015e-9761-4d1f-8d12-bf502b99b1c9"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "FTX’s cryptocurrency token, or asset, called FTT",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "67e8015e-9761-4d1f-8d12-bf502b99b1c9"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "The FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "67e8015e-9761-4d1f-8d12-bf502b99b1c9"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "The swift collapse of the cryptocurrency exchange FTX sent more shockwaves through the crypto world",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e95863bb-1821-40a5-b1fb-c5988bc9c630"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "a deal with competitor Binance fell through",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "67e8015e-9761-4d1f-8d12-bf502b99b1c9"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "a trading company called Alameda Research, also owned by Bankman-Fried",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "67e8015e-9761-4d1f-8d12-bf502b99b1c9"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "the Securities Commission of the Bahamas had frozen the assets of FTX Digital Markets, a subsidiary of the cryptocurrency exchange",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e95863bb-1821-40a5-b1fb-c5988bc9c630"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "when.event_time",
+        "conclusion": "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "39dee66f-1d6d-4930-a417-b1f91b764ce6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "when.event_time",
+        "conclusion": "and collapsed in 2022.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "65570db0-0f50-487b-9d23-76e39f2148c7"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "conclusion": "November 2, 2022: A Coindesk report reveals that FTX and its sister firm, Alameda Research were intertwined financially and that Alameda Research was reliant on the value of FTT, leading to market panic.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "5a3bde30-248d-429e-8749-78948f804f25"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "conclusion": "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fb77b046-0e74-46a6-ba37-70468a551d11"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "conclusion": "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fb77b046-0e74-46a6-ba37-70468a551d11"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "conclusion": "Long before the FTX collapse Better Markets sounded the alarm in the media about FTX’s proposal.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "8ac67e24-a478-4ec6-8b31-259e76999357"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "conclusion": "asked the tough questions (including of Sam Bankman-Fried directly in our conference room)",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "8ac67e24-a478-4ec6-8b31-259e76999357"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "conclusion": "the company filed for bankruptcy on November 11, 2022",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "33f6a6e0-a094-461b-b10c-c5cece3d0c38"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "where.jurisdiction",
+        "conclusion": "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "58589ae9-21c6-4637-8e82-6083ebab2bf5"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "where.jurisdiction",
+        "conclusion": "United States Bankruptcy Court (District of Delaware)",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c1d91346-187b-4baf-a276-30ab132c1d91"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "conclusion": "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "6e2896e7-00cb-4f35-8b1b-16678cdfca01"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "conclusion": "a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT. This triggered a competing cryptocurrency exchange, Binance, to sell all its shares of FTT.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e38439c1-655a-4808-97bf-cb70786279c3"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "conclusion": "customers became unable to retrieve the money they had deposited in the exchange",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "6e2896e7-00cb-4f35-8b1b-16678cdfca01"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "where.event_location",
+        "conclusion": "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "28fce3d8-7bc1-4440-b8a1-375cc2cf15a2"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "where.event_location",
+        "conclusion": "we identify avenues through which the collapse of the FTX exchange manifested contagion effects throughout a number of financial markets",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "928be7ae-9200-4a15-af2e-e30c15ee93a2"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "why.motivation",
+        "conclusion": "Bankman-Fried apologized for the liquidity crisis",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "1121c9b0-0b5b-4d20-8e3f-f267340d5a86"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.motivation",
+        "conclusion": "Bankman-Fried said “poor internal labeling” caused FTX to miscalculate leverage and liquidity",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "1121c9b0-0b5b-4d20-8e3f-f267340d5a86"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.motivation",
+        "conclusion": "FTT’s value dropped significantly, and FTX began to search for new investments from venture capitalists.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "41597e55-2fbf-47b7-9a0a-ed3370832b98"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.motivation",
+        "conclusion": "admitted on Twitter (now known as X) that FTX’s non-U.S. exchange had insufficient funds in reserve to meet customer demands",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "1121c9b0-0b5b-4d20-8e3f-f267340d5a86"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.motivation",
+        "conclusion": "and announced that Alameda would shut down its trading operations",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "1121c9b0-0b5b-4d20-8e3f-f267340d5a86"
+        ],
+        "caveats": [
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "Following the allegation, Binance, one of FTX’s investors, announced it would sell its FTT, which caused the price to crash.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "1b45e0fb-1707-4604-bcbe-2afd8ca572dc"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "Following the allegation, Binance, one of FTX’s investors, announced it would sell its FTT, which caused the price to crash.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "1b45e0fb-1707-4604-bcbe-2afd8ca572dc"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. The article triggered a spike in withdrawals from FTX",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "90b1e4c0-a64a-447e-bbf0-d34009e66fe6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "90b1e4c0-a64a-447e-bbf0-d34009e66fe6"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "The move also triggered billions in trader and customer withdrawals.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "1b45e0fb-1707-4604-bcbe-2afd8ca572dc"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "According to John J. Ray III, Alameda had a \"secret exemption\" from FTX's auto-liquidation protocol",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "634979d1-0e8a-4697-af26-a91fa163aa9d"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "Alameda Research suffered a series of losses in May and June 2022, which anonymous sources told the Wall Street Journal resulted in FTX lending the trading firm more than half of its customer funds",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "634979d1-0e8a-4697-af26-a91fa163aa9d"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "November 2, 2022: CoinDesk investigation exposes Alameda Research's balance sheet dependency on FTT tokens valued at $3.66 billion, revealing dangerous financial entanglement between the trading firm, the exchange, and the price of FTT.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c2367dac-fb8c-4d72-a102-fffc15d3e668"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "November 6, 2022: Binance CEO Changpeng Zhao announces liquidation of the exchange's entire $2.1 billion FTT position. FTX experiences $997 million in customer withdrawals within 24 hours.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c2367dac-fb8c-4d72-a102-fffc15d3e668"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "November 7, 2022: Withdrawal demand surges to $4.02 billion over the subsequent 48 hours, completely overwhelming FTX's available reserves.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c2367dac-fb8c-4d72-a102-fffc15d3e668"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "November 8, 2022: FTX implements emergency suspension of",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c2367dac-fb8c-4d72-a102-fffc15d3e668"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "On 11 November, FTX, Alameda Research, and over 100 affiliated entities filed for bankruptcy",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "634979d1-0e8a-4697-af26-a91fa163aa9d"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. The article triggered a spike in withdrawals from FTX",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "634979d1-0e8a-4697-af26-a91fa163aa9d"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "634979d1-0e8a-4697-af26-a91fa163aa9d"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "customers became unable to retrieve the money they had deposited in the exchange",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "634979d1-0e8a-4697-af26-a91fa163aa9d"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "Alameda was once the largest trader on FTX, bringing liquidity to the exchange.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f6d5bb6c-1fd7-4298-bc47-8ad966c3b7a0"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "Bankman-Fried resigned as FTX CEO and was replaced by John",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f6d5bb6c-1fd7-4298-bc47-8ad966c3b7a0"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "Binance announced the existence of a non-binding letter of intent to purchase FTX.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "9c3944a2-adbf-4f6d-8a70-9783731e9f6f"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "Coindesk anticipated Binance intention to decline any kind of deal. The news was officially confirmed at 20:50 (GMT).",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "9c3944a2-adbf-4f6d-8a70-9783731e9f6f"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "Figure 2 reports rescaled hourly closing prices for FTT, BNB and Bitcoin (BTC).",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "9c3944a2-adbf-4f6d-8a70-9783731e9f6f"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "It is worth noting that, since 01 January 2022, FTT has demonstrated superior performance compared to BTC and BNB.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "9c3944a2-adbf-4f6d-8a70-9783731e9f6f"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "On (b) 02 November 2022, 14:44 (GMT), CoinDesk reported that Alameda R\n\n| We identify a massive selling pressure on FTT, which could be related to the liquidation of Alameda Research loans.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "9c3944a2-adbf-4f6d-8a70-9783731e9f6f"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f6d5bb6c-1fd7-4298-bc47-8ad966c3b7a0"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "The article triggered a spike in withdrawals from FTX, but eventually, customers became unable to retrieve the money they had deposited in the exchange.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f6d5bb6c-1fd7-4298-bc47-8ad966c3b7a0"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f6d5bb6c-1fd7-4298-bc47-8ad966c3b7a0"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f6d5bb6c-1fd7-4298-bc47-8ad966c3b7a0"
+        ],
+        "caveats": []
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "The dataset is directly obtained from Binance, the largest digital currency exchange in terms of traded volume (CoinMarketCap,, 2023), through the use of the CCXT Python package (Ccxt,, 2023).",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "9c3944a2-adbf-4f6d-8a70-9783731e9f6f"
+        ],
+        "caveats": []
+      }
+    ],
+    "unresolved_conflicts": [],
+    "provenance": [
+      "1121c9b0-0b5b-4d20-8e3f-f267340d5a86",
+      "1b45e0fb-1707-4604-bcbe-2afd8ca572dc",
+      "28fce3d8-7bc1-4440-b8a1-375cc2cf15a2",
+      "29f8944d-5ea3-4217-a309-9e75d303d293",
+      "33f6a6e0-a094-461b-b10c-c5cece3d0c38",
+      "34fd8036-62e6-4ad9-abd6-ab1af71545ea",
+      "39dee66f-1d6d-4930-a417-b1f91b764ce6",
+      "3b4a4d04-1f19-43bc-a1ed-9566f65e6158",
+      "41597e55-2fbf-47b7-9a0a-ed3370832b98",
+      "58589ae9-21c6-4637-8e82-6083ebab2bf5",
+      "5a3bde30-248d-429e-8749-78948f804f25",
+      "634979d1-0e8a-4697-af26-a91fa163aa9d",
+      "65570db0-0f50-487b-9d23-76e39f2148c7",
+      "67e8015e-9761-4d1f-8d12-bf502b99b1c9",
+      "6996129f-3fdc-42c2-8ad2-6305b962e7ed",
+      "69d71519-d271-444c-9a7c-e71ac9f0b9a6",
+      "6b7991f8-862c-4349-8942-12a8c6106433",
+      "6e2896e7-00cb-4f35-8b1b-16678cdfca01",
+      "87d27f9f-36d5-4a92-bcc9-cd7851e56ae5",
+      "8ac67e24-a478-4ec6-8b31-259e76999357",
+      "90b1e4c0-a64a-447e-bbf0-d34009e66fe6",
+      "928be7ae-9200-4a15-af2e-e30c15ee93a2",
+      "9c3944a2-adbf-4f6d-8a70-9783731e9f6f",
+      "a38eb8e5-974f-462f-9edd-12c5b8ac0dae",
+      "c1d91346-187b-4baf-a276-30ab132c1d91",
+      "c2367dac-fb8c-4d72-a102-fffc15d3e668",
+      "c6295fbf-eab7-4466-bb96-83e41b179d72",
+      "e38439c1-655a-4808-97bf-cb70786279c3",
+      "e95863bb-1821-40a5-b1fb-c5988bc9c630",
+      "e9e8d6d7-300f-43be-ab4d-a06e05a56844",
+      "ecb152ff-6e8a-4dd7-8177-7d26a24f69c1",
+      "f12aa2eb-60af-4944-bc83-46328adf12c5",
+      "f6d5bb6c-1fd7-4298-bc47-8ad966c3b7a0",
+      "fb77b046-0e74-46a6-ba37-70468a551d11"
+    ]
+  },
+  "report": "# 调查报告：FTX cryptocurrency exchange collapse and bankruptcy in 2022\n\n> **覆盖率** 17/17 槽位（100%）　**事实** 96 条　**来源 episode** 34 个\n\n> 本报告仅消费图谱证据包。每条结论都标注了来源 episode；无证据的槽位如实标记为未查到，不做推断补全。\n\n## WHO\n\n**Primary Actor**\n  - Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried `f12aa2eb`\n  - Bankman-Fried was the CEO of both companies until he formally stepped down from his position at Alameda in October 2021 `f12aa2eb`\n  - In 2019, Bankman-Fried had the idea of starting a cryptocurrency exchange to help bring in revenue to fund Alameda's activities and founded FTX. `f12aa2eb`\n  - Sam Bankman-Fried and the Collapse of FTX `34fd8036`\n  - Sam Bankman-Fried and the Collapse of FTX `34fd8036`\n  - Sam Bankman-Fried cofounded Alameda Research, a cryptocurrency trading firm, in 2017. `f12aa2eb`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[Sam Bankman-Fried and the Collapse of FTX - The New York Times](https://www.nytimes.com/news-event/ftx-sbf-crypto)\n\n**Affected Parties**\n  - Institutional investors that stand to lose money due to their stakes in FTX include Tiger Global Management, the Ontario Teachers' Pension Plan, SoftBank Group, BlackRock, Lightspeed Venture Partners, Temasek, and Sequoia Capital. `e9e8d6d7`\n  - Prior to its collapse, FTX was the third-largest cryptocurrency exchange by volume and had over one million users. `e9e8d6d7`\n  - Throughout 2023, bankruptcy proceedings unfolded, revealing that the company owed billions to creditors. `87d27f9f`\n  - customers became unable to retrieve the money they had deposited in the exchange. `e9e8d6d7`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[FTX bankruptcy | Law | Research Starters](https://www.ebsco.com/research-starters/law/ftx-bankruptcy)\n  ⚠️ no verified date: the sources did not state one explicitly\n\n**Related Organizations**\n  - Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried `29f8944d`\n  - Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried `29f8944d`\n  - FTX cryptocurrency exchange, owned by Sam Bankman-Fried `6b7991f8`\n  - On 11 November, FTX, Alameda Research, and over 100 affiliated entities filed for bankruptcy `29f8944d`\n  - a competing cryptocurrency exchange, Binance, to sell all its shares of FTT `6b7991f8`\n  - a deal with competitor Binance fell through `6b7991f8`\n  - a trading company called Alameda Research, also owned by Bankman-Fried `6b7991f8`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[FTX bankruptcy | Law | Research Starters](https://www.ebsco.com/research-starters/law/ftx-bankruptcy)\n  ⚠️ no verified date: the sources did not state one explicitly\n\n**Regulators**\n  - Binance withdrew its offer the next day, citing reports of mishandled customer funds and U.S. agency investigations. `6996129f`\n  - On December 12, 2022, founder Sam Bankman-Fried was arrested by the Bahamian authorities for financial offences, at the request of the US government. `6996129f`\n  - the Department of Justice and the Securities and Exchange Commission are examining FTX to determine whether any criminal activity or securities offenses were committed. `a38eb8e5`\n  - the Department of Justice and the Securities and Exchange Commission are examining FTX to determine whether any criminal activity or securities offenses were committed. `a38eb8e5`\n  来源：[AP source: US authorities investigate crypto exchange FTX](https://www.wsls.com/business/2022/11/10/ap-source-us-authorities-investigate-crypto-exchange-ftx)、[FTX](https://en.wikipedia.org/wiki/FTX)\n\n## WHAT\n\n**Core Event**\n  - Bankman-Fried resigned as FTX CEO and was replaced by John `69d71519`\n  - In October 2023, all three testified that it was Bankman-Fried who directed them to commit fraud. `69d71519`\n  - On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. `69d71519`\n  - On 2 November 2023, Sam Bankman-Fried was convicted of defrauding customers of FTX and lenders of Alameda Research. `69d71519`\n  - Prior to its collapse, FTX was the third-largest cryptocurrency exchange by volume and had over one million users. `69d71519`\n  - Sam was convicted of fraud and sent to prison for 25 years. `ecb152ff`\n  - Still, there his relative was, telling Jonathan that the Bankman-Frieds believed the story about how FTX collapsed was all wrong. `ecb152ff`\n  - The article triggered a spike in withdrawals from FTX, but eventually, customers became unable to retrieve the money they had deposited in the exchange. `69d71519`\n  - The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022. `69d71519`\n  - The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy. `69d71519`\n  - The relative just had dinner with Barbara Fried and Joe Bankman. `ecb152ff`\n  - an Jones got an unexpected phone call from a relative, who said he had a scoop for him. `ecb152ff`\n  - they’re also the parents of the former cryptocurrency CEO Sam Bankman-Fried. `ecb152ff`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[The Secret Story of FTX’s Rise and Ruin Part 1 - Reveal](https://revealnews.org/podcast/sam-bankman-fried-ftx-collapse-part-1-update-2026)\n\n**Scale**\n  - Bankman-Fried's net worth, estimated at $16 billion prior to the collapse, was reported as having been wiped out `3b4a4d04`\n  - Prior to its collapse, FTX was the third-largest cryptocurrency exchange by volume `3b4a4d04`\n  - Prior to its collapse, FTX was the third-largest cryptocurrency exchange by volume and had over one million users `3b4a4d04`\n  - Some $473 million in funds were later taken from FTX in an \"unauthorized transaction\" `3b4a4d04`\n  - The collapse of FTX resulted in a ripple effect across cryptocurrency markets, with the price of Bitcoin falling to its lowest level in two years `3b4a4d04`\n  - The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts `3b4a4d04`\n  - resulting in the collapse of token prices on November 6, shedding more than 80% of their value in 3 days `c6295fbf`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[Causal estimation of FTX collapse on cryptocurrency: a counterfactual prediction analysis | Financial Innovation | Springer Nature Link](https://link.springer.com/article/10.1186/s40854-024-00690-8)\n  ⚠️ no verified date: the sources did not state one explicitly\n\n**Products**\n  - Alameda Research, another company owned by Bankman-Fried, held a large amount of FTX's cryptocurrency token, FTT `67e8015e`\n  - Binance, to sell all its shares of FTT `67e8015e`\n  - FTX’s cryptocurrency token, or asset, called FTT `67e8015e`\n  - The FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange `67e8015e`\n  - The swift collapse of the cryptocurrency exchange FTX sent more shockwaves through the crypto world `e95863bb`\n  - a deal with competitor Binance fell through `67e8015e`\n  - a trading company called Alameda Research, also owned by Bankman-Fried `67e8015e`\n  - the Securities Commission of the Bahamas had frozen the assets of FTX Digital Markets, a subsidiary of the cryptocurrency exchange `e95863bb`\n  来源：[Collapse of FTX cryptocurrency exchange under scrutiny by federal authorities | Cryptocurrencies | The Guardian](https://www.theguardian.com/technology/2022/nov/10/ftx-cryptocurrency-collapse-investigation)、[FTX bankruptcy | Law | Research Starters](https://www.ebsco.com/research-starters/law/ftx-bankruptcy)\n  ⚠️ no verified date: the sources did not state one explicitly\n\n## WHEN\n\n**Event Time**\n  - The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022. `39dee66f`\n  - and collapsed in 2022. `65570db0`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[FTX - Wikipedia](https://en.wikipedia.org/wiki/FTX)\n\n**Discovery Time**\n  - November 2, 2022: A Coindesk report reveals that FTX and its sister firm, Alameda Research were intertwined financially and that Alameda Research was reliant on the value of FTT, leading to market panic. `5a3bde30`\n  - On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. `fb77b046`\n  - The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022. `fb77b046`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[The FTX Collapse: A Complete Guide](https://coinledger.io/learn/the-ftx-collapse)\n\n**Intervention Time**\n  - Long before the FTX collapse Better Markets sounded the alarm in the media about FTX’s proposal. `8ac67e24`\n  - asked the tough questions (including of Sam Bankman-Fried directly in our conference room) `8ac67e24`\n  - the company filed for bankruptcy on November 11, 2022 `33f6a6e0`\n  来源：[Better Markets Crypto/FTX Timeline | Better Markets](https://bettermarkets.org/ftx-timeline)、[Causal estimation of FTX collapse on cryptocurrency](https://link.springer.com/article/10.1186/s40854-024-00690-8)\n\n## WHERE\n\n**Jurisdiction**\n  - The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022. `58589ae9`\n  - United States Bankruptcy Court (District of Delaware) `c1d91346`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[FTX Cryptocurrency Exchange Collapse Litigation](https://www.saverilawfirm.com/ftx-cryptocurrency-exchange-collapse-litigation)\n\n**Asset Flow**\n  - Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT `6e2896e7`\n  - a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT. This triggered a competing cryptocurrency exchange, Binance, to sell all its shares of FTT. `e38439c1`\n  - customers became unable to retrieve the money they had deposited in the exchange `6e2896e7`\n  来源：[Bankruptcy of FTX - Wikipedia](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX#:~:text=The%20bankruptcy%20of%20FTX%2C%20a,the%20impetus%20for%20its%20bankruptcy.)、[FTX bankruptcy | Law | Research Starters](https://www.ebsco.com/research-starters/law/ftx-bankruptcy)\n  ⚠️ no verified date: the sources did not state one explicitly\n\n**Event Location**\n  - The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022. `28fce3d8`\n  - we identify avenues through which the collapse of the FTX exchange manifested contagion effects throughout a number of financial markets `928be7ae`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[Understanding the FTX exchange collapse | Dublin City University](https://www.dcu.ie/research-publication/understanding-ftx-exchange-collapse)\n\n## WHY\n\n**Motivation**\n  - Bankman-Fried apologized for the liquidity crisis `1121c9b0`\n  - Bankman-Fried said “poor internal labeling” caused FTX to miscalculate leverage and liquidity `1121c9b0`\n  - FTT’s value dropped significantly, and FTX began to search for new investments from venture capitalists. `41597e55`\n  - admitted on Twitter (now known as X) that FTX’s non-U.S. exchange had insufficient funds in reserve to meet customer demands `1121c9b0`\n  - and announced that Alameda would shut down its trading operations `1121c9b0`\n  来源：[FTX Crypto Exchange Collapse: Causes, Consequences, ...](https://www.investopedia.com/what-went-wrong-with-ftx-6828447)、[FTX bankruptcy | Law | Research Starters](https://www.ebsco.com/research-starters/law/ftx-bankruptcy)\n  ⚠️ no verified date: the sources did not state one explicitly\n\n**Trigger**\n  - Following the allegation, Binance, one of FTX’s investors, announced it would sell its FTT, which caused the price to crash. `1b45e0fb`\n  - Following the allegation, Binance, one of FTX’s investors, announced it would sell its FTT, which caused the price to crash. `1b45e0fb`\n  - On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. The article triggered a spike in withdrawals from FTX `90b1e4c0`\n  - The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy. `90b1e4c0`\n  - The move also triggered billions in trader and customer withdrawals. `1b45e0fb`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[FTX Bankruptcy: Why They Filed, Their Scandal & Collapse](https://www.consumernotice.org/legal/crypto-bankruptcies/ftx)\n\n## HOW\n\n**Mechanism**\n  - According to John J. Ray III, Alameda had a \"secret exemption\" from FTX's auto-liquidation protocol `634979d1`\n  - Alameda Research suffered a series of losses in May and June 2022, which anonymous sources told the Wall Street Journal resulted in FTX lending the trading firm more than half of its customer funds `634979d1`\n  - November 2, 2022: CoinDesk investigation exposes Alameda Research's balance sheet dependency on FTT tokens valued at $3.66 billion, revealing dangerous financial entanglement between the trading firm, the exchange, and the price of FTT. `c2367dac`\n  - November 6, 2022: Binance CEO Changpeng Zhao announces liquidation of the exchange's entire $2.1 billion FTT position. FTX experiences $997 million in customer withdrawals within 24 hours. `c2367dac`\n  - November 7, 2022: Withdrawal demand surges to $4.02 billion over the subsequent 48 hours, completely overwhelming FTX's available reserves. `c2367dac`\n  - November 8, 2022: FTX implements emergency suspension of `c2367dac`\n  - On 11 November, FTX, Alameda Research, and over 100 affiliated entities filed for bankruptcy `634979d1`\n  - On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. The article triggered a spike in withdrawals from FTX `634979d1`\n  - The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts `634979d1`\n  - customers became unable to retrieve the money they had deposited in the exchange `634979d1`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[The FTX Collapse: A Complete Guide](https://tokentax.co/blog/ftx-collapse)\n\n**Sequence**\n  - Alameda was once the largest trader on FTX, bringing liquidity to the exchange. `f6d5bb6c`\n  - Bankman-Fried resigned as FTX CEO and was replaced by John `f6d5bb6c`\n  - Binance announced the existence of a non-binding letter of intent to purchase FTX. `9c3944a2`\n  - Coindesk anticipated Binance intention to decline any kind of deal. The news was officially confirmed at 20:50 (GMT). `9c3944a2`\n  - Figure 2 reports rescaled hourly closing prices for FTT, BNB and Bitcoin (BTC). `9c3944a2`\n  - It is worth noting that, since 01 January 2022, FTT has demonstrated superior performance compared to BTC and BNB. `9c3944a2`\n  - On (b) 02 November 2022, 14:44 (GMT), CoinDesk reported that Alameda R\n\n| We identify a massive selling pressure on FTT, which could be related to the liquidation of Alameda Research loans. `9c3944a2`\n  - On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. `f6d5bb6c`\n  - The article triggered a spike in withdrawals from FTX, but eventually, customers became unable to retrieve the money they had deposited in the exchange. `f6d5bb6c`\n  - The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022. `f6d5bb6c`\n  - The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy. `f6d5bb6c`\n  - The dataset is directly obtained from Binance, the largest digital currency exchange in terms of traded volume (CoinMarketCap,, 2023), through the use of the CCXT Python package (Ccxt,, 2023). `9c3944a2`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[FTX's downfall and Binance's consolidation: the fragility of ...](https://arxiv.org/html/2302.11371v3)\n\n---\n*由证据包生成。冲突 0 处未消解。无明确日期的事实不带 valid_at（§3.12）。*",
+  "rounds": [
+    {
+      "round_number": 1,
+      "slot_id": "what.core_event",
+      "query": "FTX cryptocurrency exchange collapse bankruptcy 2022 detailed timeline causes effects Sam Bankman-Fried investigation",
+      "documents_seen": [
+        "https://revealnews.org/podcast/sam-bankman-fried-ftx-collapse-part-1-update-2026",
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "succeeded": true,
+      "facts_written": 13,
+      "coverage_after": 0.058823529411764705
+    },
+    {
+      "round_number": 2,
+      "slot_id": "who.primary_actor",
+      "query": "Sam Bankman-Fried FTX collapse 2022",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.nytimes.com/news-event/ftx-sbf-crypto"
+      ],
+      "succeeded": true,
+      "facts_written": 6,
+      "coverage_after": 0.11764705882352941
+    },
+    {
+      "round_number": 3,
+      "slot_id": "when.event_time",
+      "query": "FTX cryptocurrency exchange collapse date 2022",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/FTX",
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "coverage_after": 0.17647058823529413
+    },
+    {
+      "round_number": 4,
+      "slot_id": "what.scale",
+      "query": "FTX cryptocurrency exchange collapse 2022 financial losses bankruptcy impact analysis",
+      "documents_seen": [
+        "https://link.springer.com/article/10.1186/s40854-024-00690-8",
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "succeeded": true,
+      "facts_written": 7,
+      "coverage_after": 0.23529411764705882
+    },
+    {
+      "round_number": 5,
+      "slot_id": "who.affected_parties",
+      "query": "FTX cryptocurrency exchange collapse 2022 affected users investors creditors employees regulators",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "succeeded": true,
+      "facts_written": 4,
+      "coverage_after": 0.29411764705882354
+    },
+    {
+      "round_number": 6,
+      "slot_id": "when.discovery_time",
+      "query": "FTX collapse discovery date 2022",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://coinledger.io/learn/the-ftx-collapse"
+      ],
+      "succeeded": true,
+      "facts_written": 3,
+      "coverage_after": 0.35294117647058826
+    },
+    {
+      "round_number": 7,
+      "slot_id": "where.jurisdiction",
+      "query": "FTX cryptocurrency exchange primary legal jurisdiction 2022 bankruptcy",
+      "documents_seen": [
+        "https://ofi.la.gov/ftx-files-chapter-11-bankruptcy",
+        "https://www.saverilawfirm.com/ftx-cryptocurrency-exchange-collapse-litigation",
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "coverage_after": 0.4117647058823529
+    },
+    {
+      "round_number": 8,
+      "slot_id": "how.mechanism",
+      "query": "FTX cryptocurrency exchange collapse 2022 causes and execution details",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://tokentax.co/blog/ftx-collapse"
+      ],
+      "succeeded": true,
+      "facts_written": 10,
+      "coverage_after": 0.47058823529411764
+    },
+    {
+      "round_number": 9,
+      "slot_id": "who.related_organizations",
+      "query": "FTX cryptocurrency exchange collapse 2022 involved organizations subsidiaries partners Alameda Research West Realm Shires FTX Trading Ltd.",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "succeeded": true,
+      "facts_written": 7,
+      "coverage_after": 0.5294117647058824
+    },
+    {
+      "round_number": 10,
+      "slot_id": "what.products",
+      "query": "FTX cryptocurrency exchange products services assets 2022 collapse bankruptcy",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+        "https://www.theguardian.com/technology/2022/nov/10/ftx-cryptocurrency-collapse-investigation"
+      ],
+      "succeeded": true,
+      "facts_written": 8,
+      "coverage_after": 0.5882352941176471
+    },
+    {
+      "round_number": 11,
+      "slot_id": "where.asset_flow",
+      "query": "FTX cryptocurrency exchange collapse 2022 money asset movement bankruptcy investigation reports",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX#:~:text=The%20bankruptcy%20of%20FTX%2C%20a,the%20impetus%20for%20its%20bankruptcy.",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "succeeded": true,
+      "facts_written": 3,
+      "coverage_after": 0.6470588235294118
+    },
+    {
+      "round_number": 12,
+      "slot_id": "when.intervention_time",
+      "query": "FTX cryptocurrency exchange official intervention date 2022",
+      "documents_seen": [
+        "https://bettermarkets.org/ftx-timeline",
+        "https://link.springer.com/article/10.1186/s40854-024-00690-8"
+      ],
+      "succeeded": true,
+      "facts_written": 3,
+      "coverage_after": 0.7058823529411765
+    },
+    {
+      "round_number": 13,
+      "slot_id": "who.regulators",
+      "query": "FTX cryptocurrency exchange collapse 2022 regulators investigators authorities involved",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/FTX",
+        "https://www.wsls.com/business/2022/11/10/ap-source-us-authorities-investigate-crypto-exchange-ftx"
+      ],
+      "succeeded": true,
+      "facts_written": 4,
+      "coverage_after": 0.7647058823529411
+    },
+    {
+      "round_number": 14,
+      "slot_id": "why.motivation",
+      "query": "FTX collapse 2022 reasons and causes bankruptcy Sam Bankman-Fried actions",
+      "documents_seen": [
+        "https://www.investopedia.com/what-went-wrong-with-ftx-6828447",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "succeeded": true,
+      "facts_written": 5,
+      "coverage_after": 0.8235294117647058
+    },
+    {
+      "round_number": 15,
+      "slot_id": "how.sequence",
+      "query": "FTX cryptocurrency exchange collapse timeline 2022 step by step events",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035",
+        "https://arxiv.org/html/2302.11371v3"
+      ],
+      "succeeded": true,
+      "facts_written": 12,
+      "coverage_after": 0.8823529411764706
+    },
+    {
+      "round_number": 16,
+      "slot_id": "where.event_location",
+      "query": "FTX cryptocurrency exchange collapse location and visibility 2022",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.dcu.ie/research-publication/understanding-ftx-exchange-collapse"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "coverage_after": 0.9411764705882353
+    },
+    {
+      "round_number": 17,
+      "slot_id": "why.trigger",
+      "query": "FTX collapse 2022 trigger catalyst causes bankruptcy investigation",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx"
+      ],
+      "succeeded": true,
+      "facts_written": 5,
+      "coverage_after": 1.0
+    }
+  ],
+  "fact_count": 96,
+  "source_count": 17,
+  "dated_fact_count": 24,
+  "usage": {
+    "llm_calls": 56,
+    "search_calls": 17,
+    "prompt_tokens": 28664,
+    "completion_tokens": 7627,
+    "total_tokens": 36291,
+    "chat_provider_cost_usd": 0.0236688,
+    "provider_cost_reported": true,
+    "extraction_rows": 104,
+    "grounding_rejections": 8,
+    "elapsed_seconds": 417.7416183890018
+  }
+}

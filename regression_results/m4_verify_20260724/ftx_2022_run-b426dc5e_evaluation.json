@@ -1,0 +1,91 @@
+{
+  "case_id": "ftx_2022",
+  "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+  "research_id": "run-b426dc5e",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 1.0,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 0.90625,
+  "judged_item_count": 96,
+  "cross_corroborated_slot_rate": 1.0,
+  "round_success_rate": 1.0,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.07692307692307693,
+  "dated_fact_rate": 0.25,
+  "fact_count": 96,
+  "source_count": 17,
+  "episode_count": 34,
+  "rounds": 17,
+  "llm_calls": 56,
+  "search_calls": 17,
+  "prompt_tokens": 28664,
+  "completion_tokens": 7627,
+  "total_tokens": 36291,
+  "chat_provider_cost_usd": 0.0236688,
+  "elapsed_seconds": 417.7416183890018,
+  "fact_checks": [
+    {
+      "check_id": "ftx_bankruptcy_2022",
+      "description": "FTX bankruptcy is anchored to 2022",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022."
+      ]
+    },
+    {
+      "check_id": "ftx_sbf",
+      "description": "Sam Bankman-Fried is identified",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+        "Sam Bankman-Fried and the Collapse of FTX",
+        "Sam Bankman-Fried and the Collapse of FTX",
+        "Sam Bankman-Fried cofounded Alameda Research, a cryptocurrency trading firm, in 2017."
+      ]
+    },
+    {
+      "check_id": "ftx_alameda",
+      "description": "Alameda Research is connected to the event",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+        "Sam Bankman-Fried cofounded Alameda Research, a cryptocurrency trading firm, in 2017.",
+        "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+        "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+        "On 11 November, FTX, Alameda Research, and over 100 affiliated entities filed for bankruptcy"
+      ]
+    },
+    {
+      "check_id": "ftx_bahamas",
+      "description": "The Bahamas appears as FTX's operating jurisdiction",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022."
+      ]
+    },
+    {
+      "check_id": "ftx_no_2023_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2023",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_no_2026_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

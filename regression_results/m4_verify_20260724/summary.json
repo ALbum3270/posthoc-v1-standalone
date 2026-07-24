@@ -1,0 +1,273 @@
+{
+  "cases": [
+    {
+      "case_id": "ftx_2022",
+      "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+      "research_id": "run-b426dc5e",
+      "stop_reason": "coverage_reached",
+      "coverage_ratio": 1.0,
+      "factual_check_pass_rate": 1.0,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 0.90625,
+      "judged_item_count": 96,
+      "cross_corroborated_slot_rate": 1.0,
+      "round_success_rate": 1.0,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.07692307692307693,
+      "dated_fact_rate": 0.25,
+      "fact_count": 96,
+      "source_count": 17,
+      "episode_count": 34,
+      "rounds": 17,
+      "llm_calls": 56,
+      "search_calls": 17,
+      "prompt_tokens": 28664,
+      "completion_tokens": 7627,
+      "total_tokens": 36291,
+      "chat_provider_cost_usd": 0.0236688,
+      "elapsed_seconds": 417.7416183890018,
+      "fact_checks": [
+        {
+          "check_id": "ftx_bankruptcy_2022",
+          "description": "FTX bankruptcy is anchored to 2022",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022."
+          ]
+        },
+        {
+          "check_id": "ftx_sbf",
+          "description": "Sam Bankman-Fried is identified",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+            "Sam Bankman-Fried and the Collapse of FTX",
+            "Sam Bankman-Fried and the Collapse of FTX",
+            "Sam Bankman-Fried cofounded Alameda Research, a cryptocurrency trading firm, in 2017."
+          ]
+        },
+        {
+          "check_id": "ftx_alameda",
+          "description": "Alameda Research is connected to the event",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+            "Sam Bankman-Fried cofounded Alameda Research, a cryptocurrency trading firm, in 2017.",
+            "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+            "Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried",
+            "On 11 November, FTX, Alameda Research, and over 100 affiliated entities filed for bankruptcy"
+          ]
+        },
+        {
+          "check_id": "ftx_bahamas",
+          "description": "The Bahamas appears as FTX's operating jurisdiction",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022."
+          ]
+        },
+        {
+          "check_id": "ftx_no_2023_bankruptcy",
+          "description": "The report does not date FTX's bankruptcy to 2023",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        },
+        {
+          "check_id": "ftx_no_2026_bankruptcy",
+          "description": "The report does not date FTX's bankruptcy to 2026",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    },
+    {
+      "case_id": "crowdstrike_2024",
+      "topic": "CrowdStrike global IT outage on July 19, 2024",
+      "research_id": "run-5007b212",
+      "stop_reason": "all_slots_exhausted",
+      "coverage_ratio": 0.9411764705882353,
+      "factual_check_pass_rate": 1.0,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 0.9743589743589743,
+      "judged_item_count": 78,
+      "cross_corroborated_slot_rate": 0.875,
+      "round_success_rate": 0.8421052631578947,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.13333333333333333,
+      "dated_fact_rate": 0.16666666666666666,
+      "fact_count": 78,
+      "source_count": 15,
+      "episode_count": 30,
+      "rounds": 19,
+      "llm_calls": 67,
+      "search_calls": 19,
+      "prompt_tokens": 32987,
+      "completion_tokens": 6336,
+      "total_tokens": 39323,
+      "chat_provider_cost_usd": 0.0233324,
+      "elapsed_seconds": 360.3044723570056,
+      "fact_checks": [
+        {
+          "check_id": "crowdstrike_date",
+          "description": "The outage is anchored to July 19, 2024",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Date | 19 July 2024; 2 years ago (2024-07-19)",
+            "On Friday, July 19, 2024, nearly 8.5 million Microsoft devices were affected by a faulty system update, causing a major outage of businesses and services worldwide.",
+            "On July 19, 2024, cybersecurity firm CrowdStrike pushed an update to its software that caused some devices running the Windows operating system to crash.",
+            "| Date | 19 July 2024; 2 years ago (2024-07-19) |"
+          ]
+        },
+        {
+          "check_id": "crowdstrike_falcon",
+          "description": "CrowdStrike Falcon is identified as the affected product",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software, triggering catastrophic"
+          ]
+        },
+        {
+          "check_id": "crowdstrike_windows",
+          "description": "Windows systems are identified as affected",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Computers running macOS and Linux were unaffected, as the problematic content file was only for Windows",
+            "CrowdStrike is actively working with customers impacted by a defect found in a single content update for Windows hosts",
+            "The impact to companies in the Central United States was exacerbated by an unrelated outage with Microsoft Azure the previous day",
+            "Automatic Vendor Detection can identify organizations in your Portfolio that use CrowdStrike and Microsoft products.",
+            "The impact to companies in the Central United States was exacerbated by an unrelated outage with Microsoft Azure the previous day."
+          ]
+        },
+        {
+          "check_id": "crowdstrike_update",
+          "description": "A faulty content/software update is identified as the trigger",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Multiple blue screens of death caused by a faulty software update on baggage carousels at LaGuardia Airport, New York City",
+            "CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software, triggering catastrophic",
+            "On July 19, 2024, a global IT outage was triggered by a faulty update from CrowdStrike, a leading cybersecurity firm.",
+            "Multiple blue screens of death caused by a faulty software update on baggage carousels at LaGuardia Airport, New York City"
+          ]
+        },
+        {
+          "check_id": "crowdstrike_no_2025_event",
+          "description": "The 2024 outage is not dated to 2025",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        },
+        {
+          "check_id": "crowdstrike_no_2026_event",
+          "description": "The 2024 outage is not dated to 2026",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    },
+    {
+      "case_id": "svb_2023",
+      "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+      "research_id": "run-e2cb5aed",
+      "stop_reason": "coverage_reached",
+      "coverage_ratio": 1.0,
+      "factual_check_pass_rate": 1.0,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 0.9411764705882353,
+      "judged_item_count": 85,
+      "cross_corroborated_slot_rate": 0.9411764705882353,
+      "round_success_rate": 1.0,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.0449438202247191,
+      "dated_fact_rate": 0.25882352941176473,
+      "fact_count": 85,
+      "source_count": 14,
+      "episode_count": 33,
+      "rounds": 17,
+      "llm_calls": 58,
+      "search_calls": 17,
+      "prompt_tokens": 29797,
+      "completion_tokens": 6996,
+      "total_tokens": 36793,
+      "chat_provider_cost_usd": 0.023112399999999995,
+      "elapsed_seconds": 361.49658307401114,
+      "fact_checks": [
+        {
+          "check_id": "svb_closure_date",
+          "description": "SVB's closure is anchored to March 10, 2023",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run"
+          ]
+        },
+        {
+          "check_id": "svb_fdic",
+          "description": "The FDIC is identified as an intervening authority",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Two days after the failure, the FDIC received exceptional authority from the Treasury",
+            "placed it under the receivership of the Federal Deposit Insurance Corporation (FDIC)",
+            "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC.",
+            "the FDIC as receiver immediately transferred to the DINB all insured deposits of Silicon Valley Bank",
+            "the FDIC created the Deposit Insurance National Bank of Santa Clara (DINB)"
+          ]
+        },
+        {
+          "check_id": "svb_bank_run",
+          "description": "Depositor withdrawals or a bank run appear in the mechanism",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+            "SVB faced a bank run as depositors rushed to withdraw their funds amid rising inflation and deteriorating financial conditions in the tech sector",
+            "the bank was unable to meet withdrawal demands, leading to significant losses when it had to sell these bonds at unfavorable prices",
+            "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run",
+            "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run"
+          ]
+        },
+        {
+          "check_id": "svb_rates_bonds",
+          "description": "Interest rates and securities losses appear in the explanation",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "SVB had heavily invested deposits into long-term treasury bonds, which lost value as the Federal Reserve raised interest rates. Consequently, the bank was unable to meet withdrawal demands, leading to significant losses when it had to sell these bonds at unfavorable prices.",
+            "SVB had heavily invested deposits into long-term treasury bonds, which lost value as the Federal Reserve raised interest rates",
+            "long-term treasury bonds, which lost value as the Federal Reserve raised interest rates"
+          ]
+        },
+        {
+          "check_id": "svb_no_2022_closure",
+          "description": "SVB's closure is not dated to 2022",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        },
+        {
+          "check_id": "svb_no_2024_closure",
+          "description": "SVB's closure is not dated to 2024",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    }
+  ]
+}
