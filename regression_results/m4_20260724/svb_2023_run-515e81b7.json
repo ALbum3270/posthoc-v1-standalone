@@ -1,0 +1,804 @@
+{
+  "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+  "research_id": "run-515e81b7",
+  "stop_reason": "coverage_reached",
+  "stop_detail": "coverage 100% >= target 100%",
+  "coverage_ratio": 1.0,
+  "gap_status": [
+    {
+      "slot_id": "who.primary_actor",
+      "dimension": "WHO",
+      "question": "Who is the main actor or primary subject involved?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "9ea56c22-2d48-4d00-9f26-26e8716ecb47"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "dimension": "WHO",
+      "question": "Who is affected, targeted, or impacted?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "46702ed9-b41f-4333-a497-a7df750849a9"
+      ],
+      "notes": "3 active fact(s)"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "dimension": "WHO",
+      "question": "Which organizations, subsidiaries, or partners are involved?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "5aacf08d-9ccb-434b-89e8-6f05d32ad2e9"
+      ],
+      "notes": "3 active fact(s)"
+    },
+    {
+      "slot_id": "who.regulators",
+      "dimension": "WHO",
+      "question": "Which regulators, investigators, or authorities are involved?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "50992fb5-88d3-427b-b0ea-d416a0b34cdf"
+      ],
+      "notes": "4 active fact(s)"
+    },
+    {
+      "slot_id": "what.core_event",
+      "dimension": "WHAT",
+      "question": "What exactly happened?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "926bb78c-8579-4196-8d90-07772e278c6d"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "what.scale",
+      "dimension": "WHAT",
+      "question": "What is the scale, size, or material impact of the event?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "fa8c9976-0922-4e4a-abb3-18cb9345812d"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.products",
+      "dimension": "WHAT",
+      "question": "Which products, services, or assets are involved?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "a5aeb017-ed96-418e-93bd-7d516fdcd28e"
+      ],
+      "notes": "4 active fact(s)"
+    },
+    {
+      "slot_id": "when.event_time",
+      "dimension": "WHEN",
+      "question": "When did the key event occur?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "9d2bf68a-ea9d-463e-8ea7-6b0d7ed61ab2"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "dimension": "WHEN",
+      "question": "When was the event discovered or disclosed?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "b1c6d083-15e8-43ec-9cab-4fc8be540f17"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "dimension": "WHEN",
+      "question": "When did an official intervention or response occur?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "bd5d1260-1728-4d9f-b30c-e42a36874058"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "dimension": "WHERE",
+      "question": "Where is the primary legal or operational jurisdiction?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "5bb27c53-0e3b-4625-ac29-fa30d8d669e1"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "dimension": "WHERE",
+      "question": "Where did money, assets, or activity move?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "65387612-f271-48d3-a391-a2e5afe06865"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "where.event_location",
+      "dimension": "WHERE",
+      "question": "Where did the event happen or become visible?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "f7091e8c-4e9b-4db8-aa01-4734ddf96f17"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "why.motivation",
+      "dimension": "WHY",
+      "question": "Why did the actor behave this way or pursue this action?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "c8deebfc-5b81-4899-88f7-d1ef267f1066"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "why.trigger",
+      "dimension": "WHY",
+      "question": "What trigger or catalyst explains the event?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "d5239fd2-7de9-48e0-b4a7-9aae1b45c31c"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "dimension": "HOW",
+      "question": "How did the event happen or how was it executed?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "795bf9df-f8f5-4b59-82af-f070f2702ad7"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "how.sequence",
+      "dimension": "HOW",
+      "question": "How did the activity unfold step by step?",
+      "filled": true,
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "26da51f2-d2b8-4313-97a0-177c91bb15aa"
+      ],
+      "notes": "4 active fact(s)"
+    }
+  ],
+  "evidence_pack": {
+    "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+    "coverage_ratio": 1.0,
+    "items": [
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "9ea56c22-2d48-4d00-9f26-26e8716ecb47"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Silicon semiconductor devices enable modern information technology",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "46702ed9-b41f-4333-a497-a7df750849a9"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "The electronic applications are broad, including microelectronics, computing, optoelectronics, and nanotechnology",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "46702ed9-b41f-4333-a497-a7df750849a9"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "the element is the base material in the semiconductor industry there",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "46702ed9-b41f-4333-a497-a7df750849a9"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "As part of this transaction Silicon Valley Bridge Bank, N.A., was placed into receivership.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "5aacf08d-9ccb-434b-89e8-6f05d32ad2e9"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "Depositors of Silicon Valley Bridge Bank, N.A., will automatically become depositors of First–Citizens Bank & Trust Company.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "5aacf08d-9ccb-434b-89e8-6f05d32ad2e9"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "5aacf08d-9ccb-434b-89e8-6f05d32ad2e9"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "who.regulators",
+        "conclusion": "According to press releases from regulators, the California Department of Financial Protection and Innovation closed SVB",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "50992fb5-88d3-427b-b0ea-d416a0b34cdf"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.regulators",
+        "conclusion": "Financial regulators have closed Silicon Valley Bank and taken control of its deposits, the Federal Deposit Insurance Corp. announced Friday",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "50992fb5-88d3-427b-b0ea-d416a0b34cdf"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.regulators",
+        "conclusion": "The FDIC in turn has created the Deposit Insurance National Bank of Santa Clara, which now holds the insured deposits from SVB",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "50992fb5-88d3-427b-b0ea-d416a0b34cdf"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.regulators",
+        "conclusion": "the California Department of Financial Protection and Innovation closed SVB and named the FDIC as the receiver",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "50992fb5-88d3-427b-b0ea-d416a0b34cdf"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "FDIC spent $20 billion to handle Silicon Valley Bank collapse",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "926bb78c-8579-4196-8d90-07772e278c6d"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "First Citizens Bank to buy Silicon Valley Bank after collapse, FDIC says",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "926bb78c-8579-4196-8d90-07772e278c6d"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "The March 2023 failure of Silicon Valley Bank (SVB) was the second largest such failure in US history, behind Washington Mutual’s in 2008.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fa8c9976-0922-4e4a-abb3-18cb9345812d"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "All deposits, excluding Cede & Co. deposits, assumed by First–Citizens Bank & Trust Company, will continue to be insured by the FDIC up to the insurance limit.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "a5aeb017-ed96-418e-93bd-7d516fdcd28e"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "Depositors of Silicon Valley Bridge Bank, N.A., will automatically become depositors of First–Citizens Bank & Trust Company.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "a5aeb017-ed96-418e-93bd-7d516fdcd28e"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "If you or your company provided a service or product, leased space, furniture, or equipment to Silicon Valley Bank prior to March 10, 2023, and have not been paid, you may have a claim against Silicon Valley Bank.\nIf you or your company provided a service or product, leased space, furniture, or equipment to Silicon Valley Bridge Bank, N.A. between March 10, 2023, and March 26, 2023, and have not been paid, you may have a claim against Silicon Valley Bridge Bank, N.A.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "a5aeb017-ed96-418e-93bd-7d516fdcd28e"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "what.products",
+        "conclusion": "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "a5aeb017-ed96-418e-93bd-7d516fdcd28e"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "when.event_time",
+        "conclusion": "Silicon Valley Bank headquarters in Santa Clara, California, on March 13, 2023",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "9d2bf68a-ea9d-463e-8ea7-6b0d7ed61ab2"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "conclusion": "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. As part of this transaction Silicon Valley Bridge Bank, N.A., was placed into receivership.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "b1c6d083-15e8-43ec-9cab-4fc8be540f17"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "conclusion": "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "bd5d1260-1728-4d9f-b30c-e42a36874058"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "where.jurisdiction",
+        "conclusion": "the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "5bb27c53-0e3b-4625-ac29-fa30d8d669e1"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "conclusion": "On Monday, March 13, 2023, the FDIC transferred all deposits—both insured and uninsured—and substantially all assets and many of the obligations and liabilities of the former SVB to Silicon Valley Bridge Bank, N.A. (the “Bridge Bank”), a newly-created, full-service FDIC-operated ‘bridge bank’.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "65387612-f271-48d3-a391-a2e5afe06865"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "conclusion": "On Monday, March 13, 2023, the FDIC transferred all deposits—both insured and uninsured—and substantially all assets and many of the obligations and liabilities of the former SVB to Silicon Valley Bridge Bank, N.A. (the “Bridge Bank”), a newly-created, full-service FDIC-operated ‘bridge bank’.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "65387612-f271-48d3-a391-a2e5afe06865"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "where.event_location",
+        "conclusion": "Silicon Valley Bridge Bank, N.A., was placed into receivership.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f7091e8c-4e9b-4db8-aa01-4734ddf96f17"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.motivation",
+        "conclusion": "'Chasing yield' was an inside joke at SVB—until it led to the bank's collapse.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c8deebfc-5b81-4899-88f7-d1ef267f1066"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "In two days, SVB went from functioning to insolvent when depositors rushed to SVB to withdraw their funds.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "d5239fd2-7de9-48e0-b4a7-9aae1b45c31c"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration",
+          "no verified date: the sources did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "As part of this transaction Silicon Valley Bridge Bank, N.A., was placed into receivership.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "795bf9df-f8f5-4b59-82af-f070f2702ad7"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "795bf9df-f8f5-4b59-82af-f070f2702ad7"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "All deposits, excluding Cede & Co. deposits, assumed by First–Citizens Bank & Trust Company, will continue to be insured by the FDIC up to the insurance limit.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "26da51f2-d2b8-4313-97a0-177c91bb15aa"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "As part of this transaction Silicon Valley Bridge Bank, N.A., was placed into receivership.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "26da51f2-d2b8-4313-97a0-177c91bb15aa"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "Depositors of Silicon Valley Bridge Bank, N.A., will automatically become depositors of First–Citizens Bank & Trust Company.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "26da51f2-d2b8-4313-97a0-177c91bb15aa"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "26da51f2-d2b8-4313-97a0-177c91bb15aa"
+        ],
+        "caveats": [
+          "single source; no cross-corroboration"
+        ]
+      }
+    ],
+    "unresolved_conflicts": [],
+    "provenance": [
+      "26da51f2-d2b8-4313-97a0-177c91bb15aa",
+      "46702ed9-b41f-4333-a497-a7df750849a9",
+      "50992fb5-88d3-427b-b0ea-d416a0b34cdf",
+      "5aacf08d-9ccb-434b-89e8-6f05d32ad2e9",
+      "5bb27c53-0e3b-4625-ac29-fa30d8d669e1",
+      "65387612-f271-48d3-a391-a2e5afe06865",
+      "795bf9df-f8f5-4b59-82af-f070f2702ad7",
+      "926bb78c-8579-4196-8d90-07772e278c6d",
+      "9d2bf68a-ea9d-463e-8ea7-6b0d7ed61ab2",
+      "9ea56c22-2d48-4d00-9f26-26e8716ecb47",
+      "a5aeb017-ed96-418e-93bd-7d516fdcd28e",
+      "b1c6d083-15e8-43ec-9cab-4fc8be540f17",
+      "bd5d1260-1728-4d9f-b30c-e42a36874058",
+      "c8deebfc-5b81-4899-88f7-d1ef267f1066",
+      "d5239fd2-7de9-48e0-b4a7-9aae1b45c31c",
+      "f7091e8c-4e9b-4db8-aa01-4734ddf96f17",
+      "fa8c9976-0922-4e4a-abb3-18cb9345812d"
+    ]
+  },
+  "report": "# 调查报告：Silicon Valley Bank collapse and FDIC closure in March 2023\n\n> **覆盖率** 17/17 槽位（100%）　**事实** 33 条　**来源 episode** 17 个\n\n> 本报告仅消费图谱证据包。每条结论都标注了来源 episode；无证据的槽位如实标记为未查到，不做推断补全。\n\n## WHO\n\n**Primary Actor**\n  - On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. `9ea56c22`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ single source; no cross-corroboration\n\n**Affected Parties**\n  - Silicon semiconductor devices enable modern information technology `46702ed9`\n  - The electronic applications are broad, including microelectronics, computing, optoelectronics, and nanotechnology `46702ed9`\n  - the element is the base material in the semiconductor industry there `46702ed9`\n  来源：[Silicon](https://en.wikipedia.org/wiki/Silicon)\n  ⚠️ no verified date: the sources did not state one explicitly；single source; no cross-corroboration\n\n**Related Organizations**\n  - As part of this transaction Silicon Valley Bridge Bank, N.A., was placed into receivership. `5aacf08d`\n  - Depositors of Silicon Valley Bridge Bank, N.A., will automatically become depositors of First–Citizens Bank & Trust Company. `5aacf08d`\n  - On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. `5aacf08d`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ single source; no cross-corroboration\n\n**Regulators**\n  - According to press releases from regulators, the California Department of Financial Protection and Innovation closed SVB `50992fb5`\n  - Financial regulators have closed Silicon Valley Bank and taken control of its deposits, the Federal Deposit Insurance Corp. announced Friday `50992fb5`\n  - The FDIC in turn has created the Deposit Insurance National Bank of Santa Clara, which now holds the insured deposits from SVB `50992fb5`\n  - the California Department of Financial Protection and Innovation closed SVB and named the FDIC as the receiver `50992fb5`\n  来源：[Silicon Valley Bank is shut down by regulators in biggest ...](https://www.cnbc.com/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html)\n  ⚠️ no verified date: the sources did not state one explicitly；single source; no cross-corroboration\n\n## WHAT\n\n**Core Event**\n  - FDIC spent $20 billion to handle Silicon Valley Bank collapse `926bb78c`\n  - First Citizens Bank to buy Silicon Valley Bank after collapse, FDIC says `926bb78c`\n  来源：[Collapse of Silicon Valley Bank](https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank)\n  ⚠️ no verified date: the sources did not state one explicitly；single source; no cross-corroboration\n\n**Scale**\n  - The March 2023 failure of Silicon Valley Bank (SVB) was the second largest such failure in US history, behind Washington Mutual’s in 2008. `fa8c9976`\n  来源：[Collapse of Silicon Valley Bank | History | Research Starters](https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank)\n  ⚠️ single source; no cross-corroboration\n\n**Products**\n  - All deposits, excluding Cede & Co. deposits, assumed by First–Citizens Bank & Trust Company, will continue to be insured by the FDIC up to the insurance limit. `a5aeb017`\n  - Depositors of Silicon Valley Bridge Bank, N.A., will automatically become depositors of First–Citizens Bank & Trust Company. `a5aeb017`\n  - If you or your company provided a service or product, leased space, furniture, or equipment to Silicon Valley Bank prior to March 10, 2023, and have not been paid, you may have a claim against Silicon Valley Bank.\nIf you or your company provided a service or product, leased space, furniture, or equipment to Silicon Valley Bridge Bank, N.A. between March 10, 2023, and March 26, 2023, and have not been paid, you may have a claim against Silicon Valley Bridge Bank, N.A. `a5aeb017`\n  - On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. `a5aeb017`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ single source; no cross-corroboration\n\n## WHEN\n\n**Event Time**\n  - Silicon Valley Bank headquarters in Santa Clara, California, on March 13, 2023 `9d2bf68a`\n  来源：[Collapse of Silicon Valley Bank](https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank)\n  ⚠️ single source; no cross-corroboration\n\n**Discovery Time**\n  - On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. As part of this transaction Silicon Valley Bridge Bank, N.A., was placed into receivership. `b1c6d083`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ single source; no cross-corroboration\n\n**Intervention Time**\n  - On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. `bd5d1260`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ single source; no cross-corroboration\n\n## WHERE\n\n**Jurisdiction**\n  - the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. `5bb27c53`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ no verified date: the sources did not state one explicitly；single source; no cross-corroboration\n\n**Asset Flow**\n  - On Monday, March 13, 2023, the FDIC transferred all deposits—both insured and uninsured—and substantially all assets and many of the obligations and liabilities of the former SVB to Silicon Valley Bridge Bank, N.A. (the “Bridge Bank”), a newly-created, full-service FDIC-operated ‘bridge bank’. `65387612`\n  - On Monday, March 13, 2023, the FDIC transferred all deposits—both insured and uninsured—and substantially all assets and many of the obligations and liabilities of the former SVB to Silicon Valley Bridge Bank, N.A. (the “Bridge Bank”), a newly-created, full-service FDIC-operated ‘bridge bank’. `65387612`\n  来源：[FDIC Transfers Assets and Deposits of Silicon Valley Bank to a Bridge Bank: Chapman and Cutler LLP](https://www.chapman.com/publication-fdic-transfers-assets-and-deposits-of-svb-to-a-bridge-bank)\n  ⚠️ single source; no cross-corroboration\n\n**Event Location**\n  - Silicon Valley Bridge Bank, N.A., was placed into receivership. `f7091e8c`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ no verified date: the sources did not state one explicitly；single source; no cross-corroboration\n\n## WHY\n\n**Motivation**\n  - 'Chasing yield' was an inside joke at SVB—until it led to the bank's collapse. `c8deebfc`\n  来源：[Collapse of Silicon Valley Bank | History | Research Starters](https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank)\n  ⚠️ no verified date: the sources did not state one explicitly；single source; no cross-corroboration\n\n**Trigger**\n  - In two days, SVB went from functioning to insolvent when depositors rushed to SVB to withdraw their funds. `d5239fd2`\n  来源：[Collapse of Silicon Valley Bank | History | Research Starters](https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank)\n  ⚠️ no verified date: the sources did not state one explicitly；single source; no cross-corroboration\n\n## HOW\n\n**Mechanism**\n  - As part of this transaction Silicon Valley Bridge Bank, N.A., was placed into receivership. `795bf9df`\n  - On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. `795bf9df`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ single source; no cross-corroboration\n\n**Sequence**\n  - All deposits, excluding Cede & Co. deposits, assumed by First–Citizens Bank & Trust Company, will continue to be insured by the FDIC up to the insurance limit. `26da51f2`\n  - As part of this transaction Silicon Valley Bridge Bank, N.A., was placed into receivership. `26da51f2`\n  - Depositors of Silicon Valley Bridge Bank, N.A., will automatically become depositors of First–Citizens Bank & Trust Company. `26da51f2`\n  - On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC. `26da51f2`\n  来源：[Silicon Valley Bank | FDIC.gov](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n  ⚠️ single source; no cross-corroboration\n\n---\n*由证据包生成。冲突 0 处未消解。无明确日期的事实不带 valid_at（§3.12）。*",
+  "rounds": [
+    {
+      "round_number": 1,
+      "slot_id": "what.core_event",
+      "query": "Silicon Valley Bank collapse FDIC closure March 2023 detailed timeline causes effects official reports",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "coverage_after": 0.058823529411764705
+    },
+    {
+      "round_number": 2,
+      "slot_id": "who.primary_actor",
+      "query": "Silicon Valley Bank collapse March 2023 main actor FDIC closure",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 0.11764705882352941
+    },
+    {
+      "round_number": 3,
+      "slot_id": "when.event_time",
+      "query": "Silicon Valley Bank collapse FDIC closure date March 2023",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 0.17647058823529413
+    },
+    {
+      "round_number": 4,
+      "slot_id": "what.scale",
+      "query": "Silicon Valley Bank collapse March 2023 FDIC closure impact financial losses depositors affected economic consequences",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 0.23529411764705882
+    },
+    {
+      "round_number": 5,
+      "slot_id": "who.affected_parties",
+      "query": "Silicon Valley Bank collapse March 2023 affected customers and FDIC closure impacted tech startups and venture capital firms",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Silicon"
+      ],
+      "succeeded": true,
+      "facts_written": 3,
+      "coverage_after": 0.29411764705882354
+    },
+    {
+      "round_number": 6,
+      "slot_id": "when.discovery_time",
+      "query": "Silicon Valley Bank collapse discovery date March 2023 FDIC closure announcement date",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 0.35294117647058826
+    },
+    {
+      "round_number": 7,
+      "slot_id": "where.jurisdiction",
+      "query": "Silicon Valley Bank FDIC closure March 2023 primary legal jurisdiction location",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 0.4117647058823529
+    },
+    {
+      "round_number": 8,
+      "slot_id": "how.mechanism",
+      "query": "Silicon Valley Bank collapse March 2023 FDIC closure timeline causes execution details",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "coverage_after": 0.47058823529411764
+    },
+    {
+      "round_number": 9,
+      "slot_id": "who.related_organizations",
+      "query": "Silicon Valley Bank collapse March 2023 FDIC closure involved organizations subsidiaries partners",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 3,
+      "coverage_after": 0.5294117647058824
+    },
+    {
+      "round_number": 10,
+      "slot_id": "what.products",
+      "query": "Silicon Valley Bank collapse March 2023 FDIC closure products services assets involved",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 4,
+      "coverage_after": 0.5882352941176471
+    },
+    {
+      "round_number": 11,
+      "slot_id": "where.asset_flow",
+      "query": "Silicon Valley Bank collapse March 2023 FDIC asset transfer and deposit activity locations",
+      "documents_seen": [
+        "https://www.chapman.com/publication-fdic-transfers-assets-and-deposits-of-svb-to-a-bridge-bank"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "coverage_after": 0.6470588235294118
+    },
+    {
+      "round_number": 12,
+      "slot_id": "when.intervention_time",
+      "query": "Silicon Valley Bank FDIC closure date March 2023 official intervention response timeline",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 0.7058823529411765
+    },
+    {
+      "round_number": 13,
+      "slot_id": "who.regulators",
+      "query": "Silicon Valley Bank collapse March 2023 regulators investigators FDIC SEC Federal Reserve California Department of Financial Protection and Innovation",
+      "documents_seen": [
+        "https://www.cnbc.com/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html"
+      ],
+      "succeeded": true,
+      "facts_written": 4,
+      "coverage_after": 0.7647058823529411
+    },
+    {
+      "round_number": 14,
+      "slot_id": "why.motivation",
+      "query": "Silicon Valley Bank collapse March 2023 FDIC closure reasons causes actions",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 0.8235294117647058
+    },
+    {
+      "round_number": 15,
+      "slot_id": "how.sequence",
+      "query": "Silicon Valley Bank collapse timeline March 2023 FDIC closure steps",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 4,
+      "coverage_after": 0.8823529411764706
+    },
+    {
+      "round_number": 16,
+      "slot_id": "where.event_location",
+      "query": "Silicon Valley Bank collapse location March 2023 FDIC closure details",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 0.9411764705882353
+    },
+    {
+      "round_number": 17,
+      "slot_id": "why.trigger",
+      "query": "Silicon Valley Bank collapse March 2023 trigger catalyst FDIC closure causes",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "coverage_after": 1.0
+    }
+  ],
+  "fact_count": 33,
+  "source_count": 6,
+  "dated_fact_count": 12,
+  "usage": {
+    "llm_calls": 36,
+    "search_calls": 17,
+    "prompt_tokens": 15636,
+    "completion_tokens": 3325,
+    "total_tokens": 18961,
+    "chat_provider_cost_usd": 0.0115744,
+    "provider_cost_reported": true,
+    "extraction_rows": 35,
+    "grounding_rejections": 2,
+    "elapsed_seconds": 225.46292733000882
+  }
+}

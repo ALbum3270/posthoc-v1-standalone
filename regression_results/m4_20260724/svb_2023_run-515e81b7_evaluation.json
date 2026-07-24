@@ -1,0 +1,77 @@
+{
+  "case_id": "svb_2023",
+  "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+  "research_id": "run-515e81b7",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 0.6666666666666666,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 0.9090909090909091,
+  "judged_item_count": 33,
+  "cross_corroborated_slot_rate": 0.0,
+  "round_success_rate": 1.0,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.05714285714285714,
+  "dated_fact_rate": 0.36363636363636365,
+  "fact_count": 33,
+  "source_count": 6,
+  "episode_count": 17,
+  "rounds": 17,
+  "llm_calls": 36,
+  "search_calls": 17,
+  "prompt_tokens": 15636,
+  "completion_tokens": 3325,
+  "total_tokens": 18961,
+  "chat_provider_cost_usd": 0.0115744,
+  "elapsed_seconds": 225.46292733000882,
+  "fact_checks": [
+    {
+      "check_id": "svb_closure_date",
+      "description": "SVB's closure is anchored to March 10, 2023",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_fdic",
+      "description": "The FDIC is identified as an intervening authority",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "The FDIC in turn has created the Deposit Insurance National Bank of Santa Clara, which now holds the insured deposits from SVB",
+        "the California Department of Financial Protection and Innovation closed SVB and named the FDIC as the receiver",
+        "On March 26, 2023, the FDIC entered into a purchase and assumption agreement for all deposits, excluding Cede & Co. deposits, and loans of Silicon Valley Bridge Bank, N.A., by First–Citizens Bank & Trust Company, Raleigh, NC."
+      ]
+    },
+    {
+      "check_id": "svb_bank_run",
+      "description": "Depositor withdrawals or a bank run appear in the mechanism",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "In two days, SVB went from functioning to insolvent when depositors rushed to SVB to withdraw their funds."
+      ]
+    },
+    {
+      "check_id": "svb_rates_bonds",
+      "description": "Interest rates and securities losses appear in the explanation",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_no_2022_closure",
+      "description": "SVB's closure is not dated to 2022",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_no_2024_closure",
+      "description": "SVB's closure is not dated to 2024",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}
