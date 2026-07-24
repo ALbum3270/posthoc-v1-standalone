@@ -20,9 +20,19 @@ class FakeGraphiti:
         self.calls.append(("add_episode_bulk", kwargs))
         return SimpleNamespace(
             episodes=[SimpleNamespace(uuid="episode-a"), SimpleNamespace(uuid="episode-b")],
+            # EntityNode has no `episodes` field -- model_fields is
+            # ['attributes','created_at','group_id','labels','name',
+            #  'name_embedding','summary','uuid']. The previous version of this
+            # fake gave nodes one anyway, which made a wrapper bug that always
+            # returned empty node_uuids look like a passing test.
             nodes=[
-                SimpleNamespace(uuid="node-a", episodes=["episode-a"]),
-                SimpleNamespace(uuid="node-b", episodes=["episode-b"]),
+                SimpleNamespace(uuid="node-a"),
+                SimpleNamespace(uuid="node-b"),
+            ],
+            # Episode -> entity attribution really lives here.
+            episodic_edges=[
+                SimpleNamespace(source_node_uuid="episode-a", target_node_uuid="node-a"),
+                SimpleNamespace(source_node_uuid="episode-b", target_node_uuid="node-b"),
             ],
             edges=[
                 SimpleNamespace(uuid="edge-a", episodes=["episode-a"]),

@@ -159,12 +159,17 @@ class GraphitiClient:
         episode_to_nodes: dict[str, list[str]] = {episode_id: [] for episode_id in episode_ids}
         episode_to_edges: dict[str, list[str]] = {episode_id: [] for episode_id in episode_ids}
 
-        for node in result.nodes:
-            episode_ids_for_node = self._extract_episode_uuids(node)
-            for episode_id in episode_ids_for_node:
-                if episode_id in episode_to_nodes:
-                    episode_to_nodes[episode_id].append(node.uuid)
+        # Nodes must be attributed through episodic_edges, not through a node
+        # `episodes` field: EntityNode has no such field, so reading one returned
+        # an empty list for every node and node_uuids was silently always empty.
+        # Each EpisodicEdge points episode (source) -> entity (target).
+        for episodic_edge in getattr(result, "episodic_edges", []) or []:
+            episode_id = getattr(episodic_edge, "source_node_uuid", None)
+            node_uuid = getattr(episodic_edge, "target_node_uuid", None)
+            if episode_id in episode_to_nodes and node_uuid:
+                episode_to_nodes[episode_id].append(node_uuid)
 
+        # Edges are different: EntityEdge really does carry `episodes`.
         for edge in result.edges:
             episode_ids_for_edge = self._extract_episode_uuids(edge)
             for episode_id in episode_ids_for_edge:

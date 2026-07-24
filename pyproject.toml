@@ -44,6 +44,14 @@ dependencies = [
     "mcp>=1.9.4",
     "langchain-aws>=0.2.28",
     "pandas>=2.3.1",
+    # Pinned exactly, not floated. The GraphRAG write path depends on internals
+    # whose behaviour was verified against this build specifically: relative-date
+    # resolution against reference_time (prompts/extract_edges.py:78), the
+    # attributes-flattened-into-edge-columns contract (edges.py:359), and
+    # group_id being reinterpreted as a database name (graphiti.py:884). A minor
+    # bump can move any of those silently. See SESSION_HANDOFF §2.2.
+    # Installed editable from ../graphiti-main during local development.
+    "graphiti-core==0.28.2",
 ]
 
 [project.optional-dependencies]
