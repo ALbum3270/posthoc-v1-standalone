@@ -1,8 +1,20 @@
-"""Thin Graphiti wrapper used by the GraphRAG control plane."""
+"""Thin Graphiti wrapper used by the GraphRAG control plane.
+
+This is the *unstructured* write path: it hands prose to Graphiti and lets its
+LLM extract entities and relations. That is the right tool for genuine free text.
+
+It is the wrong tool for facts that have already been extracted. Flattening
+triples back into prose so Graphiti can re-derive them is what corrupted the
+2026-07-24 baseline run -- one source triple with no year came back as two
+contradictory dated edges (SESSION_HANDOFF §3.12). Structured claims therefore go
+through ``graph.verified_episode.add_verified_episode``, and this module refuses
+them outright rather than quietly round-tripping them through a model.
+"""
 
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -10,6 +22,12 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 from open_deep_research.graphrag.schemas import GraphEpisodePayload, GraphWriteResult
+
+logger = logging.getLogger(__name__)
+
+
+class StructuredClaimsNotSupportedError(ValueError):
+    """Raised when pre-extracted claims are sent down the re-extraction path."""
 
 
 class GraphitiClientConfig(BaseModel):
@@ -104,9 +122,10 @@ class GraphitiClient:
     async def add_episode(self, payload: GraphEpisodePayload) -> GraphWriteResult:
         """Write one validated episode to Graphiti."""
 
+        self._reject_structured_claims(payload)
         graphiti = await self.connect()
         imports = self._imports or _load_graphiti_imports()
-        reference_time = payload.reference_time or datetime.now(timezone.utc)
+        reference_time = self._resolve_reference_time(payload)
         episode_source = self._map_episode_type(payload.source, imports.episode_type)
         content = self._render_episode_content(payload)
         source_description = self._render_source_description(payload)
@@ -134,6 +153,9 @@ class GraphitiClient:
         if not payloads:
             return []
 
+        for payload in payloads:
+            self._reject_structured_claims(payload)
+
         graphiti = await self.connect()
         imports = self._imports or _load_graphiti_imports()
         effective_group_id = group_id or self.config.group_id or payloads[0].group_id
@@ -144,7 +166,7 @@ class GraphitiClient:
                 content=self._render_episode_content(payload),
                 source_description=self._render_source_description(payload),
                 source=self._map_episode_type(payload.source, imports.episode_type),
-                reference_time=payload.reference_time or datetime.now(timezone.utc),
+                reference_time=self._resolve_reference_time(payload),
                 uuid=None,
             )
             for payload in payloads
@@ -291,14 +313,52 @@ class GraphitiClient:
         return f"{payload.source_description} | metadata={metadata_summary}"
 
     @staticmethod
-    def _render_episode_content(payload: GraphEpisodePayload) -> str:
-        """Embed metadata and claim summaries into Graphiti's episode content."""
+    def _reject_structured_claims(payload: GraphEpisodePayload) -> None:
+        """Refuse payloads whose facts have already been extracted.
 
-        sections = [payload.episode_body.strip()]
+        Sending them here would flatten them to text for Graphiti's LLM to
+        re-derive -- the double-extraction route that rewrote facts and invented
+        dates (§3.12). There is a correct path for these; point at it loudly
+        rather than silently degrading the data.
+        """
 
         if payload.claims:
-            claim_lines = [f"- {claim.claim_id}: {claim.text}" for claim in payload.claims]
-            sections.append("Claims:\n" + "\n".join(claim_lines))
+            raise StructuredClaimsNotSupportedError(
+                f"payload '{payload.name}' carries {len(payload.claims)} pre-extracted "
+                "claim(s). Re-extracting them corrupts facts and dates (§3.12). "
+                "Use graph.verified_episode.add_verified_episode instead."
+            )
+
+    @staticmethod
+    def _resolve_reference_time(payload: GraphEpisodePayload) -> datetime:
+        """Reference time for the episode, warning when it has to be guessed.
+
+        Graphiti resolves relative time expressions against this value
+        (``prompts/extract_edges.py:78``), so defaulting to now() for an older
+        document silently dates its facts to the present. The fallback stays --
+        removing it would break callers -- but it no longer happens quietly.
+        """
+
+        if payload.reference_time is not None:
+            return payload.reference_time
+
+        logger.warning(
+            "episode '%s' has no reference_time; falling back to now(). Graphiti "
+            "will resolve relative dates against the current date (§3.12). Set "
+            "reference_time from the source's published_at.",
+            payload.name,
+        )
+        return datetime.now(timezone.utc)
+
+    @staticmethod
+    def _render_episode_content(payload: GraphEpisodePayload) -> str:
+        """Render the prose Graphiti will extract from.
+
+        Metadata rides along as a trailing block so it survives the round trip;
+        claims deliberately do not appear -- see ``_reject_structured_claims``.
+        """
+
+        sections = [payload.episode_body.strip()]
 
         if payload.metadata:
             sections.append(

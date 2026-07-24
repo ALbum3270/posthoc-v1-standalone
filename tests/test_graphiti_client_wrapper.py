@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from open_deep_research.graphrag.graph.client import GraphitiClient, GraphitiClientConfig
 from open_deep_research.graphrag.schemas import GraphEpisodePayload
 
@@ -148,3 +150,50 @@ def test_search_methods_use_wrapper_defaults():
     assert kwargs["num_results"] == 7
     _, kwargs = client._graphiti.calls[1]
     assert kwargs["config"] == "fake-config"
+
+
+def test_structured_claims_are_refused_by_the_re_extraction_path():
+    """Pre-extracted claims must not be flattened back to prose for an LLM.
+
+    That round trip is what rewrote facts and invented dates (§3.12); the
+    verified path exists for these payloads, so this one refuses them loudly
+    instead of silently degrading the data.
+    """
+    from open_deep_research.graphrag.graph.client import StructuredClaimsNotSupportedError
+    from open_deep_research.graphrag.schemas import ExtractedClaim
+
+    client = GraphitiClient(GraphitiClientConfig(), graphiti=FakeGraphiti())
+    payload = GraphEpisodePayload(
+        name="episode-name",
+        episode_body="raw finding",
+        source_description="tavily result",
+        claims=[
+            ExtractedClaim(
+                claim_id="c-1",
+                slot_id="what.core_event",
+                text="FTX announced bankruptcy in mid-November",
+                source_document_id="doc-1",
+            )
+        ],
+    )
+
+    with pytest.raises(StructuredClaimsNotSupportedError, match="add_verified_episode"):
+        __import__("asyncio").run(client.add_episode(payload))
+
+    assert client._graphiti.calls == [], "nothing may reach Graphiti"
+
+
+def test_missing_reference_time_warns_instead_of_defaulting_silently(caplog):
+    """now() for an undated document is the original bug; make it visible."""
+    client = GraphitiClient(GraphitiClientConfig(), graphiti=FakeGraphiti())
+    client._imports = SimpleNamespace(
+        episode_type=FakeEpisodeType, raw_episode_cls=FakeRawEpisode, search_config="x"
+    )
+    payload = GraphEpisodePayload(
+        name="undated", episode_body="body", source_description="src"
+    )
+
+    with caplog.at_level("WARNING"):
+        __import__("asyncio").run(client.add_episode(payload))
+
+    assert any("reference_time" in r.message for r in caplog.records)
