@@ -45,7 +45,14 @@ class RoundResult(BaseModel):
     triples_extracted: int = 0
     facts_written: int = 0
     episode_uuids: list[str] = Field(default_factory=list)
+    contributing_sources: list[str] = Field(default_factory=list)
     note: str = ""
+
+    @property
+    def is_corroborated(self) -> bool:
+        """Whether more than one source contributed facts to this slot."""
+
+        return len(self.contributing_sources) > 1
 
     @property
     def succeeded(self) -> bool:
@@ -69,13 +76,20 @@ async def run_research_round(
     extract: ExtractFn,
     exclude_urls: list[str] | None = None,
     max_documents: int = 3,
+    min_sources: int = 1,
     group_id: str = "neo4j",
 ) -> RoundResult:
     """Search for one slot, extract, and write whatever survives.
 
-    Stops at the first document that yields facts: the slot is answered, and
-    further pages would spend tokens re-answering it. Documents that yield
-    nothing are still reported, so their URLs are excluded next time.
+    ``min_sources`` is how many *distinct sources* must contribute facts before
+    the round stops early. At the default of 1 the round ends as soon as the slot
+    is answered, which is cheap but leaves every conclusion resting on a single
+    page -- the M4 regression measured 0% cross-corroboration across all three
+    topics for exactly this reason. Raising it to 2 buys a second, independent
+    source per slot at the cost of one more extraction call.
+
+    Documents that yield nothing are still reported, so their URLs are excluded
+    next time round.
     """
 
     result = RoundResult(slot_id=slot.slot_id, query=query)
@@ -116,9 +130,18 @@ async def run_research_round(
         result.facts_written += len(write.edge_uuids)
 
         if write.edge_uuids:
-            break
+            source_key = document.url or document.document_id
+            if source_key and source_key not in result.contributing_sources:
+                result.contributing_sources.append(source_key)
+            if len(result.contributing_sources) >= max(min_sources, 1):
+                break
 
-    if not result.succeeded and not result.note:
+    if result.succeeded and not result.is_corroborated and min_sources > 1:
+        result.note = (
+            f"only {len(result.contributing_sources)} source contributed; "
+            f"wanted {min_sources}"
+        )
+    elif not result.succeeded and not result.note:
         result.note = (
             f"{len(result.documents_seen)} document(s) searched, "
             f"{result.triples_extracted} triple(s) extracted, none reached the graph"

@@ -93,6 +93,11 @@ class GraphResearchSettings(BaseModel):
     max_chars_per_document: int = Field(default=2400, ge=500)
     search_results: int = Field(default=5, ge=1, le=20)
     max_documents_per_round: int = Field(default=3, ge=1, le=10)
+    # Distinct sources that must contribute facts before a slot stops early.
+    # The M4 regression measured 0% cross-corroboration on all three topics
+    # because the round ended at the first productive page; 2 buys an
+    # independent second source per slot for one extra extraction call.
+    min_sources_per_slot: int = Field(default=2, ge=1, le=5)
 
 
 class GraphResearchUsage(BaseModel):
@@ -433,6 +438,7 @@ class GraphResearchRunner:
                 extract=self.extract,
                 exclude_urls=exclude_urls,
                 max_documents=self.settings.max_documents_per_round,
+                min_sources=self.settings.min_sources_per_slot,
                 group_id=self.settings.group_id,
             )
             memory.record_attempt(

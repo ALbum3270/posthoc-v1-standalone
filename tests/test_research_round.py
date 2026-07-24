@@ -204,3 +204,66 @@ def test_explicit_none_falls_back_to_the_default() -> None:
 def test_undeclared_key_is_a_programming_error() -> None:
     with pytest.raises(KeyError, match="no declared default"):
         graph_state_value({}, "not_a_state_field")
+
+
+# --------------------------------------------------------------------------
+# cross-corroboration (M4 regression measured 0% on all three topics)
+# --------------------------------------------------------------------------
+
+
+def test_default_stops_at_one_source() -> None:
+    """Cheap default: the slot is answered, further pages only re-answer it."""
+
+    docs = [document("https://a.example"), document("https://b.example")]
+    result = run_round(
+        documents=docs,
+        extract_map={"https://a.example": [triple()], "https://b.example": [triple()]},
+    )
+
+    assert result.contributing_sources == ["https://a.example"]
+    assert result.is_corroborated is False
+
+
+def test_min_sources_two_collects_a_second_source() -> None:
+    docs = [document("https://a.example"), document("https://b.example")]
+    result = run_round(
+        documents=docs,
+        extract_map={"https://a.example": [triple()], "https://b.example": [triple()]},
+        min_sources=2,
+    )
+
+    assert result.contributing_sources == ["https://a.example", "https://b.example"]
+    assert result.is_corroborated is True
+    assert result.facts_written == 2
+
+
+def test_barren_documents_do_not_count_as_sources() -> None:
+    """Only pages that actually put facts in the graph corroborate anything."""
+
+    docs = [
+        document("https://a.example"),
+        document("https://barren.example"),
+        document("https://c.example"),
+    ]
+    result = run_round(
+        documents=docs,
+        extract_map={"https://a.example": [triple()], "https://c.example": [triple()]},
+        min_sources=2,
+    )
+
+    assert result.contributing_sources == ["https://a.example", "https://c.example"]
+    assert "https://barren.example" in result.documents_seen
+
+
+def test_unmet_corroboration_is_reported_but_still_a_success() -> None:
+    """One source is better than none; the shortfall belongs in the note."""
+
+    result = run_round(
+        documents=[document("https://a.example")],
+        extract_map={"https://a.example": [triple()]},
+        min_sources=2,
+    )
+
+    assert result.succeeded is True
+    assert result.is_corroborated is False
+    assert "wanted 2" in result.note

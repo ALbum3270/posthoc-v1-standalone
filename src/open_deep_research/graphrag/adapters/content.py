@@ -27,6 +27,38 @@ _SPACES = re.compile(r"[ \t]+")
 _BLANK_RUN = re.compile(r"\n{3,}")
 _TOKEN = re.compile(r"[a-z0-9]{2,}|[一-鿿]")
 
+# Everything from one of these headings to the end of the page is apparatus,
+# not content. Measured on the 2026-07-24 regression: 3 of 105 evidence items
+# were bibliography entries, and *all three* landed in WHEN slots -- a citation's
+# "Retrieved 19 July 2024" reads exactly like an event date, and one of them was
+# the evidence that made the CrowdStrike date check pass. Small in count,
+# concentrated where it does the most damage.
+_REFERENCE_HEADINGS = (
+    "references",
+    "reference list",
+    "notes",
+    "footnotes",
+    "citations",
+    "bibliography",
+    "further reading",
+    "external links",
+    "see also",
+    "sources",
+    "参考文献",
+    "参考资料",
+    "参见",
+    "外部链接",
+    "延伸阅读",
+    "注释",
+    "脚注",
+)
+# Citation-shaped lines that appear inline rather than under a heading.
+_CITATION_LINE = re.compile(
+    r"Retrieved\s+\d|Archived\s+from\s+the\s+original|\bISBN\b|\bdoi:|\barXiv:"
+    r"|\bVol\.\s|\bpp?\.\s?\d+|\(PDF\)",
+    re.IGNORECASE,
+)
+
 _CHROME_LINES = {
     "jump to content",
     "jump to navigation",
@@ -47,6 +79,19 @@ _STOPWORDS = {
 }
 
 
+def _is_reference_heading(line: str) -> bool:
+    """Whether a line is the heading that starts a page's citation apparatus.
+
+    Matched conservatively: a heading is short and consists of the marker alone,
+    so a sentence merely containing the word "sources" is not mistaken for one.
+    """
+
+    stripped = line.strip().strip("#*=_-· ").casefold()
+    if not stripped or len(stripped) > 24:
+        return False
+    return stripped in _REFERENCE_HEADINGS
+
+
 def clean_text(text: str) -> str:
     """Strip markup and navigation furniture, preserving paragraph structure."""
 
@@ -65,6 +110,11 @@ def clean_text(text: str) -> str:
             lines.append("")
             continue
         if normalized.casefold() in _CHROME_LINES:
+            continue
+        if _is_reference_heading(normalized):
+            # Apparatus starts here; nothing below it is the article's own claim.
+            break
+        if _CITATION_LINE.search(normalized):
             continue
         lines.append(normalized)
 

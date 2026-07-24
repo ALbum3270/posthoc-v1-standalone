@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from open_deep_research.graphrag.adapters.content import (
     clean_text,
     query_terms,
@@ -117,3 +119,77 @@ def test_chunk_size_is_clamped_to_the_budget() -> None:
 
     assert "8 billion USD" in selected
     assert len(selected) <= 300
+
+
+# --------------------------------------------------------------------------
+# citation apparatus (measured on the 2026-07-24 M4 regression)
+# --------------------------------------------------------------------------
+
+# Verbatim from the regression: these three reached WHEN slots, and the first
+# was the evidence that made the CrowdStrike date check pass.
+CONTAMINATING_LINES = [
+    '"Faulty CrowdStrike update causes major global IT outage, taking out banks, '
+    'airlines and businesses globally". TechCrunch. Archived from the original on '
+    "19 July 2024. Retrieved 19 July 2024.",
+    '"Massive outage hits companies around the world". news.com.au. 19 July 2024. '
+    "Retrieved 19 July 2024.",
+]
+
+
+@pytest.mark.parametrize("line", CONTAMINATING_LINES)
+def test_citation_lines_are_dropped(line: str) -> None:
+    """A citation's "Retrieved <date>" reads exactly like an event date."""
+
+    text = f"CrowdStrike deployed a faulty update on 19 July 2024.\n\n{line}"
+
+    cleaned = clean_text(text)
+
+    assert "deployed a faulty update" in cleaned
+    assert "Retrieved" not in cleaned
+
+
+def test_everything_below_a_references_heading_is_dropped() -> None:
+    text = (
+        "The outage began on 19 July 2024 and affected 8.5 million devices.\n\n"
+        "References\n\n"
+        "1. Some Source. Retrieved 19 July 2024.\n"
+        "2. Another Source, 2024.\n"
+    )
+
+    cleaned = clean_text(text)
+
+    assert "8.5 million devices" in cleaned
+    assert "Another Source" not in cleaned
+
+
+@pytest.mark.parametrize(
+    "heading", ["References", "External links", "参考文献", "Further reading", "## Notes"]
+)
+def test_reference_headings_are_recognised(heading: str) -> None:
+    cleaned = clean_text(f"Real body sentence.\n\n{heading}\n\nApparatus line here.")
+
+    assert "Real body sentence." in cleaned
+    assert "Apparatus line here." not in cleaned
+
+
+def test_a_sentence_mentioning_sources_is_not_a_heading() -> None:
+    """The marker must be a heading, not any prose containing the word."""
+
+    text = "Investigators cited multiple sources for the timeline of the outage."
+
+    assert "multiple sources" in clean_text(text)
+
+
+def test_body_dates_survive_apparatus_stripping() -> None:
+    """Stripping apparatus must not cost us the dates we actually want."""
+
+    text = (
+        "SVB was closed by regulators on March 10, 2023.\n\n"
+        "References\n\n"
+        "FDIC press release. Retrieved 11 March 2023.\n"
+    )
+
+    cleaned = clean_text(text)
+
+    assert "March 10, 2023" in cleaned
+    assert "Retrieved 11 March 2023" not in cleaned
