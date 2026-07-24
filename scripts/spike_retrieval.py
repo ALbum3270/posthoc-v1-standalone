@@ -17,7 +17,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(r"c:\Users\Lenovo\Desktop\Langgraph\open_deep_research-main\.env"))
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from graphiti_core import Graphiti  # noqa: E402
 

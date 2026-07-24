@@ -13,7 +13,7 @@ import os
 import sys
 from pathlib import Path
 
-ENV_PATH = Path(r"c:\Users\Lenovo\Desktop\Langgraph\open_deep_research-main\.env")
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
 PASS = "PASS"
 FAIL = "FAIL"
