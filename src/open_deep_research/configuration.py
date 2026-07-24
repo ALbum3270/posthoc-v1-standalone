@@ -2,7 +2,7 @@
 
 import os
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
@@ -60,6 +60,23 @@ class Configuration(BaseModel):
                 "description": "Whether to allow the researcher to ask the user clarifying questions before starting research"
             }
         }
+    )
+    research_mode: Literal["legacy", "graphrag"] = Field(
+        default="legacy",
+        metadata={
+            "x_oap_ui_config": {
+                "type": "select",
+                "default": "legacy",
+                "description": (
+                    "Research engine. 'legacy' preserves the upstream notes-based "
+                    "workflow; 'graphrag' uses verified graph writes and evidence packs."
+                ),
+                "options": [
+                    {"label": "Legacy notes", "value": "legacy"},
+                    {"label": "Verified GraphRAG", "value": "graphrag"},
+                ],
+            }
+        },
     )
     max_concurrent_research_units: int = Field(
         default=5,
@@ -156,6 +173,54 @@ class Configuration(BaseModel):
                 "description": "Maximum number of tool calling iterations to make in a single researcher step."
             }
         }
+    )
+    graphrag_max_rounds: int = Field(
+        default=24,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 24,
+                "min": 1,
+                "max": 100,
+                "description": "Maximum rounds for the verified GraphRAG loop.",
+            }
+        },
+    )
+    graphrag_max_attempts_per_slot: int = Field(
+        default=3,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 3,
+                "min": 1,
+                "max": 10,
+                "description": "Bounded retries for one ontology slot.",
+            }
+        },
+    )
+    graphrag_search_results: int = Field(
+        default=5,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 5,
+                "min": 1,
+                "max": 20,
+                "description": "Search results requested per GraphRAG round.",
+            }
+        },
+    )
+    graphrag_max_documents_per_round: int = Field(
+        default=3,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 3,
+                "min": 1,
+                "max": 10,
+                "description": "Documents extracted before a GraphRAG round gives up.",
+            }
+        },
     )
     # Model Configuration
     summarization_model: str = Field(

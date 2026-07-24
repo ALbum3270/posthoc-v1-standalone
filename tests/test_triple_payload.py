@@ -81,6 +81,22 @@ def test_values_are_stripped() -> None:
     ]
 
 
+def test_optional_quote_is_preserved_and_stripped() -> None:
+    raw = (
+        '{"triples":[{"subject":"FTX","predicate":"filed for",'
+        '"object":"Chapter 11","quote":"  FTX filed for Chapter 11.  "}]}'
+    )
+
+    assert parse_triple_payload(raw) == [
+        {
+            "subject": "FTX",
+            "predicate": "filed for",
+            "object": "Chapter 11",
+            "quote": "FTX filed for Chapter 11.",
+        }
+    ]
+
+
 @pytest.mark.parametrize("raw", [None, "", "   ", "not json", "{broken", "42", '"a string"'])
 def test_unparseable_input_yields_nothing(raw) -> None:
     assert parse_triple_payload(raw) == []

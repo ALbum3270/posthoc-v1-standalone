@@ -57,6 +57,16 @@ This will open the LangGraph Studio UI in your browser.
 
 Ask a question in the `messages` input field and click `Submit`. Select different configuration in the "Manage Assistants" tab.
 
+### Verified GraphRAG mode
+
+This workspace also contains an opt-in graph-first research engine with
+source-quote grounding, deterministic stopping, Neo4j coverage, and
+evidence-only reports. The upstream notes workflow remains the compatibility
+default; set `RESEARCH_MODE=graphrag` to use the verified path.
+
+See [README.graphrag.md](README.graphrag.md) for setup, regression commands,
+measured results, and current quality limitations.
+
 ### ⚙️ Configurations
 
 #### LLM :brain:

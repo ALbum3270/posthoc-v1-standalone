@@ -26,6 +26,7 @@ from typing import Any
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
 
 _TRIPLE_KEYS = ("subject", "predicate", "object")
+_OPTIONAL_TEXT_KEYS = ("quote",)
 # Keys a model plausibly nests the list under.
 _LIST_KEYS = ("triples", "facts", "results", "items", "data", "output", "extractions")
 
@@ -86,7 +87,10 @@ def parse_triple_payload(raw: str | None) -> list[dict[str, str]]:
     for row in rows:
         if not _is_triple(row):
             continue
-        triples.append(
-            {key: str(row[key]).strip() for key in _TRIPLE_KEYS}
-        )
+        parsed = {key: str(row[key]).strip() for key in _TRIPLE_KEYS}
+        for key in _OPTIONAL_TEXT_KEYS:
+            value = row.get(key)
+            if value is not None and str(value).strip():
+                parsed[key] = str(value).strip()
+        triples.append(parsed)
     return triples

@@ -1,6 +1,7 @@
 """Main LangGraph implementation for the Deep Research agent."""
 
 import asyncio
+import os
 from typing import Literal
 
 from langchain.chat_models import init_chat_model
@@ -18,6 +19,11 @@ from langgraph.types import Command
 
 from open_deep_research.configuration import (
     Configuration,
+)
+from open_deep_research.graphrag.runtime import (
+    GraphResearchSettings,
+    LiveServiceConfig,
+    run_live_graph_research,
 )
 from open_deep_research.prompts import (
     clarify_with_user_instructions,
@@ -56,6 +62,89 @@ from open_deep_research.utils import (
 configurable_model = init_chat_model(
     configurable_fields=("model", "max_tokens", "api_key"),
 )
+
+
+def research_entrypoint(configurable: Configuration) -> Literal[
+    "research_supervisor", "graph_research"
+]:
+    """Select the configured engine without changing legacy defaults."""
+
+    if configurable.research_mode == "graphrag":
+        return "graph_research"
+    return "research_supervisor"
+
+
+def _config_api_key(config: RunnableConfig, name: str) -> str | None:
+    """Read an API key from RunnableConfig when UI-managed keys are enabled."""
+
+    return (config.get("configurable", {}).get("apiKeys", {}) or {}).get(name)
+
+
+def graph_live_services(
+    configurable: Configuration,
+    config: RunnableConfig,
+) -> LiveServiceConfig:
+    """Resolve GraphRAG service endpoints without exposing credential values."""
+
+    openai_key = (
+        get_api_key_for_model(configurable.targeted_extraction_model, config)
+        or _config_api_key(config, "OPENAI_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+    )
+    tavily_key = _config_api_key(config, "TAVILY_API_KEY") or os.environ.get(
+        "TAVILY_API_KEY"
+    )
+    neo4j_uri = configurable.graphiti_uri or os.environ.get("NEO4J_URI")
+    neo4j_user = configurable.graphiti_user or os.environ.get("NEO4J_USER", "neo4j")
+    neo4j_password = configurable.graphiti_password or os.environ.get("NEO4J_PASSWORD")
+
+    missing = [
+        name
+        for name, value in (
+            ("OPENAI_API_KEY", openai_key),
+            ("TAVILY_API_KEY", tavily_key),
+            ("NEO4J_URI/graphiti_uri", neo4j_uri),
+            ("NEO4J_PASSWORD/graphiti_password", neo4j_password),
+        )
+        if not value
+    ]
+    if missing:
+        raise RuntimeError(
+            "GraphRAG mode is missing required configuration: " + ", ".join(missing)
+        )
+
+    return LiveServiceConfig(
+        openai_api_key=openai_key or "",
+        tavily_api_key=tavily_key or "",
+        neo4j_uri=neo4j_uri or "",
+        neo4j_user=neo4j_user or "neo4j",
+        neo4j_password=neo4j_password or "",
+        openai_base_url=os.environ.get("OPENAI_BASE_URL") or None,
+    )
+
+
+def graph_runtime_settings(configurable: Configuration) -> GraphResearchSettings:
+    """Map application configuration to the shared GraphRAG runtime."""
+
+    model = os.environ.get("OPENAI_MODEL")
+    if not model:
+        model = configurable.targeted_extraction_model
+        if model.startswith("openai:"):
+            model = model.split(":", 1)[1]
+            if "openrouter.ai" in (os.environ.get("OPENAI_BASE_URL") or ""):
+                model = f"openai/{model}"
+
+    return GraphResearchSettings(
+        model=model,
+        group_id=configurable.graph_group_id or "neo4j",
+        max_rounds=configurable.graphrag_max_rounds,
+        coverage_target=configurable.coverage_target,
+        max_no_improvement_rounds=configurable.max_no_improvement_rounds,
+        max_attempts_per_slot=configurable.graphrag_max_attempts_per_slot,
+        max_chars_per_document=configurable.targeted_extraction_max_chars,
+        search_results=configurable.graphrag_search_results,
+        max_documents_per_round=configurable.graphrag_max_documents_per_round,
+    )
 
 async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Command[Literal["write_research_brief", "__end__"]]:
     """Analyze user messages and ask clarifying questions if the research scope is unclear.
@@ -115,7 +204,10 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
         )
 
 
-async def write_research_brief(state: AgentState, config: RunnableConfig) -> Command[Literal["research_supervisor"]]:
+async def write_research_brief(
+    state: AgentState,
+    config: RunnableConfig,
+) -> Command[Literal["research_supervisor", "graph_research"]]:
     """Transform user messages into a structured research brief and initialize supervisor.
     
     This function analyzes the user's messages and generates a focused research brief
@@ -161,9 +253,10 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     )
     
     return Command(
-        goto="research_supervisor", 
+        goto=research_entrypoint(configurable),
         update={
             "research_brief": response.research_brief,
+            "topic": response.research_brief,
             "supervisor_messages": {
                 "type": "override",
                 "value": [
@@ -172,6 +265,44 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
                 ]
             }
         }
+    )
+
+
+async def graph_research(
+    state: AgentState,
+    config: RunnableConfig,
+) -> Command[Literal["__end__"]]:
+    """Run the verified graph-first engine and return its evidence-only report."""
+
+    configurable = Configuration.from_runnable_config(config)
+    topic = state.get("research_brief") or state.get("topic") or get_buffer_string(
+        state.get("messages", [])
+    )
+    result = await run_live_graph_research(
+        topic,
+        settings=graph_runtime_settings(configurable),
+        services=graph_live_services(configurable, config),
+    )
+    return Command(
+        goto=END,
+        update={
+            "topic": topic,
+            "research_id": result.research_id,
+            "coverage_ratio": result.coverage_ratio,
+            "gap_status": {"type": "override", "value": result.gap_status},
+            "evidence_pack": result.evidence_pack,
+            "research_metrics": {
+                "stop_reason": result.stop_reason,
+                "rounds": len(result.rounds),
+                "successful_rounds": result.successful_rounds,
+                "facts": result.fact_count,
+                "sources": result.source_count,
+                "total_tokens": result.usage.total_tokens,
+                "elapsed_seconds": result.usage.elapsed_seconds,
+            },
+            "final_report": result.report,
+            "messages": [AIMessage(content=result.report)],
+        },
     )
 
 
@@ -331,8 +462,8 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
                 
         except Exception as e:
             # Handle research execution errors
-            if is_token_limit_exceeded(e, configurable.research_model) or True:
-                # Token limit exceeded or other error - end research phase
+            if is_token_limit_exceeded(e, configurable.research_model):
+                # Token limit exceeded - end the research phase with partial notes.
                 return Command(
                     goto=END,
                     update={
@@ -340,6 +471,7 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
                         "research_brief": state.get("research_brief", "")
                     }
                 )
+            raise
     
     # Step 3: Return command with all tool results
     update_payload["supervisor_messages"] = all_tool_messages
@@ -707,6 +839,7 @@ deep_researcher_builder = StateGraph(
 # Add main workflow nodes for the complete research process
 deep_researcher_builder.add_node("clarify_with_user", clarify_with_user)           # User clarification phase
 deep_researcher_builder.add_node("write_research_brief", write_research_brief)     # Research planning phase
+deep_researcher_builder.add_node("graph_research", graph_research)                 # Verified GraphRAG engine
 deep_researcher_builder.add_node("research_supervisor", supervisor_subgraph)       # Research execution phase
 deep_researcher_builder.add_node("final_report_generation", final_report_generation)  # Report generation phase
 

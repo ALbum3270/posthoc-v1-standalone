@@ -108,6 +108,8 @@ class AgentState(MessagesState):
     coverage_ratio: NotRequired[float]
     rounds_without_improvement: NotRequired[int]
     evidence_pack: NotRequired[Optional[EvidencePack]]
+    research_id: NotRequired[str]
+    research_metrics: NotRequired[dict[str, Any]]
     raw_notes: Annotated[list[str], override_reducer]
     notes: Annotated[list[str], override_reducer]
     final_report: str

@@ -62,12 +62,12 @@ requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["open_deep_research", "open_deep_research.graphrag", "open_deep_research.graphrag.graph", "open_deep_research.graphrag.extraction", "legacy", "tests"]
+package-dir = {"" = "src"}
 
-[tool.setuptools.package-dir]
-"open_deep_research" = "src/open_deep_research"
-"legacy" = "src/legacy"
-"tests" = "tests"
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["open_deep_research*", "legacy*"]
+namespaces = true
 
 [tool.setuptools.package-data]
 "*" = ["py.typed"]
