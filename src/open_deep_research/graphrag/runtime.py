@@ -82,7 +82,9 @@ ProgressFn = Callable[[str], None]
 QUERY_SYSTEM_PROMPT = (
     "You write one web search query. Output the query text only, with no "
     "explanation. Keep full proper names intact and put quotation marks around "
-    "ambiguous multi-word names. Include the organization or event anchor. "
+    "ambiguous multi-word names. Put distinct people and organization names in "
+    "separate quoted phrases; never concatenate them into one name. Include the "
+    "organization or event anchor. "
     "Prefer concrete nouns, names, numbers, dates, official records, and primary "
     "sources over generic phrasing."
 )
@@ -148,21 +150,51 @@ APPLICABILITY_SYSTEM_PROMPT = (
 _CAPITALIZED_QUERY_RUN = re.compile(
     r"\b[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*)+\b"
 )
-_SEARCH_TEXT_PUNCTUATION = re.compile(r"[^a-z0-9]+")
+_QUOTED_QUERY_PHRASE = re.compile(r'"([^"]+)"')
+_SEARCH_TEXT_PUNCTUATION = re.compile(r"[^\w]+")
+
+
+def _normalize_search_text(text: str) -> str:
+    """Normalize punctuation while retaining letters from every script."""
+
+    return _SEARCH_TEXT_PUNCTUATION.sub(
+        " ",
+        (text or "").casefold().replace("_", " "),
+    ).strip()
+
+
+def _looks_like_quoted_entity(phrase: str) -> bool:
+    """Recognize explicitly quoted names without treating quoted claims as names."""
+
+    has_latin_proper_name = re.search(r"\b[A-Z][A-Za-z'-]*", phrase) is not None
+    has_non_latin_letter = any(
+        character.isalpha() and not character.isascii()
+        for character in phrase
+    )
+    return has_latin_proper_name or has_non_latin_letter
 
 
 def _query_entity_anchors(query: str) -> list[str]:
     """Extract multi-token proper names that search results must preserve."""
 
-    anchors = []
-    for match in _CAPITALIZED_QUERY_RUN.finditer(query or ""):
-        # Three tokens cover names such as "Silicon Valley Bank" while avoiding
-        # a following title-cased month becoming part of the organization name.
-        words = match.group(0).split()[:3]
-        normalized = _SEARCH_TEXT_PUNCTUATION.sub(
-            " ",
-            " ".join(words).casefold(),
-        ).strip()
+    anchors: list[str] = []
+    for match in _QUOTED_QUERY_PHRASE.finditer(query or ""):
+        phrase = match.group(1)
+        if not _looks_like_quoted_entity(phrase):
+            continue
+        normalized = _normalize_search_text(phrase)
+        if normalized and normalized not in anchors:
+            anchors.append(normalized)
+
+    # Keep a conservative fallback for older, unquoted queries. A longer
+    # title-cased run may be multiple adjacent entities; inventing a prefix or
+    # sliding-window anchor would reject valid results or weaken a long name.
+    unquoted_query = _QUOTED_QUERY_PHRASE.sub(" ", query or "")
+    for match in _CAPITALIZED_QUERY_RUN.finditer(unquoted_query):
+        words = match.group(0).split()
+        if len(words) > 3:
+            continue
+        normalized = _normalize_search_text(match.group(0))
         if normalized and normalized not in anchors:
             anchors.append(normalized)
     return anchors
@@ -759,10 +791,7 @@ class GraphResearchRunner:
                 for field in ("title", "content", "raw_content")
             )
             searchable = raw_searchable.casefold()
-            normalized_searchable = _SEARCH_TEXT_PUNCTUATION.sub(
-                " ",
-                searchable,
-            )
+            normalized_searchable = _normalize_search_text(raw_searchable)
             matched_terms = sum(term in searchable for term in terms)
             required_matches = 2 if len(terms) >= 3 else 1
             misses_topic_terms = terms and matched_terms < required_matches

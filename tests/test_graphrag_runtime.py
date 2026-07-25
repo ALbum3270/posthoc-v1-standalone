@@ -275,6 +275,101 @@ def test_search_requires_the_full_multiword_entity_anchor() -> None:
     assert active.usage.search_results_rejected == 1
 
 
+def test_search_does_not_combine_adjacent_entities_into_a_fake_anchor() -> None:
+    tavily = FakeTavily(
+        [
+            {
+                "title": "Sam Bankman-Fried founded Alameda Research",
+                "url": "https://news.example/alameda",
+                "content": "Sam Bankman-Fried founded Alameda Research.",
+                "raw_content": (
+                    "Sam Bankman-Fried founded Alameda Research before the "
+                    "collapse."
+                ),
+            },
+        ]
+    )
+    active = runner(tavily=tavily)
+
+    documents = asyncio.run(
+        active.search(
+            query="Sam Bankman-Fried Alameda Research collapse",
+            exclude_urls=[],
+        )
+    )
+
+    assert [document.url for document in documents] == [
+        "https://news.example/alameda"
+    ]
+    assert active.usage.search_results_rejected == 0
+
+
+def test_search_does_not_weaken_a_long_quoted_institution_name() -> None:
+    tavily = FakeTavily(
+        [
+            {
+                "title": "New York liquidity overview",
+                "url": "https://example.com/new-york",
+                "content": "New York liquidity conditions improved.",
+                "raw_content": "New York liquidity conditions improved.",
+            },
+            {
+                "title": "Bank of New York Mellon liquidity report",
+                "url": "https://example.com/bnym",
+                "content": "Bank of New York Mellon reported stronger liquidity.",
+                "raw_content": (
+                    "Bank of New York Mellon reported stronger liquidity."
+                ),
+            },
+        ]
+    )
+    active = runner(tavily=tavily)
+
+    documents = asyncio.run(
+        active.search(
+            query='"Bank of New York Mellon" liquidity',
+            exclude_urls=[],
+        )
+    )
+
+    assert [document.url for document in documents] == [
+        "https://example.com/bnym"
+    ]
+    assert active.usage.search_results_rejected == 1
+
+
+def test_search_preserves_a_quoted_chinese_person_name_as_an_anchor() -> None:
+    tavily = FakeTavily(
+        [
+            {
+                "title": "阿里巴巴公司动态",
+                "url": "https://example.com/alibaba",
+                "content": "阿里巴巴发布公司动态。",
+                "raw_content": "阿里巴巴发布公司动态。",
+            },
+            {
+                "title": "马云谈阿里巴巴",
+                "url": "https://example.com/jack-ma",
+                "content": "马云谈到阿里巴巴的发展。",
+                "raw_content": "马云谈到阿里巴巴的发展。",
+            },
+        ]
+    )
+    active = runner(tavily=tavily)
+
+    documents = asyncio.run(
+        active.search(
+            query='"马云" 阿里巴巴',
+            exclude_urls=[],
+        )
+    )
+
+    assert [document.url for document in documents] == [
+        "https://example.com/jack-ma"
+    ]
+    assert active.usage.search_results_rejected == 1
+
+
 def test_critical_slot_keeps_one_central_claim_for_independent_support() -> None:
     critical = SLOT.model_copy(update={"required_source_count": 2})
     source = SourceDocument(
