@@ -12,7 +12,7 @@ separate, named measurements:
 
 The fixed checks are intentionally small and auditable.  They do not pretend to
 measure universal truth; they catch regressions on stable, well-known facts for
-three historical incidents.
+four historical incidents, including a non-financial holdout.
 """
 
 from __future__ import annotations
@@ -245,6 +245,71 @@ DEFAULT_REGRESSION_CASES = (
                 check_id="svb_no_2024_closure",
                 description="SVB's closure is not dated to 2024",
                 patterns=[r"Silicon Valley Bank|\bSVB\b", r"clos|fail|collapse", r"\b2024\b"],
+                should_exist=False,
+            ),
+        ],
+    ),
+    RegressionCase(
+        case_id="turkiye_quake_2023",
+        topic=(
+            "2023 Türkiye–Syria earthquakes on February 6, 2023 "
+            "(Mw 7.8 mainshock)"
+        ),
+        checks=[
+            FactCheck(
+                check_id="turkiye_quake_date",
+                description="The main earthquake is anchored to February 6, 2023",
+                patterns=[
+                    r"February\s+6,?\s+2023|6\s+February\s+2023|"
+                    r"2023[-年/]\s*0?2[-月/]\s*0?6(?:日)?"
+                ],
+                slot_ids=["when.event_time"],
+            ),
+            FactCheck(
+                check_id="turkiye_quake_magnitude",
+                description="The mainshock magnitude is identified as Mw 7.8",
+                patterns=[
+                    r"\b7[.]8\b",
+                    r"\bM(?:w|W)?\b|magnitude|震级|震級|規模",
+                ],
+            ),
+            FactCheck(
+                check_id="turkiye_quake_affected_countries",
+                description="Türkiye and Syria are identified as affected countries",
+                patterns=[
+                    r"Türkiye|Turkey|土耳其",
+                    r"Syria|叙利亚|敘利亞",
+                ],
+                patterns_may_span_facts=True,
+            ),
+            FactCheck(
+                check_id="turkiye_quake_death_toll",
+                description="The death toll is reported at the tens-of-thousands scale",
+                patterns=[
+                    r"dead|death|fatalit|killed|遇难|遇難|死亡|丧生|喪生",
+                    r"(?:5\d(?:,\d{3})|[5-6]\d{4}|5\d\s+thousand|"
+                    r"(?:more than|over|at least)\s+5\d(?:,\d{3})?|"
+                    r"(?:5(?:[.]\d+)?|近?6)\s*万|五万|六万)",
+                ],
+            ),
+            FactCheck(
+                check_id="turkiye_quake_rescue_aid",
+                description="Rescue or international aid intervention is identified",
+                patterns=[
+                    r"search[- ]and[- ]rescue|rescue team|international aid|"
+                    r"humanitarian (?:aid|assistance)|救援|搜救|国际援助|"
+                    r"國際援助|人道主义援助|人道主義援助"
+                ],
+            ),
+            FactCheck(
+                check_id="turkiye_quake_no_wrong_year",
+                description="The February 6 earthquake is not dated to another year",
+                patterns=[
+                    r"earthquake|地震",
+                    r"February\s+6,?\s+(?:2022|2024|2025|2026)|"
+                    r"6\s+February\s+(?:2022|2024|2025|2026)|"
+                    r"(?:2022|2024|2025|2026)[-年/]\s*0?2[-月/]\s*0?6(?:日)?",
+                ],
                 should_exist=False,
             ),
         ],

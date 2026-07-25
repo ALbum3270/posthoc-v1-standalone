@@ -1,4 +1,5 @@
 from open_deep_research.graphrag.evaluation.regression import (
+    DEFAULT_REGRESSION_CASES,
     FactCheck,
     RegressionCase,
     RegressionSuiteResult,
@@ -207,3 +208,86 @@ def test_markdown_summary_labels_model_judgement() -> None:
     assert "Claim corroboration" in rendered
     assert "model-judged" in rendered
     assert "Fixed checks" in rendered
+
+
+def quake_case() -> RegressionCase:
+    return next(
+        case
+        for case in DEFAULT_REGRESSION_CASES
+        if case.case_id == "turkiye_quake_2023"
+    )
+
+
+def quake_result(*conclusions: tuple[str, str]) -> GraphResearchResult:
+    run = result()
+    run.topic = quake_case().topic
+    run.evidence_pack = EvidencePack(
+        topic=run.topic,
+        coverage_ratio=1.0,
+        items=[
+            EvidencePackItem(
+                slot_id=slot_id,
+                conclusion=conclusion,
+                confidence=0.9,
+                provenance_episode_ids=[f"episode-{index}"],
+            )
+            for index, (slot_id, conclusion) in enumerate(conclusions)
+        ],
+    )
+    return run
+
+
+def test_turkiye_quake_holdout_has_six_auditable_checks() -> None:
+    holdout = quake_case()
+
+    assert "Türkiye–Syria earthquakes" in holdout.topic
+    assert "February 6, 2023" in holdout.topic
+    assert "Mw 7.8" in holdout.topic
+    assert len(holdout.checks) == 6
+    assert len({check.check_id for check in holdout.checks}) == 6
+    assert sum(not check.should_exist for check in holdout.checks) == 1
+    assert {
+        check.check_id
+        for check in holdout.checks
+        if check.slot_ids
+    } == {"turkiye_quake_date"}
+
+
+def test_turkiye_quake_patterns_match_cross_language_facts() -> None:
+    run = quake_result(
+        ("when.event_time", "主震发生于2023年2月6日。"),
+        ("what.core_event", "The mainshock had a moment magnitude of Mw 7.8."),
+        ("where.event_location", "土耳其南部受到地震影响。"),
+        ("who.affected_parties", "Northern Syria was also severely affected."),
+        (
+            "what.scale",
+            "More than 59,000 people were killed across the affected region.",
+        ),
+        (
+            "how.sequence",
+            "International search-and-rescue teams joined the response.",
+        ),
+    )
+
+    evaluated = evaluate_case(run, quake_case())
+
+    assert evaluated.factual_check_pass_rate == 1.0
+    assert all(check.passed for check in evaluated.fact_checks)
+
+
+def test_turkiye_quake_patterns_reject_wrong_facts() -> None:
+    run = quake_result(
+        ("when.event_time", "The earthquake struck on February 6, 2024."),
+        ("what.core_event", "The mainshock had a magnitude of Mw 7.5."),
+        ("where.event_location", "Türkiye was affected."),
+        ("what.scale", "Nine people were killed."),
+    )
+
+    evaluated = evaluate_case(run, quake_case())
+    by_check = {check.check_id: check for check in evaluated.fact_checks}
+
+    assert by_check["turkiye_quake_date"].passed is False
+    assert by_check["turkiye_quake_magnitude"].passed is False
+    assert by_check["turkiye_quake_affected_countries"].passed is False
+    assert by_check["turkiye_quake_death_toll"].passed is False
+    assert by_check["turkiye_quake_no_wrong_year"].passed is False
