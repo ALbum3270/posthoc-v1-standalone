@@ -4,9 +4,11 @@ from types import SimpleNamespace
 from open_deep_research.graphrag.control.stopping import StopReason, StoppingConfig
 from open_deep_research.graphrag.ontology import OntologySlot
 from open_deep_research.graphrag.runtime import (
+    EXTRACTION_SYSTEM_PROMPT,
     GraphResearchRunner,
     GraphResearchSettings,
     GraphResearchUsage,
+    SUPPORT_EXTRACTION_SYSTEM_PROMPT,
     _finalize_loop_stop,
 )
 from open_deep_research.graphrag.schemas import (
@@ -133,6 +135,12 @@ def test_extraction_accepts_only_exactly_quoted_rows() -> None:
     assert triples[0].source_span.quote == source.content
     assert active.usage.extraction_rows == 2
     assert active.usage.grounding_rejections == 1
+
+
+def test_extraction_prompts_require_complete_self_contained_quotes() -> None:
+    for prompt in (EXTRACTION_SYSTEM_PROMPT, SUPPORT_EXTRACTION_SYSTEM_PROMPT):
+        assert "complete, self-contained sentence or clause" in prompt
+        assert "mid-word" in prompt
 
 
 def test_query_generator_deterministically_breaks_an_exact_repeat() -> None:

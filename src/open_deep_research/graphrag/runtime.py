@@ -102,9 +102,11 @@ EXTRACTION_SYSTEM_PROMPT = (
     "Reply with a JSON object of exactly this form:\n"
     '{"triples": [{"subject": "...", "predicate": "...", "object": "...", '
     '"quote": "an exact contiguous quote copied from the passage"}]}\n'
-    "The quote is mandatory and must occur verbatim in the passage. Copy names, "
-    "numbers and dates exactly. Never infer, translate, summarize, or complete a "
-    "date the passage does not state. If no exact supporting quote exists, return "
+    "The quote is mandatory and must occur verbatim in the passage. Use a "
+    "complete, self-contained sentence or clause and never end mid-word. Copy "
+    "names, numbers and dates exactly. Never infer, translate, summarize, or "
+    "complete a date the passage does not state. If no exact supporting quote "
+    "exists, return "
     '{"triples": []}.'
 )
 
@@ -113,7 +115,8 @@ SUPPORT_EXTRACTION_SYSTEM_PROMPT = (
     "Return only claims that this passage directly supports. Copy subject, "
     "predicate, and object EXACTLY from a target claim; do not introduce a new "
     "claim merely because it answers the same broad question. Every row must "
-    "include an exact contiguous quote from this passage.\n"
+    "include an exact contiguous quote from this passage that is a complete, "
+    "self-contained sentence or clause and never ends mid-word.\n"
     'Reply as a JSON object: {"triples":[{"subject":"...","predicate":"...",'
     '"object":"...",'
     '"quote":"..."}]}. If none of the target claims is supported, return '
