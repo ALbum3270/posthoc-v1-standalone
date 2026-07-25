@@ -13,6 +13,7 @@ stored report sentence is an exact passage from the cited source.
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Mapping
 
 from open_deep_research.graphrag.ontology import OntologySlot
@@ -27,6 +28,21 @@ _SPACE_RUN = re.compile(r"\s+")
 _NUMBER = re.compile(
     r"(?<!\w)[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:\s*%)?"
 )
+_SENTENCE_END = re.compile(r"""[.!?。！？]["'”’)\]]*(?=\s|$)""")
+_PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n+")
+_LEADING_FURNITURE = re.compile(r"""^[\s"'“”‘’([{<\-–—•*]+""")
+_DANGLING_CONJUNCTION = re.compile(r"^(?:and|but)\b|^(?:但|但是|并且|而且)", re.I)
+_ANAPHORIC_ENGLISH = re.compile(
+    r"^(?:they|them|their|theirs|this|these|those|it|its)\b",
+    re.I,
+)
+_ANAPHORIC_CHINESE = re.compile(
+    r"^(?:该|其|它们?|他们|她们|此|这些|那些|这(?:个|些)?)"
+)
+_ANAPHORIC_COMPANY = re.compile(r"^the\s+company(?:'s|’s)\b", re.I)
+_LATIN_WORD = re.compile(r"[A-Za-z]+")
+_INITIALISM = re.compile(r"^[A-Za-z][A-Za-z0-9]{1,9}$")
+_CJK_CHARACTER = re.compile(r"[\u3400-\u9fff]")
 
 
 def locate_source_quote(content: str, quote: str) -> SourceSpan | None:
@@ -61,6 +77,132 @@ def locate_source_quote(content: str, quote: str) -> SourceSpan | None:
     )
 
 
+def _is_abbreviation_period(source: str, punctuation_at: int) -> bool:
+    """Avoid treating an initialism's final period as a sentence boundary."""
+
+    prefix = source[: punctuation_at + 1]
+    return re.search(r"(?:\b[A-Za-z]\.){2,}$", prefix) is not None
+
+
+def expand_span_to_sentence(content: str, span: SourceSpan) -> SourceSpan:
+    """Expand a grounded fragment to its enclosing verbatim source sentence."""
+
+    source = content or ""
+    if not source:
+        return span
+
+    sentence_ends = [
+        match
+        for match in _SENTENCE_END.finditer(source)
+        if not (
+            source[match.start()] == "."
+            and _is_abbreviation_period(source, match.start())
+        )
+    ]
+    paragraph_breaks = list(_PARAGRAPH_BREAK.finditer(source))
+
+    start_candidates = [0]
+    start_candidates.extend(
+        match.end() for match in sentence_ends if match.end() <= span.start_char
+    )
+    start_candidates.extend(
+        match.end() for match in paragraph_breaks if match.end() <= span.start_char
+    )
+    start = max(start_candidates)
+
+    end_candidates = [len(source)]
+    end_candidates.extend(
+        match.end() for match in sentence_ends if match.end() >= span.end_char
+    )
+    end_candidates.extend(
+        match.start()
+        for match in paragraph_breaks
+        if match.start() >= span.end_char
+    )
+    end = min(end_candidates)
+
+    while start < end and source[start].isspace():
+        start += 1
+    while end > start and source[end - 1].isspace():
+        end -= 1
+    return SourceSpan(start_char=start, end_char=end, quote=source[start:end])
+
+
+def _fold_name_text(text: str) -> str:
+    """Normalize Unicode names while preserving token boundaries."""
+
+    normalized = unicodedata.normalize("NFKC", text or "").casefold()
+    return " ".join(
+        "".join(character if character.isalnum() else " " for character in normalized)
+        .split()
+    )
+
+
+def _contains_named_form(quote: str, named_form: str) -> bool:
+    quote_folded = _fold_name_text(quote)
+    name_folded = _fold_name_text(named_form)
+    if not quote_folded or not name_folded:
+        return False
+    if _CJK_CHARACTER.search(name_folded):
+        return name_folded.replace(" ", "") in quote_folded.replace(" ", "")
+    return f" {name_folded} " in f" {quote_folded} "
+
+
+def _derived_subject_forms(subject: str) -> list[str]:
+    """Derive only structurally justified short forms from a subject name."""
+
+    forms: list[str] = []
+    latin_words = _LATIN_WORD.findall(subject)
+    capitalized_words = [word for word in latin_words if word[0].isupper()]
+    if len(capitalized_words) >= 2:
+        initialism = "".join(word[0] for word in capitalized_words)
+        if _INITIALISM.fullmatch(initialism):
+            forms.append(initialism)
+
+    final_token = subject.strip().split()[-1] if subject.strip() else ""
+    hyphen_parts = [part for part in re.split(r"[-‐‑‒–—]", final_token) if part]
+    if (
+        len(hyphen_parts) >= 2
+        and all(part.isalpha() for part in hyphen_parts)
+        and sum(len(part) for part in hyphen_parts) >= 5
+    ):
+        forms.append(final_token)
+    return forms
+
+
+def quote_names_subject(quote: str, subject: str) -> bool:
+    """Return whether a quote explicitly names the triple subject.
+
+    Full Unicode names are matched directly. Latin initialisms and compound
+    hyphenated surnames are derived from the supplied subject's own structure,
+    avoiding event-specific alias dictionaries or arbitrary sliding windows.
+    """
+
+    if _contains_named_form(quote, subject):
+        return True
+    return any(
+        _contains_named_form(quote, form)
+        for form in _derived_subject_forms(subject)
+    )
+
+
+def quote_is_self_contained(quote: str) -> bool:
+    """Reject fragments whose opening depends on missing prior context."""
+
+    candidate = _LEADING_FURNITURE.sub("", quote or "")
+    if not candidate:
+        return False
+    return not any(
+        pattern.search(candidate)
+        for pattern in (
+            _DANGLING_CONJUNCTION,
+            _ANAPHORIC_ENGLISH,
+            _ANAPHORIC_CHINESE,
+            _ANAPHORIC_COMPANY,
+        )
+    )
+
+
 def normalized_numbers(text: str) -> set[str]:
     """Return normalized numeric tokens for deterministic support checks."""
 
@@ -87,22 +229,32 @@ def ground_extracted_row(
     row: Mapping[str, str],
     confidence: float = 0.8,
 ) -> ExtractedTriple | None:
-    """Map one model row to a triple only when its quote is in the source.
+    """Map one model row to a triple only when its evidence is self-contained.
 
-    Numbers receive an additional subset check.  This catches the most damaging
-    class of plausible-looking extraction errors without introducing an LLM
-    verifier or a threshold that would need calibration.
+    A located fragment is expanded to its enclosing source sentence, preserving
+    exact offsets and text. Numbers must remain supported, the sentence must not
+    begin with an unresolved reference, and it must explicitly name the triple
+    subject. These mechanical checks avoid an LLM verifier or a threshold that
+    would need calibration.
     """
-
-    quote = str(row.get("quote") or "").strip()
-    span = locate_source_quote(document.content, quote)
-    if span is None or not row_is_numerically_supported(row, span.quote or ""):
-        return None
 
     subject = str(row.get("subject") or "").strip()
     predicate = str(row.get("predicate") or "").strip()
     obj = str(row.get("object") or "").strip()
     if not subject or not predicate or not obj:
+        return None
+
+    quote = str(row.get("quote") or "").strip()
+    located_span = locate_source_quote(document.content, quote)
+    if located_span is None:
+        return None
+    span = expand_span_to_sentence(document.content, located_span)
+    grounded_quote = span.quote or ""
+    if (
+        not row_is_numerically_supported(row, grounded_quote)
+        or not quote_is_self_contained(grounded_quote)
+        or not quote_names_subject(grounded_quote, subject)
+    ):
         return None
 
     return ExtractedTriple(
@@ -113,5 +265,5 @@ def ground_extracted_row(
         confidence=confidence,
         source_document_id=document.document_id,
         source_span=span,
-        rationale="verbatim quote located in source document",
+        rationale="verbatim self-contained sentence located in source document",
     )

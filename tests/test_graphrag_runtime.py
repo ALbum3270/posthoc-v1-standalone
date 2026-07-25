@@ -137,9 +137,10 @@ def test_extraction_accepts_only_exactly_quoted_rows() -> None:
     assert active.usage.grounding_rejections == 1
 
 
-def test_extraction_prompts_require_complete_self_contained_quotes() -> None:
+def test_extraction_prompts_require_complete_self_contained_sentences() -> None:
     for prompt in (EXTRACTION_SYSTEM_PROMPT, SUPPORT_EXTRACTION_SYSTEM_PROMPT):
-        assert "complete, self-contained sentence or clause" in prompt
+        assert "complete, self-contained sentence" in prompt
+        assert "explicitly names the triple subject" in prompt
         assert "mid-word" in prompt
 
 
