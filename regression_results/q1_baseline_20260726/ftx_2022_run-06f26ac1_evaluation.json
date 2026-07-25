@@ -1,0 +1,86 @@
+{
+  "case_id": "ftx_2022",
+  "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+  "research_id": "run-06f26ac1",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 0.6666666666666666,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 22,
+  "claim_corroboration_rate": 0.2727272727272727,
+  "high_impact_support_rate": 0.8571428571428571,
+  "multi_source_slot_rate": 0.5,
+  "cross_corroborated_slot_rate": 0.2727272727272727,
+  "round_success_rate": 0.8235294117647058,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.21621621621621623,
+  "dated_fact_rate": 0.2727272727272727,
+  "fact_count": 22,
+  "source_count": 9,
+  "episode_count": 16,
+  "rounds": 17,
+  "llm_calls": 69,
+  "search_calls": 17,
+  "search_results_rejected": 8,
+  "relevance_accepted": 28,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 0,
+  "support_rounds": 7,
+  "prompt_tokens": 32044,
+  "completion_tokens": 4749,
+  "total_tokens": 36793,
+  "chat_provider_cost_usd": 0.020416000000000007,
+  "elapsed_seconds": 215.25316322300932,
+  "fact_checks": [
+    {
+      "check_id": "ftx_bankruptcy_2022",
+      "description": "FTX bankruptcy is anchored to 2022",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_sbf",
+      "description": "Sam Bankman-Fried is identified",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_alameda",
+      "description": "Alameda Research is connected to the event",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT).",
+        "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. The article triggered a spike in withdrawals from FTX",
+        "On November 11, Alameda Research and FTX declared bankruptcy",
+        "a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT"
+      ]
+    },
+    {
+      "check_id": "ftx_bahamas",
+      "description": "The Bahamas appears as FTX's operating jurisdiction",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "The collapse of cryptocurrency exchange FTX is the subject of scrutiny from government investigators in the Bahamas"
+      ]
+    },
+    {
+      "check_id": "ftx_no_2023_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2023",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_no_2026_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

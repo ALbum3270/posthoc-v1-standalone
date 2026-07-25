@@ -1,0 +1,93 @@
+{
+  "case_id": "crowdstrike_2024",
+  "topic": "CrowdStrike global IT outage on July 19, 2024",
+  "research_id": "run-6df02677",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 1.0,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 19,
+  "claim_corroboration_rate": 0.3157894736842105,
+  "high_impact_support_rate": 0.8571428571428571,
+  "multi_source_slot_rate": 0.5,
+  "cross_corroborated_slot_rate": 0.3157894736842105,
+  "round_success_rate": 0.8571428571428571,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.22916666666666666,
+  "dated_fact_rate": 0.3684210526315789,
+  "fact_count": 19,
+  "source_count": 12,
+  "episode_count": 16,
+  "rounds": 14,
+  "llm_calls": 65,
+  "search_calls": 14,
+  "search_results_rejected": 2,
+  "relevance_accepted": 25,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 11,
+  "support_rounds": 4,
+  "prompt_tokens": 29977,
+  "completion_tokens": 5743,
+  "total_tokens": 35720,
+  "chat_provider_cost_usd": 0.021179599999999996,
+  "elapsed_seconds": 260.444213766983,
+  "fact_checks": [
+    {
+      "check_id": "crowdstrike_date",
+      "description": "The outage is anchored to July 19, 2024",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "| Date | 19 July 2024; 2 years ago (2024-07-19) |"
+      ]
+    },
+    {
+      "check_id": "crowdstrike_falcon",
+      "description": "CrowdStrike Falcon is identified as the affected product",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On 19 July 2024, CrowdStrike released a faulty configuration update for its Falcon Sensor software on Microsoft Windows systems. The update caused around 8.5 million computers to crash and fail to restart properly.",
+        "An invalid configuration file caused a crash in the CrowdStrike Falcon Sensor code, which runs during the Windows boot process, causing a boot loop."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_windows",
+      "description": "Windows systems are identified as affected",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On July 19, 2024, a defective update from CrowdStrike, an American cybersecurity company, triggered a major IT outage for over 8.5 million devices running the Microsoft system.",
+        "On 19 July 2024, CrowdStrike released a faulty configuration update for its Falcon Sensor software on Microsoft Windows systems. The update caused around 8.5 million computers to crash and fail to restart properly.",
+        "Outages were experienced worldwide, reflecting the wide use of Microsoft Windows and CrowdStrike software by global corporations in numerous business sectors.",
+        "An invalid configuration file caused a crash in the CrowdStrike Falcon Sensor code, which runs during the Windows boot process, causing a boot loop.",
+        "July 19, 2024, 04:09 UTC: CrowdStrike released a sensor configuration update, Channel File 291, to Windows systems as part of their ongoing operations."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_update",
+      "description": "A faulty content/software update is identified as the trigger",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On July 19, 2024, a defective update from CrowdStrike, an American cybersecurity company, triggered a major IT outage for over 8.5 million devices running the Microsoft system.",
+        "In an update on 24th July 2024, CrowdStrike blamed a bug in its quality control procedure."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_no_2025_event",
+      "description": "The 2024 outage is not dated to 2025",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "crowdstrike_no_2026_event",
+      "description": "The 2024 outage is not dated to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

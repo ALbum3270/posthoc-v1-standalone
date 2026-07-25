@@ -1,0 +1,1678 @@
+{
+  "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+  "research_id": "run-06f26ac1",
+  "stop_reason": "coverage_reached",
+  "stop_detail": "coverage 100% >= target 100%; critical claim support 4/7 targeted follow-up(s), 5 gap(s) found",
+  "coverage_ratio": 1.0,
+  "gap_status": [
+    {
+      "slot_id": "who.primary_actor",
+      "dimension": "WHO",
+      "question": "Which person, organization, or system is the central subject of the event, excluding later responders, buyers, and merely affected parties?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "db5461df-9bfe-49ef-8ee1-a7b73a44b6e6",
+        "7eb8c1af-911a-49cd-8db1-041a99fde4d3"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "dimension": "WHO",
+      "question": "Who is affected, targeted, or impacted?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "2e1f6828-6221-4b58-8b5c-fdd333842ac9"
+      ],
+      "notes": "3 active fact(s)"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "dimension": "WHO",
+      "question": "Which organizations, subsidiaries, or partners are involved?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "f1edab6a-ea08-45de-8519-f65a1f1058f5"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "who.regulators",
+      "dimension": "WHO",
+      "question": "Which regulators, investigators, or authorities are involved?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "what.core_event",
+      "dimension": "WHAT",
+      "question": "What exactly happened?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "5f34bf34-88e0-4946-aa11-daaffd5bd07a",
+        "d673aa39-c302-4a0b-86b7-0379fa80bcfe"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.scale",
+      "dimension": "WHAT",
+      "question": "What is the scale, size, or material impact of the event?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "410640f6-5434-438b-bb90-e63fea99e4c8",
+        "af551e1b-f102-4a58-86d2-4e44b5872e41"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.products",
+      "dimension": "WHAT",
+      "question": "Which products, services, or assets are involved?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.event_time",
+      "dimension": "WHEN",
+      "question": "When did the key event occur?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "4f26e00f-a673-41f0-ba30-a70ce43288f2",
+        "d5fcffff-a073-47dc-8279-0873716fd1bc"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "dimension": "WHEN",
+      "question": "When was the event discovered or disclosed?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "dimension": "WHEN",
+      "question": "When did an official intervention or response occur?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "dimension": "WHERE",
+      "question": "Where is the primary legal or operational jurisdiction?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "dimension": "WHERE",
+      "question": "Where did money, assets, or activity move?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.event_location",
+      "dimension": "WHERE",
+      "question": "Where did the event happen or become visible?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "adea4d17-5828-4e0c-a2d5-43e70b4f4bf9"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "why.motivation",
+      "dimension": "WHY",
+      "question": "Why did the actor behave this way or pursue this action?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "why.trigger",
+      "dimension": "WHY",
+      "question": "What immediate trigger and underlying conditions caused or catalyzed the event?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "4ba3da07-350c-4977-b87d-0b3517f659dc",
+        "ce7d9b4d-9e83-48bb-a70a-5364ae35404a",
+        "6387636a-54fd-4cc2-9c44-21a3df2b32d2"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "dimension": "HOW",
+      "question": "What causal mechanism made the event happen, or how was it executed?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "22d9560f-2b5f-4ce5-81cf-3afa681fa1ea"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "how.sequence",
+      "dimension": "HOW",
+      "question": "How did the activity unfold step by step?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+      ],
+      "notes": "9 active fact(s)"
+    }
+  ],
+  "slot_applicability": [
+    {
+      "slot_id": "who.primary_actor",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.regulators",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Regulators and authorities are typically involved in investigating and responding to financial collapses like FTX's bankruptcy."
+    },
+    {
+      "slot_id": "what.core_event",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.scale",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.products",
+      "status": "optional",
+      "confidence": 0.95,
+      "reason": "The collapse involves specific cryptocurrency products, services, and assets offered by FTX."
+    },
+    {
+      "slot_id": "when.event_time",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "The timing of when the collapse was discovered or disclosed is relevant and meaningful."
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Official interventions or responses, such as regulatory actions or bankruptcy filings, are meaningful to the event timeline."
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "status": "optional",
+      "confidence": 0.95,
+      "reason": "The legal and operational jurisdiction is important for understanding the regulatory and legal context."
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Tracking the flow of money and assets is relevant to understanding the collapse and bankruptcy."
+    },
+    {
+      "slot_id": "where.event_location",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "why.motivation",
+      "status": "optional",
+      "confidence": 0.85,
+      "reason": "Understanding the motivations behind the actors' behavior is meaningful for this financial collapse."
+    },
+    {
+      "slot_id": "why.trigger",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.sequence",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    }
+  ],
+  "relevance_audit": [
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "source_url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "quote": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+      "structured_claim": "The collapse of FTX | was caused by | a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly answers the question by explaining what exactly happened: a spike in customer withdrawals exposed a large financial shortfall, leading to the collapse and bankruptcy of FTX."
+    },
+    {
+      "slot_id": "who.primary_actor",
+      "document_id": "https://www.dcu.ie/research-publication/understanding-ftx-exchange-collapse",
+      "source_url": "https://www.dcu.ie/research-publication/understanding-ftx-exchange-collapse",
+      "quote": "In November 2022, cryptocurrency exchange FTX collapsed following reports of potential leverage and solvency issues.",
+      "structured_claim": "cryptocurrency exchange FTX | is the central subject of the event | collapse in November 2022",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that cryptocurrency exchange FTX collapsed in November 2022, directly identifying FTX as the central subject of the event."
+    },
+    {
+      "slot_id": "who.primary_actor",
+      "document_id": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "source_url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "quote": "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+      "structured_claim": "cryptocurrency exchange FTX | is the central subject of the event | collapse in November 2022",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that the bankruptcy of FTX, a cryptocurrency exchange, began in November 2022, directly identifying FTX as the central subject of the collapse event."
+    },
+    {
+      "slot_id": "when.event_time",
+      "document_id": "https://en.wikipedia.org/wiki/FTX",
+      "source_url": "https://en.wikipedia.org/wiki/FTX",
+      "quote": "Filed for Chapter 11 bankruptcy in November 2022",
+      "structured_claim": "FTX | filed for Chapter 11 bankruptcy | November 2022",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states the timing of the key event (FTX filing for Chapter 11 bankruptcy) as November 2022, which answers the question about when the event occurred."
+    },
+    {
+      "slot_id": "what.scale",
+      "document_id": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "source_url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "quote": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+      "structured_claim": "FTX collapse | exposed | $8 billion hole in FTX's accounts",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states the scale of the FTX collapse by quantifying an $8 billion hole in its accounts, which is a material impact relevant to the question about the event's scale."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "Throughout 2023, bankruptcy proceedings unfolded, revealing that the company owed billions to creditors.",
+      "structured_claim": "FTX's creditors | are owed | billions of dollars",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states that creditors are owed billions, indicating they are affected parties."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "the company's top fifty creditors, which included large financial firms, were owed over $3 billion.",
+      "structured_claim": "FTX's top fifty creditors | were owed | over $3 billion",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote specifies the top fifty creditors owed over $3 billion, clearly identifying affected parties."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "At the start of 2023, an estimated 1 million entities were owed money",
+      "structured_claim": "an estimated 1 million entities | were owed | money",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states that an estimated 1 million entities were owed money, directly indicating affected parties."
+    },
+    {
+      "slot_id": "how.mechanism",
+      "document_id": "https://tokentax.co/blog/ftx-collapse",
+      "source_url": "https://tokentax.co/blog/ftx-collapse",
+      "quote": "When Binance announced plans to liquidate over half a billion (USD) in FTT tokens on November 6, 2022, it triggered $5 billion in withdrawal requests within 72 hours, exposing FTX's $8 billion shortfall.",
+      "structured_claim": "Binance's announcement to liquidate FTT tokens | caused | $5 billion in withdrawal requests within 72 hours, exposing FTX's $8 billion shortfall",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly explains the causal mechanism by which Binance's announcement triggered massive withdrawal requests, revealing FTX's liquidity shortfall, thus explaining how the collapse happened."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/FTX",
+      "source_url": "https://en.wikipedia.org/wiki/FTX",
+      "quote": "FTX is closely associated with FTX.US, a separate exchange available to US residents.",
+      "structured_claim": "FTX | is closely associated with | FTX.US",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states that FTX is closely associated with FTX.US, identifying a related organization."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/FTX",
+      "source_url": "https://en.wikipedia.org/wiki/FTX",
+      "quote": "In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT).",
+      "structured_claim": "FTX's partner firm | is | Alameda Research",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly identifies Alameda Research as FTX's partner firm, directly answering the question about related organizations."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT",
+      "structured_claim": "Alameda Research | held | a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states Alameda Research held a large amount of FTT, relevant as an initial step in the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "This triggered a competing cryptocurrency exchange, Binance, to sell all its shares of FTT",
+      "structured_claim": "Binance | sold | all its shares of FTT",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote clearly describes Binance selling all its FTT shares, a key step in the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "FTT’s value dropped significantly",
+      "structured_claim": "FTT’s value | dropped | significantly",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states FTT’s value dropped significantly, directly relevant to the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "FTX began to search for new investments from venture capitalists",
+      "structured_claim": "FTX | began | to search for new investments from venture capitalists",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states FTX began searching for new investments, a step in the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "They also asked Binance for help",
+      "structured_claim": "FTX | asked | Binance for help",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states FTX asked Binance for help, relevant to the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "Their competitor agreed to buy FTX on November 8, 2022",
+      "structured_claim": "Binance | agreed | to buy FTX on November 8, 2022",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states Binance agreed to buy FTX on a specific date, a clear step in the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "but backed out of the deal on November 9",
+      "structured_claim": "Binance | backed out | of the deal on November 9",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states Binance backed out of the deal the next day, relevant to the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "On November 11, Alameda Research and FTX declared bankruptcy",
+      "structured_claim": "Alameda Research and FTX | declared | bankruptcy on November 11",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states Alameda Research and FTX declared bankruptcy on November 11, a key event in the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "and Bankman-Fried stepped down as CEO of FTX",
+      "structured_claim": "Bankman-Fried | stepped down | as CEO of FTX",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states Bankman-Fried stepped down as CEO, a relevant step in the sequence."
+    },
+    {
+      "slot_id": "where.event_location",
+      "document_id": "https://www.reuters.com/technology/ftx-collapse-being-scrutinized-by-bahamas-investigators-2022-11-13",
+      "source_url": "https://www.reuters.com/technology/ftx-collapse-being-scrutinized-by-bahamas-investigators-2022-11-13",
+      "quote": "The collapse of cryptocurrency exchange FTX is the subject of scrutiny from government investigators in the Bahamas",
+      "structured_claim": "The collapse of cryptocurrency exchange FTX | is the subject of scrutiny from government investigators | in the Bahamas",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that the collapse of FTX is under scrutiny in the Bahamas, indicating the event's location or where it became visible."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "source_url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "quote": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+      "structured_claim": "spike in customer withdrawals | caused | collapse of FTX",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states that a spike in customer withdrawals caused the collapse of FTX, which answers the question about the immediate trigger and underlying conditions."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "source_url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+      "quote": "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. The article triggered a spike in withdrawals from FTX",
+      "structured_claim": "Alameda Research holding a significant amount of FTX's exchange token, FTT | triggered | a spike in withdrawals from FTX",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly links Alameda Research holding a significant amount of FTT to triggering a spike in withdrawals from FTX, which is an immediate trigger relevant to the collapse."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "source_url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+      "quote": "On November 2, 2022, CoinDesk published a piece stating that a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT. This triggered a competing cryptocurrency exchange, Binance, to sell all its shares of FTT. FTT’s value dropped significantly, and FTX began to search for new investments from venture capitalists.",
+      "structured_claim": "Alameda Research holding a significant amount of FTX's exchange token, FTT | triggered | a spike in withdrawals from FTX",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote directly links Alameda Research's large holding of FTT to Binance's sell-off of FTT, which caused a significant drop in FTT's value and triggered FTX to seek new investments, indicating an immediate trigger and underlying condition for the collapse."
+    },
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://tokentax.co/blog/ftx-collapse",
+      "source_url": "https://tokentax.co/blog/ftx-collapse",
+      "quote": "When Binance announced plans to liquidate over half a billion (USD) in FTT tokens on November 6, 2022, it triggered $5 billion in withdrawal requests within 72 hours, exposing FTX's $8 billion shortfall.",
+      "structured_claim": "The collapse of FTX | WAS_CAUSED_BY | a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote directly explains the triggering event (Binance's liquidation announcement) that caused a spike in customer withdrawals, which exposed an $8 billion shortfall in FTX's accounts, thus directly answering what happened in the collapse."
+    },
+    {
+      "slot_id": "when.event_time",
+      "document_id": "https://ofi.la.gov/ftx-files-chapter-11-bankruptcy",
+      "source_url": "https://ofi.la.gov/ftx-files-chapter-11-bankruptcy",
+      "quote": "On November 11, 2022, cryptocurrency exchange FTX Trading Ltd., incorporated in Antigua and Barbuda and headquartered in The Bahamas, also called FTX.com, filed a petition for relief under Chapter 11 of the Bankruptcy Code in the Bankruptcy Court for the District of Delaware",
+      "structured_claim": "FTX | FILED_FOR_CHAPTER_11_BANKRUPTCY | November 2022",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states the exact date (November 11, 2022) when FTX filed for Chapter 11 bankruptcy, directly answering the question about when the key event occurred."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://coinledger.io/learn/the-ftx-collapse",
+      "source_url": "https://coinledger.io/learn/the-ftx-collapse",
+      "quote": "Binance announces it will sell its holdings of FTT, sparking $1 billion worth of customer withdrawals in a single day. This causes a liquidity crisis for FTX and Alameda Research.",
+      "structured_claim": "spike in customer withdrawals | CAUSED | collapse of FTX",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote directly identifies a spike in customer withdrawals triggered by Binance's announcement, causing a liquidity crisis that led to the collapse of FTX, thus answering the question about the immediate trigger and underlying conditions."
+    },
+    {
+      "slot_id": "what.scale",
+      "document_id": "https://www.ft.com/content/913ff750-d1f4-486a-9801-e05be20041c1?syn-25a6b1a6=1",
+      "source_url": "https://www.ft.com/content/913ff750-d1f4-486a-9801-e05be20041c1?syn-25a6b1a6=1",
+      "quote": "As details of FTX’s finances and chaotic bookkeeping have been revealed this week by the FT and others, the focus of the investigations and legal battles is now on the gaps in the crypto exchange’s balance sheet — and especially $8bn of missing customer deposits.",
+      "structured_claim": "FTX collapse | EXPOSED | $8 billion hole in FTX's accounts",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote directly states a material impact of the FTX collapse, specifically an $8 billion hole in customer deposits, which clearly indicates the scale of the event."
+    }
+  ],
+  "evidence_pack": {
+    "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+    "coverage_ratio": 1.0,
+    "items": [
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "In November 2022, cryptocurrency exchange FTX collapsed following reports of potential leverage and solvency issues.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "db5461df-9bfe-49ef-8ee1-a7b73a44b6e6",
+          "7eb8c1af-911a-49cd-8db1-041a99fde4d3"
+        ],
+        "source_urls": [
+          "https://www.dcu.ie/research-publication/understanding-ftx-exchange-collapse",
+          "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states that cryptocurrency exchange FTX collapsed in November 2022, directly identifying FTX as the central subject of the event.",
+        "caveats": []
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "At the start of 2023, an estimated 1 million entities were owed money",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "2e1f6828-6221-4b58-8b5c-fdd333842ac9"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states that an estimated 1 million entities were owed money, directly indicating affected parties.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Throughout 2023, bankruptcy proceedings unfolded, revealing that the company owed billions to creditors.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "2e1f6828-6221-4b58-8b5c-fdd333842ac9"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states that creditors are owed billions, indicating they are affected parties.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "the company's top fifty creditors, which included large financial firms, were owed over $3 billion.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "2e1f6828-6221-4b58-8b5c-fdd333842ac9"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote specifies the top fifty creditors owed over $3 billion, clearly identifying affected parties.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "FTX is closely associated with FTX.US, a separate exchange available to US residents.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f1edab6a-ea08-45de-8519-f65a1f1058f5"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/FTX"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states that FTX is closely associated with FTX.US, identifying a related organization.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT).",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f1edab6a-ea08-45de-8519-f65a1f1058f5"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/FTX"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly identifies Alameda Research as FTX's partner firm, directly answering the question about related organizations.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "5f34bf34-88e0-4946-aa11-daaffd5bd07a",
+          "d673aa39-c302-4a0b-86b7-0379fa80bcfe"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+          "https://tokentax.co/blog/ftx-collapse"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly answers the question by explaining what exactly happened: a spike in customer withdrawals exposed a large financial shortfall, leading to the collapse and bankruptcy of FTX.",
+        "caveats": [
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "410640f6-5434-438b-bb90-e63fea99e4c8",
+          "af551e1b-f102-4a58-86d2-4e44b5872e41"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+          "https://www.ft.com/content/913ff750-d1f4-486a-9801-e05be20041c1?syn-25a6b1a6=1"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states the scale of the FTX collapse by quantifying an $8 billion hole in its accounts, which is a material impact relevant to the question about the event's scale.",
+        "caveats": [
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "when.event_time",
+        "conclusion": "Filed for Chapter 11 bankruptcy in November 2022",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "4f26e00f-a673-41f0-ba30-a70ce43288f2",
+          "d5fcffff-a073-47dc-8279-0873716fd1bc"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/FTX",
+          "https://ofi.la.gov/ftx-files-chapter-11-bankruptcy"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states the timing of the key event (FTX filing for Chapter 11 bankruptcy) as November 2022, which answers the question about when the event occurred.",
+        "caveats": []
+      },
+      {
+        "slot_id": "where.event_location",
+        "conclusion": "The collapse of cryptocurrency exchange FTX is the subject of scrutiny from government investigators in the Bahamas",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "adea4d17-5828-4e0c-a2d5-43e70b4f4bf9"
+        ],
+        "source_urls": [
+          "https://www.reuters.com/technology/ftx-collapse-being-scrutinized-by-bahamas-investigators-2022-11-13"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states that the collapse of FTX is under scrutiny in the Bahamas, indicating the event's location or where it became visible.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. The article triggered a spike in withdrawals from FTX",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "4ba3da07-350c-4977-b87d-0b3517f659dc",
+          "6387636a-54fd-4cc2-9c44-21a3df2b32d2"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly links Alameda Research holding a significant amount of FTT to triggering a spike in withdrawals from FTX, which is an immediate trigger relevant to the collapse.",
+        "caveats": []
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "4ba3da07-350c-4977-b87d-0b3517f659dc",
+          "ce7d9b4d-9e83-48bb-a70a-5364ae35404a"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+          "https://coinledger.io/learn/the-ftx-collapse"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states that a spike in customer withdrawals caused the collapse of FTX, which answers the question about the immediate trigger and underlying conditions.",
+        "caveats": [
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "When Binance announced plans to liquidate over half a billion (USD) in FTT tokens on November 6, 2022, it triggered $5 billion in withdrawal requests within 72 hours, exposing FTX's $8 billion shortfall.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "22d9560f-2b5f-4ce5-81cf-3afa681fa1ea"
+        ],
+        "source_urls": [
+          "https://tokentax.co/blog/ftx-collapse"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly explains the causal mechanism by which Binance's announcement triggered massive withdrawal requests, revealing FTX's liquidity shortfall, thus explaining how the collapse happened.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "FTT’s value dropped significantly",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states FTT’s value dropped significantly, directly relevant to the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "FTX began to search for new investments from venture capitalists",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states FTX began searching for new investments, a step in the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "On November 11, Alameda Research and FTX declared bankruptcy",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states Alameda Research and FTX declared bankruptcy on November 11, a key event in the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "Their competitor agreed to buy FTX on November 8, 2022",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states Binance agreed to buy FTX on a specific date, a clear step in the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "They also asked Binance for help",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states FTX asked Binance for help, relevant to the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "This triggered a competing cryptocurrency exchange, Binance, to sell all its shares of FTT",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote clearly describes Binance selling all its FTT shares, a key step in the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states Alameda Research held a large amount of FTT, relevant as an initial step in the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "and Bankman-Fried stepped down as CEO of FTX",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states Bankman-Fried stepped down as CEO, a relevant step in the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "but backed out of the deal on November 9",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "18b95a9d-7963-4c3e-bd5f-3d668b57fc39"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states Binance backed out of the deal the next day, relevant to the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      }
+    ],
+    "unresolved_conflicts": [],
+    "provenance": [
+      "18b95a9d-7963-4c3e-bd5f-3d668b57fc39",
+      "22d9560f-2b5f-4ce5-81cf-3afa681fa1ea",
+      "2e1f6828-6221-4b58-8b5c-fdd333842ac9",
+      "410640f6-5434-438b-bb90-e63fea99e4c8",
+      "4ba3da07-350c-4977-b87d-0b3517f659dc",
+      "4f26e00f-a673-41f0-ba30-a70ce43288f2",
+      "5f34bf34-88e0-4946-aa11-daaffd5bd07a",
+      "6387636a-54fd-4cc2-9c44-21a3df2b32d2",
+      "7eb8c1af-911a-49cd-8db1-041a99fde4d3",
+      "adea4d17-5828-4e0c-a2d5-43e70b4f4bf9",
+      "af551e1b-f102-4a58-86d2-4e44b5872e41",
+      "ce7d9b4d-9e83-48bb-a70a-5364ae35404a",
+      "d5fcffff-a073-47dc-8279-0873716fd1bc",
+      "d673aa39-c302-4a0b-86b7-0379fa80bcfe",
+      "db5461df-9bfe-49ef-8ee1-a7b73a44b6e6",
+      "f1edab6a-ea08-45de-8519-f65a1f1058f5"
+    ],
+    "slot_applicability": [
+      {
+        "slot_id": "who.primary_actor",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.regulators",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Regulators and authorities are typically involved in investigating and responding to financial collapses like FTX's bankruptcy."
+      },
+      {
+        "slot_id": "what.core_event",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.scale",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.products",
+        "status": "optional",
+        "confidence": 0.95,
+        "reason": "The collapse involves specific cryptocurrency products, services, and assets offered by FTX."
+      },
+      {
+        "slot_id": "when.event_time",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "The timing of when the collapse was discovered or disclosed is relevant and meaningful."
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Official interventions or responses, such as regulatory actions or bankruptcy filings, are meaningful to the event timeline."
+      },
+      {
+        "slot_id": "where.jurisdiction",
+        "status": "optional",
+        "confidence": 0.95,
+        "reason": "The legal and operational jurisdiction is important for understanding the regulatory and legal context."
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Tracking the flow of money and assets is relevant to understanding the collapse and bankruptcy."
+      },
+      {
+        "slot_id": "where.event_location",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "why.motivation",
+        "status": "optional",
+        "confidence": 0.85,
+        "reason": "Understanding the motivations behind the actors' behavior is meaningful for this financial collapse."
+      },
+      {
+        "slot_id": "why.trigger",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.mechanism",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.sequence",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      }
+    ]
+  },
+  "report": "# 调查报告：FTX cryptocurrency exchange collapse and bankruptcy in 2022\n\n> **覆盖率** 10/17 适用槽位（100%）　**事实** 22 条　**结论级双源支持** 6/22　**来源 episode** 16 个\n\n> 本报告仅消费图谱证据包。每条结论都标注了来源 episode；无证据的槽位如实标记为未查到，不做推断补全。\n\n## WHO\n\n**Primary Actor**\n  - In November 2022, cryptocurrency exchange FTX collapsed following reports of potential leverage and solvency issues. `db5461df` `7eb8c1af`\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[Understanding the FTX exchange collapse | Dublin City University](https://www.dcu.ie/research-publication/understanding-ftx-exchange-collapse)\n\n**Affected Parties**\n  - At the start of 2023, an estimated 1 million entities were owed money `2e1f6828`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Throughout 2023, bankruptcy proceedings unfolded, revealing that the company owed billions to creditors. `2e1f6828`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - the company's top fifty creditors, which included large financial firms, were owed over $3 billion. `2e1f6828`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[FTX bankruptcy | Law | Research Starters](https://www.ebsco.com/research-starters/law/ftx-bankruptcy)\n\n**Related Organizations**\n  - FTX is closely associated with FTX.US, a separate exchange available to US residents. `f1edab6a`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT). `f1edab6a`\n    ⚠️ single source; no claim-level corroboration\n  来源：[FTX](https://en.wikipedia.org/wiki/FTX)\n\n**Regulators** — ⚠️ 未查到相关证据\n\n## WHAT\n\n**Core Event**\n  - The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy. `5f34bf34` `d673aa39`\n    ⚠️ no verified date: this source did not state one explicitly\n  来源：[Bankruptcy of FTX - Wikipedia](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[The FTX Collapse: A Complete Guide](https://tokentax.co/blog/ftx-collapse)\n\n**Scale**\n  - The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy. `410640f6` `af551e1b`\n    ⚠️ no verified date: this source did not state one explicitly\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[FTX: inside the crypto exchange that ‘accidentally’ lost $8bn](https://www.ft.com/content/913ff750-d1f4-486a-9801-e05be20041c1?syn-25a6b1a6=1)\n\n**Products** — ⚠️ 未查到相关证据\n\n## WHEN\n\n**Event Time**\n  - Filed for Chapter 11 bankruptcy in November 2022 `4f26e00f` `d5fcffff`\n  来源：[FTX - Wikipedia](https://en.wikipedia.org/wiki/FTX)、[FTX Files Chapter 11 Bankruptcy](https://ofi.la.gov/ftx-files-chapter-11-bankruptcy)\n\n**Discovery Time** — ⚠️ 未查到相关证据\n\n**Intervention Time** — ⚠️ 未查到相关证据\n\n## WHERE\n\n**Jurisdiction** — ⚠️ 未查到相关证据\n\n**Asset Flow** — ⚠️ 未查到相关证据\n\n**Event Location**\n  - The collapse of cryptocurrency exchange FTX is the subject of scrutiny from government investigators in the Bahamas `adea4d17`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[FTX collapse being scrutinized by Bahamas authorities](https://www.reuters.com/technology/ftx-collapse-being-scrutinized-by-bahamas-investigators-2022-11-13)\n\n## WHY\n\n**Motivation** — ⚠️ 未查到相关证据\n\n**Trigger**\n  - On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT. The article triggered a spike in withdrawals from FTX `4ba3da07` `6387636a`\n  - The collapse of FTX, caused by a spike in customer withdrawals that exposed an $8 billion hole in FTX's accounts, served as the impetus for its bankruptcy. `4ba3da07` `ce7d9b4d`\n    ⚠️ no verified date: this source did not state one explicitly\n  来源：[Bankruptcy of FTX](https://en.wikipedia.org/wiki/Bankruptcy_of_FTX)、[FTX bankruptcy | Law | Research Starters](https://www.ebsco.com/research-starters/law/ftx-bankruptcy)、[The FTX Collapse: A Complete Guide](https://coinledger.io/learn/the-ftx-collapse)\n\n## HOW\n\n**Mechanism**\n  - When Binance announced plans to liquidate over half a billion (USD) in FTT tokens on November 6, 2022, it triggered $5 billion in withdrawal requests within 72 hours, exposing FTX's $8 billion shortfall. `22d9560f`\n    ⚠️ claim has 1 independent source(s); 2 required；single source; no claim-level corroboration\n  来源：[The FTX Collapse: A Complete Guide](https://tokentax.co/blog/ftx-collapse)\n\n**Sequence**\n  - FTT’s value dropped significantly `18b95a9d`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - FTX began to search for new investments from venture capitalists `18b95a9d`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - On November 11, Alameda Research and FTX declared bankruptcy `18b95a9d`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Their competitor agreed to buy FTX on November 8, 2022 `18b95a9d`\n    ⚠️ single source; no claim-level corroboration\n  - They also asked Binance for help `18b95a9d`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - This triggered a competing cryptocurrency exchange, Binance, to sell all its shares of FTT `18b95a9d`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT `18b95a9d`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - and Bankman-Fried stepped down as CEO of FTX `18b95a9d`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - but backed out of the deal on November 9 `18b95a9d`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[FTX bankruptcy | Law | Research Starters](https://www.ebsco.com/research-starters/law/ftx-bankruptcy)\n\n---\n*由证据包生成。冲突 0 处未消解。无明确日期的事实不带 valid_at（§3.12）。*",
+  "rounds": [
+    {
+      "round_number": 1,
+      "slot_id": "what.core_event",
+      "purpose": "coverage",
+      "query": "\"FTX cryptocurrency exchange\" collapse bankruptcy 2022 timeline causes Sam Bankman-Fried investigation",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+        "https://changelly.com/blog/ftx-collapse-timeline"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "c36dbc35-f7a5-4519-98cc-6936f03ce5de"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 2,
+      "slot_id": "who.primary_actor",
+      "purpose": "coverage",
+      "query": "\"FTX\" cryptocurrency exchange collapse 2022 central subject",
+      "documents_seen": [
+        "https://www.dcu.ie/research-publication/understanding-ftx-exchange-collapse",
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://www.dcu.ie/research-publication/understanding-ftx-exchange-collapse",
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "contributing_source_identities": [
+        "dcu.ie",
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "49c8bbb0-fd35-4ae6-ab7b-6c62e1d4cd17"
+      ],
+      "corroborated_edge_uuids": [
+        "49c8bbb0-fd35-4ae6-ab7b-6c62e1d4cd17"
+      ],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 3,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"FTX\" cryptocurrency exchange collapse date 2022",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/FTX",
+        "https://coinledger.io/learn/the-ftx-collapse",
+        "https://kpmg.com/cn/en/insights/2022/11/the-collapse-of-ftx.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/FTX"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "3758e979-176d-489a-a2ab-b7958cbb175e"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 4,
+      "slot_id": "what.scale",
+      "purpose": "coverage",
+      "query": "\"FTX\" cryptocurrency exchange collapse 2022 bankruptcy scale size material impact",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://link.springer.com/article/10.1186/s40854-024-00690-8",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "23f7ecbf-fea8-4c7e-96fa-3af40864a7b2"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 0.4
+    },
+    {
+      "round_number": 5,
+      "slot_id": "who.affected_parties",
+      "purpose": "coverage",
+      "query": "\"FTX cryptocurrency exchange\" collapse 2022 affected parties impacted targeted investors customers employees creditors regulators",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "succeeded": true,
+      "facts_written": 3,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "contributing_source_identities": [
+        "ebsco.com"
+      ],
+      "target_edge_uuids": [
+        "1834f27c-da2d-46f7-81cb-c7867e20269a",
+        "d5641914-7edb-4935-93a9-1a145c7b2d99",
+        "d11a774e-f528-4d62-8ee1-fbe9f227e58a"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 0.5
+    },
+    {
+      "round_number": 6,
+      "slot_id": "how.mechanism",
+      "purpose": "coverage",
+      "query": "\"FTX\" cryptocurrency exchange collapse 2022 proximate trigger causal mechanism \"FTX\" bankruptcy 2022 financial mismanagement \"FTX\" liquidity crisis 2022 \"FTX\" Alameda Research risky asset exposure 2022 \"FTX\" customer fund misuse 2022 forensic audit \"FTX\" collapse internal controls failure 2022",
+      "documents_seen": [
+        "https://tokentax.co/blog/ftx-collapse",
+        "https://coinledger.io/learn/the-ftx-collapse",
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://tokentax.co/blog/ftx-collapse"
+      ],
+      "contributing_source_identities": [
+        "tokentax.co"
+      ],
+      "target_edge_uuids": [
+        "f31ae473-bbe5-459e-9cb3-1a3790004a68"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 0.6
+    },
+    {
+      "round_number": 7,
+      "slot_id": "who.related_organizations",
+      "purpose": "coverage",
+      "query": "\"FTX\" cryptocurrency exchange collapse 2022 organizations subsidiaries partners involved",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/FTX"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/FTX"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "f715c050-5431-41e1-9883-3f2213141e22",
+        "71141308-1ce4-4768-be26-b2c660ad5aa3"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 8,
+      "slot_id": "how.sequence",
+      "purpose": "coverage",
+      "query": "\"FTX cryptocurrency exchange\" collapse timeline 2022 step by step bankruptcy process",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "succeeded": true,
+      "facts_written": 9,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "contributing_source_identities": [
+        "ebsco.com"
+      ],
+      "target_edge_uuids": [
+        "4b6816ab-caa9-4353-b760-726d06333ac3",
+        "17ed4e62-1a76-4441-bdd1-e0f5a3562970",
+        "ed47b647-05cf-4b9d-8868-06d498fdc7a3",
+        "60817245-9f96-4ab1-baad-317d4df2b053",
+        "a50c37a8-20be-4c97-9784-83a71001f4e0",
+        "787e8e08-7d5f-42cb-8658-afe441fd75af",
+        "42d2e424-6518-421d-869f-9d23cde33b1b",
+        "85364bd8-4587-424f-8626-ef3add45a5b5",
+        "89c907fe-6f24-4de0-9e6e-02e498fcbe0f"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 0.8
+    },
+    {
+      "round_number": 9,
+      "slot_id": "where.event_location",
+      "purpose": "coverage",
+      "query": "\"FTX\" cryptocurrency exchange collapse location 2022 bankruptcy headquarters Bahamas",
+      "documents_seen": [
+        "https://www.reuters.com/technology/ftx-collapse-being-scrutinized-by-bahamas-investigators-2022-11-13"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.reuters.com/technology/ftx-collapse-being-scrutinized-by-bahamas-investigators-2022-11-13"
+      ],
+      "contributing_source_identities": [
+        "reuters.com"
+      ],
+      "target_edge_uuids": [
+        "8fe688f9-333f-499b-9d3b-316b374b49c9"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 0.9
+    },
+    {
+      "round_number": 10,
+      "slot_id": "why.trigger",
+      "purpose": "coverage",
+      "query": "\"FTX\" cryptocurrency exchange collapse 2022 immediate trigger and underlying causes \"bankruptcy\" \"liquidity crisis\" \"Alameda Research\" balance sheet \"Sam Bankman-Fried\" financial mismanagement investigation",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy",
+        "https://www.theguardian.com/technology/2022/nov/10/ftx-cryptocurrency-collapse-investigation"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org",
+        "ebsco.com"
+      ],
+      "target_edge_uuids": [
+        "420a4f68-b8fe-47ae-b184-f7394410f49a",
+        "52a6180f-8f52-4cc5-8bfb-16179c1f7bb6"
+      ],
+      "corroborated_edge_uuids": [
+        "52a6180f-8f52-4cc5-8bfb-16179c1f7bb6"
+      ],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 11,
+      "slot_id": "what.core_event",
+      "purpose": "support",
+      "query": "FTX collapse 2022 spike in customer withdrawals $8 billion shortfall accounts analysis",
+      "documents_seen": [
+        "https://tokentax.co/blog/ftx-collapse"
+      ],
+      "succeeded": true,
+      "facts_written": 0,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://tokentax.co/blog/ftx-collapse"
+      ],
+      "contributing_source_identities": [
+        "tokentax.co"
+      ],
+      "target_edge_uuids": [
+        "c36dbc35-f7a5-4519-98cc-6936f03ce5de"
+      ],
+      "corroborated_edge_uuids": [
+        "c36dbc35-f7a5-4519-98cc-6936f03ce5de"
+      ],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 12,
+      "slot_id": "when.event_time",
+      "purpose": "support",
+      "query": "\"FTX\" filed for Chapter 11 bankruptcy November 2022 news",
+      "documents_seen": [
+        "https://ofi.la.gov/ftx-files-chapter-11-bankruptcy"
+      ],
+      "succeeded": true,
+      "facts_written": 0,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://ofi.la.gov/ftx-files-chapter-11-bankruptcy"
+      ],
+      "contributing_source_identities": [
+        "la.gov"
+      ],
+      "target_edge_uuids": [
+        "3758e979-176d-489a-a2ab-b7958cbb175e"
+      ],
+      "corroborated_edge_uuids": [
+        "3758e979-176d-489a-a2ab-b7958cbb175e"
+      ],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 13,
+      "slot_id": "what.scale",
+      "purpose": "support",
+      "query": "\"FTX\" cryptocurrency exchange collapse 2022 \"$8 billion hole\" financial impact",
+      "documents_seen": [
+        "https://dbrs.morningstar.com/research/405321/impact-of-ftx-collapse-on-financial-markets-appears-limited?ref=listingwave.info",
+        "https://www.pbs.org/newshour/show/the-effects-of-ftxs-collapse-on-the-cryptocurrency-industry",
+        "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "23f7ecbf-fea8-4c7e-96fa-3af40864a7b2"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 14,
+      "slot_id": "how.mechanism",
+      "purpose": "support",
+      "query": "Binance announcement liquidate FTT tokens impact withdrawal surge FTX shortfall 2022",
+      "documents_seen": [
+        "https://www.investopedia.com/binance-to-sell-ftt-6826211",
+        "https://www.cnbc.com/2022/11/08/ftxs-ftt-token-plunges-80percent-wiping-out-over-2-billion-in-value.html",
+        "https://www.forbes.com/sites/zinnialee/2022/11/07/billionaire-changpeng-zhaos-binance-to-offload-all-remaining-ftt-tokens-of-sam-bankman-frieds-ftx"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "f31ae473-bbe5-459e-9cb3-1a3790004a68"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 15,
+      "slot_id": "why.trigger",
+      "purpose": "support",
+      "query": "FTX collapse 2022 spike in customer withdrawals liquidity crisis bankruptcy causes analysis",
+      "documents_seen": [
+        "https://coinledger.io/learn/the-ftx-collapse"
+      ],
+      "succeeded": true,
+      "facts_written": 0,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://coinledger.io/learn/the-ftx-collapse"
+      ],
+      "contributing_source_identities": [
+        "coinledger.io"
+      ],
+      "target_edge_uuids": [
+        "420a4f68-b8fe-47ae-b184-f7394410f49a"
+      ],
+      "corroborated_edge_uuids": [
+        "420a4f68-b8fe-47ae-b184-f7394410f49a"
+      ],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 16,
+      "slot_id": "what.scale",
+      "purpose": "support",
+      "query": "\"FTX\" cryptocurrency exchange collapse 2022 \"$8 billion hole\" financial discrepancy analysis",
+      "documents_seen": [
+        "https://www.ft.com/content/913ff750-d1f4-486a-9801-e05be20041c1?syn-25a6b1a6=1"
+      ],
+      "succeeded": true,
+      "facts_written": 0,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://www.ft.com/content/913ff750-d1f4-486a-9801-e05be20041c1?syn-25a6b1a6=1"
+      ],
+      "contributing_source_identities": [
+        "ft.com"
+      ],
+      "target_edge_uuids": [
+        "23f7ecbf-fea8-4c7e-96fa-3af40864a7b2"
+      ],
+      "corroborated_edge_uuids": [
+        "23f7ecbf-fea8-4c7e-96fa-3af40864a7b2"
+      ],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 17,
+      "slot_id": "how.mechanism",
+      "purpose": "support",
+      "query": "Binance announcement liquidate FTT tokens cause $5 billion withdrawal requests FTX shortfall 2022 collapse bankruptcy",
+      "documents_seen": [
+        "https://www.binance.com/en/square/post/19028710561578",
+        "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+        "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "f31ae473-bbe5-459e-9cb3-1a3790004a68"
+      ],
+      "corroborated_edge_uuids": [],
+      "coverage_after": 1.0
+    }
+  ],
+  "fact_count": 22,
+  "source_count": 9,
+  "dated_fact_count": 6,
+  "usage": {
+    "llm_calls": 69,
+    "search_calls": 17,
+    "search_results_rejected": 8,
+    "prompt_tokens": 32044,
+    "completion_tokens": 4749,
+    "total_tokens": 36793,
+    "chat_provider_cost_usd": 0.020416000000000007,
+    "provider_cost_reported": true,
+    "extraction_rows": 37,
+    "grounding_rejections": 8,
+    "relevance_accepted": 28,
+    "relevance_uncertain": 0,
+    "relevance_rejected": 0,
+    "support_rows_rejected": 1,
+    "not_applicable_slots": 0,
+    "elapsed_seconds": 215.25316322300932
+  }
+}

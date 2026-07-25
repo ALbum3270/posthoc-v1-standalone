@@ -1,0 +1,86 @@
+{
+  "case_id": "svb_2023",
+  "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+  "research_id": "run-ff00b478",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 0.8333333333333334,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 0.9545454545454546,
+  "judged_item_count": 22,
+  "claim_corroboration_rate": 0.2727272727272727,
+  "high_impact_support_rate": 0.8571428571428571,
+  "multi_source_slot_rate": 0.5,
+  "cross_corroborated_slot_rate": 0.2727272727272727,
+  "round_success_rate": 0.6875,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.13513513513513514,
+  "dated_fact_rate": 0.3181818181818182,
+  "fact_count": 22,
+  "source_count": 8,
+  "episode_count": 15,
+  "rounds": 16,
+  "llm_calls": 61,
+  "search_calls": 16,
+  "search_results_rejected": 18,
+  "relevance_accepted": 28,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 4,
+  "support_rounds": 4,
+  "prompt_tokens": 26325,
+  "completion_tokens": 5109,
+  "total_tokens": 31434,
+  "chat_provider_cost_usd": 0.018704400000000003,
+  "elapsed_seconds": 260.314824267989,
+  "fact_checks": [
+    {
+      "check_id": "svb_closure_date",
+      "description": "SVB's closure is anchored to March 10, 2023",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis."
+      ]
+    },
+    {
+      "check_id": "svb_fdic",
+      "description": "The FDIC is identified as an intervening authority",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_bank_run",
+      "description": "Depositor withdrawals or a bank run appear in the mechanism",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "SVB faced a bank run as depositors rushed to withdraw their funds amid rising inflation and deteriorating financial conditions in the tech sector, where many of its clients operated.",
+        "SVB had heavily invested deposits into long-term treasury bonds, which lost value as the Federal Reserve raised interest rates. Consequently, the bank was unable to meet withdrawal demands, leading to significant losses when it had to sell these bonds at unfavorable prices."
+      ]
+    },
+    {
+      "check_id": "svb_rates_bonds",
+      "description": "Interest rates and securities losses appear in the explanation",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "SVB had heavily invested deposits into long-term treasury bonds, which lost value as the Federal Reserve raised interest rates. Consequently, the bank was unable to meet withdrawal demands, leading to significant losses when it had to sell these bonds at unfavorable prices."
+      ]
+    },
+    {
+      "check_id": "svb_no_2022_closure",
+      "description": "SVB's closure is not dated to 2022",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_no_2024_closure",
+      "description": "SVB's closure is not dated to 2024",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

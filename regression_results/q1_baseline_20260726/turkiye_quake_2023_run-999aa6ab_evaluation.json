@@ -1,0 +1,93 @@
+{
+  "case_id": "turkiye_quake_2023",
+  "topic": "2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)",
+  "research_id": "run-999aa6ab",
+  "stop_reason": "all_slots_exhausted",
+  "coverage_ratio": 0.8,
+  "factual_check_pass_rate": 0.8333333333333334,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 10,
+  "claim_corroboration_rate": 0.0,
+  "high_impact_support_rate": 0.0,
+  "multi_source_slot_rate": 0.0,
+  "cross_corroborated_slot_rate": 0.0,
+  "round_success_rate": 0.4,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.35,
+  "dated_fact_rate": 0.3,
+  "fact_count": 10,
+  "source_count": 5,
+  "episode_count": 8,
+  "rounds": 20,
+  "llm_calls": 51,
+  "search_calls": 20,
+  "search_results_rejected": 76,
+  "relevance_accepted": 10,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 3,
+  "support_rounds": 0,
+  "prompt_tokens": 20853,
+  "completion_tokens": 3610,
+  "total_tokens": 24463,
+  "chat_provider_cost_usd": 0.014117200000000003,
+  "elapsed_seconds": 216.6356065789878,
+  "fact_checks": [
+    {
+      "check_id": "turkiye_quake_date",
+      "description": "The main earthquake is anchored to February 6, 2023",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "| UTC time | 2023-02-06 01:17:35 |"
+      ]
+    },
+    {
+      "check_id": "turkiye_quake_magnitude",
+      "description": "The mainshock magnitude is identified as Mw 7.8",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "In the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north.",
+        "In the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north. For weeks afterward, thousands of smaller aftershocks rattled already frail buildings and disrupted relief work."
+      ]
+    },
+    {
+      "check_id": "turkiye_quake_affected_countries",
+      "description": "Türkiye and Syria are identified as affected countries",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "The two major 6 February earthquakes (together referred to as the Kahramanmaraş earthquake sequence) occurred on separate faults branching off the 600-kilometer-long (380-mile-long) East Anatolian Fault, which runs through eastern Türkiye and south into Syria, separating the Anatolian and Arabian tectonic plates.",
+        "Two strong earthquakes struck southeast Türkiye and northwest Syria on Feb. 6, killing over 41,000 people.",
+        "In Türkiye, where an estimated 9 million people were affected, the needs remain high for a population that is experiencing widespread displacement.",
+        "In the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north.",
+        "In the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north. For weeks afterward, thousands of smaller aftershocks rattled already frail buildings and disrupted relief work."
+      ]
+    },
+    {
+      "check_id": "turkiye_quake_death_toll",
+      "description": "The death toll is reported at the tens-of-thousands scale",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "turkiye_quake_rescue_aid",
+      "description": "Rescue or international aid intervention is identified",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "Project HOPE’s Emergency Response Team is on the ground to support survivors and is working with partners to carry out search and rescue.",
+        "Project HOPE’s partner, SAMU, has K-9 search and rescue teams on the ground in the earthquake zone."
+      ]
+    },
+    {
+      "check_id": "turkiye_quake_no_wrong_year",
+      "description": "The February 6 earthquake is not dated to another year",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}
