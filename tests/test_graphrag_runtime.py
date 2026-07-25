@@ -58,8 +58,10 @@ class FakeLLM:
 class FakeTavily:
     def __init__(self, results=None):
         self.results = list(results or [])
+        self.calls = []
 
     async def search(self, *args, **kwargs):
+        self.calls.append((args, kwargs))
         return {"results": self.results}
 
 
@@ -168,6 +170,38 @@ def test_causal_query_requests_both_underlying_and_proximate_causes() -> None:
     prompt = active.llm.chat.completions.calls[0]["messages"][1]["content"]
     assert "proximate trigger" in prompt
     assert "longer-term underlying causal mechanism" in prompt
+
+
+def test_tavily_boundary_limits_an_ordinary_query_without_splitting_phrase() -> None:
+    tavily = FakeTavily()
+    active = runner(tavily=tavily)
+    query = '"Bank of New York Mellon" ' + " ".join(
+        f"ordinary-{index}" for index in range(80)
+    )
+
+    asyncio.run(active.search(query=query, exclude_urls=[]))
+
+    sent_query = tavily.calls[0][0][0]
+    assert len(sent_query) <= 400
+    assert sent_query.startswith('"Bank of New York Mellon" ')
+    assert sent_query.split()[-1] in query.split()
+
+
+def test_tavily_boundary_limits_a_support_query_without_splitting_phrase() -> None:
+    tavily = FakeTavily()
+    active = runner(tavily=tavily)
+    query = '"the filing reported exactly eight billion dollars" ' + " ".join(
+        f"support-{index}" for index in range(80)
+    )
+
+    asyncio.run(active.search(query=query, exclude_urls=[]))
+
+    sent_query = tavily.calls[0][0][0]
+    assert len(sent_query) <= 400
+    assert sent_query.startswith(
+        '"the filing reported exactly eight billion dollars" '
+    )
+    assert sent_query.split()[-1] in query.split()
 
 
 def test_search_rejects_ambiguous_name_results_without_topic_anchors() -> None:

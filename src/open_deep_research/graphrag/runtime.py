@@ -31,6 +31,7 @@ from open_deep_research.graphrag.adapters.content import (
 from open_deep_research.graphrag.adapters.search_results import (
     tavily_result_to_source_document,
 )
+from open_deep_research.graphrag.adapters.tavily import bounded_tavily_query
 from open_deep_research.graphrag.control.researcher import (
     run_research_round,
     run_support_round,
@@ -737,8 +738,9 @@ class GraphResearchRunner:
         """Search and return focused, normalized source documents."""
 
         self.usage.search_calls += 1
+        provider_query = bounded_tavily_query(query)
         response = await self.tavily.search(
-            query,
+            provider_query,
             max_results=self.settings.search_results,
             include_raw_content="text",
             topic="general",
@@ -746,8 +748,8 @@ class GraphResearchRunner:
         excluded = {url.rstrip("/") for url in exclude_urls}
         documents = []
         retrieved_at = datetime.now(timezone.utc)
-        terms = query_terms(query)
-        entity_anchors = _query_entity_anchors(query)
+        terms = query_terms(provider_query)
+        entity_anchors = _query_entity_anchors(provider_query)
         for item in response.get("results", []) or []:
             url = str(item.get("url") or "")
             if not url or url.rstrip("/") in excluded:
@@ -777,7 +779,7 @@ class GraphResearchRunner:
                 continue
             body = select_relevant_text(
                 item.get("raw_content") or item.get("content") or "",
-                focus=query,
+                focus=provider_query,
                 max_chars=self.settings.max_chars_per_document,
             )
             if not body.strip():
