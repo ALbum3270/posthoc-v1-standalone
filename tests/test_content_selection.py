@@ -102,6 +102,28 @@ def test_oversized_single_paragraph_is_still_split() -> None:
     assert len(chunks) >= 3
 
 
+def test_oversized_paragraph_prefers_complete_sentences() -> None:
+    text = (
+        "Rising rates reduced the market value of long-term securities. "
+        "The bank then realized substantial losses when it sold them. "
+        "Uninsured depositors withdrew funds rapidly after the disclosure."
+    )
+
+    chunks = split_chunks(text, target_chars=90)
+
+    assert all(chunk.endswith(".") for chunk in chunks)
+    assert " ".join(chunks).split() == text.split()
+
+
+def test_long_sentence_falls_back_to_word_boundaries() -> None:
+    text = " ".join(f"word{i}" for i in range(80))
+
+    chunks = split_chunks(text, target_chars=75)
+
+    assert " ".join(chunks).split() == text.split()
+    assert all(len(chunk) <= 75 for chunk in chunks)
+
+
 def test_chunk_size_is_clamped_to_the_budget() -> None:
     """A chunk bigger than max_chars could never be selected.
 

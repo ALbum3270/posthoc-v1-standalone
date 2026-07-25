@@ -26,6 +26,7 @@ _HTML_TAG = re.compile(r"<[^>]+>")
 _SPACES = re.compile(r"[ \t]+")
 _BLANK_RUN = re.compile(r"\n{3,}")
 _TOKEN = re.compile(r"[a-z0-9]{2,}|[一-鿿]")
+_SENTENCE_BREAK = re.compile(r"""[.!?。！？]["'”’)\]]*\s+""")
 
 # Everything from one of these headings to the end of the page is apparatus,
 # not content. Measured on the 2026-07-24 regression: 3 of 105 evidence items
@@ -132,6 +133,39 @@ def query_terms(*parts: str) -> set[str]:
     return terms
 
 
+def _split_oversized_paragraph(text: str, *, limit: int) -> list[str]:
+    """Split a long paragraph without cutting a sentence or word when possible."""
+
+    remaining = text.strip()
+    pieces: list[str] = []
+    while len(remaining) > limit:
+        window = remaining[: limit + 1]
+        sentence_ends = list(_SENTENCE_BREAK.finditer(window))
+        if sentence_ends:
+            cut = sentence_ends[-1].end()
+        else:
+            cut = window.rfind(" ")
+            if cut <= 0:
+                cut = limit
+        piece = remaining[:cut].strip()
+        if not piece:
+            piece = remaining[:limit]
+            cut = limit
+        pieces.append(piece)
+        remaining = remaining[cut:].strip()
+    if remaining:
+        pieces.append(remaining)
+    return pieces
+
+
+def _bounded_prefix(text: str, *, limit: int) -> str:
+    """Return a readable prefix no longer than ``limit`` characters."""
+
+    if len(text) <= limit:
+        return text
+    return _split_oversized_paragraph(text, limit=limit)[0]
+
+
 def split_chunks(text: str, *, target_chars: int = 900) -> list[str]:
     """Split on paragraph boundaries, packing up to ``target_chars`` per chunk."""
 
@@ -143,17 +177,18 @@ def split_chunks(text: str, *, target_chars: int = 900) -> list[str]:
         paragraph = paragraph.strip()
         if not paragraph:
             continue
-        # A single oversized paragraph still has to be broken somewhere.
-        pieces = [
-            paragraph[i : i + target_chars]
-            for i in range(0, len(paragraph), target_chars)
-        ] or [paragraph]
+        pieces = _split_oversized_paragraph(
+            paragraph,
+            limit=target_chars,
+        )
         for piece in pieces:
-            if buffer and size + len(piece) > target_chars:
+            separator = 2 if buffer else 0
+            if buffer and size + separator + len(piece) > target_chars:
                 chunks.append("\n\n".join(buffer))
                 buffer, size = [], 0
+                separator = 0
             buffer.append(piece)
-            size += len(piece)
+            size += separator + len(piece)
 
     if buffer:
         chunks.append("\n\n".join(buffer))
@@ -202,11 +237,11 @@ def select_relevant_text(
     chunk_size = min(target_chunk_chars, max(max_chars // 2, 120))
     chunks = split_chunks(cleaned, target_chars=chunk_size)
     if not chunks:
-        return cleaned[:max_chars]
+        return _bounded_prefix(cleaned, limit=max_chars)
 
     terms = query_terms(focus)
     if not terms:
-        return cleaned[:max_chars]
+        return _bounded_prefix(cleaned, limit=max_chars)
 
     ranked = sorted(
         ((score_chunk(chunk, terms), index) for index, chunk in enumerate(chunks)),
@@ -225,6 +260,6 @@ def select_relevant_text(
         used += length
 
     if not chosen:
-        return cleaned[:max_chars]
+        return _bounded_prefix(cleaned, limit=max_chars)
 
     return "\n\n".join(chunks[index] for index in sorted(chosen))
