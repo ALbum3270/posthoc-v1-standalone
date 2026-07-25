@@ -195,22 +195,23 @@ async def get_gap_status(
 
 
 def coverage_ratio_from_gaps(statuses: list[GapStatus]) -> float:
-    """Fraction of in-schema slots the graph answers.
+    """Fraction of required, applicable in-schema slots the graph answers.
 
     Orphan slots are excluded from the denominator *and* the numerator: they are
     not part of the current investigation, so counting them would let a stale
-    ontology inflate the score.
+    ontology inflate the score. Optional slots remain visible as bonus evidence,
+    but cannot reduce the coverage used for stopping.
     """
 
-    in_schema = [
+    required = [
         s
         for s in statuses
         if "orphan slot" not in (s.notes or "")
-        and s.applicability is not SlotApplicabilityStatus.NOT_APPLICABLE
+        and s.applicability is SlotApplicabilityStatus.REQUIRED
     ]
-    if not in_schema:
-        return 0.0
-    return sum(1 for s in in_schema if s.filled) / len(in_schema)
+    if not required:
+        return 1.0
+    return sum(1 for s in required if s.filled) / len(required)
 
 
 async def get_open_slots_from_graph(
@@ -221,7 +222,7 @@ async def get_open_slots_from_graph(
     min_facts: int = 1,
     applicability: dict[str, SlotApplicability] | None = None,
 ) -> list[OntologySlot]:
-    """Unfilled slots, highest priority first -- the supervisor's work queue."""
+    """Unfilled required slots, highest priority first."""
 
     statuses = await get_gap_status(
         graphiti,
@@ -231,13 +232,13 @@ async def get_open_slots_from_graph(
         applicability=applicability,
     )
     filled = {status.slot_id for status in statuses if status.filled}
-    excluded = {
+    required = {
         status.slot_id
         for status in statuses
-        if status.applicability is SlotApplicabilityStatus.NOT_APPLICABLE
+        if status.applicability is SlotApplicabilityStatus.REQUIRED
     }
     open_slots = [
         slot for slot in iter_slots(schema or INVESTIGATION_SCHEMA)
-        if slot.slot_id not in filled and slot.slot_id not in excluded
+        if slot.slot_id not in filled and slot.slot_id in required
     ]
     return sorted(open_slots, key=lambda slot: (-slot.priority, slot.slot_id))

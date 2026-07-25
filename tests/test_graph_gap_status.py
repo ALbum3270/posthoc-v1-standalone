@@ -12,6 +12,10 @@ import asyncio
 
 import pytest
 
+from open_deep_research.graphrag.control.stopping import (
+    StopReason,
+    evaluate_stop,
+)
 from open_deep_research.graphrag.graph.queries import (
     coverage_ratio_from_gaps,
     get_gap_status,
@@ -226,3 +230,46 @@ def test_not_applicable_slot_is_excluded_from_coverage_and_work_queue() -> None:
         SlotApplicabilityStatus.NOT_APPLICABLE
     )
     assert [slot.slot_id for slot in open_slots] == ["who.affected_parties"]
+
+
+def test_empty_optional_slot_is_bonus_and_does_not_block_coverage() -> None:
+    applicability = {
+        "why.motive": SlotApplicability(
+            slot_id="why.motive",
+            status=SlotApplicabilityStatus.OPTIONAL,
+            confidence=0.8,
+            reason="meaningful but not required",
+        )
+    }
+    graphiti = FakeGraphiti(
+        [row("who.primary_actor"), row("who.affected_parties")]
+    )
+    statuses = asyncio.run(
+        get_gap_status(
+            graphiti,
+            research_id="r-1",
+            schema=SCHEMA,
+            applicability=applicability,
+        )
+    )
+    open_slots = asyncio.run(
+        get_open_slots_from_graph(
+            graphiti,
+            research_id="r-1",
+            schema=SCHEMA,
+            applicability=applicability,
+        )
+    )
+
+    coverage = coverage_ratio_from_gaps(statuses)
+    decision = evaluate_stop(
+        round_number=1,
+        coverage_ratio=coverage,
+        rounds_without_improvement=0,
+        open_slot_count=len(open_slots),
+    )
+
+    assert by_id(statuses)["why.motive"].filled is False
+    assert coverage == 1.0
+    assert open_slots == []
+    assert decision.reason is StopReason.COVERAGE_REACHED

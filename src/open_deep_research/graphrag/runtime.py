@@ -985,11 +985,17 @@ class GraphResearchRunner:
             topic=topic,
             slots=slots,
         )
-        active_slots = [
+        applicable_slots = [
             slot
             for slot in slots
             if applicability[slot.slot_id].status
             is not SlotApplicabilityStatus.NOT_APPLICABLE
+        ]
+        required_slots = [
+            slot
+            for slot in slots
+            if applicability[slot.slot_id].status
+            is SlotApplicabilityStatus.REQUIRED
         ]
         tried: set[str] = set()
         previous_coverage = 0.0
@@ -998,8 +1004,9 @@ class GraphResearchRunner:
         stop_decision: StopDecision | None = None
 
         self.emit(
-            f"research={run_id} topic={topic!r} slots={len(active_slots)} "
-            f"not_applicable={len(slots) - len(active_slots)} "
+            f"research={run_id} topic={topic!r} slots={len(applicable_slots)} "
+            f"required={len(required_slots)} "
+            f"not_applicable={len(slots) - len(applicable_slots)} "
             f"max_rounds={settings.max_rounds}"
         )
 
@@ -1037,7 +1044,7 @@ class GraphResearchRunner:
             coverage = coverage_ratio_from_gaps(statuses)
             filled = {status.slot_id for status in statuses if status.filled}
             open_slots = [
-                slot for slot in active_slots if slot.slot_id not in filled
+                slot for slot in required_slots if slot.slot_id not in filled
             ]
 
             decision = evaluate_stop(
@@ -1146,10 +1153,10 @@ class GraphResearchRunner:
                 f"coverage_after={new_coverage:.0%}"
             )
 
-        # Coverage and support are deliberately separate. Once the applicable
-        # slots are filled, use any remaining round budget to target critical
-        # claims that still have only one publisher. A support round is unable
-        # to create a new fact, so it cannot inflate coverage.
+        # Coverage and support are deliberately separate. Once the required,
+        # applicable slots are filled, use any remaining round budget to target
+        # critical claims that still have only one publisher. A support round is
+        # unable to create a new fact, so it cannot inflate coverage.
         pre_support_statuses = await get_gap_status(
             self.graphiti,
             research_id=run_id,
@@ -1168,7 +1175,7 @@ class GraphResearchRunner:
             and self.settings.min_sources_per_claim > 1
             and len(traces) < settings.max_rounds
         ):
-            slot_by_id = {slot.slot_id: slot for slot in active_slots}
+            slot_by_id = {slot.slot_id: slot for slot in applicable_slots}
             current_facts = await fetch_facts(self.graphiti, research_id=run_id)
             for fact in current_facts:
                 slot = slot_by_id.get(fact.slot_id)
