@@ -66,6 +66,7 @@ from open_deep_research.graphrag.reporting.report import (
     render_report,
 )
 from open_deep_research.graphrag.schemas import (
+    ClaimMatchAuditRecord,
     EntityRef,
     EvidencePack,
     ExtractedTriple,
@@ -226,6 +227,12 @@ class GraphResearchSettings(BaseModel):
         ge=0.5,
         le=1.0,
     )
+    claim_match_similarity_threshold: float = Field(
+        default=0.85,
+        ge=0.0,
+        le=1.0,
+    )
+    claim_match_top_k: int = Field(default=3, ge=1, le=3)
 
 
 class GraphResearchUsage(BaseModel):
@@ -307,6 +314,7 @@ class ResearchRoundTrace(BaseModel):
     contributing_source_identities: list[str] = Field(default_factory=list)
     target_edge_uuids: list[str] = Field(default_factory=list)
     corroborated_edge_uuids: list[str] = Field(default_factory=list)
+    claim_match_audit: list[ClaimMatchAuditRecord] = Field(default_factory=list)
     coverage_after: float
 
 
@@ -339,6 +347,7 @@ class GraphResearchResult(BaseModel):
     gap_status: list[GapStatus] = Field(default_factory=list)
     slot_applicability: list[SlotApplicability] = Field(default_factory=list)
     relevance_audit: list[RelevanceAuditRecord] = Field(default_factory=list)
+    claim_match_audit: list[ClaimMatchAuditRecord] = Field(default_factory=list)
     evidence_pack: EvidencePack
     report: str
     rounds: list[ResearchRoundTrace] = Field(default_factory=list)
@@ -1102,6 +1111,10 @@ class GraphResearchRunner:
                     slot.required_source_count,
                 ),
                 group_id=self.settings.group_id,
+                claim_match_similarity_threshold=(
+                    self.settings.claim_match_similarity_threshold
+                ),
+                claim_match_top_k=self.settings.claim_match_top_k,
             )
             memory.record_attempt(
                 slot.slot_id,
@@ -1143,6 +1156,7 @@ class GraphResearchRunner:
                     corroborated_edge_uuids=(
                         round_result.corroborated_edge_uuids
                     ),
+                    claim_match_audit=round_result.claim_match_audit,
                     coverage_after=new_coverage,
                 )
             )
@@ -1252,6 +1266,10 @@ class GraphResearchRunner:
                 ),
                 max_documents=self.settings.max_documents_per_round,
                 group_id=self.settings.group_id,
+                claim_match_similarity_threshold=(
+                    self.settings.claim_match_similarity_threshold
+                ),
+                claim_match_top_k=self.settings.claim_match_top_k,
             )
             if support_result.succeeded:
                 support_successes += 1
@@ -1284,6 +1302,7 @@ class GraphResearchRunner:
                     corroborated_edge_uuids=(
                         support_result.corroborated_edge_uuids
                     ),
+                    claim_match_audit=support_result.claim_match_audit,
                     coverage_after=pre_support_coverage,
                 )
             )
@@ -1354,6 +1373,11 @@ class GraphResearchRunner:
             gap_status=statuses,
             slot_applicability=list(applicability.values()),
             relevance_audit=self.relevance_audit,
+            claim_match_audit=[
+                audit
+                for trace in traces
+                for audit in trace.claim_match_audit
+            ],
             evidence_pack=evidence_pack,
             report=report,
             rounds=traces,

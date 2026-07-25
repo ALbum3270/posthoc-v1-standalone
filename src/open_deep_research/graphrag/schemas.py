@@ -237,6 +237,24 @@ class VerifiedEpisodeInput(BaseModel):
     support_only: bool = False
 
 
+class ClaimMatchAuditRecord(BaseModel):
+    """Auditable decision for one existing claim considered as corroboration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    incoming_fact: str
+    candidate_edge_uuid: str
+    candidate_fact: str
+    match_method: str
+    similarity: float | None = Field(default=None, ge=-1.0, le=1.0)
+    prefilter_passed: bool
+    prefilter_reason: str
+    candidate_entails_incoming: bool | None = None
+    incoming_entails_candidate: bool | None = None
+    entailment_reason: str = ""
+    accepted: bool = False
+
+
 class GraphWriteResult(BaseModel):
     """Minimal bookkeeping returned after a graph write."""
 
@@ -249,6 +267,7 @@ class GraphWriteResult(BaseModel):
     supported_edge_uuids: list[str] = Field(default_factory=list)
     conflict_ids: list[str] = Field(default_factory=list)
     skipped_triples: list[str] = Field(default_factory=list)
+    claim_match_audit: list[ClaimMatchAuditRecord] = Field(default_factory=list)
 
 
 class EvidencePackItem(BaseModel):

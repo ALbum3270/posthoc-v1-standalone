@@ -69,23 +69,38 @@ def render_report(
         by_slot.setdefault(item.slot_id, []).append(item)
 
     all_slots = [slot for slots in active_schema.values() for slot in slots]
-    applicable_slots = [
-        slot
-        for slot in all_slots
-        if applicability.get(slot.slot_id) is None
-        or applicability[slot.slot_id].status
-        is not SlotApplicabilityStatus.NOT_APPLICABLE
-    ]
-    filled_count = sum(
-        1 for slot in applicable_slots if by_slot.get(slot.slot_id)
-    )
+    def _status(slot: OntologySlot) -> SlotApplicabilityStatus:
+        """Mirror the classification queries.py applies when computing coverage."""
+
+        decision = applicability.get(slot.slot_id)
+        if decision is not None:
+            return decision.status
+        return (
+            SlotApplicabilityStatus.REQUIRED
+            if slot.applicability == "always"
+            else SlotApplicabilityStatus.OPTIONAL
+        )
+
+    # The denominator has to match `coverage_ratio`, which counts required slots
+    # only. Showing "10/17" beside "100%" reads as a contradiction; optional
+    # slots are reported separately as a bonus so a reader can see both without
+    # either number being wrong.
+    required_slots = [s for s in all_slots if _status(s) is SlotApplicabilityStatus.REQUIRED]
+    optional_slots = [s for s in all_slots if _status(s) is SlotApplicabilityStatus.OPTIONAL]
+    filled_count = sum(1 for slot in required_slots if by_slot.get(slot.slot_id))
+    optional_filled = sum(1 for slot in optional_slots if by_slot.get(slot.slot_id))
     corroborated_count = sum(item.claim_corroborated for item in pack.items)
 
+    optional_note = (
+        f"　**选填槽** {optional_filled}/{len(optional_slots)}（不计入覆盖率）"
+        if optional_slots
+        else ""
+    )
     lines = [
         f"# 调查报告：{pack.topic}",
         "",
-        f"> **覆盖率** {filled_count}/{len(applicable_slots)} 适用槽位"
-        f"（{pack.coverage_ratio:.0%}）　**事实** {len(pack.items)} 条　"
+        f"> **覆盖率** {filled_count}/{len(required_slots)} 必填槽位"
+        f"（{pack.coverage_ratio:.0%}）{optional_note}　**事实** {len(pack.items)} 条　"
         f"**结论级双源支持** {corroborated_count}/{len(pack.items)}　"
         f"**来源 episode** {len(pack.provenance)} 个",
         "",

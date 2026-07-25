@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from open_deep_research.graphrag.graph.verified_episode import add_verified_episode
 from open_deep_research.graphrag.ontology import OntologySlot
 from open_deep_research.graphrag.schemas import (
+    ClaimMatchAuditRecord,
     ExtractedTriple,
     GraphWriteResult,
     SourceDocument,
@@ -52,6 +53,7 @@ class RoundResult(BaseModel):
     contributing_source_identities: list[str] = Field(default_factory=list)
     target_edge_uuids: list[str] = Field(default_factory=list)
     corroborated_edge_uuids: list[str] = Field(default_factory=list)
+    claim_match_audit: list[ClaimMatchAuditRecord] = Field(default_factory=list)
     note: str = ""
 
     @property
@@ -86,6 +88,8 @@ async def run_research_round(
     max_documents: int = 3,
     min_sources: int = 1,
     group_id: str = "neo4j",
+    claim_match_similarity_threshold: float = 0.85,
+    claim_match_top_k: int = 3,
 ) -> RoundResult:
     """Search for one slot, extract, and write whatever survives.
 
@@ -160,11 +164,14 @@ async def run_research_round(
                 support_only=bool(primary_targets),
             ),
             default_group_id=group_id,
+            claim_match_similarity_threshold=claim_match_similarity_threshold,
+            claim_match_top_k=claim_match_top_k,
         )
         result.episode_uuids.append(write.episode_uuid)
         result.facts_written += len(write.created_edge_uuids)
         result.supports_added += len(write.supported_edge_uuids)
         result.corroborated_edge_uuids.extend(write.supported_edge_uuids)
+        result.claim_match_audit.extend(write.claim_match_audit)
 
         if write.edge_uuids:
             source_key = document.url or document.document_id
@@ -218,6 +225,8 @@ async def run_support_round(
     exclude_source_identities: list[str] | None = None,
     max_documents: int = 3,
     group_id: str = "neo4j",
+    claim_match_similarity_threshold: float = 0.85,
+    claim_match_top_k: int = 3,
 ) -> RoundResult:
     """Run a targeted follow-up whose only allowed outcome is claim support.
 
@@ -286,10 +295,13 @@ async def run_support_round(
                 support_only=True,
             ),
             default_group_id=group_id,
+            claim_match_similarity_threshold=claim_match_similarity_threshold,
+            claim_match_top_k=claim_match_top_k,
         )
         result.episode_uuids.append(write.episode_uuid)
         result.supports_added += len(write.supported_edge_uuids)
         result.corroborated_edge_uuids.extend(write.supported_edge_uuids)
+        result.claim_match_audit.extend(write.claim_match_audit)
 
         if target_edge_uuid in write.supported_edge_uuids:
             source_key = document.url or document.document_id

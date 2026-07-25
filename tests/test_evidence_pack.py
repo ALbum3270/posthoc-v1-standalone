@@ -490,3 +490,34 @@ def test_two_facts_with_disjoint_values_do_conflict() -> None:
     conflicts = detect_conflicts(facts)
     assert len(conflicts) == 1
     assert conflicts[0].metadata["edge_uuids"] == ["a", "b"]
+
+
+def test_coverage_header_denominator_matches_the_ratio() -> None:
+    """The header must not read as a contradiction.
+
+    coverage_ratio counts required slots only (§3.24). Rendering "10/17" beside
+    "100%" made the report look wrong to a reader; optional slots belong in a
+    separate bonus figure, not in the coverage denominator.
+    """
+
+    pack = make_pack([
+        EvidencePackItem(slot_id="who.primary_actor", conclusion="SBF founded FTX",
+                         confidence=0.8, provenance_episode_ids=["ep-1"])
+    ])
+    pack.coverage_ratio = 1.0
+    pack.slot_applicability = [
+        SlotApplicability(slot_id="who.primary_actor",
+                          status=SlotApplicabilityStatus.REQUIRED),
+        SlotApplicability(slot_id="who.affected",
+                          status=SlotApplicabilityStatus.OPTIONAL),
+        SlotApplicability(slot_id="when.event_time",
+                          status=SlotApplicabilityStatus.OPTIONAL),
+    ]
+
+    report = render_report(pack, schema=SCHEMA)
+    header = report.splitlines()[2]
+
+    assert "1/1 必填槽位" in header
+    assert "（100%）" in header
+    assert "选填槽** 0/2" in header
+    assert "/3 必填" not in header

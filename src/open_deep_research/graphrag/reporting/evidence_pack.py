@@ -77,7 +77,7 @@ _NON_WORD = re.compile(r"[^\w一-鿿]+", re.UNICODE)
 _MAGNITUDE = re.compile(
     r"(?P<value>\d[\d,]*(?:\.\d+)?)\s*"
     r"(?P<scale>billion|million|trillion|thousand|亿|万|兆|千)?\s*"
-    r"(?P<unit>USD|美元|dollars?|NT\$|新台币|人民币|EUR|欧元|BTC|%)",
+    r"(?P<unit>USD|美元|dollars?|NT\$|新台币|人民币|EUR|欧元|BTC|%)?",
     re.IGNORECASE,
 )
 _SCALES = {
@@ -151,12 +151,16 @@ def _magnitudes(text: str) -> dict[str, set[float]]:
 
     found: dict[str, set[float]] = {}
     for match in _MAGNITUDE.finditer(text or ""):
+        raw_scale = (match["scale"] or "").lower()
+        raw_unit = (match["unit"] or "").upper()
+        if not raw_scale and not raw_unit:
+            continue
         try:
             value = float(match["value"].replace(",", ""))
         except ValueError:
             continue
-        scale = _SCALES.get((match["scale"] or "").lower(), 1.0)
-        unit = (match["unit"] or "").upper()
+        scale = _SCALES.get(raw_scale, 1.0)
+        unit = raw_unit or "SCALAR"
         # Fold currency aliases so "USD" and "美元" compare.
         if unit in {"美元", "DOLLAR", "DOLLARS"}:
             unit = "USD"

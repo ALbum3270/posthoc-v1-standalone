@@ -41,10 +41,16 @@ class FakeDriver:
     provider = GraphProvider.NEO4J
     graph_operations_interface = None
 
-    def __init__(self, existing_entities: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        existing_entities: dict[str, str] | None = None,
+        *,
+        semantic_recall: bool = False,
+    ) -> None:
         self.calls: list[dict] = []
         self.existing = existing_entities or {}
         self.claim_edges: dict[tuple[str, ...], dict] = {}
+        self.semantic_recall = semantic_recall
 
     async def execute_query(self, query, **kwargs):
         self.calls.append({"query": str(query), **kwargs})
@@ -77,6 +83,16 @@ class FakeDriver:
             )
             found = self.claim_edges.get(key)
             return ([dict(found)] if found else []), None, None
+        if "semantic claim candidates" in str(query) and self.semantic_recall:
+            found = [
+                dict(edge)
+                for edge in self.claim_edges.values()
+                if edge["research_id"] == kwargs["research_id"]
+                and edge["slot_id"] == kwargs["slot_id"]
+                and edge["group_id"] == kwargs["group_id"]
+                and edge.get("expired_at") is None
+            ]
+            return found, None, None
         if "edge_uuid" in kwargs and "supporting_source_urls" in kwargs:
             for edge in self.claim_edges.values():
                 if edge["uuid"] == kwargs["edge_uuid"]:
@@ -119,13 +135,25 @@ class FakeEmbedder:
     async def create_batch(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             raise AssertionError("empty embedding batches must be skipped")
-        return [[float(i)] * EMBED_DIM for i, _ in enumerate(texts)]
+        return [[1.0 + float(i)] * EMBED_DIM for i, _ in enumerate(texts)]
 
 
 class FakeGraphiti:
-    def __init__(self, driver: FakeDriver) -> None:
+    def __init__(self, driver: FakeDriver, llm_client=None) -> None:
         self.driver = driver
         self.embedder = FakeEmbedder()
+        if llm_client is not None:
+            self.llm_client = llm_client
+
+
+class FakeEntailmentLLM:
+    def __init__(self, *decisions: dict) -> None:
+        self.decisions = list(decisions)
+        self.calls: list[dict] = []
+
+    async def generate_response(self, messages, **kwargs):
+        self.calls.append({"messages": messages, **kwargs})
+        return self.decisions.pop(0)
 
 
 def make_triple(
@@ -166,6 +194,25 @@ def make_payload(
             published_at=published_at,
         ),
         triples=triples,
+    )
+
+
+def make_support_payload(
+    triple: ExtractedTriple,
+    *,
+    url: str = "https://independent.example/report",
+) -> VerifiedEpisodeInput:
+    return VerifiedEpisodeInput(
+        research_id="r-123",
+        slot_id="what.core_event",
+        source=SourceDocument(
+            document_id=url,
+            title=f"Report from {url}",
+            url=url,
+            content=render_fact(triple),
+        ),
+        triples=[triple],
+        support_only=True,
     )
 
 
@@ -366,11 +413,11 @@ def test_existing_entities_are_reused_not_duplicated() -> None:
     assert driver.edge_saves[0]["source_uuid"] == "existing-ftx-uuid"
 
 
-def test_no_llm_client_is_touched() -> None:
-    """The whole point: nothing on this path may call a model.
+def test_new_claim_without_candidates_does_not_touch_llm() -> None:
+    """A normal write with no existing candidates must not call a model.
 
-    FakeGraphiti exposes no llm_client at all, so any attempt to resolve edges or
-    entities through an LLM would raise AttributeError.
+    FakeGraphiti exposes no llm_client at all, so candidate-free writes still
+    retain the original verified-path cost and verbatim guarantees.
     """
 
     driver = FakeDriver()
@@ -472,3 +519,240 @@ def test_support_only_payload_cannot_create_an_unrelated_claim() -> None:
     assert result.created_edge_uuids == []
     assert result.supported_edge_uuids == []
     assert "Binance discussed an acquisition" in result.skipped_triples
+
+
+def test_semantic_paraphrases_merge_only_after_bidirectional_entailment() -> None:
+    driver = FakeDriver(semantic_recall=True)
+    llm = FakeEntailmentLLM(
+        {
+            "candidate_entails_incoming": True,
+            "incoming_entails_candidate": True,
+            "reason": "The claims differ only in wording.",
+        }
+    )
+    graphiti = FakeGraphiti(driver, llm)
+    first_text = "FTX filed for Chapter 11."
+    first = make_payload(
+        [
+            make_triple(
+                "FTX",
+                "filed for",
+                "Chapter 11",
+                quote=first_text,
+            )
+        ]
+    )
+    first_result = asyncio.run(add_verified_episode(graphiti, first))
+    incoming_text = "FTX declared Chapter 11 bankruptcy."
+    incoming = make_triple(
+        "FTX",
+        "declared",
+        "Chapter 11 bankruptcy",
+        quote=incoming_text,
+    )
+
+    result = asyncio.run(
+        add_verified_episode(graphiti, make_support_payload(incoming))
+    )
+
+    assert result.supported_edge_uuids == first_result.created_edge_uuids
+    assert len(llm.calls) == 1
+    audit = result.claim_match_audit[0]
+    assert audit.match_method == "semantic"
+    assert audit.similarity == pytest.approx(1.0)
+    assert audit.prefilter_passed is True
+    assert audit.candidate_entails_incoming is True
+    assert audit.incoming_entails_candidate is True
+    assert audit.accepted is True
+
+
+def test_numeric_conflict_is_prefiltered_without_calling_llm() -> None:
+    driver = FakeDriver(semantic_recall=True)
+    llm = FakeEntailmentLLM()
+    graphiti = FakeGraphiti(driver, llm)
+    first_text = "FTX资金缺口为80亿。"
+    asyncio.run(
+        add_verified_episode(
+            graphiti,
+            make_payload(
+                [
+                    make_triple(
+                        "FTX",
+                        "资金缺口",
+                        "80亿",
+                        quote=first_text,
+                    )
+                ]
+            ),
+        )
+    )
+    incoming = make_triple(
+        "FTX",
+        "资金短缺",
+        "100亿",
+        quote="FTX资金缺口为100亿。",
+    )
+
+    result = asyncio.run(
+        add_verified_episode(graphiti, make_support_payload(incoming))
+    )
+
+    assert result.supported_edge_uuids == []
+    assert llm.calls == []
+    audit = result.claim_match_audit[0]
+    assert audit.prefilter_passed is False
+    assert "magnitude conflict" in audit.prefilter_reason
+    assert audit.candidate_entails_incoming is None
+    assert audit.accepted is False
+
+
+def test_year_conflict_is_prefiltered_without_calling_llm() -> None:
+    driver = FakeDriver(semantic_recall=True)
+    llm = FakeEntailmentLLM()
+    graphiti = FakeGraphiti(driver, llm)
+    asyncio.run(
+        add_verified_episode(
+            graphiti,
+            make_payload(
+                [
+                    make_triple(
+                        "FTX",
+                        "filed for",
+                        "bankruptcy",
+                        quote="FTX filed for bankruptcy on November 11, 2022.",
+                    )
+                ]
+            ),
+        )
+    )
+    incoming = make_triple(
+        "FTX",
+        "declared",
+        "bankruptcy",
+        quote="FTX declared bankruptcy on November 11, 2023.",
+    )
+
+    result = asyncio.run(
+        add_verified_episode(graphiti, make_support_payload(incoming))
+    )
+
+    assert result.supported_edge_uuids == []
+    assert llm.calls == []
+    assert result.claim_match_audit[0].prefilter_passed is False
+    assert "year conflict" in result.claim_match_audit[0].prefilter_reason
+
+
+def test_one_way_entailment_is_not_accepted_as_corroboration() -> None:
+    driver = FakeDriver(semantic_recall=True)
+    llm = FakeEntailmentLLM(
+        {
+            "candidate_entails_incoming": False,
+            "incoming_entails_candidate": True,
+            "reason": "The incoming claim adds a date.",
+        }
+    )
+    graphiti = FakeGraphiti(driver, llm)
+    asyncio.run(
+        add_verified_episode(
+            graphiti,
+            make_payload(
+                [
+                    make_triple(
+                        "FTX",
+                        "declared",
+                        "bankruptcy",
+                        quote="FTX declared bankruptcy.",
+                    )
+                ]
+            ),
+        )
+    )
+    incoming = make_triple(
+        "FTX",
+        "filed for",
+        "bankruptcy on November 11, 2022",
+        quote="FTX declared bankruptcy on November 11, 2022.",
+    )
+
+    result = asyncio.run(
+        add_verified_episode(graphiti, make_support_payload(incoming))
+    )
+
+    assert result.supported_edge_uuids == []
+    assert len(llm.calls) == 1
+    audit = result.claim_match_audit[0]
+    assert audit.candidate_entails_incoming is False
+    assert audit.incoming_entails_candidate is True
+    assert audit.accepted is False
+
+
+def test_same_publisher_different_url_does_not_count_as_support() -> None:
+    driver = FakeDriver()
+    graphiti = FakeGraphiti(driver)
+    triple = make_triple(
+        "FTX",
+        "filed for",
+        "Chapter 11",
+        quote="FTX filed for Chapter 11.",
+    )
+    asyncio.run(add_verified_episode(graphiti, make_payload([triple])))
+
+    result = asyncio.run(
+        add_verified_episode(
+            graphiti,
+            make_support_payload(
+                triple,
+                url="https://example.com/another-page",
+            ),
+        )
+    )
+
+    assert result.supported_edge_uuids == []
+    stored = next(iter(driver.claim_edges.values()))
+    assert stored["supporting_source_identities"] == ["example.com"]
+    assert len(stored["episodes"]) == 1
+    assert result.claim_match_audit[0].prefilter_passed is False
+    assert "same publisher identity" in result.claim_match_audit[0].prefilter_reason
+
+
+def test_semantic_support_preserves_original_fact_and_appends_verbatim_quote() -> None:
+    driver = FakeDriver(semantic_recall=True)
+    llm = FakeEntailmentLLM(
+        {
+            "candidate_entails_incoming": True,
+            "incoming_entails_candidate": True,
+            "reason": "Equivalent claims.",
+        }
+    )
+    graphiti = FakeGraphiti(driver, llm)
+    original = "FTX filed for Chapter 11."
+    asyncio.run(
+        add_verified_episode(
+            graphiti,
+            make_payload(
+                [
+                    make_triple(
+                        "FTX",
+                        "filed for",
+                        "Chapter 11",
+                        quote=original,
+                    )
+                ]
+            ),
+        )
+    )
+    supporting_quote = "FTX declared Chapter 11 bankruptcy."
+    incoming = make_triple(
+        "FTX",
+        "declared",
+        "Chapter 11 bankruptcy",
+        quote=supporting_quote,
+    )
+
+    asyncio.run(
+        add_verified_episode(graphiti, make_support_payload(incoming))
+    )
+
+    stored = next(iter(driver.claim_edges.values()))
+    assert stored["fact"] == original
+    assert stored["supporting_quotes"] == [original, supporting_quote]
