@@ -43,6 +43,14 @@ _ANAPHORIC_COMPANY = re.compile(r"^the\s+company(?:'s|’s)\b", re.I)
 _LATIN_WORD = re.compile(r"[A-Za-z]+")
 _INITIALISM = re.compile(r"^[A-Za-z][A-Za-z0-9]{1,9}$")
 _CJK_CHARACTER = re.compile(r"[\u3400-\u9fff]")
+_PAGINATION_LINE = re.compile(
+    r"^(?:page\s+)?\d+\s*(?:of|/)\s*\d+$",
+    re.I,
+)
+_NAVIGATION_LINE = re.compile(
+    r"^(?:full\s+article|read\s+more)(?:\s*[.]{3})?$",
+    re.I,
+)
 
 
 def locate_source_quote(content: str, quote: str) -> SourceSpan | None:
@@ -84,12 +92,20 @@ def _is_abbreviation_period(source: str, punctuation_at: int) -> bool:
     return re.search(r"(?:\b[A-Za-z]\.){2,}$", prefix) is not None
 
 
-def expand_span_to_sentence(content: str, span: SourceSpan) -> SourceSpan:
-    """Expand a grounded fragment to its enclosing verbatim source sentence."""
+def _trim_source_span(source: str, start: int, end: int) -> SourceSpan:
+    while start < end and source[start].isspace():
+        start += 1
+    while end > start and source[end - 1].isspace():
+        end -= 1
+    return SourceSpan(start_char=start, end_char=end, quote=source[start:end])
+
+
+def _sentence_spans(content: str) -> list[SourceSpan]:
+    """Split source text into exact, non-overlapping sentence-like spans."""
 
     source = content or ""
     if not source:
-        return span
+        return []
 
     sentence_ends = [
         match
@@ -100,32 +116,75 @@ def expand_span_to_sentence(content: str, span: SourceSpan) -> SourceSpan:
         )
     ]
     paragraph_breaks = list(_PARAGRAPH_BREAK.finditer(source))
+    hard_breaks = {0, len(source)}
+    hard_breaks.update(match.end() for match in sentence_ends)
+    for match in paragraph_breaks:
+        hard_breaks.add(match.start())
+        hard_breaks.add(match.end())
 
-    start_candidates = [0]
-    start_candidates.extend(
-        match.end() for match in sentence_ends if match.end() <= span.start_char
-    )
-    start_candidates.extend(
-        match.end() for match in paragraph_breaks if match.end() <= span.start_char
-    )
-    start = max(start_candidates)
+    boundaries = sorted(hard_breaks)
+    spans = [
+        _trim_source_span(source, start, end)
+        for start, end in zip(boundaries[:-1], boundaries[1:], strict=True)
+    ]
+    return [span for span in spans if span.quote]
 
-    end_candidates = [len(source)]
-    end_candidates.extend(
-        match.end() for match in sentence_ends if match.end() >= span.end_char
-    )
-    end_candidates.extend(
-        match.start()
-        for match in paragraph_breaks
-        if match.start() >= span.end_char
-    )
-    end = min(end_candidates)
 
-    while start < end and source[start].isspace():
-        start += 1
-    while end > start and source[end - 1].isspace():
-        end -= 1
-    return SourceSpan(start_char=start, end_char=end, quote=source[start:end])
+def _strip_leading_chrome(content: str, span: SourceSpan) -> SourceSpan:
+    """Drop generic pagination/navigation lines from a source-backed span."""
+
+    source = content or ""
+    start = span.start_char
+    end = span.end_char
+    while start < end:
+        newline = source.find("\n", start, end)
+        if newline < 0:
+            break
+        line = source[start:newline].strip()
+        if not (
+            _PAGINATION_LINE.fullmatch(line)
+            or _NAVIGATION_LINE.fullmatch(line)
+        ):
+            break
+        start = newline + 1
+        while start < end and source[start] in " \t\r\n":
+            start += 1
+    return _trim_source_span(source, start, end)
+
+
+def _overlapping_sentence_spans(content: str, span: SourceSpan) -> list[SourceSpan]:
+    return [
+        _strip_leading_chrome(content, candidate)
+        for candidate in _sentence_spans(content)
+        if candidate.end_char > span.start_char
+        and candidate.start_char < span.end_char
+    ]
+
+
+def expand_span_to_sentence(
+    content: str,
+    span: SourceSpan,
+    *,
+    max_chars: int = 200,
+) -> SourceSpan:
+    """Expand a fragment to one bounded, verbatim source sentence.
+
+    If the enclosing sentence exceeds ``max_chars``, keep the original fragment
+    so that a separately self-contained clause can still pass the later gates.
+    """
+
+    if max_chars < 1:
+        raise ValueError("max_chars must be positive")
+    candidates = _overlapping_sentence_spans(content, span)
+    candidate = next(
+        (
+            item
+            for item in candidates
+            if item.start_char <= span.start_char < item.end_char
+        ),
+        span,
+    )
+    return candidate if len(candidate.quote or "") <= max_chars else span
 
 
 def _fold_name_text(text: str) -> str:
@@ -228,6 +287,7 @@ def ground_extracted_row(
     slot: OntologySlot,
     row: Mapping[str, str],
     confidence: float = 0.8,
+    max_quote_chars: int = 200,
 ) -> ExtractedTriple | None:
     """Map one model row to a triple only when its evidence is self-contained.
 
@@ -248,14 +308,41 @@ def ground_extracted_row(
     located_span = locate_source_quote(document.content, quote)
     if located_span is None:
         return None
-    span = expand_span_to_sentence(document.content, located_span)
-    grounded_quote = span.quote or ""
-    if (
-        not row_is_numerically_supported(row, grounded_quote)
-        or not quote_is_self_contained(grounded_quote)
-        or not quote_names_subject(grounded_quote, subject)
-    ):
+    if max_quote_chars < 1:
+        raise ValueError("max_quote_chars must be positive")
+
+    overlapping_spans = _overlapping_sentence_spans(
+        document.content,
+        located_span,
+    )
+    sentence_candidates = [
+        candidate
+        for candidate in overlapping_spans
+        if len(candidate.quote or "") <= max_quote_chars
+    ]
+    # A quote inside one overlong sentence may already be a concise,
+    # self-contained clause. A multi-sentence model quote must instead reduce
+    # to one independently valid sentence.
+    if len(overlapping_spans) == 1 and not sentence_candidates:
+        sentence_candidates.append(located_span)
+
+    valid_candidates = [
+        candidate
+        for candidate in sentence_candidates
+        if len(candidate.quote or "") <= max_quote_chars
+        and row_is_numerically_supported(row, candidate.quote or "")
+        and quote_is_self_contained(candidate.quote or "")
+        and quote_names_subject(candidate.quote or "", subject)
+    ]
+    if not valid_candidates:
         return None
+    span = min(
+        valid_candidates,
+        key=lambda candidate: (
+            len(candidate.quote or ""),
+            candidate.start_char,
+        ),
+    )
 
     return ExtractedTriple(
         slot_id=slot.slot_id,

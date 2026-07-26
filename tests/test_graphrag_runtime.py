@@ -144,6 +144,12 @@ def test_extraction_prompts_require_complete_self_contained_sentences() -> None:
         assert "mid-word" in prompt
 
 
+def test_grounded_quote_length_limit_is_configurable() -> None:
+    settings = GraphResearchSettings(max_grounded_quote_chars=240)
+
+    assert settings.max_grounded_quote_chars == 240
+
+
 def test_query_generator_deterministically_breaks_an_exact_repeat() -> None:
     active = runner(response("same query"))
 

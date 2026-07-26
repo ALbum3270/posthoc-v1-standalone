@@ -219,6 +219,7 @@ class GraphResearchSettings(BaseModel):
     max_no_improvement_rounds: int = Field(default=4, ge=1)
     max_attempts_per_slot: int = Field(default=3, ge=1)
     max_chars_per_document: int = Field(default=2400, ge=500)
+    max_grounded_quote_chars: int = Field(default=200, ge=80, le=1000)
     search_results: int = Field(default=5, ge=1, le=20)
     max_documents_per_round: int = Field(default=3, ge=1, le=10)
     min_sources_per_claim: int = Field(default=2, ge=1, le=5)
@@ -888,7 +889,12 @@ class GraphResearchRunner:
 
         triples = []
         for row in rows:
-            triple = ground_extracted_row(document=document, slot=slot, row=row)
+            triple = ground_extracted_row(
+                document=document,
+                slot=slot,
+                row=row,
+                max_quote_chars=self.settings.max_grounded_quote_chars,
+            )
             if triple is None:
                 self.usage.grounding_rejections += 1
                 continue
@@ -959,7 +965,12 @@ class GraphResearchRunner:
             if row_key not in target_keys:
                 self.usage.support_rows_rejected += 1
                 continue
-            triple = ground_extracted_row(document=document, slot=slot, row=row)
+            triple = ground_extracted_row(
+                document=document,
+                slot=slot,
+                row=row,
+                max_quote_chars=self.settings.max_grounded_quote_chars,
+            )
             if triple is None:
                 self.usage.grounding_rejections += 1
                 continue

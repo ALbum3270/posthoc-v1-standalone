@@ -247,3 +247,69 @@ def test_sentence_expansion_preserves_the_exact_source_slice() -> None:
     expanded = expand_span_to_sentence(content, partial)
     assert expanded.quote == "FTX filed for bankruptcy in 2022."
     assert content[expanded.start_char : expanded.end_char] == expanded.quote
+
+
+def test_leading_pagination_and_navigation_chrome_is_removed_from_sentence() -> None:
+    content = (
+        "4 of 4\n"
+        "Full Article\n"
+        "The FTX bankruptcy refers to the collapse of the FTX cryptocurrency "
+        "exchange, owned by Sam Bankman-Fried, beginning in November 2022."
+    )
+    row = {
+        "subject": "FTX",
+        "predicate": "collapsed",
+        "object": "beginning in November 2022",
+        "quote": content,
+    }
+
+    triple = ground_extracted_row(document=document(content), slot=SLOT, row=row)
+
+    assert triple is not None
+    assert triple.source_span is not None
+    assert triple.source_span.quote == (
+        "The FTX bankruptcy refers to the collapse of the FTX cryptocurrency "
+        "exchange, owned by Sam Bankman-Fried, beginning in November 2022."
+    )
+    assert content[
+        triple.source_span.start_char : triple.source_span.end_char
+    ] == triple.source_span.quote
+
+
+def test_long_sentence_does_not_force_a_self_contained_clause_to_expand() -> None:
+    clause = "FTX filed for bankruptcy in November 2022"
+    content = f"{clause}, " + ("after prolonged market pressure " * 12) + "."
+    row = {
+        "subject": "FTX",
+        "predicate": "filed for",
+        "object": "bankruptcy in November 2022",
+        "quote": clause,
+    }
+
+    triple = ground_extracted_row(
+        document=document(content),
+        slot=SLOT,
+        row=row,
+        max_quote_chars=200,
+    )
+
+    assert triple is not None
+    assert triple.source_span is not None
+    assert triple.source_span.quote == clause
+    assert len(content) > 200
+
+
+def test_multi_sentence_model_quote_is_reduced_to_one_supporting_sentence() -> None:
+    content = "Background details appeared first. FTX filed for bankruptcy in 2022."
+    row = {
+        "subject": "FTX",
+        "predicate": "filed for",
+        "object": "bankruptcy in 2022",
+        "quote": content,
+    }
+
+    triple = ground_extracted_row(document=document(content), slot=SLOT, row=row)
+
+    assert triple is not None
+    assert triple.source_span is not None
+    assert triple.source_span.quote == "FTX filed for bankruptcy in 2022."
