@@ -1,7 +1,7 @@
 import pytest
 
 from open_deep_research.graphrag.ontology import OntologySlot
-from open_deep_research.graphrag.schemas import SourceDocument
+from open_deep_research.graphrag.schemas import SourceDocument, SourceSpan
 from open_deep_research.graphrag.validation.grounding import (
     expand_span_to_sentence,
     ground_extracted_row,
@@ -103,13 +103,13 @@ def test_missing_quote_is_not_treated_as_grounded() -> None:
 
 
 def test_missing_subject_clause_expands_to_verbatim_source_sentence() -> None:
-    content = "FTX\nFiled for Chapter 11 bankruptcy in November 2022."
+    content = "In November 2022, FTX filed for Chapter 11 bankruptcy."
     source = document(content)
     row = {
         "subject": "FTX",
         "predicate": "filed for",
-        "object": "Chapter 11 bankruptcy in November 2022",
-        "quote": "Filed for Chapter 11 bankruptcy in November 2022",
+        "object": "Chapter 11 bankruptcy",
+        "quote": "filed for Chapter 11 bankruptcy",
     }
 
     triple = ground_extracted_row(document=source, slot=SLOT, row=row)
@@ -274,6 +274,51 @@ def test_leading_pagination_and_navigation_chrome_is_removed_from_sentence() -> 
     assert content[
         triple.source_span.start_char : triple.source_span.end_char
     ] == triple.source_span.quote
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        (
+            "RESEARCH STARTER\n"
+            "Collapse of Silicon Valley Bank\n"
+            "The collapse of Silicon Valley Bank (SVB) in March 2023 was the "
+            "largest bank failure since 2008.",
+            "The collapse of Silicon Valley Bank (SVB) in March 2023 was the "
+            "largest bank failure since 2008.",
+        ),
+        (
+            "4 of 4\n"
+            "Full Article\n"
+            "The FTX bankruptcy refers to the collapse of the FTX "
+            "cryptocurrency exchange.",
+            "The FTX bankruptcy refers to the collapse of the FTX "
+            "cryptocurrency exchange.",
+        ),
+        (
+            "| This article is part of a series about the |\n"
+            "| 2023 United States banking crisis |\n"
+            "SVB was closed by regulators on March 10, 2023.",
+            "SVB was closed by regulators on March 10, 2023.",
+        ),
+    ],
+)
+def test_dirty_multiline_quote_expands_to_clean_final_sentence(
+    content: str,
+    expected: str,
+) -> None:
+    dirty = SourceSpan(
+        start_char=0,
+        end_char=len(content),
+        quote=content,
+    )
+
+    expanded = expand_span_to_sentence(content, dirty)
+
+    assert expanded.quote == expected
+    assert "\n" not in (expanded.quote or "")
+    assert "|" not in (expanded.quote or "")
+    assert content[expanded.start_char : expanded.end_char] == expected
 
 
 def test_long_sentence_does_not_force_a_self_contained_clause_to_expand() -> None:

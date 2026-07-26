@@ -29,7 +29,6 @@ _NUMBER = re.compile(
     r"(?<!\w)[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:\s*%)?"
 )
 _SENTENCE_END = re.compile(r"""[.!?。！？]["'”’)\]]*(?=\s|$)""")
-_PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n+")
 _LEADING_FURNITURE = re.compile(r"""^[\s"'“”‘’([{<\-–—•*]+""")
 _DANGLING_CONJUNCTION = re.compile(r"^(?:and|but)\b|^(?:但|但是|并且|而且)", re.I)
 _ANAPHORIC_ENGLISH = re.compile(
@@ -43,14 +42,6 @@ _ANAPHORIC_COMPANY = re.compile(r"^the\s+company(?:'s|’s)\b", re.I)
 _LATIN_WORD = re.compile(r"[A-Za-z]+")
 _INITIALISM = re.compile(r"^[A-Za-z][A-Za-z0-9]{1,9}$")
 _CJK_CHARACTER = re.compile(r"[\u3400-\u9fff]")
-_PAGINATION_LINE = re.compile(
-    r"^(?:page\s+)?\d+\s*(?:of|/)\s*\d+$",
-    re.I,
-)
-_NAVIGATION_LINE = re.compile(
-    r"^(?:full\s+article|read\s+more)(?:\s*[.]{3})?$",
-    re.I,
-)
 
 
 def locate_source_quote(content: str, quote: str) -> SourceSpan | None:
@@ -115,10 +106,9 @@ def _sentence_spans(content: str) -> list[SourceSpan]:
             and _is_abbreviation_period(source, match.start())
         )
     ]
-    paragraph_breaks = list(_PARAGRAPH_BREAK.finditer(source))
     hard_breaks = {0, len(source)}
     hard_breaks.update(match.end() for match in sentence_ends)
-    for match in paragraph_breaks:
+    for match in re.finditer(r"\n", source):
         hard_breaks.add(match.start())
         hard_breaks.add(match.end())
 
@@ -130,31 +120,9 @@ def _sentence_spans(content: str) -> list[SourceSpan]:
     return [span for span in spans if span.quote]
 
 
-def _strip_leading_chrome(content: str, span: SourceSpan) -> SourceSpan:
-    """Drop generic pagination/navigation lines from a source-backed span."""
-
-    source = content or ""
-    start = span.start_char
-    end = span.end_char
-    while start < end:
-        newline = source.find("\n", start, end)
-        if newline < 0:
-            break
-        line = source[start:newline].strip()
-        if not (
-            _PAGINATION_LINE.fullmatch(line)
-            or _NAVIGATION_LINE.fullmatch(line)
-        ):
-            break
-        start = newline + 1
-        while start < end and source[start] in " \t\r\n":
-            start += 1
-    return _trim_source_span(source, start, end)
-
-
 def _overlapping_sentence_spans(content: str, span: SourceSpan) -> list[SourceSpan]:
     return [
-        _strip_leading_chrome(content, candidate)
+        candidate
         for candidate in _sentence_spans(content)
         if candidate.end_char > span.start_char
         and candidate.start_char < span.end_char
@@ -176,11 +144,12 @@ def expand_span_to_sentence(
     if max_chars < 1:
         raise ValueError("max_chars must be positive")
     candidates = _overlapping_sentence_spans(content, span)
+    endpoint = max(span.start_char, span.end_char - 1)
     candidate = next(
         (
             item
             for item in candidates
-            if item.start_char <= span.start_char < item.end_char
+            if item.start_char <= endpoint < item.end_char
         ),
         span,
     )
@@ -339,6 +308,11 @@ def ground_extracted_row(
     span = min(
         valid_candidates,
         key=lambda candidate: (
+            not (
+                candidate.start_char
+                <= max(located_span.start_char, located_span.end_char - 1)
+                < candidate.end_char
+            ),
             len(candidate.quote or ""),
             candidate.start_char,
         ),
