@@ -114,9 +114,11 @@ EXTRACTION_SYSTEM_PROMPT = (
 
 SUPPORT_EXTRACTION_SYSTEM_PROMPT = (
     "Find independent source text that supports one or more target claims.\n"
-    "Return only claims that this passage directly supports. Copy subject, "
-    "predicate, and object EXACTLY from a target claim; do not introduce a new "
-    "claim merely because it answers the same broad question. Every row must "
+    "Return only claims that this passage directly supports and that have the "
+    "same factual meaning as a target claim. Express subject, predicate, and "
+    "object using the source's own wording; do not force the target's wording "
+    "onto the source. Do not introduce a new claim merely because it answers "
+    "the same broad question. Every row must "
     "include an exact contiguous quote from this passage that is a complete, "
     "self-contained sentence, explicitly names the triple subject, and never "
     "starts with an unresolved pronoun or dangling conjunction or ends "
@@ -232,7 +234,7 @@ class GraphResearchSettings(BaseModel):
         le=1.0,
     )
     claim_match_similarity_threshold: float = Field(
-        default=0.85,
+        default=0.70,
         ge=0.0,
         le=1.0,
     )
@@ -567,6 +569,7 @@ class GraphResearchRunner:
         slot: OntologySlot,
         triples: list[ExtractedTriple],
         purpose: str,
+        targets: list[ExtractedTriple] | None = None,
     ) -> list[ExtractedTriple]:
         """Apply a conservative, auditable semantic gate to grounded triples."""
 
@@ -599,6 +602,10 @@ class GraphResearchRunner:
                             "topic": topic,
                             "slot_id": slot.slot_id,
                             "question": slot.question,
+                            "target_claims": [
+                                self._triple_text(target)
+                                for target in (targets or [])
+                            ],
                             "candidates": candidates,
                         },
                         ensure_ascii=False,
@@ -921,7 +928,7 @@ class GraphResearchRunner:
         targets: list[ExtractedTriple],
         topic: str = "",
     ) -> list[ExtractedTriple]:
-        """Extract evidence only for the exact structured claims already written."""
+        """Extract source-worded evidence for claims already written."""
 
         target_rows = [
             {
@@ -955,16 +962,8 @@ class GraphResearchRunner:
         rows = parse_triple_payload(response.choices[0].message.content)
         self.usage.extraction_rows += len(rows)
 
-        target_keys = {self._triple_key(target) for target in targets}
         grounded: list[ExtractedTriple] = []
         for row in rows:
-            row_key = tuple(
-                " ".join(str(row.get(key) or "").casefold().split())
-                for key in ("subject", "predicate", "object")
-            )
-            if row_key not in target_keys:
-                self.usage.support_rows_rejected += 1
-                continue
             triple = ground_extracted_row(
                 document=document,
                 slot=slot,
@@ -982,6 +981,7 @@ class GraphResearchRunner:
             slot=slot,
             triples=grounded,
             purpose="support",
+            targets=targets,
         )
 
     async def run(

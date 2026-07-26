@@ -41,10 +41,11 @@ class FakeDriver:
     provider = GraphProvider.NEO4J
     graph_operations_interface = None
 
-    def __init__(self) -> None:
+    def __init__(self, *, semantic_recall: bool = False) -> None:
         self.calls: list[dict] = []
         self.existing: dict[str, str] = {}
         self.claim_edges: dict[tuple[str, ...], dict] = {}
+        self.semantic_recall = semantic_recall
 
     async def execute_query(self, query, **kwargs):
         self.calls.append({"query": str(query), **kwargs})
@@ -77,6 +78,16 @@ class FakeDriver:
             )
             found = self.claim_edges.get(key)
             return ([dict(found)] if found else []), None, None
+        if "semantic claim candidates" in str(query) and self.semantic_recall:
+            found = [
+                dict(edge)
+                for edge in self.claim_edges.values()
+                if edge["research_id"] == kwargs["research_id"]
+                and edge["slot_id"] == kwargs["slot_id"]
+                and edge["group_id"] == kwargs["group_id"]
+                and edge.get("expired_at") is None
+            ]
+            return found, None, None
         if "edge_uuid" in kwargs and "supporting_source_urls" in kwargs:
             for edge in self.claim_edges.values():
                 if edge["uuid"] == kwargs["edge_uuid"]:
@@ -99,10 +110,27 @@ class FakeDriver:
         return [], None, None
 
 
+class FakeEntailmentLLM:
+    def __init__(self, *decisions: dict) -> None:
+        self.decisions = list(decisions)
+        self.calls: list[dict] = []
+
+    async def generate_response(self, messages, **kwargs):
+        self.calls.append({"messages": messages, **kwargs})
+        return self.decisions.pop(0)
+
+
 class FakeGraphiti:
-    def __init__(self) -> None:
-        self.driver = FakeDriver()
+    def __init__(
+        self,
+        *,
+        semantic_recall: bool = False,
+        llm_client=None,
+    ) -> None:
+        self.driver = FakeDriver(semantic_recall=semantic_recall)
         self.embedder = self
+        if llm_client is not None:
+            self.llm_client = llm_client
 
     async def create_batch(self, texts: list[str]) -> list[list[float]]:
         return [[0.1] * 8 for _ in texts]
@@ -125,7 +153,14 @@ def triple(subject: str = "FTX", predicate: str = "filed for", obj: str = "Chapt
     )
 
 
-def run_round(*, documents, extract_map, support_map=None, **kwargs):
+def run_round(
+    *,
+    documents,
+    extract_map,
+    support_map=None,
+    graphiti=None,
+    **kwargs,
+):
     async def search(*, query, exclude_urls):
         return [d for d in documents if d.url not in set(exclude_urls)]
 
@@ -138,7 +173,7 @@ def run_round(*, documents, extract_map, support_map=None, **kwargs):
 
     return asyncio.run(
         run_research_round(
-            FakeGraphiti(),
+            graphiti or FakeGraphiti(),
             topic="FTX",
             research_id="r-1",
             slot=SLOT,
@@ -322,6 +357,40 @@ def test_min_sources_two_collects_a_second_source() -> None:
     assert result.is_corroborated is True
     assert result.facts_written == 1
     assert result.supports_added == 1
+
+
+def test_support_only_round_uses_semantic_fallback_for_source_paraphrase() -> None:
+    llm = FakeEntailmentLLM(
+        {
+            "candidate_entails_incoming": True,
+            "incoming_entails_candidate": True,
+            "reason": "Both claims state the same event.",
+        }
+    )
+    graphiti = FakeGraphiti(semantic_recall=True, llm_client=llm)
+    docs = [document("https://a.example"), document("https://b.example")]
+
+    result = run_round(
+        graphiti=graphiti,
+        documents=docs,
+        extract_map={"https://a.example": [triple()]},
+        support_map={
+            "https://b.example": [
+                triple(
+                    predicate="declared",
+                    obj="Chapter 11 bankruptcy",
+                )
+            ]
+        },
+        min_sources=2,
+    )
+
+    assert result.supports_added == 1
+    assert result.is_corroborated is True
+    assert len(llm.calls) == 1
+    assert len(result.claim_match_audit) == 1
+    assert result.claim_match_audit[0].match_method == "semantic"
+    assert result.claim_match_audit[0].accepted is True
 
 
 def test_barren_documents_do_not_count_as_sources() -> None:

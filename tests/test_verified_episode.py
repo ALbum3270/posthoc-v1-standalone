@@ -132,16 +132,28 @@ class FakeDriver:
 
 
 class FakeEmbedder:
+    def __init__(self, vectors: dict[str, list[float]] | None = None) -> None:
+        self.vectors = vectors or {}
+
     async def create_batch(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             raise AssertionError("empty embedding batches must be skipped")
-        return [[1.0 + float(i)] * EMBED_DIM for i, _ in enumerate(texts)]
+        return [
+            self.vectors.get(text, [1.0 + float(i)] * EMBED_DIM)
+            for i, text in enumerate(texts)
+        ]
 
 
 class FakeGraphiti:
-    def __init__(self, driver: FakeDriver, llm_client=None) -> None:
+    def __init__(
+        self,
+        driver: FakeDriver,
+        llm_client=None,
+        *,
+        embedder: FakeEmbedder | None = None,
+    ) -> None:
         self.driver = driver
-        self.embedder = FakeEmbedder()
+        self.embedder = embedder or FakeEmbedder()
         if llm_client is not None:
             self.llm_client = llm_client
 
@@ -530,8 +542,18 @@ def test_semantic_paraphrases_merge_only_after_bidirectional_entailment() -> Non
             "reason": "The claims differ only in wording.",
         }
     )
-    graphiti = FakeGraphiti(driver, llm)
     first_text = "FTX filed for Chapter 11."
+    incoming_text = "FTX declared Chapter 11 bankruptcy."
+    graphiti = FakeGraphiti(
+        driver,
+        llm,
+        embedder=FakeEmbedder(
+            {
+                first_text: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                incoming_text: [0.8, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            }
+        ),
+    )
     first = make_payload(
         [
             make_triple(
@@ -543,7 +565,6 @@ def test_semantic_paraphrases_merge_only_after_bidirectional_entailment() -> Non
         ]
     )
     first_result = asyncio.run(add_verified_episode(graphiti, first))
-    incoming_text = "FTX declared Chapter 11 bankruptcy."
     incoming = make_triple(
         "FTX",
         "declared",
@@ -559,7 +580,7 @@ def test_semantic_paraphrases_merge_only_after_bidirectional_entailment() -> Non
     assert len(llm.calls) == 1
     audit = result.claim_match_audit[0]
     assert audit.match_method == "semantic"
-    assert audit.similarity == pytest.approx(1.0)
+    assert audit.similarity == pytest.approx(0.8)
     assert audit.prefilter_passed is True
     assert audit.candidate_entails_incoming is True
     assert audit.incoming_entails_candidate is True

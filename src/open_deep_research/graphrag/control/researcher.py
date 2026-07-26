@@ -88,16 +88,16 @@ async def run_research_round(
     max_documents: int = 3,
     min_sources: int = 1,
     group_id: str = "neo4j",
-    claim_match_similarity_threshold: float = 0.85,
+    claim_match_similarity_threshold: float = 0.70,
     claim_match_top_k: int = 3,
 ) -> RoundResult:
     """Search for one slot, extract, and write whatever survives.
 
     ``min_sources`` is how many independent publisher identities must support
-    the *same structured claim* before the round stops early.  The first source
-    establishes target triples.  Further documents are passed to
-    ``extract_support`` and written with ``support_only=True``: an unrelated fact
-    in the same broad slot cannot masquerade as corroboration.
+    the same factual claim before the round stops early. The first source
+    establishes target triples. Further documents retain their own structured
+    wording and are written with ``support_only=True``: only exact structure or
+    deterministic-prefiltered bidirectional entailment can add corroboration.
 
     Documents that yield nothing are still reported, so their URLs are excluded
     next time round.
@@ -225,15 +225,16 @@ async def run_support_round(
     exclude_source_identities: list[str] | None = None,
     max_documents: int = 3,
     group_id: str = "neo4j",
-    claim_match_similarity_threshold: float = 0.85,
+    claim_match_similarity_threshold: float = 0.70,
     claim_match_top_k: int = 3,
 ) -> RoundResult:
     """Run a targeted follow-up whose only allowed outcome is claim support.
 
     Coverage rounds search for an answer to a slot. This follow-up instead
-    searches for one already-persisted structured claim and uses
-    ``support_only=True``. It can add provenance to that exact edge, but it
-    cannot create a convenient new fact merely to make a support metric rise.
+    searches for one already-persisted claim and uses ``support_only=True``.
+    It can add provenance to that edge after exact or bidirectional-semantic
+    equivalence, but it cannot create a convenient new fact merely to make a
+    support metric rise.
     """
 
     result = RoundResult(

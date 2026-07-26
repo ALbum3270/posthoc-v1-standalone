@@ -529,7 +529,7 @@ def test_low_confidence_rejection_is_retained_as_uncertain() -> None:
     assert triples[0].relevance_status is RelevanceStatus.UNCERTAIN
 
 
-def test_support_extraction_must_copy_an_existing_structured_claim() -> None:
+def test_support_extraction_keeps_source_wording_for_semantic_matching() -> None:
     target = ExtractedTriple(
         slot_id=SLOT.slot_id,
         subject=EntityRef(name="FTX"),
@@ -540,14 +540,12 @@ def test_support_extraction_must_copy_an_existing_structured_claim() -> None:
     source = SourceDocument(
         document_id="second",
         title="Independent",
-        content="An independent filing confirms FTX filed for Chapter 11.",
+        content="FTX declared Chapter 11 bankruptcy.",
     )
     payload = (
-        '{"triples":[{"subject":"FTX","predicate":"filed for",'
-        '"object":"Chapter 11",'
-        '"quote":"An independent filing confirms FTX filed for Chapter 11."},'
-        '{"subject":"FTX","predicate":"had","object":"customers",'
-        '"quote":"An independent filing confirms FTX filed for Chapter 11."}]}'
+        '{"triples":[{"subject":"FTX","predicate":"declared",'
+        '"object":"Chapter 11 bankruptcy",'
+        '"quote":"FTX declared Chapter 11 bankruptcy."}]}'
     )
     active = runner(response(payload))
 
@@ -561,10 +559,11 @@ def test_support_extraction_must_copy_an_existing_structured_claim() -> None:
     )
 
     assert len(triples) == 1
-    assert active._triple_key(triples[0]) == active._triple_key(target)
-    assert active.usage.support_rows_rejected == 1
+    assert active._triple_key(triples[0]) != active._triple_key(target)
+    assert triples[0].predicate == "declared"
+    assert triples[0].object == "Chapter 11 bankruptcy"
     system_prompt = active.llm.chat.completions.calls[0]["messages"][0]["content"]
-    assert "json" in system_prompt.casefold()
+    assert "source's own wording" in system_prompt
 
 
 def test_conditional_slot_can_be_audited_as_not_applicable() -> None:
