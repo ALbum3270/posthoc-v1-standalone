@@ -23,15 +23,28 @@ _OPENROUTER_PROXY = "http://127.0.0.1:7890"
 class OpenAIEnvelopeModel:
     """Adapt Chat Completions to the harness usage-envelope contract."""
 
-    def __init__(self, client: AsyncOpenAI, model: str) -> None:
+    def __init__(
+        self,
+        client: AsyncOpenAI,
+        model: str,
+        *,
+        json_mode: bool = True,
+    ) -> None:
         self.client = client
         self.model = model
+        self.json_mode = json_mode
         self.last_usage = {"token_count": 0, "cost_usd": 0.0}
 
     async def generate(self, prompt: str) -> dict[str, object]:
+        # Roles that must return JSON ask the provider to enforce it; the report
+        # writer must not, because its output is markdown.
+        extra: dict[str, object] = (
+            {"response_format": {"type": "json_object"}} if self.json_mode else {}
+        )
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
+            **extra,
         )
         content = response.choices[0].message.content
         if not isinstance(content, str):
@@ -142,7 +155,9 @@ def build_live_clients() -> LiveClients:
         checklist_model=ChecklistOpenAIModel(checklist_envelope),
         decision_model=OpenAIEnvelopeModel(openai, decision_model_name),
         note_model=OpenAIEnvelopeModel(openai, note_model_name),
-        write_model=OpenAIEnvelopeModel(openai, decision_model_name),
+        write_model=OpenAIEnvelopeModel(
+            openai, decision_model_name, json_mode=False
+        ),
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,
         verification_model_name=verification_model_name,

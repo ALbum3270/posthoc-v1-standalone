@@ -443,4 +443,11 @@ def test_search_without_an_active_item_note_is_visible_as_a_failure_next_round()
     assert len(client.search_calls) == 1
     assert result.consecutive_failures["what-1"] == 1
     assert '"consecutive_failures": 1' in decision_model.prompts[1]
-    assert "Candidate snippet" not in decision_model.prompts[1]
+
+    # Searching yields candidates, not notes, so the item is still a failure --
+    # but the hits must reach the next decision or the model can only search
+    # again, which is the zero-entropy loop this project already measured.
+    next_prompt = decision_model.prompts[1]
+    assert "Candidate snippet" in next_prompt
+    assert '"url": "https://example.com/source"' in next_prompt
+    assert '"read": false' in next_prompt

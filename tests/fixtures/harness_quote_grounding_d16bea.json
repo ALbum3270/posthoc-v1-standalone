@@ -1,0 +1,1562 @@
+{
+  "classification_contract": {
+    "format_only": "Strict location fails; the whole alphanumeric-normalized quote occurs contiguously in the source.",
+    "noncontiguous_composite": "Strict location fails and at least two ellipsis-separated alphanumeric-normalized fragments occur in the source.",
+    "strict_locatable": "The shared locate_source_quote function returns a span.",
+    "wording_change": "None of the preceding mechanical classes applies."
+  },
+  "expectations": {
+    "ambiguous_format_match_count": 1,
+    "ambiguous_format_match_indices": [
+      68
+    ],
+    "format_only_count": 26,
+    "format_only_indices": [
+      1,
+      3,
+      19,
+      40,
+      42,
+      44,
+      46,
+      49,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      74,
+      76,
+      77,
+      79,
+      80,
+      81,
+      82,
+      84,
+      86,
+      90,
+      93
+    ],
+    "noncontiguous_composite_count": 46,
+    "noncontiguous_composite_indices": [
+      2,
+      8,
+      9,
+      10,
+      12,
+      14,
+      15,
+      16,
+      17,
+      18,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      41,
+      43,
+      45,
+      47,
+      48,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61
+    ],
+    "note_count": 95,
+    "notes_per_url": {
+      "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials": 11,
+      "https://en.wikipedia.org/wiki/FTX": 26,
+      "https://indodax.com/academy/en/facts-and-bankruptcy-ftx": 12,
+      "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4": 46
+    },
+    "source_count": 4,
+    "source_sha256": {
+      "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials": "1d6e9494ad853848ffba76f44dd2e15617270aa3ba5c5628414d1b05ebb0369b",
+      "https://en.wikipedia.org/wiki/FTX": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "https://indodax.com/academy/en/facts-and-bankruptcy-ftx": "6b70afd580ccd517a8e259ec9c9add54fce4b60c3dce77f4671bd16ce8535582",
+      "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4": "1c10a7aaeb353db085b7441e0a451041725b2cfed7a5634f0b1dd30f5c9f0f06"
+    },
+    "strict_locatable_count": 18,
+    "strict_locatable_indices": [
+      0,
+      4,
+      5,
+      6,
+      7,
+      13,
+      39,
+      69,
+      70,
+      72,
+      73,
+      75,
+      78,
+      83,
+      87,
+      88,
+      91,
+      94
+    ],
+    "unique_format_match_count": 25,
+    "unique_format_match_indices": [
+      1,
+      3,
+      19,
+      40,
+      42,
+      44,
+      46,
+      49,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      74,
+      76,
+      77,
+      79,
+      80,
+      81,
+      82,
+      84,
+      86,
+      90,
+      93
+    ],
+    "wording_change_count": 5,
+    "wording_change_indices": [
+      11,
+      71,
+      85,
+      89,
+      92
+    ]
+  },
+  "notes": [
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "The key individuals involved in the management and operation of FTX were Sam Bankman-Fried (cofounder and former CEO), Gary Wang (cofounder), Nishad Singh (former engineering chief), and Caroline Ellison (former CEO of FTX subsidiary Alameda Research).",
+        "item_id": "who-1",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The report alleged the management and governance of FTX were largely limited to Bankman-Fried, Singh, and Wang.",
+        "span": {
+          "end_char": 4161,
+          "start_char": 4050
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 0
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "John J. Ray III is the current CEO and chief restructuring officer at FTX, overseeing the bankruptcy process.",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "The report was filed by John J. Ray III, the current CEO and chief restructuring officer at FTX.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 1
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Primary stakeholders affected include customers whose funds were misused, investors, and employees (with an incomplete record of who employees were at bankruptcy filing).",
+        "item_id": "who-2",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "These individuals stifled dissent, commingled and misused corporate and customer funds... The company also didn't have an organizational structure and at the time of its bankruptcy filing, did not even have a complete list of who its employees were.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 2
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "FTX was a crypto exchange with a wide array of products in cryptocurrency trading.",
+        "item_id": "what-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX Group's business, or whether they possessed sufficient expertise to account for the wide array of products in which the FTX Group transacted.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 3
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key events triggering the collapse include a liquidity crisis culminating in the November 11, 2022 Chapter 11 bankruptcy filing, followed by rapid legal actions against top executives.",
+        "item_id": "what-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The exchange — worth $32 billion in early 2022 — filed for Chapter 11 bankruptcy on November 11 of the same year, after a week of a liquidity crisis.\nThe crisis was followed by swift criminal cases against the company's top brass.",
+        "span": {
+          "end_char": 2928,
+          "start_char": 2698
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 4
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "The major critical moment was the bankruptcy filing on November 11, 2022.",
+        "item_id": "when-1",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "filed for Chapter 11 bankruptcy on November 11 of the same year, after a week of a liquidity crisis.",
+        "span": {
+          "end_char": 2847,
+          "start_char": 2747
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 5
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulatory and prosecutorial responses began shortly after the liquidity crisis and bankruptcy filing in November 2022, with criminal cases against executives filed promptly.",
+        "item_id": "when-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The crisis was followed by swift criminal cases against the company's top brass.",
+        "span": {
+          "end_char": 2928,
+          "start_char": 2848
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 6
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "The bankruptcy case of FTX Trading Ltd. is held in the U.S. Bankruptcy Court for the District of Delaware.",
+        "item_id": "where-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The case is FTX Trading Ltd., 22-11068, U.S. Bankruptcy Court for the District of Delaware.",
+        "span": {
+          "end_char": 7275,
+          "start_char": 7184
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 7
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX failed due to 'hubris, incompetence, and greed,' poor management with control failures, stifling of dissent, commingling and misuse of funds, and lack of basic financial and governance controls.",
+        "item_id": "why-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "\"Hubris, incompetence, and greed\" led to the implosion of crypto exchange FTX... these individuals stifled dissent, commingled and misused corporate and customer funds... lacked basic accounting and financial controls.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 8
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX was unable to recover due to lack of financial controls, poor accounting systems, poor digital asset management, and no proper oversight, which led to rapid collapse after liquidity shortfalls.",
+        "item_id": "why-2",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX lacked basic accounting and financial controls... The exchange — worth $32 billion in early 2022 — filed for Chapter 11 bankruptcy... after a week of a liquidity crisis.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 9
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Internal practices such as limited management to a small group, lack of independent finance and audit functions, use of informal approvals via Slack emojis, and poor cybersecurity contributed to collapse.",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "Management and governance of FTX were largely limited to Bankman-Fried, Singh, and Wang... lacked any internal audit function whatsoever... expenses and invoices on Slack, which were then approved with emoji... kept almost all crypto assets in hot wallets connected to the internet... did not effectively enforce multi-factor authentication.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 10
+    },
+    {
+      "expected_classification": "wording_change",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulators and prosecutors responded swiftly with criminal cases; investors likely suffered heavy losses due to misuse of funds and lack of controls.",
+        "item_id": "how-2",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "The crisis was followed by swift criminal cases against the company's top brass... Gary Wang and Caroline Ellison have pleaded guilty and are working with prosecutors.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 11
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "The bankruptcy process is managed by CEO and chief restructuring officer John J. Ray III who promotes transparency; over $1.4 billion in digital assets have been recovered and secured, with additional assets being recovered.",
+        "item_id": "how-3",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "John J. Ray III, the current CEO and chief restructuring officer at FTX... in the spirit of transparency... FTX's debtors said they have \"recovered and secured in cold storage over $1.4 billion in digital assets, and have identified an additional $1.7 billion in digital assets that they are in the process of recovering.\"",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 12
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key individuals involved in management were Sam Bankman-Fried (CEO) and Gary Wang (CTO and co-founder).",
+        "item_id": "who-1",
+        "location_status": "locatable",
+        "publisher": "indodax.com",
+        "quote": "Both companies have the same investors, celebrity endorsements, and well-known brand sponsors, and list Sam Bankman-Fried as chief executive officer (CEO) and Gary Wang as chief technology officer (CTO) and co-founder.",
+        "span": {
+          "end_char": 6576,
+          "start_char": 6358
+        },
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 13
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Primary stakeholders affected included approximately 1,000,000 creditors, customers, US investors, and employees. Celebrity endorsers such as Stephen Curry, Shaquille O’Neal, Shohei Ohtani, Naomi Osaka, Larry David, Tom Brady, and Kevin O’Leary were implicated in lawsuits.",
+        "item_id": "who-2",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "According to bankruptcy documents, FTX has at least $8,000,000,000 that it cannot pay to as many as 1,000,000 creditors...a federal class-action lawsuit filed by customers in November 2022 accused FTX of being a fraudulent crypto scheme and Bankman-Fried and FTX’s celebrity promoters, including Stephen Curry, Shaquille O’Neal, Shohei Ohtani, Naomi Osaka, Larry David, Tom Brady, and Kevin O’Leary, of embezzling less experienced US investors.",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 14
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX was a leading centralized crypto exchange focusing on derivatives, leveraged tokens, volatility products, futures, options, MOVE contracts, and spot trading with over 300 crypto pairs.",
+        "item_id": "what-1",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "FTX, a leading crypto exchange focusing on derivatives and leveraged products...FTX offers a range of trading products, including derivatives, options, volatility products, and leveraged tokens. The exchange also provides spot trading services for more than 300 crypto pairs, such as BTC/USDT, ETH/USDT, XRP/USDT, and its native token, FTT/USDT.",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 15
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key events triggering the collapse included withdrawal of support from investors, regulatory warnings against misleading fund protection claims, discovery of fraudulent management conduct, and a liquidity crisis leading to Chapter 11 bankruptcy in November 2022.",
+        "item_id": "what-2",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "FTX filed for Chapter 11 bankruptcy protection and announced the resignation of CEO Sam Bankman-Fried on November 11, 2022...In August 2022, bank regulators in the United States instructed FTX to stop claiming that the government protected funds in the company...Criminal charges from the United States Department of Justice (DOJ) and civil suits...claim that FTX leadership siphoned off customer deposits and deceived customers, investors, and lenders about the company’s accounting with false statements that concealed losses from the theft.",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 16
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX was founded in 2018/2019, moved headquarters to the Bahamas in September 2021, received multiple funding injections through 2021-early 2022, faced regulatory actions starting August 2022, and filed for bankruptcy in November 2022.",
+        "item_id": "when-1",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "FTX, a centralized crypto exchange, was founded in 2019...In September 2021, they moved their headquarters from Hong Kong to the Bahamas...In October 2021, FTX US completed the acquisition...FTX received an investment of $900 million in July 2021...In August 2022, bank regulators in the United States instructed FTX to stop claiming that the government protected funds...FTX filed for Chapter 11 bankruptcy protection... on November 11, 2022.",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 17
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "US bank regulators and authorities began responding visibly with warnings in August 2022, followed by bankruptcy and criminal charges in late 2022 and early 2023.",
+        "item_id": "when-2",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "In August 2022, bank regulators in the United States instructed FTX to stop claiming that the government protected funds in the company...FTX filed for Chapter 11 bankruptcy protection...on November 11, 2022. In December 2022, Bankman-Fried was extradited from the Bahamas to the United States, and along with other FTX executives was arrested and charged...",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 18
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "FTX bankruptcy legal proceedings are taking place in the United States federal courts, specifically the Southern District of New York.",
+        "item_id": "where-2",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "Damian Williams, United States Attorney for the Southern District of New York, the federal court prosecuting the exchange’s former management...",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 19
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX failed financially due to fraudulent management conduct involving siphoning customer deposits, false accounting to conceal losses, risky financial operations, and lack of corporate control.",
+        "item_id": "why-1",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "Criminal charges...claim that FTX leadership siphoned off customer deposits and deceived customers, investors, and lenders about the company’s accounting with false statements that concealed losses from the theft...FTX’s new court-appointed CEO... described FTX’s collapse as a “total failure of corporate control” and “old-style embezzlement of funds”.",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 20
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX was unable to recover from liquidity shortfalls because of the fraud, resulting in concealed losses, misuse of customer funds, and declining trust leading to bankruptcy and inability to meet debts.",
+        "item_id": "why-2",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "FTX filed for Chapter 11 bankruptcy protection...prosecutors and regulators said constituted fraud and money laundering and increased the likelihood of FTX becoming illiquid.",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 21
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Internal practices included blending capital sources of different corporate entities, insufficient financial controls, and abuses like embezzlement and misrepresentation of fund safety to customers.",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "FTX and FTX US have similar overlapping management, capital sources, and marketing...a “total failure of corporate control” and “old-style embezzlement of funds”.",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 22
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulators responded with investigations, regulatory warnings, and criminal charges; investors withdrew support; the crypto community faced increased scrutiny and class-action lawsuits followed.",
+        "item_id": "how-2",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "In August 2022, bank regulators in the United States instructed FTX to stop claiming that the government protected funds...Criminal charges from the United States Department of Justice (DOJ) and civil suits from the United States Securities and Exchange Commission (SEC) and Commodity Futures Trading Commission (CFTC)...A federal class-action lawsuit filed by customers in November 2022 accused FTX of being a fraudulent crypto scheme...",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 23
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "The bankruptcy process is managed by a court-appointed CEO specializing in restructuring, involves liquidation of assets and tracing funds, but investors may not recover full losses due to complexity and asset decline.",
+        "item_id": "how-3",
+        "location_status": "unlocatable",
+        "publisher": "indodax.com",
+        "quote": "FTX’s new court-appointed CEO, John J. Ray III...described FTX’s collapse as a “total failure of corporate control”...According to bankruptcy documents, FTX has at least $8,000,000,000 that it cannot pay to as many as 1,000,000 creditors. To fulfill these obligations, the bankruptcy estate is seeking to legally reposition and liquidate purchases, investments, gifts, and donations believed to have been made with company funds. Furthermore, investors may not get back all the money they lost as some transactions may be difficult to trace or have declined in value.",
+        "span": null,
+        "url": "https://indodax.com/academy/en/facts-and-bankruptcy-ftx"
+      },
+      "note_index": 24
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key individuals involved in management and operation of FTX leading up to collapse include founders Sam Bankman-Fried and Gary Wang, and FTX CEO John J. Ray III after bankruptcy.",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "FTX Trading Ltd., trading as FTX (Futures Exchange), is a bankrupt company that formerly operated a cryptocurrency exchange and crypto hedge fund. The exchange was founded in 2019 by Sam Bankman-Fried and Gary Wang \"Gary Wang (American businessman)\") ... The current CEO of FTX is John J. Ray III, who specializes in recovering funds from failed corporations.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 25
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Alameda Research leadership involved includes Caroline Ellison (CEO) and Nishad Singh (executive), both implicated in decisions interlinked with FTX operations.",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California... Alameda CEO Caroline Ellison disclosed to other Alameda employees that she, Sam Bankman-Fried, Gary Wang, and Nishad Singh knew about that decision.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 26
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Primary stakeholders affected include customers, employees, investors such as Tiger Global Management, Ontario Teachers' Pension Plan, SoftBank Group, BlackRock, Lightspeed Venture Partners, Temasek, Sequoia Capital, and public figures who promoted FTX.",
+        "item_id": "who-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Institutional investors that stand to lose money due to their stakes in FTX include Tiger Global Management, the Ontario Teachers' Pension Plan, SoftBank Group, BlackRock, Lightspeed Venture Partners, Temasek, and Sequoia Capital... Several public figures also invested in FTX or received compensation for promoting the company.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 27
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Employees totalled around 300 by 2022; many resigned as crisis unfolded and in-house legal and compliance teams largely quit by November 10, 2022.",
+        "item_id": "who-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "| Number of employees | c. 300 (2022) ... FTX's in-house legal and compliance teams had, for the most part, resigned by November 10.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 28
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX was a cryptocurrency exchange trading platform and crypto hedge fund offering services including cryptocurrency trading, stock trading in US, and cryptocurrency portfolio tracking via Blockfolio.",
+        "item_id": "what-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "FTX Trading Ltd., trading as FTX (Futures Exchange), is a bankrupt company that formerly operated a cryptocurrency exchange and crypto hedge fund... Products | Cryptocurrency exchange cryptocurrencies... In February 2022, FTX.US announced that the company would soon begin offering stock trading to its US customers... In August 2020, FTX acquired Blockfolio, a cryptocurrency portfolio tracking app.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 29
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Triggering events included revelations of vast inter-company customer fund transfers to Alameda Research, Binance's announcement to sell FTT tokens, resulting customer withdrawal surge, Binance's failed rescue bid, liquidity crisis and subsequent bankruptcy filing.",
+        "item_id": "what-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Public concern began with rumors of unethical and fraudulent inter-company transfers of client funds... CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT)... Following this revelation, rival exchange Binance's CEO Changpeng Zhao announced that Binance would sell its holdings of the token... led to a three-day depositor sell-off, like a bank run, of an estimated $6 billion that sent FTX into crisis... Binance signed a letter of intent to acquire the firm... but Binance withdrew its offer the next day... Since November 11, 2022, FTX has been in Chapter 11 bankruptcy proceedings.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 30
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Founded in May 2019; crisis escalated in early November 2022; filed Chapter 11 bankruptcy on November 11, 2022; CEO replacement and crisis developments occurred between November 10-17, 2022; legal proceedings and sentencing occurred through 2023 and 2024.",
+        "item_id": "when-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Sam Bankman-Fried and Zixiao \"Gary\" Wang founded FTX in May 2019... Since November 11, 2022, FTX has been in Chapter 11 bankruptcy proceedings... On November 11, FTX, FTX.US, Alameda Research, and more than 100 affiliates filed for bankruptcy in Delaware... On December 12, 2022, founder Sam Bankman-Fried was arrested by the Bahamian authorities... On May 8, 2024, FTX told that court that most FTX customers would get all their money back... Legal process details include filings and sentencing dates throughout 2023 and 2024.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 31
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulatory investigations and actions started publicly appearing in early November 2022 with the Securities Commission of the Bahamas freezing assets on November 10, 2022, Japan ordering suspensions, and US regulatory agencies investigating by mid-November 2022.",
+        "item_id": "when-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "On November 10, the Securities Commission of the Bahamas froze the assets of one of FTX's subsidiaries... Japan's Financial Services Agency ordered FTX Japan to suspend some operations... Bloomberg also reported that the United States Securities and Exchange Commission and Commodity Futures Trading Commission were investigating the nature of FTX's connections... The United States House Committee on Financial Services announced plans to conduct hearings in December.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 32
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Legal and bankruptcy proceedings for FTX were held in Delaware, United States; additionally, Bahamas authorities were involved in investigations and arrests.",
+        "item_id": "where-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "On November 11, FTX, FTX.US, Alameda Research, and more than 100 affiliates filed for bankruptcy in Delaware... On December 12, 2022, founder Sam Bankman-Fried was arrested by the Bahamian authorities... The Bahamas unit of FTX, FTX Digital Markets, officially filed for Chapter 15 bankruptcy protection in the United States on November 16.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 33
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX failed due to unethical and fraudulent inter-company transfers of client funds to Alameda Research, poor corporate controls, undisclosed insider benefits, risky concentration of assets in FTT token, and liquidity mismanagement exacerbated by market conditions and loss of investor confidence.",
+        "item_id": "why-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Public concern began with rumors of unethical and fraudulent inter-company transfers of client funds... Alameda had a \"secret exemption\" from FTX's auto-liquidation protocol... described by Ray... as a \"complete failure of corporate controls\" and indicated gross mismanagement... Alameda Research's balance sheet held large amounts of FTT tokens... FTX had lent $10 billion of its customers' assets to Alameda Research in 2022... FTX used software to conceal the misuse of customer funds.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 34
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX was unable to recover from liquidity shortfalls due to sudden large-scale withdrawal demands following Binance's FTT sell announcement, the absence of liquid assets, failed rescue bids, and lack of available external capital.",
+        "item_id": "why-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Following this revelation... Binance announced that it would sell all its holdings of FTT... led to a three-day depositor sell-off, like a bank run, of an estimated $6 billion that sent FTX into crisis... Bankman-Fried said that although the firm's assets were worth more than its clients' deposits, it would need funds from outside to meet demand for withdrawals due to a lack of liquidity... Binance withdrew its offer... On November 11, FTX... filed for bankruptcy.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 35
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX’s internal practices contributing to collapse included poor record-keeping using QuickBooks despite handling billions, lack of trustworthy financial info, commingling client funds with Alameda, undisclosed exemptions favoring Alameda, and poor corporate governance.",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "John J. Ray III... stated, \"Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information... literally, there's no record-keeping whatsoever\"... the company used the small-business accounting tool QuickBooks for its accounting needs, despite handling \"billions of dollars.\"... Alameda had a \"secret exemption\" from FTX's auto-liquidation protocol... FTX used software to conceal the misuse of customer funds.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 36
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulatory and community response involved investigations by US and international agencies, freezing of assets, legal charges against founders and executives, congressional hearings, calls for increased crypto regulations, investor lawsuits, and widespread industry caution and market impacts.",
+        "item_id": "how-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "The Royal Bahamas Police Force launched a criminal investigation... United States Securities and Exchange Commission and Commodity Futures Trading Commission were investigating... The United States House Committee on Financial Services announced plans to conduct hearings... Sam Bankman-Fried was charged with fraud, conspiracy... Several public figures also invested in FTX or received compensation... Rostin Behnam called for Congress to grant the organization more power to regulate cryptocurrencies... concerns magnified due to Silvergate's key role... Investors sued her [Gisele Bündchen] for her involvement... Investment manager Jim Chanos predicted \"increased scrutiny and regulation\".",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 37
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "The bankruptcy process is managed through Chapter 11 filings in Delaware with John J. Ray III appointed CEO for restructuring. Plans approved include repaying customers with balances under $50,000 in full, with some customers expected to recover most or all funds. Large court-ordered compensation and restitution have been mandated.",
+        "item_id": "how-3",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Since November 11, 2022, FTX has been in Chapter 11 bankruptcy proceedings in the US court system... On November 11, Bankman-Fried resigned as CEO and was replaced by John J. Ray III... On May 8, 2024, FTX told that court that most FTX customers would get all their money back and a surplus would be left over... On August 9, 2024, FTX was ordered by a US court to pay $12.7 billion in compensation to former customers and fraud victims... On October 7, 2024, U.S. Bankruptcy Judge John Dorsey approved the FTX bankruptcy plan which repays customers with balances less than $50,000 their full balance.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 38
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key individuals involved in FTX management included former CFTC officials hired by FTX, such as the former CFTC Acting Chair who was FTX’s Head of Policy and Regulatory Strategy, and a former CFTC attorney to a former CFTC Chair who served as FTX’s General Counsel.",
+        "item_id": "who-1",
+        "location_status": "locatable",
+        "publisher": "bettermarkets.org",
+        "quote": "For example, the former CFTC Acting Chair is FTX’s Head of Policy and Regulatory Strategy and a former CFTC attorney to a former CFTC Chair is FTX’s General Counsel.",
+        "span": {
+          "end_char": 2771,
+          "start_char": 2606
+        },
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 39
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "FTX operated via FTX Derivatives US LLC, a derivatives clearing organization (DCO), licensed by and registered with the CFTC.",
+        "item_id": "what-1",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "FTX via FTX Derivatives US LLC, a derivatives clearing organization (DCO), is licensed by and registered with the CFTC, which was supposed to regulate and supervise it.",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 40
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key events triggering the FTX collapse included failures to meet fundamental corporate governance standards such as commingling of funds, gross mismanagement, conflicts of interest, improper affiliate relationships (e.g., with Alameda), possible illegal conduct, and insolvency or near-collapse under the CFTC’s oversight.",
+        "item_id": "what-2",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "multiple failures at FTX to meet fundamental corporate governance standards (including multiple reports of commingling of funds, gross mismanagement, conflicts of interest, improper relationships with affiliates like Alameda, etc.) if not also outright illegal conduct... this CFTC-licensed and regulated entity, which has now filed for bankruptcy protection, appears to have been effectively insolvent or on the verge of collapse under the CFTC’s nose",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 41
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "FTX had filed for bankruptcy protection by the time of this November 14, 2022 statement.",
+        "item_id": "when-1",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "Yet, this CFTC-licensed and regulated entity, which has now filed for bankruptcy protection...",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 42
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulatory bodies, notably the CFTC, had failed to adequately regulate or supervise FTX despite its licensure and registration with them; responses included issuing press releases with misleading headlines about FTX’s regulatory applications withdrawal but no enforcement action detailed here.",
+        "item_id": "when-2",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "The CFTC appears to have failed miserably at that... the CFTC appears to be trying to disguise its involvement with FTX by issuing a press release this morning with an incomplete if not misleading headline about FTX’s withdrawal of its application to broaden its CFTC-regulated activities...",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 43
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "FTX’s bankruptcy protection process was publicly recognized though the specific location of the bankruptcy filing or legal proceedings is not specified in this source.",
+        "item_id": "where-2",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "this CFTC-licensed and regulated entity, which has now filed for bankruptcy protection...",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 44
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX failed financially due to regulatory failure by the CFTC, poor corporate governance including fund commingling, gross mismanagement, conflicts of interest, improper affiliate relationships, possible illegal conduct, and a flawed business strategy to be regulated by the smallest, least funded, and most 'capturable' regulator to avoid real regulatory oversight.",
+        "item_id": "why-1",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "multiple failures at FTX to meet fundamental corporate governance standards (including multiple reports of commingling of funds, gross mismanagement, conflicts of interest, improper relationships with affiliates like Alameda, etc.) if not also outright illegal conduct... FTX’s top legislative goal was also to ensure that the CFTC was installed as its regulator. It wanted the smallest, least funded, and most “capturable” financial regulator to get the job so it could benefit from the form but not the substance of real regulation.",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 45
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "FTX was unable to recover from liquidity shortfalls partly because it was effectively insolvent or on the verge of collapse without the CFTC detecting or intervening, allowing fatal risk, management, legal, and compliance flaws to persist.",
+        "item_id": "why-2",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "this CFTC-licensed and regulated entity, which has now filed for bankruptcy protection, appears to have been effectively insolvent or on the verge of collapse under the CFTC’s nose, presumably at least in part due to having fatal risk, management, legal, and compliance flaws.",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 46
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX’s internal practices contributing to its collapse included commingling of funds, gross mismanagement, conflicts of interest, improper affiliate relationships, and strategic use of revolving door hires from the CFTC to influence regulatory supervision and avoid enforcement.",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "multiple failures at FTX to meet fundamental corporate governance standards (including multiple reports of commingling of funds, gross mismanagement, conflicts of interest, improper relationships with affiliates like Alameda, etc.)... That apparent regulatory failure is presumably due, in part, to FTX’s strategy of using revolving door hires from the CFTC and elsewhere to use their knowledge, influence, and access at the agency and in Washington to move FTX’s agenda.",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 47
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulators, especially the CFTC, have responded inadequately to FTX’s collapse, issuing misleading statements, failing to enforce existing laws despite having authority, and echoing industry calls for legislation that may legitimize crypto and cause further risks; investors and the crypto industry have sought legislation favoring minimal regulation and potential bailouts.",
+        "item_id": "how-2",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "the CFTC appears to be trying to disguise its involvement...the CFTC has too often been a cheerleader for the crypto industry...the Chair has also been working overtime seeking to expand the CFTC’s jurisdiction...the crypto industry has never wanted legislation that required real regulation. In fact, it is seeking special interest legislation that legitimizes crypto, enables even more predatory conduct, and, worst of all, would result in bailouts from the Federal Reserve when it gets into trouble...",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 48
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "The bankruptcy process is ongoing, but this source focuses on regulatory failure and does not provide details on management of the bankruptcy or prospects for creditor/customer recovery.",
+        "item_id": "how-3",
+        "location_status": "unlocatable",
+        "publisher": "bettermarkets.org",
+        "quote": "this CFTC-licensed and regulated entity, which has now filed for bankruptcy protection...",
+        "span": null,
+        "url": "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials"
+      },
+      "note_index": 49
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key individuals including founders Sam Bankman-Fried and Gary Wang, FTX CEO John J. Ray III, Alameda Research CEO Caroline Ellison, and other executives like Nishad Singh and Ryan Salame played central roles in management and operation.",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "FTX Trading Ltd., trading as FTX (Futures Exchange), is a bankrupt company that formerly operated a cryptocurrency exchange and crypto hedge fund. The exchange was founded in 2019 by Sam Bankman-Fried and Gary Wang ... The current CEO of FTX is John J. Ray III ... Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees ... Alameda CEO Caroline Ellison ... Nishad Singh ... Former FTX executive Ryan Salame ... Co-founder Gary Wang",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 50
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Primary stakeholders affected included FTX customers, investors such as Tiger Global Management, Ontario Teachers' Pension Plan, SoftBank Group, BlackRock, Lightspeed Venture Partners, Temasek, Sequoia Capital, and employees. Public figures promoting or investing included Tom Brady, Shaquille O'Neal, Stephen Curry, Gisele Bündchen, and Kevin O'Leary.",
+        "item_id": "who-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Institutional investors that stand to lose money due to their stakes in FTX include Tiger Global Management, the Ontario Teachers' Pension Plan, SoftBank Group, BlackRock, Lightspeed Venture Partners, Temasek, and Sequoia Capital. ... Several public figures also invested in FTX or received compensation for promoting the company. These include football player Tom Brady, basketball players Shaquille O'Neal and Stephen Curry, model Gisele Bündchen, and businessman Kevin O'Leary.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 51
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX was a cryptocurrency exchange and crypto hedge fund offering trading of cryptocurrencies, stock trading via FTX.US, and related crypto financial services. It issued a native token (FTT) and acquired crypto portfolio tracker Blockfolio.",
+        "item_id": "what-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "FTX Trading Ltd., trading as FTX (Futures Exchange), ... formerly operated a cryptocurrency exchange and crypto hedge fund. ... Products | Cryptocurrency exchange cryptocurrencies ... In August 2020, FTX acquired Blockfolio, a cryptocurrency portfolio tracking app ... FTX.US announced that the company would soon begin offering stock trading to its US customers.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 52
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key events triggering collapse include the CoinDesk report exposing Alameda Research’s large holdings in FTT token, Binance announcing sale of its FTT holdings, resulting large withdrawals ('bank run'), Binance’s initial rescue bid and quick withdrawal, revelations of unauthorized transfers of customer funds to Alameda, liquidity crisis, and eventual bankruptcy filing.",
+        "item_id": "what-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT). ... Binance's CEO Changpeng Zhao announced that Binance would sell its holdings of the token ... spike in customer withdrawals from FTX ... FTX was unable to meet the demand for customer withdrawals ... Binance signed a letter of intent to acquire the firm ... but Binance withdrew its offer the next day ... anonymous sources cited by The Wall Street Journal ... FTX had lent $10 billion of its customers' assets to Alameda Research in 2022 ... unauthorized transactions ... FTX and FTX.US intended to move remaining funds ... On November 11, FTX, FTX.US, Alameda Research, and more than 100 affiliates filed for bankruptcy in Delaware.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 53
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Major milestones: Founded May 2019; peak users July 2021; CoinDesk report November 2, 2022; Binance FTT sale announcement November 6, 2022; withdrawal crisis and bankruptcy filing November 11, 2022; Bankman-Fried arrested December 12, 2022; ongoing legal proceedings through 2024 with sentencing in late 2024.",
+        "item_id": "when-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Founded in 2019 ... At its peak in July 2021 ... November 2, 2022, CoinDesk reported ... November 6, Binance CEO Changpeng Zhao said ... November 11, FTX ... filed for bankruptcy in Delaware ... On December 12, 2022, founder Sam Bankman-Fried was arrested ... Sentencing dates in 2024 for key executives such as Ryan Salame (May 2024), Caroline Ellison (September 2024), Nishad Singh (October 2024), and Gary Wang (November 2024).",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 54
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulatory and law enforcement responses began in early November 2022, including Bahamas Securities Commission freezing assets November 10, Japan Financial Services Agency suspending operations November 10, US investigations by SEC, CFTC, and US Attorney’s office starting mid-November 2022, and ongoing investigations and legal proceedings throughout 2023-2024.",
+        "item_id": "when-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "On November 10, the Securities Commission of the Bahamas froze the assets of one of FTX's subsidiaries ... Japan's Financial Services Agency ordered FTX Japan to suspend some operations ... Bloomberg reported that the United States Securities and Exchange Commission and Commodity Futures Trading Commission were investigating ... Anonymous sources cited by Bloomberg said that the office of the United States Attorney for the Southern District of New York had begun an investigation ... The United States House Committee on Financial Services announced plans to conduct hearings in December on the collapse.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 55
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX bankruptcy filings and legal proceedings have been held in Delaware U.S. courts; Bahamas authorities also investigated and arrested Bankman-Fried. Bahamas-based FTX Digital Markets filed for Chapter 15 bankruptcy protection in U.S.",
+        "item_id": "where-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "On November 11, FTX, FTX.US, Alameda Research, and more than 100 affiliates filed for bankruptcy in Delaware. ... On November 16, the Bahamas unit of FTX, FTX Digital Markets, officially filed for Chapter 15 bankruptcy protection in the United States. ... On December 12, 2022, founder Sam Bankman-Fried was arrested by the Bahamian authorities.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 56
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX failed financially due to a combination of gross mismanagement, undisclosed inter-company transfers of client funds to Alameda, heavy reliance on an illiquid native token (FTT), lack of corporate controls, and alleged fraudulent activities. Alameda’s large exposure to FTT and borrowing of billions from customer deposits caused insolvency.",
+        "item_id": "why-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "John J. Ray III ... described ... a \"complete failure of corporate controls\" and indicated gross mismanagement. ... anonymous sources ... FTX had lent $10 billion of its customers' assets to Alameda Research ... the exchange token issued by FTX (FTT) ... Alameda's balance sheet held $3.66 billion of \"unlocked FTT\", $2.16 billion of \"FTT collateral\" ... Bloomberg reported ... lack of liquidity ... funds were used in part to pay back loans Alameda had taken to make investments.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 57
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "FTX was unable to recover from liquidity shortfalls due to significant customer withdrawals triggered by loss of confidence, failed external rescue bids, investigations, and insufficient liquid assets compared to liabilities.",
+        "item_id": "why-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "FTX was unable to meet the demand for customer withdrawals. ... Binance withdrew its offer ... Bankman-Fried stated ... would need funds from outside to meet demand for withdrawals due to a lack of liquidity. ... Financial Times reported that FTX's balance sheet shortly before the bankruptcy showed $9 billion in liabilities, with $900 million in liquid assets.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 58
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Internal practices contributing to collapse included unauthorized and concealed transfers of customer funds to Alameda Research, inadequate financial record-keeping using QuickBooks, undisclosed exemptions from liquidation protocols, and lack of trustworthy financial information and corporate controls.",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "John J. Ray III ... called it \"Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information ...\" ... Ray said that FTX used software to conceal the misuse of customer funds. ... Alameda had a \"secret exemption\" from FTX's auto-liquidation protocol. ... the company used the small-business accounting tool QuickBooks for its accounting needs.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 59
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Regulators initiated investigations and froze assets; investors wrote down losses and sued promoters; the cryptocurrency community saw increased skepticism and calls for stronger regulation; some firms halted withdrawals or sought bankruptcy protection; commentators predicted increased oversight.",
+        "item_id": "how-2",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "The Securities Commission of the Bahamas froze the assets ... Japan's Financial Services Agency ordered FTX Japan to suspend some operations ... institutional investors wrote down stakes and issued statements ... investors sued Gisele Bündchen for her involvement ... Investment manager Jim Chanos predicted ... \"increased scrutiny and regulation\" ... Rostin Behnam ... called for Congress to grant the organization more power to regulate cryptocurrencies ... BlockFi ... reportedly taking steps to file for bankruptcy ... Genesis ... halted withdrawals ... The crisis at FTX has inspired an increase in withdrawals from other exchanges.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 60
+    },
+    {
+      "expected_classification": "noncontiguous_composite",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Bankruptcy managed via Chapter 11 in Delaware with John J. Ray III as CEO tasked with restructuring and liquidation. The court approved a plan to repay customers with balances under $50,000 in full value as of collapse date. FTX was ordered to pay $12.7 billion in compensation to customers and victims. Some assets sold off. Legal consequences for founders involved jail sentences and fines.",
+        "item_id": "how-3",
+        "location_status": "unlocatable",
+        "publisher": "en.wikipedia.org",
+        "quote": "Since November 11, 2022, FTX has been in Chapter 11 bankruptcy proceedings in the US court system. ... John J. Ray III, a corporate restructuring specialist ... testified ... \"literally, there's no record-keeping whatsoever\" ... On October 7, 2024, U.S. Bankruptcy Judge John Dorsey approved the FTX bankruptcy plan which repays customers with balances less than $50,000 their full balance ... In August 2024, FTX was ordered by a US court to pay $12.7 billion in compensation to former customers and fraud victims. ... Sentencing details for executives Ryan Salame, Caroline Ellison, Nishad Singh, Gary Wang.",
+        "span": null,
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      "note_index": 61
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Key individuals involved in management and operation of FTX leading up to its collapse",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "The management and governance of FTX were largely limited to Bankman-Fried, Singh, and Wang.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 62
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Key individuals involved in management and operation of FTX leading up to its collapse",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "Sam Bankman-Fried, a high-profile cofounder of the exchange and former CEO.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 63
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Key individuals involved in management and operation of FTX leading up to its collapse",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "Gary Wang, another cofounder.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 64
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Key individuals involved in management and operation of FTX leading up to its collapse",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "Caroline Ellison, former CEO of FTX subsidiary Alameda Research.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 65
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Key individuals involved in management and operation of FTX leading up to its collapse",
+        "item_id": "who-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "Former engineering chief Nishad Singh.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 66
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Primary stakeholders affected by FTX’s bankruptcy",
+        "item_id": "who-2",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "The now-defunct entity's debtors said in a Sunday report detailing control failures at the exchange.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 67
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "What is FTX and its main products and services before collapse",
+        "item_id": "what-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "crypto exchange FTX.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 68
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key events and actions that triggered the FTX collapse and bankruptcy",
+        "item_id": "what-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX's implosion was shocking and swift. The exchange — worth $32 billion in early 2022 — filed for Chapter 11 bankruptcy on November 11 of the same year, after a week of a liquidity crisis.",
+        "span": {
+          "end_char": 2847,
+          "start_char": 2658
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 69
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Key events and actions that triggered the FTX collapse and bankruptcy",
+        "item_id": "what-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The crisis was followed by swift criminal cases against the company's top brass.",
+        "span": {
+          "end_char": 2928,
+          "start_char": 2848
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 70
+    },
+    {
+      "expected_classification": "wording_change",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Major milestones and critical moments in the timeline of FTX’s collapse in 2022",
+        "item_id": "when-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX — worth $32 billion in early 2022 — filed for Chapter 11 bankruptcy on November 11 of the same year, after a week of a liquidity crisis.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 71
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "When regulatory bodies and external authorities started responding to FTX’s troubles",
+        "item_id": "when-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The crisis was followed by swift criminal cases against the company's top brass.",
+        "span": {
+          "end_char": 2928,
+          "start_char": 2848
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 72
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Where legal proceedings related to FTX bankruptcy have been held",
+        "item_id": "where-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The case is FTX Trading Ltd., 22-11068, U.S. Bankruptcy Court for the District of Delaware.",
+        "span": {
+          "end_char": 7275,
+          "start_char": 7184
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 73
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Why FTX failed financially including underlying causes",
+        "item_id": "why-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "\"Hubris, incompetence, and greed\" led to the implosion of crypto exchange FTX.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 74
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Why FTX failed financially including underlying causes",
+        "item_id": "why-1",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX lacked basic accounting and financial controls and was under the command of a small group of individuals who \"stifled dissent.\"",
+        "span": {
+          "end_char": 2090,
+          "start_char": 1959
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 75
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Why FTX failed financially including underlying causes",
+        "item_id": "why-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "These individuals stifled dissent, commingled and misused corporate and customer funds, lied to third parties about their business, joked internally about their tendency to lose track of millions of dollars in assets, and thereby caused the FTX Group to collapse as swiftly as it had grown.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 76
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "Why FTX failed financially including underlying causes",
+        "item_id": "why-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "many of its root causes are familiar: hubris, incompetence, and greed.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 77
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "Why FTX was unable to recover from liquidity shortfalls or other financial issues",
+        "item_id": "why-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The exchange — worth $32 billion in early 2022 — filed for Chapter 11 bankruptcy on November 11 of the same year, after a week of a liquidity crisis.",
+        "span": {
+          "end_char": 2847,
+          "start_char": 2698
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 78
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX lacked basic accounting and financial controls.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 79
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX also lacked independent or experienced personnel in finance, accounting, HR, and information security and \"lacked any internal audit function whatsoever,\" the debtors stated.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 80
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "Board oversight was \"effectively non-existent.\"",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 81
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "The company also didn't have an organizational structure and at the time of its bankruptcy filing, did not even have a complete list of who its employees were.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 82
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX relied on a small unnamed external accounting firm for nearly all of its basic accounting functions — and the accounting firm appeared to have no specialist knowledge of cryptos or international financial markets.",
+        "span": {
+          "end_char": 4895,
+          "start_char": 4678
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 83
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "There is no evidence that the FTX Group ever performed an evaluation of whether its outside accountants were appropriate for their role given the scale and complexity of the FTX Group's business.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 84
+    },
+    {
+      "expected_classification": "wording_change",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "Expenses and invoices were submitted on Slack, which were then approved with emoji.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 85
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "These informal, ephemeral messaging systems were used to procure approvals for transfers in the tens of millions of dollars, leaving only informal records of such transfers, or no records at all.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 86
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX failed to put in place \"basic, widely accepted\" security controls to safeguard its crypto assets.",
+        "span": {
+          "end_char": 5863,
+          "start_char": 5762
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 87
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "They include keeping almost all crypto assets in hot wallets that are connected to the internet, which makes them more susceptible to getting stolen.",
+        "span": {
+          "end_char": 6013,
+          "start_char": 5864
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 88
+    },
+    {
+      "expected_classification": "wording_change",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX did not effectively enforce using multi-factor authentication, or MFA, among its staff and corporate infrastructure.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 89
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "How FTX’s internal practices and business model contributed to its collapse",
+        "item_id": "how-1",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "It did not enforce multi-factor authentication for Google Workspace and its password management program.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 90
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "How regulators, investors, and broader crypto community responded to FTX collapse",
+        "item_id": "how-2",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "The crisis was followed by swift criminal cases against the company's top brass.",
+        "span": {
+          "end_char": 2928,
+          "start_char": 2848
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 91
+    },
+    {
+      "expected_classification": "wording_change",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "How regulators responded to FTX collapse",
+        "item_id": "how-2",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "Sam Bankman-Fried pleaded not guilty in the US government's criminal case against him and is scheduled for a trial in October. Gary Wang, Caroline Ellison, and Nishad Singh have pleaded guilty and are working with prosecutors.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 92
+    },
+    {
+      "expected_classification": "format_only",
+      "expected_unique_format_match": true,
+      "note": {
+        "finding": "How the bankruptcy process is being managed and the prospects for recovery",
+        "item_id": "how-3",
+        "location_status": "unlocatable",
+        "publisher": "businessinsider.com",
+        "quote": "The report was filed by John J. Ray III, the current CEO and chief restructuring officer at FTX.",
+        "span": null,
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 93
+    },
+    {
+      "expected_classification": "strict_locatable",
+      "expected_unique_format_match": false,
+      "note": {
+        "finding": "How the bankruptcy process is being managed and the prospects for recovery",
+        "item_id": "how-3",
+        "location_status": "locatable",
+        "publisher": "businessinsider.com",
+        "quote": "FTX's debtors said they have \"recovered and secured in cold storage over $1.4 billion in digital assets, and have identified an additional $1.7 billion in digital assets that they are in the process of recovering.\"",
+        "span": {
+          "end_char": 6933,
+          "start_char": 6719
+        },
+        "url": "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4"
+      },
+      "note_index": 94
+    }
+  ],
+  "provenance": {
+    "notes_sha256": "4dd7c2518182e6bd79115539282f77624294f3ed16923231ff20c32415700e25",
+    "source_audit_path": "harness_runs/d16bea2078ce42ff80c214130e060842.json",
+    "source_audit_sha256": "149ebdc308df8ad3ddc98bb5600c1510b946737ce38e498bc0d8d602531307a4",
+    "source_run_id": "d16bea2078ce42ff80c214130e060842"
+  },
+  "schema_version": 1,
+  "source_cache": {
+    "https://bettermarkets.org/newsroom/ftx-was-registered-with-and-licensed-by-the-cftc-which-failed-to-properly-regulate-or-supervise-it-and-its-innumerable-former-cftc-officials": "Better Markets\n\nNovember 14, 2022\nFTX Was Registered with and Licensed by the CFTC, Which Failed to Properly Regulate or Supervise It and Its Innumerable Former CFTC Officials\nWASHINGTON, D.C.— Dennis M. Kelleher, Co-founder, President and CEO, issued the following statement regarding the CFTC’s failure to properly regulate or supervise FTX, which was registered and licensed by the CFTC and which had hired innumerable former CFTC officials:\n“FTX via FTX Derivatives US LLC, a derivatives clearing organization (DCO), is licensed by and registered with the CFTC), which was supposed to regulate and supervise it. The CFTC appears to have failed miserably at that and missed what now appears to be multiple failures at FTX to meet fundamental corporate governance standards (including multiple reports of commingling of funds, gross mismanagement, conflicts of interest, improper relationships with affiliates like Alameda, etc.) if not also outright illegal conduct. Adding insult to injury, the CFTC appears to be trying to disguise its involvement with FTX by issuing a press release this morning with an incomplete if not misleading headline about FTX’s withdrawal of its application to broaden its CFTC-regulated activities; rather than openly informing the public that FTX did this, it’s headline was “LedgerX Withdraws Clearing Application,” only revealing it was FTX in the body of the release itself.\n“As FTX’s regulator, the CFTC, if it had been conducting even minimal supervision or examination of FTX, presumably would have identified at least some indication of these many deficiencies and failures and required remediation or taken enforcement action. Instead, the CFTC was acting like a cheerleader for crypto, seeking to expand its jurisdiction, and working overtime to consider if not approve the FTX’s highest US regulatory priority: a dangerous application to radically change the successful, decades-long structure of clearing organizations by reducing the layers of protections for clearinghouse resilience and permitting customers to beauto-liquidated 24/7/365. Yet, this CFTC-licensed and regulated entity, which has now filed for bankruptcy protection, appears to have been effectively insolvent or on the verge of collapse under the CFTC’s nose,presumably at least in part due to having fatal risk, management, legal, and compliance flaws.\n“That apparent regulatory failure is presumably due, in part, to FTX’s strategy of using revolving door hires from the CFTC and elsewhere to use their knowledge, influence, and access at the agency and in Washington to move FTX’s agenda. For example, the former CFTC Acting Chair is FTX’s Head of Policy and Regulatory Strategy and a former CFTC attorney to a former CFTC Chair is FTX’s General Counsel.\n“Whether as a result of that or not, the CFTC has too often been a cheerleader for the crypto industry, including the Chair who claimed that Bitcoin would double in price if his agency was its regulator. Of course,a financial regulatory agency should not be concerned with boosting the price of any particular financial product – that’s what industry-fawning financial regulators did in the early 2000s, which contributed to the catastrophic 2008 financial crash. The Chair has also been working overtime seeking to expand the CFTC’s jurisdiction by pushing legislation making it the primary regulator of crypto, including a version that would have gutted the SEC’s ability to protect the capital markets and investors. Given that, it is no surprise that FTX’s top legislative goal was also to ensure that the CFTC was installed as its regulator. It wanted the smallest, least funded, and most “capturable” financial regulator to get the job so it could benefit from the form but not the substance of real regulation.\n“Even now, after the CFTC’s failures, FTX’s implosion, and more than $2.5 trillion in crypto losses, the CFTC is echoing the industry’s talking points, which include the claim that legislation is needed now more than ever. That’s what the CFTC spokesperson said this morning, but the crypto industry has never wanted legislation that required real regulation. In fact, it is seeking special interest legislation that legitimizes crypto, enables even more predatory conduct, and, worst of all, would result in bailouts from the Federal Reserve when it gets into trouble, all as detailed here. More importantly, FTX failures and implosion are not due to a lack of legislation. That happened because the CFTC and others have not used the regulatory powers they already have to enforce the existing laws and because legislators have not adequately funded the regulators to do that.”\nThe CFTC’s role in the FTX collapse and many other issues related to FTX are detailed in this Fact Sheet.\n###\nBetter Markets is a non-profit, non-partisan, and independent organization founded in the wake of the 2008 financial crisis to promote the public interest in the financial markets, support the financial reform of Wall Street and make our financial system work for all Americans again. Better Markets works with allies—including many in finance—to promote pro-market, pro-business and pro-growth policies that help build a stronger, safer financial system that protects and promotes Americans’ jobs, savings, retirements and more. To learn more, visit www.bettermarkets.org\nPress Releases\n\nShare\nStay Informed\nSign up for our monthly \"Better Markets Beat\" newsletter.\nSign Up\nMEDIA REQUESTS\nFor media inquiries, please contact us at (/cdn-cgi/l/email-protection#176765726464577572636372657a76657c72636439786570) or 202-618-6433.\nContact Us\n\nContact Us\nFor media inquiries, please contact (/cdn-cgi/l/email-protection#09797b6c7a7a496b6c7d7d6c7b64687b626c7d7a27667b6e) or 202-618-6433.\nTo sign up for our email newsletter, please visit this page.\n\nSign Up — Stay Informed With Our Monthly Newsletter\n\"\\ (Required)\" indicates required fields\n\nFor media inquiries,\nplease contact (/cdn-cgi/l/email-protection#84f4f6e1f7f7c4e6e1f0f0e1f6e9e5f6efe1f0f7aaebf6e3) or 202-618-6433.\n\nDonate\nHelp us fight for the public interest in our financial markets, protecting Main Street from Wall Street and avoiding another costly financial collapse and economic crisis, by making a donation today.\nDonate Today\nSubscribe to our Monthly Newsletter\nPrivacy Policy",
+    "https://en.wikipedia.org/wiki/FTX": "Wikipedia The Free Encyclopedia\nContents\n1 History\n2 November 2022 crisis and bankruptcy\n+ 2.1 Background: FTX and Alameda, Binance, and CoinDesk report\n+ 2.2 Crisis begins: Binance FTT sale, sell-off, and withdrawn rescue bid\n+ 2.3 Bankruptcy and unauthorized transactions\n+ 2.4 Widening impact and contagion fears\n+ 2.5 Responses and effects\n2.5.1 Effects on investors\n2.5.2 Effects on other cryptocurrency firms and cryptocurrency markets\n2.5.3 Responses and commentary\n3 Legal process\n4 Sponsorships\n5 References\n6 External links\nFTX\nAfrikaans \"FTX (maatskappy) – Afrikaans\")\nالعربية\nAzərbaycanca\nБългарски\nCatalà\nČeština\nDeutsch \"FTX (Unternehmen) – German\")\nEspañol\nفارسی\nSuomi\nFrançais \"FTX (entreprise) – French\")\nעברית \"FTX (חברה) – Hebrew\")\nՀայերեն \"FTX (կազմակերպություն) – Armenian\")\nBahasa Indonesia\nItaliano \"FTX (azienda) – Italian\")\n日本語 \"FTX (企業) – Japanese\")\n한국어\nNederlands\nРусский \"FTX (компания) – Russian\")\nSimple English\nSvenska \"FTX (företag) – Swedish\")\nTürkçe\nУкраїнська \"FTX (компанія) – Ukrainian\")\n中文\nEdit links\nArticle\nTalk\nRead\nView source\nView history\nTools\nActions\nRead\nView source\nView history\nGeneral\nWhat links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons)\nWikidata item\nAppearance\nPage semi-protected\nFrom Wikipedia, the free encyclopedia\nBankrupt cryptocurrency exchange\nFor other uses, see FTX (disambiguation) \"FTX (disambiguation)\").\nFTX Trading Ltd.\n| Type | Private |\n| Industry | Cryptocurrency |\n| Founded | May 2019; 7 years ago (2019-05) |\n| Founders | Sam Bankman-Fried Gary Wang \"Gary Wang (American businessman)\") |\n| Fate | Filed for Chapter 11 bankruptcy in November 2022 |\n| Headquarters | Nassau, New Providence , The Bahamas |\n| Key people | John J. Ray III (CEO) |\n| Products | Cryptocurrency exchange cryptocurrencies |\n| Revenue | Increase US$1.02 billion (2021) |\n| Operating income | Increase US$272 million (2021) |\n| Net income | Increase US$388 million (2021) |\n| Number of employees | c. 300 (2022) |\nFTX Trading Ltd., trading as FTX (Futures Exchange), is a bankrupt company that formerly operated a cryptocurrency exchange and crypto hedge fund. The exchange was founded in 2019 by Sam Bankman-Fried and Gary Wang \"Gary Wang (American businessman)\") and collapsed in 2022.\nAt its peak in July 2021, the company had over one million users and was the third-largest cryptocurrency exchange by volume, and its app was widely advertised as a \"safe, easy way to get into crypto\". As of November 2022, FTX was the third-largest digital currency exchange boasting an active daily trading volume of US$10 billion and a valuation of $32 billion. FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas. FTX is closely associated with FTX.US, a separate exchange available to US residents.\nSince November 11, 2022, FTX has been in Chapter 11 bankruptcy proceedings in the US court system. Public concern began with rumors of unethical and fraudulent inter-company transfers of client funds. In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT). Following this revelation, rival exchange Binance's CEO Changpeng Zhao announced that Binance would sell its holdings of the token, which was quickly followed by a spike in customer withdrawals from FTX.\nFTX was unable to meet the demand for customer withdrawals. Binance signed a letter of intent to acquire the firm, with due diligence to follow, to ensure that customers could recover their assets from FTX in a timely manner, but Binance withdrew its offer the next day, citing reports of mishandled customer funds and U.S. agency investigations. On December 12, 2022, founder Sam Bankman-Fried was arrested by the Bahamian authorities for financial offences, at the request of the US government. The current CEO of FTX is John J. Ray III, who specializes in recovering funds from failed corporations.\nHistory\n\nFTX founder Sam Bankman-Fried\nSam Bankman-Fried and Zixiao \"Gary\" Wang \"Gary Wang (American businessman)\") founded FTX in May 2019. FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California. FTX is an abbreviation of \"Futures Exchange\". Changpeng Zhao of Binance purchased a 20% stake in FTX for approximately $100 million, six months after Bankman-Fried and Wang started the firm.\nIn August 2020, FTX acquired Blockfolio, a cryptocurrency portfolio tracking app, for $150 million. In July 2021, the venture raised $900 million at an $18 billion valuation from over 60 investors, including Softbank, Sequoia Capital, and other firms. Bankman-Fried bought out Zhao's stake for approximately $2 billion. In September of that year, FTX moved its headquarters from Hong Kong to The Bahamas.\n\nDaily closing price in US dollars of FTT, 2020-2023\nOn January 14, 2022, FTX announced a $2 billion venture fund named FTX Ventures, raising $400 million in Series C funding at a $32 billion valuation that month. The FTX Ventures website went offline in November 2022. On February 11, 2022, FTX.US announced that the company would soon begin offering stock trading to its US customers.\nIn February 2022, it was reported that FTX was creating a gaming division that would help developers add cryptocurrency, NFTs, and other blockchain-related assets into video games. In July 2022, FTX finalized a deal giving it the option to buy BlockFi for about $240 million. The deal included a $400 million credit facility for BlockFi.\nIn August 2022, the Federal Deposit Insurance Corporation (FDIC) issued a cease-and-desist order to FTX for making \"false and misleading representations\" about deposits being covered by FDIC insurance following FTX president Brett Harrison's tweet implying otherwise. Following the regulatory action, Harrison deleted the tweet and Bankman-Fried clarified in another tweet that FTX deposits are not insured by the FDIC.\nOn September 26, 2022, FTX.US won its bid at auction for the digital assets of bankrupt crypto brokerage Voyager Digital. The value of the deal was approximately $1.42 billion, including $1.31 billion in Voyager-held cryptocurrency and $111 million in additional consideration. The deal was subject to approval by bankruptcy courts and Voyager's creditors. Following the FTX bankruptcy, in December 2022, the US subsidiary of Binance won the bid to buy the assets of Voyager for approximately $1 billion.\nOn September 27, 2022, FTX.US President Brett Harrison announced he would be stepping down from an active role at the exchange but would stay on in an advisory capacity. The company did not immediately announce a replacement for Harrison, who had been FTX.US president since May 2021. In October 2022, it was reported that FTX was under investigation in Texas for allegedly selling unregistered securities. In August 2023, it was reported that the company plans to restart offering cryptocurrency trading services after a restructuring of the bankrupt company is completed.\nNovember 2022 crisis and bankruptcy\nFurther information: Bankruptcy of FTX\nFTX Token\n| Denominations |\n| Code | FTT |\n| Development |\n| White paper | FTT Whitepaper |\n| Initial release | May 5, 2019 (7 years ago) (2019-05-05) |\nBackground: FTX and Alameda, Binance, and CoinDesk report\nIn September 2022, Bloomberg reported on the close relationship between Alameda Research and FTX. Bloomberg noted that Alameda had functioned as a market maker for FTX early in the exchange's history, and that the trading firm remained, in June and July 2022, the biggest known depositor of stable coins on FTX. Bloomberg further stated that the regulatory oversight which applies to companies operating in traditional equities markets would have prohibited the relationship between the two firms were it applicable. Alameda's trading on FTX meant the trading firm was potentially in a position to gain financially when others lost money on the exchange. Bankman-Fried defended FTX's use of Alameda as a liquidity provider.\nAccording to John J. Ray III, Alameda had a \"secret exemption\" from FTX's auto-liquidation protocol. Later, the existence of such an undisclosed beneficial relationship was described by Ray, the new CEO of FTX, as a \"complete failure of corporate controls\" and indicated gross mismanagement. Between early 2021 and March 2022, Alameda Research amassed crypto tokens ahead of FTX announcing the decision to list them for trading.\nAccording to anonymous sources cited by The Wall Street Journal, FTX had lent $10 billion of its customers' assets to Alameda Research in 2022. Alameda CEO Caroline Ellison disclosed to other Alameda employees that she, Sam Bankman-Fried, Gary Wang, and Nishad Singh knew about that decision. An anonymous source cited by The New York Times said the same. According to the sources cited by The Wall Street Journal, Ellison said the funds were used in part to pay back loans Alameda had taken to make investments. Ray said that FTX used software to conceal the misuse of customer funds.\nSeveral months after Bloomberg's initial report on the relationship between the two firms, on November 2, 2022, CoinDesk reported that a significant portion of Alameda Research's assets were held in FTT, the exchange token issued by FTX. It said that there were $5.1 billion worth of FTT tokens in circulation, and that Alameda's balance sheet held $3.66 billion of \"unlocked FTT\", $2.16 billion of \"FTT collateral\", and $292 million of \"locked FTT\". In the weeks immediately preceding the publication of the story by CoinDesk, Bankman-Fried was characterized by anonymous sources cited by Bloomberg as \"desperately\" attempting to raise money for FTX. Additionally, Bankman-Fried had been publicly \"dueling\" with Changpeng Zhao on Twitter in the months preceding the CoinDesk article, in part due to disagreements stemming from their differing views on the regulation of cryptocurrency.\nCrisis begins: Binance FTT sale, sell-off, and withdrawn rescue bid\nSeveral days after the publication of the CoinDesk article, on November 6, Binance CEO Changpeng Zhao said on Twitter that his firm intended to sell all its holdings of FTT. Binance had received FTT from FTX in 2021 during a transaction in which FTX bought back Binance's equity stake in FTX. Zhao cited \"recent revelations that came to light\" as the motivation for selling FTT. Bloomberg and TechCrunch reported that any sale by Binance would likely have an outsized impact on FTT's price, given the token's low trading volume. The announcement by Zhao of the pending sale and disputes between Zhao and Bankman-Fried on Twitter led to a decline in the price of FTT and other cryptocurrencies, resulting in a three-day depositor sell-off, like a bank run, of an estimated $6 billion that sent FTX into crisis. On November 8, Zhao announced that Binance had entered into a non-binding agreement to purchase FTX due to what he referred to as a \"liquidity crisis\" at FTX. The deal did not include the sale of FTX.US. Zhao announced on Twitter that the company would complete due diligence soon, adding that all cryptocurrency exchanges should avoid using FTT tokens as collateral. He also wrote that he expected FTT to be \"highly volatile in the coming days as things develop\". On the day of that announcement, FTT price dropped by 80 percent, erasing $2 billion in value.\nOn November 9, Bloomberg called the acquisition of FTX by Binance \"unlikely\" due to the poor state of FTX's finances. Bloomberg also reported that the United States Securities and Exchange Commission and Commodity Futures Trading Commission were investigating the nature of FTX's connections to Bankman-Fried's other holdings and its handling of client funds. Later that day, The Wall Street Journal reported that Binance would not move forward with the deal to acquire FTX. Binance cited FTX's reported mishandling of customer funds and pending investigations of FTX as the reasons for not pursuing the deal. Bankman-Fried said in a Slack \"Slack (software)\") message that FTX had learned through the press about Binance's concern and decision.\nOn November 9, FTX's website said that it was not processing withdrawals at that time. Bankman-Fried said that although the firm's assets were worth more than its clients' deposits, it would need funds from outside to meet demand for withdrawals due to a lack of liquidity. Bankman-Fried stated on November 9 that FTX.US, as a separate company, was \"not currently impacted\" by the crisis.\nBankruptcy and unauthorized transactions\nMain article: Bankruptcy of FTX\nOn November 10, Axios \"Axios (website)\") cited anonymous sources who said that FTX approached Kraken \"Kraken (company)\") for a potential rescue deal. Bankman-Fried made several statements on November 10, taking responsibility for FTX's failure and indicating that FTX was still seeking capital to remain solvent. Bankman-Fried also announced that Alameda Research would cease trading and end operations. FTX's in-house legal and compliance teams had, for the most part, resigned by November 10. Anonymous sources cited by the Wall Street Journal on November 10 said that Alameda Research owed FTX some $10 billion, as FTX had lent funds placed on the exchange for trading to Alameda so that Alameda could make investments with the money. On November 12, anonymous sources cited by the Wall Street Journal said Alameda CEO Caroline Ellison disclosed to other Alameda employees that she, Sam Bankman-Fried, Gary Wang, and Nishad Singh knew that client deposits were transferred from FTX to Alameda. An anonymous source cited by the New York Times on November 14 said the same. According to the sources cited by The Wall Street Journal, Ellison said the funds were used in part to pay back loans Alameda had taken to make investments.\nThough Bankman-Fried, on November 10, wrote on Twitter that FTX's US customers did not have reason to worry, employees began attempting to sell assets belonging to the firm on the same day. These assets include stock-clearing company Embed Financial Technologies and the naming rights to FTX Arena. On November 10, the Securities Commission of the Bahamas froze the assets of one of FTX's subsidiaries, FTX Digital Markets Ltd, \"and related parties\", and provisionally appointed an attorney as liquidator. Japan's Financial Services Agency ordered FTX Japan to suspend some operations. The company's Australian subsidiary was placed under administration \"Administration (law)\").\nOn November 10, the team running the FTX Future Fund, an ostensibly charitable group bankrolled by Bankman-Fried, announced that they had resigned earlier that day. Future Fund had committed $160 million in charitable grants and investments by September 1 of that year. Crypto lender BlockFi, which was affiliated with FTX, announced on November 10 that it was suspending operations as a result of FTX's collapse.\nOn November 11, FTX, FTX.US, Alameda Research, and more than 100 affiliates filed for bankruptcy in Delaware. Anonymous sources cited by The New York Times said that the exchange owed as much as $8 billion. Bankman-Fried resigned as CEO and was replaced by John J. Ray III, a corporate restructuring specialist who'd previously overseen the liquidation of Enron.\nLate on November 11, over $473 million in funds were siphoned from FTX through what Ryne Miller, FTX US's general counsel, characterized as \"unauthorized transactions\". Miller announced that FTX and FTX US intended to move remaining funds denominated in cryptocurrency to offline \"cold storage\" for security. The funds taken from FTX were mostly stablecoins such as Tether \"Tether (cryptocurrency)\"), and were quickly exchanged for Ether, a method used by cryptocurrency thieves to thwart attempts to retrieve stolen funds. A person speaking on behalf of FTX referred to the \"unauthorized transactions\" as a \"hack\" and encouraged users to delete FTX mobile apps as they were compromised. Kraken \"Kraken (company)\") offered to assist in identifying the perpetrator. In January 2024, the U.S. Department of Justice indicted three individuals for running a SIM swap scam operation that allegedly stole “over $400 million in virtual currency” from an unspecified company. Sources told Bloomberg that the company was FTX.\nAs of November 12, Bankman-Fried told Reuters that he was still in the Bahamas, though other high-ranking FTX employees had begun leaving for Hong Kong, the location of the company's former headquarters, or other locations. Authorities in the Bahamas, including the Royal Bahamas Police Force, questioned Bankman-Fried on November 12. Despite FTX's bankruptcy, Bankman-Fried continued to attempt to raise money for the firm during the weekend of November 12 and 13.\nOn November 14, Kraken's chief security officer said on Twitter that the firm knew \"the identity\" of a user who paid transaction fees associated with moving the stolen money through their Kraken account. In an interview with Kelsey Piper published November 16 by Vox \"Vox (website)\"), Bankman-Fried blamed an \"ex-employee\" or malware on a device owned by an ex-employee for the theft.\nAccording to anonymous sources cited by Reuters, between $1 billion and $2 billion in customer funds could not be accounted for as of November 12. The Financial Times reported that FTX's balance sheet shortly before the bankruptcy showed $9 billion in liabilities, with $900 million in liquid assets, $5 billion in \"less liquid\" assets, and $3.2 billion in illiquid private equity investments.\nBankman-Fried began publishing \"cryptic\" messages in sequence on Twitter on November 14. As of November 15, the messages all read \"What HAPPENED\". On November 15, FTX sought to raise $10 billion in liquidity from investors. On November 16, the Bahamas unit of FTX, FTX Digital Markets, officially filed for Chapter 15 bankruptcy protection in the United States.\nOn November 17, John J. Ray III, the CEO brought in as a liquidator \"Liquidator (law)\"), stated in a sworn declaration submitted in bankruptcy court that, according to FTX's records, its subsidiary Alameda Research had on September 30 lent $1 billion to Bankman-Fried and more than $500 million to FTX co-founder Nishad Singh. Ray, having been involved in the bankruptcies of Enron, Residential Capital, Nortel and Overseas Shipholding, stated, \"Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information as occurred here. From compromised systems integrity and faulty regulatory oversight abroad, to the concentration of control in the hands of a very small group of inexperienced, unsophisticated and potentially compromised individuals, this situation is unprecedented.\" Speaking to the House Committee on Financial Services, he testified that \"literally, there's no record-keeping whatsoever\" and that the company used the small-business accounting tool QuickBooks for its accounting needs, despite handling \"billions of dollars.\" In a court filing filed by FTX on May 8, 2024, FTX told that court that most FTX customers would get all their money back and a surplus would be left over.\nWidening impact and contagion fears\nThe exchange token of Crypto.com, Cronos, lost approximately $1 billion in value in November, a decline attributed in part to the collapse of FTX and in part to reporting that Crypto.com had accidentally sent $400 million of Ether to another exchange. On November 14, Crypto.com's CEO assured users that the exchange was functioning as normal. Commenters and customers remained fearful that Crypto.com could experience a collapse similar to FTX.\nBlockFi, a cryptocurrency lender, was reportedly taking steps to file for bankruptcy as of November 15. The firm had earlier begun preventing withdrawals. The company disclosed \"significant exposure\" to FTX on November 14. Another cryptocurrency lender, Genesis, a subsidiary of Digital Currency Group, halted withdrawals on November 16. This halt caused Gemini \"Gemini (company)\"), an exchange owned by the Winklevoss twins, to cease allowing redemptions for clients using a service provided through a partnership with Genesis. Another Digital Currency Group subsidiary, Grayscale, saw the value of its flagship offering, the publicly traded Grayscale Bitcoin Trust, decline by 20% over the two weeks preceding November 17. Grayscale Bitcoin Trust was trading at a discounted price, 42% below the value of its Bitcoin, as of November 14.\nConcerns have also been raised about Silvergate Bank, as FTX was a depositor and could have also been a source of credit exposure. Silvergate has said that it has ample liquidity and no loan exposure to FTX. These concerns have been magnified due to Silvergate's key role as a gateway between its cryptocurrency clients and the wider financial world.\nResponses and effects\nEffects on investors\nInstitutional investors that stand to lose money due to their stakes in FTX include Tiger Global Management, the Ontario Teachers' Pension Plan, SoftBank Group, BlackRock, Lightspeed Venture Partners, Temasek, and Sequoia Capital. Sequoia Capital wrote down its equity in FTX to $0 on November 9, losing some $214 million. Sequoia released a notice to investors, also published on Twitter, assuring them the firm's stake in FTX represented a small amount of its overall portfolio, and replaced a profile of Bankman-Fried published on the firm's website with a link to the same notice. The Ontario Teachers' Pension Plan released a similar statement. Temasek later wrote down its investment on November 16. Several public figures also invested in FTX or received compensation for promoting the company. These include football player Tom Brady, basketball players Shaquille O'Neal and Stephen Curry, model Gisele Bündchen, and businessman Kevin O'Leary.\nGisele Bündchen was also appointed the ESG advisor for the cryptocurrency platform. After its bankruptcy, investors sued her for her involvement and accused her of participating in FTX's alleged scheme to take advantage of unsophisticated investors. Anthony Scaramucci, founder of SkyBridge Capital, announced the firm was attempting to buy back a 30% stake in the business owned by FTX.\nEffects on other cryptocurrency firms and cryptocurrency markets\nCryptocurrency investment firms with assets still held on FTX after its bankruptcy include Galois Capital and Galaxy Digital. Cryptocurrencies experienced swings and declines in value as news of FTX's collapse first emerged in early November: Tether \"Tether (cryptocurrency)\") dropped below its peg price of $1.00 to $0.97 and Bitcoin sank to its lowest price in two years. Share prices for publicly traded cryptocurrency companies declined. The price of Solana \"Solana (blockchain platform)\"), which was affiliated with Bankman-Fried, declined as well.\nThe crisis at FTX has inspired an increase in withdrawals from other exchanges. A decline in the value of Cronos, the token of exchange Crypto.com, triggered fears of the potential for a collapse similar to that of FTX and spurred withdrawals from the platform. CEO Kris Marszalek provided assurances that the firm was liquid and that it did not use Cronos in a manner similar to the way FTX used FTT. Bloomberg reported that the collapse of FTX exacerbated institutional skepticism of cryptocurrencies as an asset class. In December, it emerged that FTX had secretly invested in The Block, a cryptocurrency news firm, and to fund an LLC its CEO Michael McCaffrey used to buy an apartment. Its staff said they had no knowledge of the investments. McCaffrey then resigned.\nResponses and commentary\nInvestment manager and short selling specialist Jim Chanos predicted in November 2022 the collapse of FTX would lead to \"increased scrutiny and regulation\" over cryptocurrencies. Chanos criticized the cryptocurrency sector as \"designed to extract fees from really unsuspecting investors\". Richard Handler, CEO of American financial firm Jefferies Group, tweeted on November 10 that he had attempted to meet with Bankman-Fried in July and again in September, as he perceived the FTX CEO was \"in over his head\". Handler stated that Bankman-Fried did not respond to the emails sent from Jefferies staff on Handler's behalf.\nThe sudden collapse of FTX has been compared to the bankruptcy of Lehman Brothers in publications such as The New York Times and the Financial Times. Lawrence Summers acknowledged the comparisons to Lehman and further compared the collapse to the Enron scandal, caused by fraud perpetrated by Enron executives. Rostin Behnam, the Chairman of the Commodity Futures Trading Commission, called for Congress to grant the organization more power to regulate cryptocurrencies. The financial impact of the collapse having reached beyond the immediate FTX customer base, financial industry executives said at a Reuters conference that \"regulators must step in to protect crypto investors.\" Technology analyst Avivah Litan commented on the cryptocurrency ecosystem that \"everything...needs to improve dramatically in terms of user experience, controls, safety, [and] customer service.\" Risk management firm Titan Grey published a primer on the commencement and early motions practice of the FTX chapter 11 case, analyzing issues such as creditor privacy, relief from the automatic stay, proposed differential treatment of customers from other creditors, and others.\nLegal process\nFollowing the collapse of FTX, the Royal Bahamas Police Force launched a criminal investigation into the company. Anonymous sources cited by Bloomberg said that the office of the United States Attorney for the Southern District of New York had begun an investigation into FTX's collapse as of November 14, 2022. The United States House Committee on Financial Services announced plans to conduct hearings in December on the collapse of FTX, and committee leaders said they would seek testimony from Bankman-Fried. According to anonymous sources cited by The Information \"The Information (website)\"), some venture capital firms are considering suing Bankman-Fried.\nOn December 13, 2022, FTX founder and CEO Sam Bankman-Fried was charged by the US Attorney's Office for the Southern District of New York with fraud, conspiracy to commit money laundering, and conspiracy to defraud the US and violate campaign finance laws. After being extradited from the Bahamas, Bankman-Fried was released on a $250 million bond and ordered to remain under house arrest at his parents' home in Palo Alto, California. He was arraigned in federal court in Manhattan on January 3, 2023, and entered a plea of not guilty to all counts. Judge Lewis A. Kaplan set the trial date for United States v. Bankman-Fried for October 2, 2023, saying he might move it \"forward or backward a day or two.\" Meanwhile, Gary Wang, co-founder of FTX, and Caroline Ellison, who had served as Alameda's CEO, pleaded guilty to multiple charges and began cooperating with federal prosecutors.\nFormer FTX executive Ryan Salame pleaded guilty to both a campaign finance law violation and a charge of operating an unlicensed money transmitting business. On May 28, 2024, Salame was sentenced to 7.5 years in prison and ordered to pay more than $5 million in restitution and forfeit an additional $6 million. Salame began serving his sentence in October 2024.\nOn September 24, 2024, Caroline Ellison was sentenced to two years in prison on charges including wire fraud and money laundering. While Judge Kaplan acknowledged the assistance she'd provided to prosecutors, he said her cooperation should not be a “get out of jail free card.”\nFTX's former engineering director, Nishad Singh, pleaded guilty to six different charges, including three counts of conspiracy to commit fraud. Singh is a childhood friend of Bankman-Fried's brother and worked at Alameda Research before being brought into FTX. On October 30, 2024, Singh was sentenced to time served and three years of supervised release based on his cooperation with prosecutors and Judge Kaplan's view that Singh's role in the fraud was “much more limited” than that of his colleagues.\nOn November 20, 2024, Gary Wang was sentenced to time served and three years of supervised release, with Kaplan saying Wang was “entitled to a lot of credit” for his cooperation with prosecutors.\nIn August 2024, FTX was ordered by a US court to pay $12.7 billion in compensation to former customers and fraud victims. The Commodity Futures Trading Commission called this the \"largest such recovery\" in their history. The sum consists of $8.7 billion in restitution, and $4 billion in disgorgement.\nOn October 7, 2024, U.S. Bankruptcy Judge John Dorsey approved the FTX bankruptcy plan which repays customers with balances less than $50,000 their full balance, but with cryptocurrencies valued as at the date of the collapse.\n\nThe FTX Arena in Miami, Florida\nFTX sponsored a number of sports teams and organizations. Deals included the naming rights to the Miami Heat's basketball stadium, renaming it FTX Arena, a partnership with Major League Baseball to place the FTX logo on the uniforms of umpires, and a deal with Mercedes-AMG Petronas F1 Team to add the FTX logo to their cars and merchandise. The professional esports organization TSM also had a naming rights deal with FTX, under which the organization became TSM FTX.\nOther sponsorships included the title sponsorships of the first season of MLB Home Run Derby X, and the title sponsorship of the tournaments FTX Road to Miami and FTX Crypto Cup as part of the Champions Chess Tour 2022.\nFollowing the bankruptcy of FTX in November 2022, Mercedes-AMG F1, TSM and the Miami Heat cut ties with the company, with the last also announcing that they would be seeking a new naming rights partner for the FTX Arena. FTX held talks with American singer-songwriter Taylor Swift starting in the fall of 2021 regarding a $100 million sponsorship deal but negotiations were broken off the following spring without a deal being reached.\n7. ↑ \"FTX Deal Gives Institutions New Access to Crypto Markets\". Bloomberg.com. July 13, 2021. Retrieved October 7, 2021.\n10. ↑ Vidal-Tomás, David; Briola, Antonio; Aste, Tomaso (September 1, 2023). \"FTX's downfall and Binance's consolidation: The fragility of centralised digital finance\". Physica A: Statistical Mechanics and Its Applications. 625 129044. arXiv \"ArXiv (identifier)\"):2302.11371. Bibcode \"Bibcode (identifier)\"):2023PhyA..62529044V. doi \"Doi (identifier)\"):10.1016/j.physa.2023.129044. ISSN \"ISSN (identifier)\") 0378-4371.\n25. ↑ Weisenthal, Joe; Alloway, Tracy (April 1, 2021). \"The Ex-Jane Street Trader Who's Building a Multi-Billion Crypto Empire\". Bloomberg News.{{cite web}}: CS1 maint: deprecated archival service (link)\n55. ↑ Massa, Annie (November 11, 2022). \"Sam Bankman-Fried Fooled the Crypto World and Maybe Even Himself\". Bloomberg. Retrieved November 14, 2022.\n56. ↑ Lagerkranser, Philip; Nicolle, Emily (November 14, 2022). \"Binance's Billionaire CEO Casts Himself as Crypto's New Savior\". Bloomberg. Retrieved November 14, 2022.\n70. 1 2 Binance Says It Will Walk Away from Deal to Buy FTX Archived November 9, 2022, at the Wayback Machine, Wall Street Journal, November 9, 2022.\n76. ↑ Massa, Annie (November 10, 2022). \"Bankman-Fried Vows to 'Give Anything' for Capital as FTX Flails\". Bloomberg. Retrieved November 10, 2022.\n90. ↑ Nicolle, Emily (November 12, 2022). \"Kraken to Assist In Probing FTX Unauthorized Crypto Withdrawals\". Bloomberg. Bloomberg. Retrieved November 12, 2022.{{cite news}}: CS1 maint: deprecated archival service (link)\n92. ↑ Benny-Morrison, Ava; Murphy, Margi (February 1, 2024). \"FTX's Missing $400 Million Were Stolen in SIM-Swapping Hack, DOJ Says\". Bloomberg.com. Retrieved February 3, 2024.\n100. ↑ Gara, Antoine; Shubber, Kadhim; Oliver, Joshua (November 12, 2022). \"FTX held less than $1bn in liquid assets against $9bn in liabilities\". Retrieved November 12, 2022. Vast gap highlights the dire state of Sam Bankman-Fried's exchange before it collapsed into bankruptcy{{cite news}}: CS1 maint: deprecated archival service (link)\n108. ↑ Kharpal, Arjun (May 8, 2024). \"FTX says most customers of the bankrupt crypto exchange will get all their money back\". CNBC. Retrieved May 9, 2024.\n160. ↑ Benny-Morrison, Ava; Dolmetsch, Chris. \"Bankman-Fried lieutenant Ryan Salame gets 7.5 years in prison for role in FTX debacle\". Fortune Crypto. Retrieved November 20, 2024.\n161. ↑ Sundel, Jenna (October 11, 2024). \"Who is Ryan Salame, disgraced FTX exec who reported to prison on LinkedIn\". Newsweek. Retrieved November 20, 2024.\n162. ↑ \"Caroline Ellison sentenced to two years in FTX crypto fraud\". www.bbc.com. September 24, 2024. Retrieved November 20, 2024.\n164. ↑ \"Nishad Singh, a top FTX executive, is given no prison time after cooperation\". San Juan Daily Star. November 1, 2024. Retrieved November 20, 2024.\n165. ↑ Sigalos, MacKenzie; Giel, Dawn (November 20, 2024). \"FTX co-founder Gary Wang avoids prison time for role in crypto fraud\". NBC Los Angeles. Retrieved November 20, 2024.\n166. ↑ Makortoff, Kalyeena (August 9, 2024). \"Bankrupt crypto exchange FTX ordered by US court to pay customers $12.7bn\". The Guardian. Retrieved August 9, 2024.\n167. ↑ \"Crypto exchange FTX ordered to pay $12.7 billion to customers, US CFTC says\". Reuters. August 8, 2024. Retrieved August 9, 2024.\n168. ↑ Knauth, Dietrich (October 8, 2024). \"FTX cleared to repay billions to customers after bankruptcy plan approval\". Reuters. Retrieved February 16, 2025.",
+    "https://indodax.com/academy/en/facts-and-bankruptcy-ftx": "Basic Knowledge Bundle\nArticle\nDictionary\nCoin Rating\nBasic Knowledge Bundle\nArticle\nDictionary\nCoin Rating\nMenu\nImage 2: Icon search 1\nImage 3: English\nImage 4: English\nImage 5: Indonesia\nImage 6: logo 1\nTopics\nBitcoin\nBlockchain\nAltcoin\nNFT\nMetaverse\nSee All\nTopics\nBitcoin\nBlockchain\nAltcoin\nNFT\nMetaverse\nSee All\nLearn\nArticles and Tutorials\nCoin Ranking\nGlossary\nYoutube\nLearn\nArticles and Tutorials\nCoin Ranking\nGlossary\nYoutube\nMarket Live\nMarket Live\nNews\nNews\nLog In\nRegister\nImage 7: icon search\nImage 8: icon searchImage 9: search close btn\nTop Performers\nEN\nEnglish\nEnglish (EN)\nIndonesia (ID)\nImage 10: logo 1\nEN\nEnglish\nEnglish (EN)\nIndonesia (ID)\nImage 11: Icon search 1\nLanguage\nEnglish\nTopics\nBitcoin\nBlockchain\nEthereum\nAltcoin\nNFT\nMetaverse\nSee All\nLearn\nArticles and Tutorials\nCoin Rating\nGlossary\nYoutube\nMarket Live\nNews\nLanguage\nEnglish\nTopics\nBitcoin\nBlockchain\nEthereum\nAltcoin\nNFT\nMetaverse\nSee All\nLearn\nArticles and Tutorials\nCoin Rating\nGlossary\nYoutube\nMarket Live\nNews\nClick here\nFTX: History, Bankruptcy Facts, & Impact for Investors\nShare :\nImage 12Home / Articles and Tutorials / FTX: History, Bankruptcy Facts, & Impact for Investors\nNews\nFTX: History, Bankruptcy Facts, & Impact for Investors\nPosted on April, 19 2024 in\nNews, Uncategorized\nShare :\nImage 13: FTX 1 (1)\nClick one of the table of contents to read the desired section\nWhat is FTX?\nFTX Operations and Management\nFTX Stock Price\nFTX Security and Compliance\nProducts and Trading Partners\nFutures\nLeveraged Tokens\nOptions\nMOVE\nSpot Market\nWhy Did FTX Go Out of Business?\nDoes it Impact Crypto Investors in Indonesia?\nConclusion\nLet’s Invest in Crypto Easily, Safely, & Reliably on INDODAX\nFTX, a leading crypto exchange focusing on derivatives and leveraged products, was founded in 2018 by Sam Bankman-Fried, an MIT graduate who worked as a trader at Jane Street Capital, a global trading firm.\nFTX offers a range of trading products, including derivatives, options, volatility products, and leveraged tokens. The exchange also provides spot trading services for more than 300 crypto pairs, such as BTC/USDT, ETH/USDT, XRP/USDT, and its native token, FTT/USDT.\nFTX is based in the Bahamas, with an affiliate in the United States FTX. Both entities have the same management team but separate capital structures. For residents of the United States, they can only use FTX US to trade.\nWhat is FTX?\nFTX, a centralized crypto exchange, was founded in 2019 by Sam Bankman-Fried and Gary Wang. Bankman-Fried, an MIT graduate and former Wall Street trader, partnered with Wang, who had previous experience at Google.\nAs of July 2021, FTX is ranked as the third-largest crypto exchange in the world. The products they offer include derivatives, leveraged tokens, and volatility products. Officially, FTX was incorporated as a company in Antigua and Barbuda, an island nation in the Caribbean Sea.\nIn September 2021, they moved their headquarters from Hong Kong to the Bahamas. The Securities Commission of the Bahamas regulates their subsidiary, FTX Digital Markets Ltd.. Despite this, FTX does not provide services to residents of the United States.\nCrypto traders from the United States can utilize the services of FTX US, a financial services business registered with the Financial Crime Enforcement Network (FinCEN). In October 2021, FTX US completed the acquisition process of LedgerX and changed its name to FTX US Derivatives.\nFTX received an investment of $900 million in July 2021, which raised its valuation as a company to $18 million. In September 2021, FTX signed a sponsorship contract with Mercedes’ Formula 1 team.\nThen, in October 2021, FTX managed to get another injection of funds. Temasek and Tiger Global were the two main investors involved in this investment, which caused FTX’s valuation to increase to $25 million.\nAfter receiving an injection of $400 million, FTX US was reported to have a valuation of $8 million as of January 27, 2022. The investment came from a number of FTX’s early investors, including SoftBank Group and Temasek.\nMeanwhile, a report from Reuters stated that as of January 31, FTX’s valuation had reached $32 million after securing an additional $400 million in funding. On June 4, 2022, FTX announced signing a sponsorship contract with the Miami Heat basketball team.\nIt was reported that to place the FTX name on the basketball team’s headquarters, the crypto exchange paid $135,000,000. Not only that, in early July 2022, FTX offered a $400,000,0000 recurring credit facility for BlockFi, which was facing challenges at the time.\nIn addition to the credit offer, FTX also signed an option agreement to purchase BlockFi. In the same month, FTX also provided partial assistance to Voyager Digital, a crypto lending service.\nHowever, Voyager stated that the offer from FTX was considered lower than it should have been. Then, in August 2022, bank regulators in the United States instructed FTX to stop claiming that the government protected funds in the company.\nThis was because the claims were deemed false and potentially misleading to FTX customers. Furthermore, compared to other crypto exchanges, one of FTX’s advantages is its easy-to-use mobile and desktop applications.\nIn addition, they also offer a wide range of products. According to Investopedia’s report, this attracts crypto investors, ranging from beginners to professionals, to use FTX’s services.\nFTX Operations and Management\nImage 14: FTX 2 (1)\nQuoting _investopedia.com_, FTX was incorporated in Antigua and Barbuda and is headquartered in the Bahamas after moving from Hong Kong in September 2021. The FTX Digital Markets Ltd. unit is regulated by the Securities Commission of the Bahamas (SCB) and does not offer crypto services to residents of the United States.\nUS-based crypto traders can only access partner entity FTX US-a registered financial services business (MSB) with FinCEN. In October 2021, FTX US completed the acquisition of crypto derivatives exchange platform LedgerX, which was renamed FTX US Derivatives.\nFTX US Derivatives is licensed as a Derivatives Clearing Organization, Swap Execution Facility, and Designated Contract Market by the United States Commodity Futures Trading Commission (CFTC).\nDespite having independent capital structures, FTX and FTX US have similar overlapping management, capital sources, and marketing.\nBoth companies have the same investors, celebrity endorsements, and well-known brand sponsors, and list Sam Bankman-Fried as chief executive officer (CEO) and Gary Wang as chief technology officer (CTO) and co-founder.\nEvery investorin FTX’s Series C venture capital funding round simultaneously supporting FTX US’s Series A funding round. Participating investors included Temasek, Paradigm, Ontario Teachers’ Pension Fund Board, NEA, IVP, SoftBank Vision Fund 2, Lightspeed Venture Partners, Steadview Capital, Tiger Global, and Insight Partners.\nPromotional partnerships were signed with venture capitalist and “Shark Tank” reality TV celebrity Kevin O’Leary and NBA star Stephen Curry, who received equity stakes in FTX and FTX US.\nNaming rights were purchased for the Miami Heat basketball court, becoming FTX Arena, and for the University of California, Berkeley football stadium, becoming FTX Field.\nFTX Stock Price\nQuoting the investopedia.com page, although FTX equity is not available for public trading, most retail investors can bet on the exchange by buying FTX tokens (FTT), which are issued by the exchange itself.\nThese tokens can be used to pay transaction fees and as margin collateral, and are traded on crypto markets like stocks.\nAs of April 12, 2024, the price of the FTT token was around $1.60, down 98% from its highest level in September 2021. According to crypto site _CoinMarketCap_, the token “no longer has any use, and may be liquidated by the estate to pay creditors”.\nFTX Security and Compliance\nQuoting the investopedia.com page, to open an FTX account and make withdrawals, the company requires customers to secure their accounts with two-factor authentication (2FA) and a combination of passwords with complex character requirements.\nRelated to that, withdrawals will be locked if the password or 2FA information of the account is changed. Registered users can assign custom logins to sub-accounts and set security permissions that determine which internet protocol (IP) or crypto wallet addresses can perform transactions with the account.\nSub-accounts grant multiple users access to the same parent account with customizable permission levels and withdrawal capabilities.\n“Read only” privileges allow users to view historical activity but cannot execute trades.\nFTX uses real-time anti-money laundering (AML) compliance services to monitor user activity and notify account owners for further verification when large deposits and unusual transactions are detected.\nCustomers must verify identity through a Know Your Customer (KYC) process to gain full trading, deposit and withdrawal functionality.\nFor _hot wallets_ and _cold wallets_ that support all exchange assets, FTX claims to have multiple layers of security controls and that losses due to system-wide disruptions and hacks can be compensated with the FTX Reserve Liquidity Fund which is rumored to be worth around $200,000,000 as of May 2021.\nProducts and Trading Partners\nFTX offers a wide range of order types and easy-to-use desktop and mobile trading applications for crypto investors of different skill levels through key products including spot markets, options and futures contracts, leveraged tokens and MOVE.\nRetail and institutional investors can utilize basic market orders and complex trailing stop orders for hundreds of crypto trading pairs such as BTC/USDT, ETH/USDT, XRP/USDT, and FTX’s native exchange token, FTT/USDT.\nFutures\n_T_ raders can place long and short bets by capitalizing on small price movements on leading cryptocurrencies using over 100 quarterly and perpetual futures pairs with up to 20x margin. Stablecoins, such as USD Coin (USDC) and True USD (TUSD), are used as collateral to open and maintain positions.\nLeveraged Tokens\nFTX offers ERC20-based tokens that give traders up to 3x leveraged exposure to the underlying trading pairs.\nFor example, if a trader opens a BULL/USD bitcoin long token – 3x and bitcoin rises 10% from the time of purchase then that leveraged token will earn 30%. FTX leveraged tokens do not require margin requirements.\nOptions\nTraders can speculate on future price direction and hedge their open positions with a variety of call and put options that give the holder the right, but not the obligation, to buy or sell at a future strike price.\nMOVE\nThese contracts allow traders to bet on how far the price of a crypto will move over a certain period of time, regardless of direction, essentially making them a bet on volatility.\nAs long as the price of the underlying crypto moves more than a certain dollar amount-either up or down-the contract will generate a profit.\nSpot Market\nFTX offers over 100 different spot trading pairs, providing exposure to leading cryptos such as Bitcoin (BTC), Ethereum (ETH), Binance Coin (BNB), Chainlink (LINK), and Ripple’s XRP.\nFTX US offers dozens of crypto spot trading pairs with fiat currencies, along with a marketplace for non-fungible tokens (NFTs).\nWhile FTX US only supports the United States dollar, it serves international customers and deposits and withdrawals via wire transfer in nine fiat currencies: United States dollar (USD), euro (EUR), pound sterling (GBP), Australian dollar (AUD), Canadian dollar (CAD), Swiss franc (CHF), Brazilian real (BRL), Ghanaian cedi (GHS), and Argentine peso (ARS).\nFTX also has restricted usage for the Turkish lira (TRY) and Japanese yen (JPY) and promises functionality for the Hong Kong dollar (HKD), Singapore dollar (SPD), and South African rand (ZAR).\nWhy Did FTX Go Out of Business?\nImage 15: FTX 3 (1)\nQuoting _investopedia.com_, FTX filed for Chapter 11 bankruptcy protection and announced the resignation of CEO Sam Bankman-Fried on November 11, 2022.\nIn December 2022, Bankman-Fried was extradited from the Bahamas to the United States, and along with other FTX executives was arrested and charged with conduct that prosecutors and regulators said constituted fraud and money laundering and increased the likelihood of FTX becoming illiquid.\nCriminal charges from the United States Department of Justice (DOJ) and civil suits from the United States Securities and Exchange Commission (SEC) and Commodity Futures Trading Commission (CFTC) claim that FTX leadership siphoned off customer deposits and deceived customers, investors, and lenders about the company’s accounting with false statements that concealed losses from the theft.\nThe stolen funds were used to purchase luxury real estate properties and yachts and to fund charities, political campaigns, and business ventures.\nBankman-Fried asserted his innocence in interviews and pleaded not guilty to the charges on January 3, 2023, but was later sentenced by a jury on November 2 after the conclusion of a month-long trial that began on October 2.\nHis associates had pleaded guilty and testified at the trial that he played an active role in the alleged crimes.\nFTX’s new court-appointed CEO, John J. Ray III, an American executive with experience restructuring scandal-plagued companies such as bankrupt energy trader Enron, described FTX’s collapse as a “total failure of corporate control” and “old-style embezzlement of funds”.\nDamian Williams, United States Attorney for the Southern District of New York, the federal court prosecuting the exchange’s former management, described FTX as “one of the biggest financial crimes in history”.\nA federal class-action lawsuit filed by customers in November 2022 accused FTX of being a fraudulent crypto scheme and Bankman-Fried and FTX’s celebrity promoters, including Stephen Curry, Shaquille O’Neal, Shohei Ohtani, Naomi Osaka, Larry David, Tom Brady, and Kevin O’Leary, of embezzling less experienced US investors.\nMeanwhile, a Bitcoin.com news report mentioned that Taylor Swift rejected a promotional partnership with FTX after examining its regulatory risks.\nFTX Bankruptcy Facts\nAccording to bankruptcy documents, FTX has at least $8,000,000,000 that it cannot pay to as many as 1,000,000 creditors.\nTo fulfill these obligations, the bankruptcy estate is seeking to legally reposition and liquidate purchases, investments, gifts, and donations believed to have been made with company funds.\nFurthermore, investors may not get back all the money they lost as some transactions may be difficult to trace or have declined in value.\nDoes it Impact Crypto Investors in Indonesia?\nQuoting the firstindonesiamagz.id page, the impact of the bankruptcy of FTX, a leading crypto exchange, has reached Indonesia. In response, the Commodity Futures Trading Supervisory Agency (Bappebti) decided to stop trading on FTX starting November 14, 2022.\nAccording to Bappebti, the transaction value of FTX tokens reached Rp106,500,000,000 with a transaction volume of 193,435 in the period January to October 2022.\n“Based on the results of analysis and consideration as well as for the security and protection of the interests of crypto asset customers in Indonesia, we recommend that crypto asset physical trading companies not facilitate FTX Token trading. It is expected that the crypto asset physical trader company will also make settlements in accordance with statutory regulations,” said the Head of Bappebti at that time, Didid Noordiatmoko, in an official statement quoted via cnbcindonesia.com.\nFTX’s market share in Indonesia was recorded at only 0.038% of the total value of crypto transactions in the period January to October 2022, which reached Rp 279,800,000,000,000.\nAccording to Didid, Bappebti is keeping an eye on traders who facilitate FTX token trading. Therefore, prospective traders who are interested in trading FTX should pay attention, observe, and analyze the development of the token to protect the interests of customers.\nConclusion\nIn conclusion, FTX Exchange has managed to become one of the leading crypto exchanges in the world. It offered innovative trading products such as futures, options, leveraged tokens, and MOVE contracts.\nThey later expanded their reach by establishing FTX US to serve the United States market. FTX’s founder and CEO, Sam Bankman-Fried, managed to build a strong brand image and established various promotional partnerships with famous celebrities and athletes, expanding the exchange’s influence and appeal.\nHowever, FTX then faced a number of challenges, including increasingly stringent regulatory pressures in various countries, and financial problems that eventually led to the company’s bankruptcy.\nThe FTX bankruptcy case itself carries important lessons for the asset exchange industry at large. Ultimately, the FTX bankruptcy case shows that while the crypto exchange industry is growing rapidly, it remains vulnerable to complex financial and regulatory risks.\nIn that regard, industry players, be they exchanges, investors, or regulators, need to learn from the FTX case that good financial risk management and regulatory compliance are critical to maintaining business continuity in a dynamic and high-risk environment like the crypto market.\nLet’s Invest in Crypto Easily, Safely, & Reliably on INDODAX\nWell, now you know about what FTX is, from its operations and management to the facts behind the bankruptcy of the world’s leading crypto exchange.\nFurthermore, if you want to make crypto investments that are easy, safe, and reliable then you can invest in crypto on INDODAX.\nPlease note that INDODAX is the best crypto asset trading place as well as a pioneer in terms of buying and selling crypto assets in the country.\nHaving a good reputation, INDODAX also provides easy access for investors to enter the crypto asset market.\nFurthermore, as a disclaimer, it should be noted again that investing in crypto basically carries a high risk because the price of crypto assets can experience rapid fluctuations.\nTherefore, it is better before investing, you are advised to do research and learn the ins and outs of the crypto assets to be purchased.\nSo, what are you waiting for? Let’s start investing in crypto assets right now only with INDODAX!\nMore From News,Uncategorized\nWho is Raoul Pal? The Macro Investor Who Popularized Crypto\n5 Shocking Crypto News This Week: Bitcoin Slumps, Altcoins Gain Momentum?\nAnalyst Warns XRP’s Next Big Move Hinges on This April 2026\nView More\nBasic Lesson\n1. Introduction to Crypto Assets\nCrypto assets are digital assets whose value is determined by...\nLearn More\n2. Bitcoin\nBitcoin is the first crypto asset, launched in 2009, and...\nLearn More\n3. Blockchain Technology\nBlockchain is a technology with the concept of a \"chain...\nLearn More\nCalculate _Staking Rewards_ with INDODAX earn\nSelect an option\nImage 16: dot Polkadot 2.25%\nImage 17: bnb BNB 0.30%\nImage 18: sol Solana 4.19%\nImage 19: eth Ethereum 2.32%\nImage 20: ada Cardano 1.02%\nImage 21: pol Polygon Ecosystem Token 1.87%\nImage 22: trx Tron 2.75%\nDOT\n1 Year 2 Year 3 Year 4 Year 5 Year\nEstimated Income 0.02 dot ≈ 330 IDR\nBased on current DOT& APY price\nStake Now\nImage 23 Market\nGainers\n| Name | Price 24H Chg |\n--- |\n| Image 24 | WTEC/IDR World Trad | 2 100% |\n| Image 25 | UW3S/IDR Utility We | 2 100% |\n| Image 26 | RVM/IDR Realvirm | 2 100% |\n| Image 27 | BNKR/IDR Bankr Coin | 10 50.87% |\n| Image 28 | DEFI/IDR DeFi | 3 50% |\nLosers\n| Name | Price 24H Chg |\n--- |\n| Image 29 | RED2/IDR RED | 9.502 -23.66% |\n| Image 30 | MURA/IDR Murasaki | 10 -23.08% |\n| Image 31 | UNMD/IDR Utility Ne | 982 -20.81% |\n| Image 32 | LUNA/IDR Terra | 900 -19.57% |\n| Image 33 | DEXE/IDR DeXe | 64.695 -19.13% |\nWas this article helpful?\nRate this article\nYou already voted!\nShare :\nRelated Articles\nFind more articles based on your favourite topics.\nImage 34: 7 Ways of Crypto Fundamental Analysis for Beginners\nSeptember, 25 2024\nTutorial\n7 Ways of Crypto Fundamental Analysis for Beginners\nInvesting in crypto can feel like entering a wilderness without......\nSeptember, 25 2024\nImage 35: Creditcoin (CTC) is Now Listed on INDODAX!\nJune, 04 2024\nAltcoin\nCreditcoin (CTC) is Now Listed on INDODAX! is Now Listed on INDODAX!\")\nCreditcoin was one of the earliest cryptocurrencies to focus specifically......\nJune, 04 2024\nImage 36: Dusk (DUSK) is Now Listed on INDODAX!\nJune, 04 2024\nAltcoin\nDusk (DUSK) is Now Listed on INDODAX! is Now Listed on INDODAX!\")\nDusk (DUSK) crypto asset is now listed on INDODAX on......\nJune, 04 2024\nSee All\nImage 37: indodax logo 2020 1\nJakarta\nGedung Millennium Centennial Center Lt.2, Jl. Jend. Sudirman No.Kav 25, Kuningan, Jakarta Selatan 12920.\nJl. Sultan Iskandar Muda No.13B, Kby. Lama Sel., Kec. Kebayoran Lama, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12210\nBali\nJln Sunset Road No. 100 A-B, Kec, Kuta, Kabupaten Badung, Bali 80361.\nContact Us\n(021) 5065-8888\nsupport@indodax.com\n\nCompany\nAbout Us\nContact Us\nIndodax Affiliate\nHelp\nProduct\nMarket\nAcademy\nOTC\nInformation\nTerms and Conditions\nPrivacy Policy\nAPI\nBlog\nCrypto assets trading can be considered a high-risk activity, where crypto assets prices are volatile, and can swing wildly, from day to day. Please do your own research (DYOR) before making the decision to invest in, or to sell crypto assets. INDODAX is not soliciting for users to buy or sell crypto assets as an investment or for profit. All crypto assets trading decisions should be made independently by the user.\nCopyright © 2026 PT Indodax Nasional Indonesia. All Rights Reserved.",
+    "https://www.businessinsider.com/ftx-collapsed-due-to-hubris-incompetence-and-greed-debtor-report-2023-4": "Subscribe\nLog in\n\nToday's Briefing\nCommunity Hub NEW\nChina's Chip Frenzy\nTop Legal Startups\nSF Wealth Tsunami\nThe Great Coding Reset\nTry BI Games NEW\n\nBusiness\nStrategy\nEconomy\nFinance\nRetail\nAdvertising\nCareers\nLaw\nMedia\nReal Estate\nSmall Business\nThe Better Work Project\nPersonal Finance\nTech\nScience\nAI\nEnterprise\nTransportation\nStartups\nInnovation\nMarkets\nNews\nStocks\nIndices\nCommodities\nCrypto\nCurrencies\nETFs\nLifestyle\nEntertainment\nCulture\nTravel\nFood\nHealth\nEducation\nParenting\nMilitary & Defense\nPolitics\nReviews\nHome\nKitchen\nStyle\nStreaming\nPets\nTech\nDeals\nGifts\nTickets\nVideo\nBig Business\nSo Expensive\nView From Above\nSmall Business\nAuthorized Account\nRisky Business\nBoot Camp\nStill Standing\nHow Crime Works\nLife Lessons\nLevel Up\nCommunity\nGames\nBoxed\nPipeline\nKnighthop\nTally\nSubscribe\nMy account\nLog in\nNewslettersSaved Articles\nUS edition\nDeutschland & Österreich\nEspaña\nJapan\nPolska\nTW 全球中文版\nGet the app\n\nTech\nFailed crypto exchange FTX's spectacular collapse was due to 'hubris, incompetence, and greed,' says first debtors' report\nByHuileng Tan\nYou're currently following this author! Want to unfollow? Unsubscribe via the link in your email.\nFollow\nImage 1: sam bankman fried\n[x]\nFailed crypto exchange FTX's spectacular collapse was due to 'hubris, incompetence, and greed,' says first debtors report.Eduardo Munoz/Reuters\nApr 10, 2023, 6:11 AM UTC\nRead in app\nShare\nCopy linkEmailFacebook WhatsApp X LinkedIn Bluesky Threads Impact Link\nSave Saved\nThis story is available exclusively to Business Insider subscribers. Become an Insider and start reading now.Have an account? Log in.\n\"Hubris, incompetence, and greed\" led to the implosion of crypto exchange FTX, the now-defunct entity's debtors said in a Sunday reportdetailing control failures at the exchange.\nIn a 39-page strongly-worded report filed to the US Bankruptcy Court for the District of Delaware, the debtors — which includes FTX Trading and affiliates — further alleged that FTX lacked basic accounting and financial controls and was under the command of a small group of individuals who \"stifled dissent.\"\n\"These individuals stifled dissent, commingled and misused corporate and customer funds, lied to third parties about their business, joked internally about their tendency to lose track of millions of dollars in assets, and thereby caused the FTX Group to collapse as swiftly as it had grown,\" the debtors wrote in their first report since the exchange's collapse in November.\n\"While the FTX Group's failure is novel in the unprecedented scale of harm it caused in a nascent industry, many of its root causes are familiar: hubris, incompetence, and greed,\" they said.\nFTX's implosion was shocking and swift. The exchange — worth $32 billion in early 2022 — filed for Chapter 11 bankruptcy on November 11 of the same year, after a week of a liquidity crisis.\nThe crisis was followed by swift criminal cases against the company's top brass.\nSam Bankman-Fried, a high-profile cofounder of the exchange and former CEO, pleaded not guilty in the US government's criminal case against him and is scheduled for a trial in October. Gary Wang,another cofounder, and Caroline Ellison,former CEO of FTX subsidiary Alameda Research, have pleaded guilty and are working with prosecutors. Former engineering chief Nishad Singhalso pleaded guilty.\nTech Memo\nWhere Big Tech secrets go public — unfiltered in your inbox weekly.\nEmail address Sign up\nBy clicking \"Sign up\", you agree to receive emails from Business Insider. In addition, you accept Insider’s Terms of Service and Privacy Policy.\nExplore BI Games Take a smarter break in your day - and see how far you get. Play now Image 2\nThe report was filed by John J. Ray III, the current CEO and chief restructuring officer at FTX, per a Sunday press release. The debtor's filing was being released \"in the spirit of transparency that we promised since the beginning of the Chapter 11 process,\" Ray said.\nRead further for the three key allegations from the debtors' report.\n1. A lack of management and governance controls.\nThe report alleged the management and governance of FTX were largely limited to Bankman-Fried, Singh, and Wang.\nFor most parts, FTX also lacked independent or experienced personnel in finance, accounting, HR, and information security and \"lacked any internal audit function whatsoever,\" the debtors stated in the filing. Board oversight was \"effectively non-existent,\" they added.\nThe company also didn't have an organizational structure and at the time of its bankruptcy filing, did not even have a complete list of who its employees were, per the filing.\n2. A lack of financial and accounting controls.\nThe report states that FTX relied on a small unnamed external accounting firm for nearly all of its basic accounting functions — and the accounting firm appeared to have no specialist knowledge of cryptos or international financial markets. The debtors did not provide further details of this appointment.\n\"There is no evidence that the FTX Group ever performed an evaluation of whether its outside accountants were appropriate for their role given the scale and complexity of the FTX Group's business, or whether they possessed sufficient expertise to account for the wide array of products in which the FTX Group transacted,\" per the exchange's debtors.\nAnother issue cited in the report was the submission of expenses and invoices on Slack, which were then approved with emoji.\"These informal, ephemeral messaging systems were used to procure approvals for transfers in the tens of millions of dollars, leaving only informal records of such transfers, or no records at all,\" per the report.\n3. A lack of digital asset management, information security, and cybersecurity controls.\nThe report also alleged FTX failed to put in place \"basic, widely accepted\" security controls to safeguard its crypto assets.\nThey include keeping almost all crypto assets in hot wallets that are connected to the internet, which makes them more susceptible to getting stolen.\nIt also did not effectively enforce using multi-factor authentication, or MFA, among its staff and corporate infrastructure. MFA requires users to provide two or more methods of authentication — such as the use of a password and a one-time passcode to a cell phone — to verify their identities to gain access to a system, per the report. In particular, it did not enforce multi-factor authentication for Google Workspace and its password management program.\n\"The deficiency is ironic given that the FTX Group recommended that customers use MFA on their own accounts, and Bankman-Fried, via Twitter, publicly stressed the importance of \"2FA [Twofactor authentication],\" a form of MFA, for crypto security.\nFTX's debtors said they have \"recovered and secured in cold storage over $1.4 billion in digital assets, and have identified an additional $1.7 billion in digital assets that they are in the process of recovering.\"\nA spokesperson for Bankman-Fried declined comment to Insider. Kroll, FTX's claims agent, as well as legal representatives for Wang, Ellison, and Singh, did not immediately respond to Insider's request for comment sent outside regular business hours.\nThe case is FTX Trading Ltd., 22-11068, U.S. Bankruptcy Court for the District of Delaware.\nRecommended video\nTrending conversations\nImage 3: Business Insider\nBusiness Insider tells the innovative stories you want to know\ncomments\ncomment_author Loading comment 0 repliesImage 4: Business Insider\nBusiness Insider tells the innovative stories you want to know\ncomments\ncomment_author Loading comment 0 replies\nImage 5: Business Insider\nBusiness Insider tells the innovative stories you want to know\ncomments\ncomment_author Loading comment 0 repliesImage 6: Business Insider\nBusiness Insider tells the innovative stories you want to know\ncomments\ncomment_author Loading comment 0 replies\nNo comments right now, check back later.\nComments are unavailable right now.\nRead next\nImage 7: Business Insider\nBusiness Insider tells the innovative stories you want to know\nImage 9: Business Insider\nBusiness Insider tells the innovative stories you want to know\nImage 11: Business Insider\nBusiness Insider tells the innovative stories you want to know\nImage 13: Business Insider\nBusiness Insider tells the innovative stories you want to know\nHuileng Tan\nYou're currently following this author! Want to unfollow? Unsubscribe via the link in your email.\nFollow\nHuileng Tan is a senior reporter based in Singapore, covering markets, the global economy, commodities, and investing. Her reporting focuses on how shifts in money, demographics, technology, and policy are reshaping businesses,wealth, and everyday life around the world.Since joining Business Insider in 2021, she has covered everything from commodity booms and investor trends to China's economy, the AI trade, and the forces driving global markets.Before joining Business Insider, she reported for CNBC, Dow Jones, ICIS, and The Wall Street Journal.In 2018 and 2019, she won the Singapore Exchange Orb Awards for Story of the Year – Derivatives for her reporting on the global commodities and derivatives markets.Reach her at htan@businessinsider.com.\n[x]\nSam Bankman-Fried\ncrypto\nNews\nMore\nHOMESubscribe\nThis story is available exclusively to Business Insider subscribers. Become an Insider and start reading now.Have an account? Log in.\nImage 15: Business Insider\n\nImage 17: Download on the App StoreImage 19: Get it on Google Play\nLegal & Privacy\nTerms of Service\nTerms of Sale\nPrivacy Policy\nAccessibility\nCode of Ethics Policy\nReprints & Permissions\nDisclaimer\nAdvertising Policies\nConflict of Interest Policy\nCommerce Policy\nCoupons Privacy Policy\nCoupons Terms\nYour Privacy Choices\nCompany\nAbout Us\nCareers\nAdvertise With Us\nContact Us\nNews Tips\nCompany News\nAwards\nMasthead\nOther\nGames\nSitemap\nStock quotes by finanzen.net\nCorrections\nCommunity Guidelines\nAI Use\nBI Live\nBusiness Insider App\nInternational Editions\nAT\nDE\nES\nJP\nPL\nTW\nCopyright © 2026 Insider Inc. All rights reserved. Registration on or use of this site constitutes acceptance of our Terms of ServiceandPrivacy Policy.\nImage 21: Insider.com TM Logo\nImage 23: Insider\nImage 25: Insider-Inc Logo\nImage 27: Tech Insider Logo\nImage 29: Business Insider DE Logo\nImage 31: Markets Insider Logo\nImage 33: Insider Media Logo\nImage 35: News Insider Logo\nImage 37: Silicon Alley Logo\nImage 39: Insider Intelligence Logo\nImage 41: Business Insider Intelligence Logo\n\nJump to\n1. Main content\n2. Search\n3. Account\n4. Jump to top of page\nHave an account? Log in\nUnlimited access.\nUnlimited possibility.\nAll stories & exclusive intel\nInsights & advice to propel your career\nPitch decks that raised millions\nStory summaries for busy lives\nSearchable salary database\nExecutive-level org charts\nLearn more | Go Ad-free\n14-day\nFree Trial\nRenews every 4 weeks at $12.95.\nCancel anytime.\nStart my trial\nAnnual\n$49\n67% off\nRenews annually at $149.\nCancel anytime.\nSubscribe\nImage 44: Business Insider\nFollow Following\nEvery time publishes a story, you’ll get an alert straight to your inbox!\nLook out for an alert in your inbox the next time publishes a story!\nEvery time a new story is published, you’ll get an alert straight to your inbox!\nLook out for an alert in your inbox the next time a new story is published!\nEnter your email\nSign up\nBy clicking “Sign up”, you agree to receive emails from Business Insider. In addition, you accept Insider’s Terms of Service and Privacy Policy.\nMore stories byMore stories from\nImage 45Image 46Image 47: dot image pixelImage 48Image 49Image 50Image 51Image 52Image 53Image 54Image 55Image 56Image 57Image 58Image 59"
+  }
+}

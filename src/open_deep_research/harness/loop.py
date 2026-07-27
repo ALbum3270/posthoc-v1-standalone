@@ -21,9 +21,15 @@ from open_deep_research.harness.checklist import (
     ChecklistStatus,
     ResearchChecklist,
 )
+from open_deep_research.harness.jsonio import loads_lenient
 from open_deep_research.harness.ledger import ResearchLedger
 from open_deep_research.harness.notes import ResearchNote, create_note
-from open_deep_research.harness.tools import TavilyClient, read, search
+from open_deep_research.harness.tools import (
+    SearchResult,
+    TavilyClient,
+    read,
+    search,
+)
 
 
 class StopReason(str, Enum):
@@ -242,6 +248,11 @@ You may return:
 
 The action item_id identifies the checklist item this round is working on.
 
+search_candidates holds every url search has surfaced so far, with its snippet
+and whether you already read it. Searching only adds candidates; reading one is
+what produces notes. Prefer reading a promising unread candidate over searching
+again for the same thing.
+
 You normally see note summaries rather than source bodies. When a summary is not
 enough, recall an already-read url and its full text joins the next round's
 state. Recall as often as you need; the oldest recalled sources drop out first
@@ -270,6 +281,41 @@ Source URL:
 Source text:
 {source_text}
 """
+
+
+_MAX_CANDIDATES_IN_CONTEXT = 40
+_CANDIDATE_SNIPPET_CHARS = 400
+
+
+def _candidate_state(
+    candidates: Mapping[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Expose the urls search surfaced so the model can choose what to read.
+
+    Without this the model searches, never sees the hits, and searches again --
+    the zero-entropy loop this project already measured once.
+    """
+
+    recent = list(candidates.values())[-_MAX_CANDIDATES_IN_CONTEXT:]
+    recent.reverse()
+    return recent
+
+
+def _remember_candidates(
+    candidates: dict[str, dict[str, Any]],
+    results: Sequence[SearchResult],
+) -> None:
+    for result in results:
+        existing = candidates.get(result.url)
+        if existing is not None:
+            continue
+        candidates[result.url] = {
+            "url": result.url,
+            "title": result.title,
+            "snippet": result.snippet[:_CANDIDATE_SNIPPET_CHARS],
+            "score": result.score,
+            "read": False,
+        }
 
 
 def _note_summary(note: ResearchNote) -> dict[str, Any]:
@@ -357,12 +403,14 @@ def _build_decision_prompt(
     ledger: ResearchLedger | None,
     settings: LoopSettings,
     recalled_urls: Sequence[str] = (),
+    candidates: Mapping[str, dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     sources, injection_audit = _source_injection(ledger, settings, recalled_urls)
 
     state: dict[str, Any] = {
         "topic": checklist.topic,
         "checklist": _checklist_state(checklist, consecutive_failures),
+        "search_candidates": _candidate_state(candidates or {}),
         "note_summaries": [_note_summary(note) for note in notes],
     }
     if sources:
@@ -381,6 +429,7 @@ def build_decision_prompt(
     ledger: ResearchLedger | None = None,
     settings: LoopSettings | None = None,
     recalled_urls: Sequence[str] = (),
+    candidates: Mapping[str, dict[str, Any]] | None = None,
 ) -> str:
     """Build a decision prompt holding only the sources the model recalled."""
 
@@ -391,6 +440,7 @@ def build_decision_prompt(
         ledger=ledger,
         settings=settings or LoopSettings(),
         recalled_urls=recalled_urls,
+        candidates=candidates,
     )
     return prompt
 
@@ -456,7 +506,7 @@ def _parse_envelope(response: Any) -> tuple[ModelEnvelope | None, str | None]:
 
 def _decode_json_content(content: Any) -> Any:
     if isinstance(content, str):
-        return json.loads(content)
+        return loads_lenient(content)
     return content
 
 
@@ -606,6 +656,7 @@ async def run_research_loop(
 
     consecutive_malformed = 0
     recalled: list[str] = []
+    candidates: dict[str, dict[str, Any]] = {}
     while True:
         rounds_executed += 1
         prompt, context_audit = _build_decision_prompt(
@@ -615,6 +666,7 @@ async def run_research_loop(
             ledger=ledger,
             settings=context_settings,
             recalled_urls=recalled,
+            candidates=candidates,
         )
         response: Any = None
         decision_error: str | None = None
@@ -704,9 +756,12 @@ async def run_research_loop(
                         tavily_client=tavily_client,
                         max_results=max_search_results,
                     )
+                    _remember_candidates(candidates, results)
                     summary = {
                         "result_count": len(results),
-                        "results": [result.model_dump(mode="json") for result in results],
+                        "results": [
+                            result.model_dump(mode="json") for result in results
+                        ],
                     }
                 except Exception as exc:  # noqa: BLE001 - tool failure is one turn
                     summary = {"error": f"search failed: {exc}", "result_count": 0}
@@ -714,6 +769,17 @@ async def run_research_loop(
 
             elif isinstance(action, ReadAction):
                 url = action.url
+                candidate = candidates.setdefault(
+                    action.url,
+                    {
+                        "url": action.url,
+                        "title": "",
+                        "snippet": "",
+                        "score": None,
+                        "read": False,
+                    },
+                )
+                candidate["read"] = True
                 source_text = ledger.get_source(action.url)
                 cache_hit = source_text is not None
                 if source_text is None:

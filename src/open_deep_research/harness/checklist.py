@@ -10,6 +10,8 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from open_deep_research.harness.jsonio import loads_lenient
+
 
 class ChecklistStatus(str, Enum):
     """Lifecycle states for one research question."""
@@ -238,7 +240,7 @@ def _decode_model_payload(payload: str | Mapping[str, Any] | Any) -> Mapping[str
             payload = content
         else:
             raise TypeError("checklist model must return JSON text or a mapping")
-    decoded = json.loads(payload)
+    decoded = loads_lenient(payload)
     if not isinstance(decoded, Mapping):
         raise ValueError("checklist model response must be a JSON object")
     return decoded
