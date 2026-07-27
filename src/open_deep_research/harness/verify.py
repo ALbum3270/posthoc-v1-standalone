@@ -19,7 +19,10 @@ from pydantic import (
     model_validator,
 )
 
-from open_deep_research.harness.attribution import ClaimAttribution
+from open_deep_research.harness.attribution import (
+    AttributionStatus,
+    ClaimAttribution,
+)
 from open_deep_research.harness.claims import (
     AtomicClaim,
     ClaimNormalizationStatus,
@@ -73,6 +76,7 @@ class ClaimEvidenceState(str, Enum):
     REFUTED = "refuted"
     CITED_SOURCES_DO_NOT_SUPPORT = "cited_sources_do_not_support"
     NO_CANDIDATE_SOURCE = "no_candidate_source"
+    ATTRIBUTION_ERROR = "attribution_error"
     VERIFICATION_INCOMPLETE = "verification_incomplete"
     VERIFICATION_NOT_RUN = "verification_not_run"
     NORMALIZATION_FAILED = "normalization_failed"
@@ -791,6 +795,11 @@ async def verify_attributions(
             relations,
             required_sources=required_count,
         )
+        if (
+            attribution.status == AttributionStatus.ATTRIBUTION_ERROR
+            and not relations
+        ):
+            state = ClaimEvidenceState.ATTRIBUTION_ERROR
         claim_results.append(
             ClaimVerification(
                 claim=claim,

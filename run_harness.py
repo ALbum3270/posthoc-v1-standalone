@@ -93,9 +93,13 @@ class LiveClients:
     decision_model: OpenAIEnvelopeModel
     note_model: OpenAIEnvelopeModel
     write_model: OpenAIEnvelopeModel
+    claim_model: OpenAIEnvelopeModel
+    attribution_model: OpenAIEnvelopeModel
     verification_model: OpenAIEnvelopeModel
     decision_model_name: str
     note_model_name: str
+    claim_model_name: str
+    attribution_model_name: str
     verification_model_name: str
 
     async def close(self) -> None:
@@ -145,6 +149,10 @@ def build_live_clients() -> LiveClients:
         raise RuntimeError("OPENAI_MODEL must not be blank")
     decision_model_name = _model_name("decision", default_model)
     note_model_name = _model_name("note", default_model)
+    claim_model_name = _model_name("claim", decision_model_name)
+    attribution_model_name = _model_name(
+        "attribution", decision_model_name
+    )
     verification_model_name = _model_name("verification", default_model)
 
     openai = AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
@@ -159,11 +167,17 @@ def build_live_clients() -> LiveClients:
         write_model=OpenAIEnvelopeModel(
             openai, decision_model_name, json_mode=False
         ),
+        claim_model=OpenAIEnvelopeModel(openai, claim_model_name),
+        attribution_model=OpenAIEnvelopeModel(
+            openai, attribution_model_name
+        ),
         verification_model=OpenAIEnvelopeModel(
             openai, verification_model_name
         ),
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,
+        claim_model_name=claim_model_name,
+        attribution_model_name=attribution_model_name,
         verification_model_name=verification_model_name,
     )
 
@@ -218,6 +232,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="maximum full notes injected by one recall_notes action",
     )
     parser.add_argument(
+        "--verification-required-sources",
+        type=int,
+        choices=(1, 2),
+        default=2,
+        help=(
+            "independent-source proxy requirement for each externally "
+            "verifiable report claim"
+        ),
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("harness_runs"),
@@ -235,6 +259,9 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             decision_model=clients.decision_model,
             note_model=clients.note_model,
             write_model=clients.write_model,
+            claim_model=clients.claim_model,
+            attribution_model=clients.attribution_model,
+            verification_model=clients.verification_model,
             tavily_client=clients.tavily,
             budget=LoopBudget(
                 max_rounds=args.max_rounds,
@@ -251,10 +278,15 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             ),
             output_dir=args.output_dir,
             run_id=args.run_id,
+            verification_required_independent_sources=(
+                args.verification_required_sources
+            ),
             model_names={
                 "decision": clients.decision_model_name,
                 "note": clients.note_model_name,
                 "writing": clients.decision_model_name,
+                "claim": clients.claim_model_name,
+                "attribution": clients.attribution_model_name,
                 "verification": clients.verification_model_name,
             },
         )

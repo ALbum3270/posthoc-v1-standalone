@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from open_deep_research.harness.attribution import (
+    AttributionError,
     AttributionStatus,
     CandidateSource,
     ClaimAttribution,
@@ -562,6 +563,36 @@ def test_no_candidate_and_all_admission_or_model_failures_remain_distinct() -> N
         VerificationRecordStatus.VERIFICATION_MODEL_ERROR
     )
     assert "provider failed" in (error_relation.error or "")
+
+
+def test_attribution_error_is_not_laundered_into_no_candidate_source() -> None:
+    claim = _claim("claim-attribution-error")
+    attribution = ClaimAttribution(
+        claim=claim.model_copy(
+            update={"source_resolution": SourceResolution.UNRESOLVED}
+        ),
+        status=AttributionStatus.ATTRIBUTION_ERROR,
+        errors=(
+            AttributionError(
+                claim_id=claim.claim_id,
+                code="malformed_candidates",
+                detail="candidate payload could not be parsed",
+            ),
+        ),
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [attribution],
+            source_cache={},
+            model_client=ScriptedVerificationModel(),
+        )
+    )
+
+    assert result.claims[0].state == ClaimEvidenceState.ATTRIBUTION_ERROR
+    assert result.claims[0].state != (
+        ClaimEvidenceState.NO_CANDIDATE_SOURCE
+    )
 
 
 def test_publisher_count_is_disclosed_as_a_proxy_not_strict_independence() -> None:
