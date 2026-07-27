@@ -63,8 +63,9 @@ Writing, verification, and footnote rendering consume `source_quote`, never
 source text. Diagnostic fragments, paraphrases, and unlocatable model quotes
 cannot become supporting evidence.
 
-The verifier may judge a source relation as `supports`, `contradicts`,
-`not_enough_information`, or `error`. Missing evidence is not contradiction.
+The verifier may judge a source relation as `supports`, `does_not_support`,
+`contradicts`, or `not_enough_information`. Execution errors are recorded
+separately from semantic verdicts. Missing evidence is not contradiction.
 
 ## Verification batching
 
@@ -79,6 +80,12 @@ text reduction is a separate frozen-fixture A/B experiment. The experiment
 must hold verifier, prompt, claims, and batch size constant and report F1,
 false-support rate, omissions, tokens, and cost before the optimization can
 be adopted.
+
+Independent-publisher counts use normalized publisher domains only as a
+reproducible proxy. This is not a strict editorial-independence determination:
+common ownership, syndicated or republished material, and one brand operating
+multiple domains remain unresolved and visible as audit limitations. No
+domain or organization wordlist is used to guess those relationships.
 
 ## Evidence states and FEVER compatibility
 

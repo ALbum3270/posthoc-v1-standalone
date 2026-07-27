@@ -179,3 +179,29 @@ def test_cli_configures_openrouter_proxy_without_touching_no_proxy(monkeypatch):
     assert os.environ["https_proxy"] == "http://127.0.0.1:7890"
     assert os.environ["HTTPS_PROXY"] == "http://127.0.0.1:7890"
     assert os.environ["no_proxy"] == "leave-this-alone"
+
+
+def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class FakeTavily:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr(harness_cli, "AsyncOpenAI", FakeOpenAI)
+    monkeypatch.setattr(harness_cli, "AsyncTavilyClient", FakeTavily)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("TAVILY_API_KEY", "test-tavily-key")
+    monkeypatch.setenv("OPENAI_MODEL", "cheap-default")
+    monkeypatch.setenv("HARNESS_DECISION_MODEL", "cheap-decision")
+    monkeypatch.setenv("HARNESS_NOTE_MODEL", "cheap-note")
+    monkeypatch.setenv("HARNESS_VERIFICATION_MODEL", "strong-verifier")
+
+    clients = harness_cli.build_live_clients()
+
+    assert clients.decision_model.model == "cheap-decision"
+    assert clients.note_model.model == "cheap-note"
+    assert clients.verification_model.model == "strong-verifier"
+    assert clients.verification_model is not clients.decision_model

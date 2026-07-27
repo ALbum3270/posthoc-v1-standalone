@@ -93,6 +93,7 @@ class LiveClients:
     decision_model: OpenAIEnvelopeModel
     note_model: OpenAIEnvelopeModel
     write_model: OpenAIEnvelopeModel
+    verification_model: OpenAIEnvelopeModel
     decision_model_name: str
     note_model_name: str
     verification_model_name: str
@@ -157,6 +158,9 @@ def build_live_clients() -> LiveClients:
         note_model=OpenAIEnvelopeModel(openai, note_model_name),
         write_model=OpenAIEnvelopeModel(
             openai, decision_model_name, json_mode=False
+        ),
+        verification_model=OpenAIEnvelopeModel(
+            openai, verification_model_name
         ),
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,

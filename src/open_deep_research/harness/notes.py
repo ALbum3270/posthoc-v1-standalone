@@ -88,6 +88,40 @@ class SourceEvidence(BaseModel):
         return self
 
 
+class LocatedSourceQuote(BaseModel):
+    """Mechanical strict-or-repaired location of a model-proposed quote."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    model_quote: str
+    source_quote: str | None = None
+    span: QuoteSpan | None = None
+    location_status: NoteLocationStatus
+    repair_method: QuoteRepairMethod | None = None
+    failure_reason: QuoteFailureReason | None = None
+
+    @model_validator(mode="after")
+    def _status_matches_location(self) -> LocatedSourceQuote:
+        usable = self.location_status in {
+            NoteLocationStatus.LOCATABLE,
+            NoteLocationStatus.REPAIRED_LOCATABLE,
+        }
+        if usable and (self.source_quote is None or self.span is None):
+            raise ValueError("located quote requires source_quote and span")
+        if not usable and (self.source_quote is not None or self.span is not None):
+            raise ValueError("unlocatable quote cannot retain source evidence")
+        if self.location_status is NoteLocationStatus.REPAIRED_LOCATABLE:
+            if self.repair_method is None:
+                raise ValueError("repaired quote requires repair_method")
+        elif self.repair_method is not None:
+            raise ValueError("only repaired quote may have repair_method")
+        if usable and self.failure_reason is not None:
+            raise ValueError("located quote cannot have failure_reason")
+        if not usable and self.failure_reason is None:
+            raise ValueError("unlocatable quote requires failure_reason")
+        return self
+
+
 class ResearchNote(BaseModel):
     """One finding with separate model-proposed and source-authoritative quotes."""
 
@@ -273,6 +307,65 @@ def _repair_source_span(
     if _number_sequence(source_quote) != _number_sequence(model_quote):
         return None, QuoteFailureReason.NUMBER_SEQUENCE_MISMATCH
     return QuoteSpan(start_char=start_char, end_char=end_char), None
+
+
+def locate_verification_quote(
+    source_text: str,
+    model_quote: str,
+    *,
+    max_repair_span_expansion_chars: int = _MAX_REPAIR_SPAN_EXPANSION_CHARS,
+) -> LocatedSourceQuote:
+    """Locate a verifier quote using shared strict matching, then safe repair.
+
+    This returns a new mechanical result. It does not mutate or reinterpret the
+    historical ResearchNote from which a candidate source may have originated.
+    """
+
+    if max_repair_span_expansion_chars < 0:
+        raise ValueError("max_repair_span_expansion_chars must be non-negative")
+    located = locate_source_quote(source_text, model_quote)
+    if located is not None:
+        return LocatedSourceQuote(
+            model_quote=model_quote,
+            source_quote=located.quote or "",
+            span=QuoteSpan(
+                start_char=located.start_char,
+                end_char=located.end_char,
+            ),
+            location_status=NoteLocationStatus.LOCATABLE,
+        )
+
+    if _located_fragment_count(source_text, model_quote) >= 2:
+        return LocatedSourceQuote(
+            model_quote=model_quote,
+            location_status=NoteLocationStatus.UNLOCATABLE,
+            failure_reason=QuoteFailureReason.NONCONTIGUOUS_COMPOSITE,
+        )
+
+    repaired_span, failure_reason = _repair_source_span(
+        source_text,
+        model_quote,
+        max_span_expansion_chars=max_repair_span_expansion_chars,
+    )
+    if repaired_span is not None:
+        return LocatedSourceQuote(
+            model_quote=model_quote,
+            source_quote=source_text[
+                repaired_span.start_char : repaired_span.end_char
+            ],
+            span=repaired_span,
+            location_status=NoteLocationStatus.REPAIRED_LOCATABLE,
+            repair_method=(
+                QuoteRepairMethod.NFKC_CASEFOLD_ALNUM_UNIQUE_CONTIGUOUS
+            ),
+        )
+    if failure_reason is None:  # pragma: no cover - paired helper invariant
+        raise RuntimeError("failed quote repair did not provide a reason")
+    return LocatedSourceQuote(
+        model_quote=model_quote,
+        location_status=NoteLocationStatus.UNLOCATABLE,
+        failure_reason=failure_reason,
+    )
 
 
 def create_note(
