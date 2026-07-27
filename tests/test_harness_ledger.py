@@ -57,7 +57,9 @@ def test_ledger_serializes_rounds_sources_notes_and_rejected_deletions():
     assert payload["rounds"][0]["cost_usd"] == 0.004
     assert payload["source_cache"]["https://example.com/source"] == full_text
     assert payload["notes"][0]["location_status"] == "unlocatable"
-    assert payload["notes"][0]["quote"] == "Wording not present."
+    assert payload["notes"][0]["model_quote"] == "Wording not present."
+    assert payload["notes"][0]["source_quote"] is None
+    assert payload["notes"][0]["failure_reason"] == "quote_not_found"
     assert payload["checklist_history"] == [
         {
             "accepted": False,

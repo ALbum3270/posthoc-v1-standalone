@@ -36,13 +36,18 @@ from open_deep_research.harness.loop import (
     StatusUpdate,
     build_decision_prompt,
     build_note_prompt,
+    quote_quality_metrics,
     run_research_loop,
 )
 from open_deep_research.harness.notes import (
     NoteLocationStatus,
+    QuoteFailureReason,
+    QuoteRepairMethod,
     QuoteSpan,
     ResearchNote,
+    SourceEvidence,
     create_note,
+    source_evidence,
 )
 from open_deep_research.harness.runner import (
     HarnessRunResult,
@@ -78,12 +83,15 @@ __all__ = [
     "LoopSettings",
     "MarkExhaustedAction",
     "NoteLocationStatus",
+    "QuoteFailureReason",
+    "QuoteRepairMethod",
     "QuoteSpan",
     "ReadAction",
     "ReanalyzeAction",
     "ResearchChecklist",
     "ResearchLedger",
     "ResearchNote",
+    "SourceEvidence",
     "ReportDraft",
     "RoundRecord",
     "SearchAction",
@@ -109,5 +117,7 @@ __all__ = [
     "search",
     "ParsedCitation",
     "parse_report_citations",
+    "quote_quality_metrics",
+    "source_evidence",
     "write_report",
 ]

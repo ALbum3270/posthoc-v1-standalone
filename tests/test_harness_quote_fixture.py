@@ -12,7 +12,14 @@ from pathlib import Path
 from open_deep_research.graphrag.validation.grounding import (
     locate_source_quote,
 )
-from open_deep_research.harness.notes import ResearchNote
+from open_deep_research.harness.loop import quote_quality_metrics
+from open_deep_research.harness.notes import (
+    NoteLocationStatus,
+    QuoteFailureReason,
+    QuoteRepairMethod,
+    ResearchNote,
+    create_note,
+)
 
 _FIXTURE_PATH = (
     Path(__file__).parent
@@ -211,3 +218,97 @@ def test_fixture_preserves_note_volume_per_source() -> None:
     )
 
     assert dict(counts) == fixture["expectations"]["notes_per_url"]
+
+
+def test_conservative_repair_preserves_all_four_frozen_failure_classes() -> None:
+    fixture = _load_fixture()
+    records = fixture["notes"]
+    sources = fixture["source_cache"]
+    expectations = fixture["expectations"]
+
+    notes_by_index = {
+        record["note_index"]: create_note(
+            item_id=record["note"]["item_id"],
+            finding=record["note"]["finding"],
+            quote=record["note"]["quote"],
+            url=record["note"]["url"],
+            source_text=sources[record["note"]["url"]],
+        )
+        for record in records
+    }
+    repaired_indices = [
+        index
+        for index, note in notes_by_index.items()
+        if note.location_status is NoteLocationStatus.REPAIRED_LOCATABLE
+    ]
+
+    assert repaired_indices == expectations["unique_format_match_indices"]
+    assert len(repaired_indices) == 25
+    for index in repaired_indices:
+        note = notes_by_index[index]
+        assert note.repair_method is (
+            QuoteRepairMethod.NFKC_CASEFOLD_ALNUM_UNIQUE_CONTIGUOUS
+        )
+        assert note.span is not None
+        source = sources[note.url]
+        assert source[note.span.start_char : note.span.end_char] == (
+            note.source_quote
+        )
+
+    ambiguous = notes_by_index[68]
+    assert ambiguous.location_status is NoteLocationStatus.UNLOCATABLE
+    assert ambiguous.failure_reason is (
+        QuoteFailureReason.AMBIGUOUS_FORMAT_MATCH
+    )
+    assert ambiguous.source_quote is None
+
+    for index in expectations["noncontiguous_composite_indices"]:
+        note = notes_by_index[index]
+        assert note.location_status is NoteLocationStatus.UNLOCATABLE
+        assert note.failure_reason is (
+            QuoteFailureReason.NONCONTIGUOUS_COMPOSITE
+        )
+        assert note.located_fragment_count >= 2
+        assert note.source_quote is None
+
+    for index in expectations["wording_change_indices"]:
+        note = notes_by_index[index]
+        assert note.location_status is NoteLocationStatus.UNLOCATABLE
+        assert note.failure_reason is QuoteFailureReason.QUOTE_NOT_FOUND
+        assert note.source_quote is None
+
+    # Fragment diagnosis annotates the original 46 notes; it never materializes
+    # fragments as additional notes or usable evidence.
+    assert len(notes_by_index) == expectations["note_count"] == 95
+    assert sum(
+        note.failure_reason
+        is QuoteFailureReason.NONCONTIGUOUS_COMPOSITE
+        for note in notes_by_index.values()
+    ) == 46
+
+
+def test_fixture_grounding_metrics_keep_strict_repair_and_usable_rates_separate():
+    fixture = _load_fixture()
+    sources = fixture["source_cache"]
+    notes = [
+        create_note(
+            item_id=record["note"]["item_id"],
+            finding=record["note"]["finding"],
+            quote=record["note"]["quote"],
+            url=record["note"]["url"],
+            source_text=sources[record["note"]["url"]],
+        )
+        for record in fixture["notes"]
+    ]
+
+    assert quote_quality_metrics(notes) == {
+        "note_count": 95,
+        "strict_locatable_count": 18,
+        "strict_locatable_rate": 0.189474,
+        "repaired_locatable_count": 25,
+        "format_repair_rate": 0.263158,
+        "usable_source_span_count": 43,
+        "usable_source_span_rate": 0.452632,
+        "noncontiguous_composite_count": 46,
+        "noncontiguous_composite_rate": 0.484211,
+    }

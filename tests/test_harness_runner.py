@@ -118,6 +118,17 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     }
     assert audit["collection_summary"] == {
         "known_gaps": ["writing_input_budget_preflight_not_enforced"],
+        "quote_quality": {
+            "format_repair_rate": 0.0,
+            "noncontiguous_composite_count": 0,
+            "noncontiguous_composite_rate": 0.0,
+            "note_count": 0,
+            "repaired_locatable_count": 0,
+            "strict_locatable_count": 0,
+            "strict_locatable_rate": 0.0,
+            "usable_source_span_count": 0,
+            "usable_source_span_rate": 0.0,
+        },
         "settled_without_located_evidence": 1,
         "settled_without_located_evidence_item_ids": ["what-1"],
         "writing_reserve": {"cost_usd": 0.0, "tokens": 0},

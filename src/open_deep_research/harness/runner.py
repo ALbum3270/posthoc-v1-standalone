@@ -22,6 +22,7 @@ from open_deep_research.harness.loop import (
     LoopModelClient,
     LoopResult,
     LoopSettings,
+    quote_quality_metrics,
     run_research_loop,
 )
 from open_deep_research.harness.tools import TavilyClient
@@ -184,6 +185,7 @@ async def run_harness(
                 "tokens": active_budget.writing_token_reserve,
                 "cost_usd": active_budget.writing_cost_reserve_usd,
             },
+            "quote_quality": quote_quality_metrics(ledger.notes),
             # Collection protects this allocation, but the first version does
             # not yet estimate assembled-notes input before the writing call.
             # Keep the gap explicit until stage admission is implemented.

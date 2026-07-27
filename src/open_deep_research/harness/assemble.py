@@ -10,7 +10,7 @@ from open_deep_research.harness.checklist import (
     ChecklistItem,
     ResearchChecklist,
 )
-from open_deep_research.harness.notes import ResearchNote
+from open_deep_research.harness.notes import ResearchNote, source_evidence
 
 _DIMENSION_ORDER = {
     dimension: index
@@ -34,7 +34,14 @@ def _item_sort_key(item: ChecklistItem) -> tuple[int, int, str]:
 def _note_sort_key(note: ResearchNote) -> tuple[str, str, int, int, str, str]:
     start = note.span.start_char if note.span is not None else -1
     end = note.span.end_char if note.span is not None else -1
-    return (note.publisher, note.url, start, end, note.finding, note.quote)
+    return (
+        note.publisher,
+        note.url,
+        start,
+        end,
+        note.finding,
+        note.source_quote or "",
+    )
 
 
 def _quoted(value: str) -> str:
@@ -42,20 +49,33 @@ def _quoted(value: str) -> str:
 
 
 def _render_note(note: ResearchNote, number: int) -> list[str]:
+    evidence = source_evidence(note)
     span = (
-        f"{note.span.start_char}:{note.span.end_char}"
-        if note.span is not None
+        f"{evidence.span.start_char}:{evidence.span.end_char}"
+        if evidence is not None
         else "unlocatable"
     )
-    return [
+    lines = [
         f"### Note {number}",
         f"- Finding: {_quoted(note.finding)}",
-        f"- Quote: {_quoted(note.quote)}",
+        (
+            f"- Source quote: {_quoted(evidence.quote)}"
+            if evidence is not None
+            else "- Source quote: unavailable"
+        ),
         f"- URL: {_quoted(note.url)}",
         f"- Publisher: {_quoted(note.publisher)}",
         f"- Location: {note.location_status.value}",
         f"- Span: {span}",
     ]
+    if note.repair_method is not None:
+        lines.append(f"- Repair method: {note.repair_method.value}")
+    if note.failure_reason is not None:
+        lines.append(f"- Failure reason: {note.failure_reason.value}")
+        lines.append(
+            f"- Located fragment count: {note.located_fragment_count}"
+        )
+    return lines
 
 
 def _render_item(item: ChecklistItem, notes: list[ResearchNote]) -> list[str]:
@@ -105,7 +125,10 @@ def assemble_notes(
     if unmatched:
         lines.extend(("", "## unmatched notes"))
         for number, note in enumerate(
-            sorted(unmatched, key=lambda value: (value.item_id, *_note_sort_key(value))),
+            sorted(
+                unmatched,
+                key=lambda value: (value.item_id, *_note_sort_key(value)),
+            ),
             start=1,
         ):
             lines.extend(

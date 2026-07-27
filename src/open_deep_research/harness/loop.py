@@ -24,7 +24,12 @@ from open_deep_research.harness.checklist import (
 )
 from open_deep_research.harness.jsonio import loads_lenient
 from open_deep_research.harness.ledger import ResearchLedger, SettlementEvidence
-from open_deep_research.harness.notes import ResearchNote, create_note
+from open_deep_research.harness.notes import (
+    NoteLocationStatus,
+    QuoteFailureReason,
+    ResearchNote,
+    create_note,
+)
 from open_deep_research.harness.tools import (
     SearchResult,
     TavilyClient,
@@ -369,8 +374,23 @@ Read the single source below. Prioritize evidence that answers the active
 checklist item, while still extracting useful notes for any other checklist
 item the source answers. A note may target an item other than the action that
 led here.
-Copy each quote verbatim from the source without rewriting it. Return JSON only
-as {{"notes":[{{"item_id":"...","finding":"...","quote":"exact source text"}}]}}.
+
+Each quote must be one continuous passage copied verbatim from the source:
+- Do not use an ellipsis ("..." or "…").
+- Do not join text from separate passages or paragraphs.
+- Do not reorder words or clauses.
+- Do not change wording, whitespace, capitalization, or punctuation.
+- If one finding needs two non-contiguous passages, return two separate notes,
+  each with its own continuous verbatim quote.
+
+Purely structural example:
+Source text contains "First statement." and later "Second statement."
+Valid: two notes, one quoting "First statement." and one quoting
+"Second statement."
+Invalid: one note quoting "First statement. ... Second statement."
+
+Return JSON only as
+{{"notes":[{{"item_id":"...","finding":"...","quote":"exact source text"}}]}}.
 Returning {{"notes":[]}} is valid when the source answers nothing.
 
 Active checklist item:
@@ -426,10 +446,49 @@ def _note_summary(note: ResearchNote) -> dict[str, Any]:
     return {
         "item_id": note.item_id,
         "finding": note.finding,
-        "quote": note.quote,
+        "model_quote": note.model_quote,
+        "source_quote": note.source_quote,
         "url": note.url,
         "publisher": note.publisher,
         "location_status": note.location_status.value,
+        "failure_reason": (
+            note.failure_reason.value
+            if note.failure_reason is not None
+            else None
+        ),
+        "located_fragment_count": note.located_fragment_count,
+    }
+
+
+def quote_quality_metrics(notes: Sequence[ResearchNote]) -> dict[str, Any]:
+    """Return non-overlapping grounding rates over the supplied note set."""
+
+    total = len(notes)
+    strict = sum(
+        note.location_status is NoteLocationStatus.LOCATABLE for note in notes
+    )
+    repaired = sum(
+        note.location_status is NoteLocationStatus.REPAIRED_LOCATABLE
+        for note in notes
+    )
+    composite = sum(
+        note.failure_reason is QuoteFailureReason.NONCONTIGUOUS_COMPOSITE
+        for note in notes
+    )
+
+    def rate(count: int) -> float:
+        return round(count / total, 6) if total else 0.0
+
+    return {
+        "note_count": total,
+        "strict_locatable_count": strict,
+        "strict_locatable_rate": rate(strict),
+        "repaired_locatable_count": repaired,
+        "format_repair_rate": rate(repaired),
+        "usable_source_span_count": strict + repaired,
+        "usable_source_span_rate": rate(strict + repaired),
+        "noncontiguous_composite_count": composite,
+        "noncontiguous_composite_rate": rate(composite),
     }
 
 
@@ -530,6 +589,15 @@ def _build_decision_prompt(
         ),
         "search_candidates": _candidate_state(candidates or {}),
         "note_summaries": [_note_summary(note) for note in notes],
+        "quote_quality": {
+            "overall": quote_quality_metrics(notes),
+            "by_item": {
+                item.item_id: quote_quality_metrics(
+                    [note for note in notes if note.item_id == item.item_id]
+                )
+                for item in checklist.items
+            },
+        },
     }
     if sources:
         state["recalled_sources"] = sources

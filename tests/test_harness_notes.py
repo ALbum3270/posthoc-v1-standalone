@@ -1,6 +1,9 @@
 from open_deep_research.harness.notes import (
     NoteLocationStatus,
+    QuoteFailureReason,
+    QuoteRepairMethod,
     create_note,
+    source_evidence,
 )
 
 
@@ -19,7 +22,8 @@ def test_locatable_note_uses_exact_source_slice_and_offsets():
     assert note.is_locatable is True
     assert note.publisher == "example.com"
     assert note.span is not None
-    assert source[note.span.start_char : note.span.end_char] == note.quote
+    assert source[note.span.start_char : note.span.end_char] == note.source_quote
+    assert note.model_quote == "A source-backed sentence."
     assert note.span.model_dump() == {
         "start_char": source.index("A source-backed sentence."),
         "end_char": source.index("A source-backed sentence.")
@@ -39,7 +43,8 @@ def test_whitespace_tolerant_location_still_stores_verbatim_source_text():
     )
 
     assert note.is_locatable is True
-    assert note.quote == "The source has\nvariable spacing."
+    assert note.model_quote == "The source has variable spacing."
+    assert note.source_quote == "The source has\nvariable spacing."
 
 
 def test_unlocatable_note_is_marked_and_preserved_without_exception():
@@ -55,5 +60,87 @@ def test_unlocatable_note_is_marked_and_preserved_without_exception():
 
     assert note.location_status is NoteLocationStatus.UNLOCATABLE
     assert note.is_locatable is False
-    assert note.quote == requested_quote
+    assert note.model_quote == requested_quote
+    assert note.source_quote is None
     assert note.span is None
+    assert note.failure_reason is QuoteFailureReason.QUOTE_NOT_FOUND
+
+
+def test_unique_format_repair_keeps_model_and_source_quotes_separate():
+    source = "Ａlpha—Beta 2024"
+
+    note = create_note(
+        item_id="what-1",
+        finding="A formatting-only difference can be repaired.",
+        quote="alpha beta 2024.",
+        url="https://example.com/article",
+        source_text=source,
+    )
+
+    assert note.location_status is NoteLocationStatus.REPAIRED_LOCATABLE
+    assert note.is_locatable is False
+    assert note.has_usable_source_span is True
+    assert note.model_quote == "alpha beta 2024."
+    assert note.source_quote == source
+    assert note.repair_method is (
+        QuoteRepairMethod.NFKC_CASEFOLD_ALNUM_UNIQUE_CONTIGUOUS
+    )
+    assert note.span is not None
+    assert source[note.span.start_char : note.span.end_char] == note.source_quote
+
+
+def test_repair_rejects_ambiguous_numeric_and_overexpanded_candidates():
+    ambiguous = create_note(
+        item_id="what-1",
+        finding="An ambiguous match is not evidence.",
+        quote="ALPHA BETA!",
+        url="https://example.com/ambiguous",
+        source_text="Alpha beta. Later, alpha-beta appears again.",
+    )
+    numeric = create_note(
+        item_id="what-1",
+        finding="Numeric token boundaries cannot change.",
+        quote="Value 12-34",
+        url="https://example.com/numeric",
+        source_text="Value 1234",
+    )
+    expanded = create_note(
+        item_id="what-1",
+        finding="Removed punctuation cannot hide an unbounded source span.",
+        quote="AB",
+        url="https://example.com/expanded",
+        source_text="A" + ("-" * 65) + "B",
+    )
+
+    assert ambiguous.failure_reason is (
+        QuoteFailureReason.AMBIGUOUS_FORMAT_MATCH
+    )
+    assert numeric.failure_reason is (
+        QuoteFailureReason.NUMBER_SEQUENCE_MISMATCH
+    )
+    assert expanded.failure_reason is QuoteFailureReason.REPAIR_SPAN_TOO_LARGE
+    assert all(
+        note.location_status is NoteLocationStatus.UNLOCATABLE
+        for note in (ambiguous, numeric, expanded)
+    )
+
+
+def test_noncontiguous_diagnostic_never_creates_fragment_evidence():
+    source = "First continuous passage.\n\nIntervening text.\n\nSecond passage."
+    note = create_note(
+        item_id="how-1",
+        finding="One finding was backed by two separate passages.",
+        quote="First continuous passage. ... Second passage.",
+        url="https://example.com/composite",
+        source_text=source,
+    )
+
+    assert note.location_status is NoteLocationStatus.UNLOCATABLE
+    assert note.failure_reason is (
+        QuoteFailureReason.NONCONTIGUOUS_COMPOSITE
+    )
+    assert note.located_fragment_count == 2
+    assert note.source_quote is None
+    assert note.span is None
+    assert source_evidence(note) is None
+    assert "fragments" not in note.model_dump()

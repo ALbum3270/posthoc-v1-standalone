@@ -289,7 +289,10 @@ def test_cached_read_returns_note_ids_without_rerunning_note_model():
     assert len(note_model.prompts) == 1
     assert all(source in prompt for prompt in note_model.prompts)
     assert "Active checklist item:\nwhat-1" in note_model.prompts[0]
-    assert all("private-source-marker" not in prompt for prompt in decision_model.prompts)
+    assert all(
+        "private-source-marker" not in prompt
+        for prompt in decision_model.prompts
+    )
     assert '"consecutive_collection_failures": 1' in decision_model.prompts[1]
     assert [note.item_id for note in result.ledger.notes] == ["how-1"]
     assert result.consecutive_collection_failures["what-1"] == 2
@@ -644,3 +647,62 @@ def test_batch_status_updates_and_collection_action_run_in_the_same_round():
     first_round = json.loads(result.ledger.rounds[0].result_summary)
     assert first_round["status_updates"][0]["item_id"] == "what-1"
     assert first_round["result_count"] == 1
+
+
+def test_composite_quote_is_retained_once_and_its_rate_reaches_next_decision():
+    source = (
+        "First continuous passage.\n\n"
+        "Intervening text.\n\n"
+        "Second continuous passage."
+    )
+    decisions = [
+        envelope(
+            {
+                "action": "read",
+                "item_id": "what-1",
+                "url": "https://example.com/composite",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+    note_outputs = [
+        envelope(
+            {
+                "notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "Two passages support the finding.",
+                        "quote": (
+                            "First continuous passage. ... "
+                            "Second continuous passage."
+                        ),
+                    }
+                ]
+            }
+        )
+    ]
+
+    result, decision_model, note_model, _ = run_loop(
+        decisions,
+        notes=note_outputs,
+        tavily=FakeTavily(raw_text=source),
+    )
+
+    note_prompt = note_model.prompts[0]
+    assert "Each quote must be one continuous passage" in note_prompt
+    assert 'Do not use an ellipsis ("..." or "…")' in note_prompt
+    assert "return two separate notes" in note_prompt
+    assert all(
+        term not in note_prompt.casefold()
+        for term in ("receivership", "regulators", "asset_flow")
+    )
+
+    assert len(note_model.prompts) == 1
+    assert len(result.ledger.notes) == 1
+    note = result.ledger.notes[0]
+    assert note.location_status.value == "unlocatable"
+    assert note.failure_reason.value == "noncontiguous_composite"
+    assert note.located_fragment_count == 2
+    next_prompt = decision_model.prompts[1]
+    assert '"noncontiguous_composite_count": 1' in next_prompt
+    assert '"noncontiguous_composite_rate": 1.0' in next_prompt
