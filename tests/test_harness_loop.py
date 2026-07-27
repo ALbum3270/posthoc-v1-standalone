@@ -706,3 +706,216 @@ def test_composite_quote_is_retained_once_and_its_rate_reaches_next_decision():
     next_prompt = decision_model.prompts[1]
     assert '"noncontiguous_composite_count": 1' in next_prompt
     assert '"noncontiguous_composite_rate": 1.0' in next_prompt
+
+
+def test_invalid_status_update_is_rejected_without_losing_valid_parts():
+    decisions = [
+        envelope(
+            {
+                "status_updates": [
+                    {
+                        "item_id": "what-1",
+                        "status": "settled",
+                        "reason": "The available evidence is sufficient",
+                    },
+                    {
+                        "item_id": "how-1",
+                        "status": "has_material",
+                        "reason": "The model tried to mirror system state",
+                    },
+                ],
+                "action": {
+                    "action": "search",
+                    "item_id": "how-1",
+                    "query": "continue researching the open item",
+                },
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+
+    result, decision_model, _, client = run_loop(decisions)
+
+    assert result.checklist.get("what-1").status is ChecklistStatus.SETTLED
+    assert result.checklist.get("how-1").status is ChecklistStatus.UNEXPLORED
+    assert len(client.search_calls) == 1
+    assert [record.action for record in result.ledger.rounds] == [
+        "search",
+        "stop",
+    ]
+    rejected = [
+        record
+        for record in result.ledger.checklist_history
+        if record.event == "status_update" and not record.accepted
+    ]
+    assert len(rejected) == 1
+    assert rejected[0].item_id == "how-1"
+    assert rejected[0].from_status == "unexplored"
+    assert rejected[0].to_status == "has_material"
+    first_round = json.loads(result.ledger.rounds[0].result_summary)
+    assert first_round["status_updates"][0]["item_id"] == "what-1"
+    assert first_round["rejected_status_updates"][0]["item_id"] == "how-1"
+    assert "Input should be 'settled' or 'exhausted_not_found'" in (
+        first_round["rejected_status_updates"][0]["error"]
+    )
+    prompt = decision_model.prompts[0]
+    assert "status_updates accepts terminal judgements only" in prompt
+    assert 'Never put "unexplored" or "has_material"' in prompt
+
+
+def test_partial_success_resets_malformed_streak_but_no_executable_part_does_not():
+    partial = {
+        "status_updates": [
+            {
+                "item_id": "how-1",
+                "status": "has_material",
+                "reason": "Invalid mirror of system state",
+            }
+        ],
+        "action": {
+            "action": "search",
+            "item_id": "how-1",
+            "query": "valid action survives",
+        },
+    }
+    result, model, _, _ = run_loop(
+        [
+            envelope("{"),
+            envelope(partial),
+            envelope("{"),
+            envelope({"action": "stop"}),
+        ],
+        budget=LoopBudget(
+            max_rounds=10,
+            max_tokens=100,
+            max_cost_usd=10,
+            max_consecutive_malformed_actions=2,
+        ),
+    )
+
+    assert len(model.prompts) == 4
+    assert result.stop_reason is StopReason.MODEL_STOP_WITH_OPEN_ITEMS
+    assert [record.action for record in result.ledger.rounds] == [
+        "invalid_action",
+        "search",
+        "invalid_action",
+        "stop",
+    ]
+
+    rejected_only, _, _, _ = run_loop(
+        [
+            envelope(
+                {
+                    "status_updates": [
+                        {
+                            "item_id": "what-1",
+                            "status": "unexplored",
+                            "reason": "No executable component",
+                        }
+                    ],
+                    "action": None,
+                }
+            )
+        ],
+        budget=LoopBudget(
+            max_rounds=10,
+            max_tokens=100,
+            max_cost_usd=10,
+            max_consecutive_malformed_actions=1,
+        ),
+    )
+    assert rejected_only.stop_reason is StopReason.MALFORMED_ACTION_LIMIT
+    assert rejected_only.ledger.rounds[0].action == "invalid_action"
+
+
+def test_note_index_is_compact_and_model_pages_then_recalls_selected_notes():
+    active = checklist(second=False)
+    ledger = ResearchLedger(topic=active.topic)
+    source = "Exact quote one. Exact quote two. Exact quote three. Exact quote four."
+    url = "https://example.com/page"
+    ledger.cache_source(url, source)
+    for number in range(1, 5):
+        quote = f"Exact quote {('one', 'two', 'three', 'four')[number - 1]}."
+        ledger.add_note(
+            create_note(
+                item_id="what-1",
+                finding=f"Finding marker {number}",
+                quote=quote,
+                url=url,
+                source_text=source,
+            )
+        )
+
+    decisions = [
+        envelope(
+            {
+                "action": "inspect_notes",
+                "item_id": "what-1",
+                "cursor": None,
+            }
+        ),
+        envelope(
+            {
+                "action": "inspect_notes",
+                "item_id": "what-1",
+                "cursor": "2",
+            }
+        ),
+        envelope(
+            {
+                "action": "recall_notes",
+                "item_id": "what-1",
+                "note_ids": ["note-000002", "note-000004"],
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+
+    result, decision_model, _, _ = run_loop(
+        decisions,
+        active_checklist=active,
+        active_ledger=ledger,
+        settings=LoopSettings(note_page_size=2, max_recalled_notes=2),
+    )
+
+    initial_prompt = decision_model.prompts[0]
+    assert '"note_count": 4' in initial_prompt
+    assert '"can_inspect": true' in initial_prompt
+    assert "Finding marker 1" not in initial_prompt
+    assert "Exact quote one." not in initial_prompt
+
+    first_page_prompt = decision_model.prompts[1]
+    assert "Finding marker 1" in first_page_prompt
+    assert "Finding marker 2" in first_page_prompt
+    assert "Finding marker 3" not in first_page_prompt
+    assert "Exact quote one." not in first_page_prompt
+
+    second_page_prompt = decision_model.prompts[2]
+    assert "Finding marker 1" not in second_page_prompt
+    assert "Finding marker 3" in second_page_prompt
+    assert "Finding marker 4" in second_page_prompt
+
+    recalled_prompt = decision_model.prompts[3]
+    assert '"note_id": "note-000002"' in recalled_prompt
+    assert '"note_id": "note-000004"' in recalled_prompt
+    assert "Exact quote two." in recalled_prompt
+    assert "Exact quote four." in recalled_prompt
+    assert "Exact quote one." not in recalled_prompt
+
+    assert [note.note_id for note in ledger.notes] == [
+        "note-000001",
+        "note-000002",
+        "note-000003",
+        "note-000004",
+    ]
+    assert len({note.source_id for note in ledger.notes}) == 1
+    assert result.consecutive_collection_failures["what-1"] == 0
+    first_audit = json.loads(ledger.rounds[0].result_summary)
+    second_audit = json.loads(ledger.rounds[1].result_summary)
+    recall_audit = json.loads(ledger.rounds[2].result_summary)
+    assert first_audit["next_cursor"] == "2"
+    assert second_audit["next_cursor"] is None
+    assert recall_audit["recalled_note_ids"] == [
+        "note-000002",
+        "note-000004",
+    ]

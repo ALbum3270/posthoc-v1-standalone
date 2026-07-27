@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from hashlib import sha256
 from enum import Enum
 from typing import Any
 from urllib.parse import urlparse
@@ -15,6 +16,14 @@ from open_deep_research.graphrag.validation.grounding import locate_source_quote
 _ELLIPSIS = re.compile(r"\s*(?:\.{3,}|…)\s*")
 _DIGIT_RUN = re.compile(r"\d+")
 _MAX_REPAIR_SPAN_EXPANSION_CHARS = 64
+
+
+def source_id_for_url(url: str) -> str:
+    """Return one deterministic compact identifier for a normalized URL."""
+
+    normalized = url.strip()
+    digest = sha256(normalized.encode("utf-8")).hexdigest()[:16]
+    return f"source-{digest}"
 
 
 class NoteLocationStatus(str, Enum):
@@ -85,6 +94,8 @@ class ResearchNote(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     item_id: str = Field(min_length=1)
+    note_id: str | None = None
+    source_id: str = Field(min_length=1)
     finding: str = Field(min_length=1)
     model_quote: str
     source_quote: str | None = None
@@ -101,23 +112,27 @@ class ResearchNote(BaseModel):
     def _migrate_legacy_quote(cls, value: Any) -> Any:
         """Accept frozen pre-dual-field fixtures without changing their bytes."""
 
-        if not isinstance(value, dict) or "quote" not in value:
+        if not isinstance(value, dict):
             return value
         migrated = dict(value)
-        legacy_quote = str(migrated.pop("quote"))
-        status = migrated.get("location_status")
-        migrated.setdefault("model_quote", legacy_quote)
-        if status in {
-            NoteLocationStatus.LOCATABLE,
-            NoteLocationStatus.LOCATABLE.value,
-        }:
-            migrated.setdefault("source_quote", legacy_quote)
-        else:
-            migrated.setdefault("source_quote", None)
-            migrated.setdefault(
-                "failure_reason",
-                QuoteFailureReason.QUOTE_NOT_FOUND.value,
-            )
+        url = migrated.get("url")
+        if "source_id" not in migrated and isinstance(url, str):
+            migrated["source_id"] = source_id_for_url(url)
+        if "quote" in migrated:
+            legacy_quote = str(migrated.pop("quote"))
+            status = migrated.get("location_status")
+            migrated.setdefault("model_quote", legacy_quote)
+            if status in {
+                NoteLocationStatus.LOCATABLE,
+                NoteLocationStatus.LOCATABLE.value,
+            }:
+                migrated.setdefault("source_quote", legacy_quote)
+            else:
+                migrated.setdefault("source_quote", None)
+                migrated.setdefault(
+                    "failure_reason",
+                    QuoteFailureReason.QUOTE_NOT_FOUND.value,
+                )
         migrated.setdefault("located_fragment_count", 0)
         return migrated
 
@@ -279,6 +294,7 @@ def create_note(
         source_quote = located.quote or ""
         return ResearchNote(
             item_id=item_id.strip(),
+            source_id=source_id_for_url(normalized_url),
             finding=finding.strip(),
             model_quote=quote,
             source_quote=source_quote,
@@ -295,6 +311,7 @@ def create_note(
     if fragment_count >= 2:
         return ResearchNote(
             item_id=item_id.strip(),
+            source_id=source_id_for_url(normalized_url),
             finding=finding.strip(),
             model_quote=quote,
             url=normalized_url,
@@ -312,6 +329,7 @@ def create_note(
     if repaired_span is not None:
         return ResearchNote(
             item_id=item_id.strip(),
+            source_id=source_id_for_url(normalized_url),
             finding=finding.strip(),
             model_quote=quote,
             source_quote=source_text[
@@ -330,6 +348,7 @@ def create_note(
         raise RuntimeError("failed quote repair did not provide a reason")
     return ResearchNote(
         item_id=item_id.strip(),
+        source_id=source_id_for_url(normalized_url),
         finding=finding.strip(),
         model_quote=quote,
         url=normalized_url,

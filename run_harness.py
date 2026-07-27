@@ -202,6 +202,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--note-page-size",
+        type=int,
+        default=8,
+        help="number of note summaries returned by inspect_notes",
+    )
+    parser.add_argument(
+        "--max-recalled-notes",
+        type=int,
+        default=8,
+        help="maximum full notes injected by one recall_notes action",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("harness_runs"),
@@ -230,6 +242,8 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             ),
             loop_settings=LoopSettings(
                 decision_source_char_limit=args.source_char_limit,
+                note_page_size=args.note_page_size,
+                max_recalled_notes=args.max_recalled_notes,
             ),
             output_dir=args.output_dir,
             run_id=args.run_id,

@@ -22,6 +22,7 @@ from open_deep_research.harness.ledger import (
 )
 from open_deep_research.harness.loop import (
     DecisionTurn,
+    InspectNotesAction,
     LoopBudget,
     LoopResult,
     LoopSettings,
@@ -29,6 +30,7 @@ from open_deep_research.harness.loop import (
     ReadAction,
     ReanalyzeAction,
     RecallAction,
+    RecallNotesAction,
     SearchAction,
     SettleAction,
     StopAction,
@@ -47,6 +49,7 @@ from open_deep_research.harness.notes import (
     ResearchNote,
     SourceEvidence,
     create_note,
+    source_id_for_url,
     source_evidence,
 )
 from open_deep_research.harness.runner import (
@@ -78,6 +81,7 @@ __all__ = [
     "ChecklistItem",
     "ChecklistStatus",
     "DecisionTurn",
+    "InspectNotesAction",
     "LoopBudget",
     "LoopResult",
     "LoopSettings",
@@ -88,6 +92,7 @@ __all__ = [
     "QuoteSpan",
     "ReadAction",
     "ReanalyzeAction",
+    "RecallNotesAction",
     "ResearchChecklist",
     "ResearchLedger",
     "ResearchNote",
@@ -119,5 +124,6 @@ __all__ = [
     "parse_report_citations",
     "quote_quality_metrics",
     "source_evidence",
+    "source_id_for_url",
     "write_report",
 ]

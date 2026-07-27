@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 from collections.abc import Awaitable, Mapping, Sequence
+from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, Any, Literal, Protocol
 
@@ -93,6 +94,8 @@ class LoopSettings(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     decision_source_char_limit: int = Field(default=100_000, ge=0)
+    note_page_size: int = Field(default=8, ge=1, le=50)
+    max_recalled_notes: int = Field(default=8, ge=1, le=50)
 
 
 class ModelEnvelope(BaseModel):
@@ -187,6 +190,43 @@ class RecallAction(_ItemAction):
         return normalized
 
 
+class InspectNotesAction(_ItemAction):
+    """Page through compact note summaries for one checklist item."""
+
+    action: Literal["inspect_notes"]
+    cursor: str | None = None
+
+    @field_validator("cursor")
+    @classmethod
+    def _cursor_is_not_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("cursor must be null or a non-blank string")
+        return normalized
+
+
+class RecallNotesAction(_ItemAction):
+    """Recall full details for explicitly selected stable note IDs."""
+
+    action: Literal["recall_notes"]
+    note_ids: tuple[str, ...] = Field(min_length=1, max_length=50)
+
+    @field_validator("note_ids")
+    @classmethod
+    def _note_ids_are_unique_and_nonblank(
+        cls,
+        value: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        normalized = tuple(note_id.strip() for note_id in value)
+        if any(not note_id for note_id in normalized):
+            raise ValueError("note_ids must not contain blank values")
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("note_ids must be unique")
+        return normalized
+
+
 class SettleAction(_ItemAction):
     """Mark one checklist item as sufficiently researched."""
 
@@ -221,6 +261,8 @@ LoopAction = Annotated[
     | ReadAction
     | ReanalyzeAction
     | RecallAction
+    | InspectNotesAction
+    | RecallNotesAction
     | SettleAction
     | MarkExhaustedAction
     | StopAction,
@@ -229,9 +271,16 @@ LoopAction = Annotated[
 _ACTION_ADAPTER = TypeAdapter(LoopAction)
 
 PrimaryAction = Annotated[
-    SearchAction | ReadAction | ReanalyzeAction | RecallAction | StopAction,
+    SearchAction
+    | ReadAction
+    | ReanalyzeAction
+    | RecallAction
+    | InspectNotesAction
+    | RecallNotesAction
+    | StopAction,
     Field(discriminator="action"),
 ]
+_PRIMARY_ACTION_ADAPTER = TypeAdapter(PrimaryAction)
 
 
 class StatusUpdate(BaseModel):
@@ -268,6 +317,16 @@ class DecisionTurn(BaseModel):
         if not self.status_updates and self.action is None:
             raise ValueError("a decision needs a status update or an action")
         return self
+
+
+@dataclass(frozen=True)
+class _DecisionParse:
+    """Executable pieces plus independently rejected model output."""
+
+    turn: DecisionTurn | None
+    error: str | None = None
+    rejected_status_updates: tuple[dict[str, Any], ...] = ()
+    rejected_action: dict[str, Any] | None = None
 
 
 class NoteDraft(BaseModel):
@@ -339,11 +398,17 @@ Return this JSON shape:
 ],"action":{{"action":"search|read|reanalyze|recall|stop", ...}}}}
 
 status_updates may contain any number of distinct checklist items. Give every
-update its own reason. The optional action is one of:
+update its own reason. status_updates accepts terminal judgements only:
+"settled" or "exhausted_not_found". Never put "unexplored" or "has_material"
+in status_updates; the system maintains those non-terminal states.
+
+The optional action is one of:
 {{"action":"search","item_id":"...","query":"..."}}
 {{"action":"read","item_id":"...","url":"..."}}
 {{"action":"reanalyze","item_id":"...","url":"...","reason":"..."}}
 {{"action":"recall","item_id":"...","url":"..."}}
+{{"action":"inspect_notes","item_id":"...","cursor":null}}
+{{"action":"recall_notes","item_id":"...","note_ids":["note-000001"]}}
 {{"action":"stop"}}
 
 The action item_id identifies the checklist item this round is working on.
@@ -361,6 +426,10 @@ You normally see note summaries rather than source bodies. When a summary is not
 enough, recall an already-read url and its full text joins the next round's
 state. Recall as often as you need; the oldest recalled sources drop out first
 once the character budget is reached.
+
+The default state contains only a compact note index. Use inspect_notes to page
+through one item's note summaries. Use the returned next_cursor to continue.
+Use recall_notes when you need full quote and span details for selected note IDs.
 
 Return JSON only.
 
@@ -444,6 +513,8 @@ def _remember_candidates(
 
 def _note_summary(note: ResearchNote) -> dict[str, Any]:
     return {
+        "note_id": note.note_id,
+        "source_id": note.source_id,
         "item_id": note.item_id,
         "finding": note.finding,
         "model_quote": note.model_quote,
@@ -457,6 +528,25 @@ def _note_summary(note: ResearchNote) -> dict[str, Any]:
             else None
         ),
         "located_fragment_count": note.located_fragment_count,
+    }
+
+
+def _inspect_note_summary(note: ResearchNote) -> dict[str, Any]:
+    """Return finding-level detail without injecting either quote body."""
+
+    return {
+        "note_id": note.note_id,
+        "source_id": note.source_id,
+        "item_id": note.item_id,
+        "finding": note.finding,
+        "url": note.url,
+        "publisher": note.publisher,
+        "location_status": note.location_status.value,
+        "failure_reason": (
+            note.failure_reason.value
+            if note.failure_reason is not None
+            else None
+        ),
     }
 
 
@@ -490,6 +580,116 @@ def quote_quality_metrics(notes: Sequence[ResearchNote]) -> dict[str, Any]:
         "noncontiguous_composite_count": composite,
         "noncontiguous_composite_rate": rate(composite),
     }
+
+
+def _compact_note_index(
+    checklist: ResearchChecklist,
+    notes: Sequence[ResearchNote],
+) -> dict[str, Any]:
+    """Summarize durable notes without turning the ledger into a prompt buffer."""
+
+    by_item: list[dict[str, Any]] = []
+    for item in checklist.items:
+        item_notes = [note for note in notes if note.item_id == item.item_id]
+        by_item.append(
+            {
+                "item_id": item.item_id,
+                "note_count": len(item_notes),
+                "publisher_count": len(
+                    {note.publisher for note in item_notes}
+                ),
+                "source_count": len({note.source_id for note in item_notes}),
+                "quote_quality": quote_quality_metrics(item_notes),
+                "can_inspect": bool(item_notes),
+            }
+        )
+
+    source_groups: dict[str, dict[str, Any]] = {}
+    for note in notes:
+        group = source_groups.setdefault(
+            note.source_id,
+            {
+                "source_id": note.source_id,
+                "url": note.url,
+                "publisher": note.publisher,
+                "note_count": 0,
+                "item_ids": set(),
+            },
+        )
+        group["note_count"] += 1
+        group["item_ids"].add(note.item_id)
+    by_source = [
+        {
+            **group,
+            "item_ids": sorted(group["item_ids"]),
+        }
+        for group in sorted(
+            source_groups.values(),
+            key=lambda value: (value["publisher"], value["url"]),
+        )
+    ]
+    return {
+        "note_count": len(notes),
+        "by_item": by_item,
+        "by_source": by_source,
+    }
+
+
+def _inspect_notes_page(
+    ledger: ResearchLedger,
+    *,
+    item_id: str,
+    cursor: str | None,
+    page_size: int,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Return one deterministic page or a memory-action error."""
+
+    if cursor is None:
+        offset = 0
+    elif cursor.isdigit():
+        offset = int(cursor)
+    else:
+        return None, "cursor must be a non-negative decimal offset"
+
+    item_notes = [note for note in ledger.notes if note.item_id == item_id]
+    if offset > len(item_notes):
+        return None, (
+            f"cursor {offset} is past the item note count {len(item_notes)}"
+        )
+    page_notes = item_notes[offset : offset + page_size]
+    next_offset = offset + len(page_notes)
+    next_cursor = str(next_offset) if next_offset < len(item_notes) else None
+    return {
+        "item_id": item_id,
+        "cursor": cursor,
+        "notes": [_inspect_note_summary(note) for note in page_notes],
+        "returned_count": len(page_notes),
+        "total_count": len(item_notes),
+        "next_cursor": next_cursor,
+    }, None
+
+
+def _recall_note_details(
+    ledger: ResearchLedger,
+    note_ids: Sequence[str],
+    *,
+    max_notes: int,
+) -> tuple[list[dict[str, Any]], list[str], bool]:
+    requested = list(note_ids)
+    truncated = len(requested) > max_notes
+    allowed = requested[:max_notes]
+    notes_by_id = {
+        note.note_id: note
+        for note in ledger.notes
+        if note.note_id is not None
+    }
+    found = [
+        _note_summary(notes_by_id[note_id])
+        for note_id in allowed
+        if note_id in notes_by_id
+    ]
+    missing = [note_id for note_id in allowed if note_id not in notes_by_id]
+    return found, missing, truncated
 
 
 def _checklist_state(
@@ -573,6 +773,8 @@ def _build_decision_prompt(
     cost_used_usd: float,
     recalled_urls: Sequence[str] = (),
     candidates: Mapping[str, dict[str, Any]] | None = None,
+    inspected_note_page: Mapping[str, Any] | None = None,
+    recalled_notes: Sequence[Mapping[str, Any]] = (),
 ) -> tuple[str, dict[str, Any]]:
     sources, injection_audit = _source_injection(ledger, settings, recalled_urls)
 
@@ -588,17 +790,13 @@ def _build_decision_prompt(
             cost_used_usd=cost_used_usd,
         ),
         "search_candidates": _candidate_state(candidates or {}),
-        "note_summaries": [_note_summary(note) for note in notes],
-        "quote_quality": {
-            "overall": quote_quality_metrics(notes),
-            "by_item": {
-                item.item_id: quote_quality_metrics(
-                    [note for note in notes if note.item_id == item.item_id]
-                )
-                for item in checklist.items
-            },
-        },
+        "note_index": _compact_note_index(checklist, notes),
+        "quote_quality": quote_quality_metrics(notes),
     }
+    if inspected_note_page is not None:
+        state["inspected_note_page"] = inspected_note_page
+    if recalled_notes:
+        state["recalled_notes"] = list(recalled_notes)
     if sources:
         state["recalled_sources"] = sources
     prompt = DECISION_PROMPT.format(
@@ -620,6 +818,8 @@ def build_decision_prompt(
     cost_used_usd: float = 0.0,
     recalled_urls: Sequence[str] = (),
     candidates: Mapping[str, dict[str, Any]] | None = None,
+    inspected_note_page: Mapping[str, Any] | None = None,
+    recalled_notes: Sequence[Mapping[str, Any]] = (),
 ) -> str:
     """Build a decision prompt holding only the sources the model recalled."""
 
@@ -635,6 +835,8 @@ def build_decision_prompt(
         cost_used_usd=cost_used_usd,
         recalled_urls=recalled_urls,
         candidates=candidates,
+        inspected_note_page=inspected_note_page,
+        recalled_notes=recalled_notes,
     )
     return prompt
 
@@ -707,21 +909,92 @@ def _decode_json_content(content: Any) -> Any:
     return content
 
 
-def _parse_decision(content: Any) -> tuple[DecisionTurn | None, str | None]:
+def _rejected_update(
+    index: int | None,
+    raw: Any,
+    error: str,
+) -> dict[str, Any]:
+    return {
+        "index": index,
+        "raw": raw,
+        "error": error,
+    }
+
+
+def _parse_decision(content: Any) -> _DecisionParse:
     try:
         decoded = _decode_json_content(content)
         if isinstance(decoded, Mapping) and (
             "status_updates" in decoded
             or isinstance(decoded.get("action"), Mapping)
         ):
-            return DecisionTurn.model_validate(decoded), None
+            rejected_updates: list[dict[str, Any]] = []
+            valid_updates: list[StatusUpdate] = []
+            seen_item_ids: set[str] = set()
+            raw_updates = decoded.get("status_updates", ())
+            if not isinstance(raw_updates, (list, tuple)):
+                rejected_updates.append(
+                    _rejected_update(
+                        None,
+                        raw_updates,
+                        "status_updates must be an array",
+                    )
+                )
+                raw_updates = ()
+            for index, raw_update in enumerate(raw_updates):
+                try:
+                    update = StatusUpdate.model_validate(raw_update)
+                except (TypeError, ValidationError, ValueError) as exc:
+                    rejected_updates.append(
+                        _rejected_update(index, raw_update, str(exc))
+                    )
+                    continue
+                if update.item_id in seen_item_ids:
+                    rejected_updates.append(
+                        _rejected_update(
+                            index,
+                            raw_update,
+                            f"duplicate item_id {update.item_id!r}",
+                        )
+                    )
+                    continue
+                seen_item_ids.add(update.item_id)
+                valid_updates.append(update)
+
+            action: PrimaryAction | None = None
+            rejected_action: dict[str, Any] | None = None
+            raw_action = decoded.get("action")
+            if raw_action is not None:
+                try:
+                    action = _PRIMARY_ACTION_ADAPTER.validate_python(raw_action)
+                except (TypeError, ValidationError, ValueError) as exc:
+                    rejected_action = {
+                        "raw": raw_action,
+                        "error": str(exc),
+                    }
+
+            if valid_updates or action is not None:
+                return _DecisionParse(
+                    turn=DecisionTurn(
+                        status_updates=tuple(valid_updates),
+                        action=action,
+                    ),
+                    rejected_status_updates=tuple(rejected_updates),
+                    rejected_action=rejected_action,
+                )
+            return _DecisionParse(
+                turn=None,
+                error="malformed action: no executable turn components",
+                rejected_status_updates=tuple(rejected_updates),
+                rejected_action=rejected_action,
+            )
 
         # Preserve compatibility with already recorded scripted runs and simple
         # clients that still emit the original one-action protocol.
         legacy = _ACTION_ADAPTER.validate_python(decoded)
         if isinstance(legacy, SettleAction):
-            return (
-                DecisionTurn(
+            return _DecisionParse(
+                turn=DecisionTurn(
                     status_updates=(
                         StatusUpdate(
                             item_id=legacy.item_id,
@@ -730,11 +1003,10 @@ def _parse_decision(content: Any) -> tuple[DecisionTurn | None, str | None]:
                         ),
                     ),
                 ),
-                None,
             )
         if isinstance(legacy, MarkExhaustedAction):
-            return (
-                DecisionTurn(
+            return _DecisionParse(
+                turn=DecisionTurn(
                     status_updates=(
                         StatusUpdate(
                             item_id=legacy.item_id,
@@ -743,11 +1015,108 @@ def _parse_decision(content: Any) -> tuple[DecisionTurn | None, str | None]:
                         ),
                     ),
                 ),
-                None,
             )
-        return DecisionTurn(action=legacy), None
+        return _DecisionParse(turn=DecisionTurn(action=legacy))
     except (json.JSONDecodeError, TypeError, ValidationError, ValueError) as exc:
-        return None, f"malformed action: {exc}"
+        return _DecisionParse(
+            turn=None,
+            error=f"malformed action: {exc}",
+        )
+
+
+def _prepare_decision(
+    parsed: _DecisionParse,
+    *,
+    checklist: ResearchChecklist,
+    ledger: ResearchLedger,
+) -> tuple[
+    DecisionTurn | None,
+    str | None,
+    list[dict[str, Any]],
+    dict[str, Any] | None,
+]:
+    """Reject invalid components independently and retain executable pieces."""
+
+    rejected_updates = list(parsed.rejected_status_updates)
+    rejected_action = parsed.rejected_action
+    valid_updates: list[StatusUpdate] = []
+    action: PrimaryAction | None = None
+
+    if parsed.turn is not None:
+        for update in parsed.turn.status_updates:
+            try:
+                checklist.get(update.item_id)
+            except KeyError:
+                rejected_updates.append(
+                    _rejected_update(
+                        None,
+                        update.model_dump(mode="json"),
+                        f"unknown item_id {update.item_id!r}",
+                    )
+                )
+            else:
+                valid_updates.append(update)
+
+        action = parsed.turn.action
+        if isinstance(action, _ItemAction):
+            try:
+                checklist.get(action.item_id)
+            except KeyError:
+                rejected_action = {
+                    "raw": action.model_dump(mode="json"),
+                    "error": f"unknown item_id {action.item_id!r}",
+                }
+                action = None
+
+    rejection_audit: list[dict[str, Any]] = []
+    for rejection in rejected_updates:
+        raw = rejection.get("raw")
+        raw_mapping = raw if isinstance(raw, Mapping) else {}
+        raw_item_id = raw_mapping.get("item_id")
+        item_id = (
+            raw_item_id.strip()
+            if isinstance(raw_item_id, str) and raw_item_id.strip()
+            else "<missing>"
+        )
+        raw_status = raw_mapping.get("status")
+        to_status = raw_status if isinstance(raw_status, str) else None
+        try:
+            from_status = checklist.get(item_id).status.value
+        except KeyError:
+            from_status = None
+        reason = f"rejected model status update: {rejection['error']}"
+        ledger.record_checklist_change(
+            event="status_update",
+            item_id=item_id,
+            accepted=False,
+            reason=reason,
+            from_status=from_status,
+            to_status=to_status,
+        )
+        rejection_audit.append(
+            {
+                **rejection,
+                "item_id": item_id,
+                "status": to_status,
+            }
+        )
+
+    if valid_updates or action is not None:
+        return (
+            DecisionTurn(
+                status_updates=tuple(valid_updates),
+                action=action,
+            ),
+            None,
+            rejection_audit,
+            rejected_action,
+        )
+    return (
+        None,
+        parsed.error or "malformed action: no executable turn components",
+        rejection_audit,
+        rejected_action,
+    )
 
 
 def _parse_notes(content: Any) -> tuple[NoteBatch | None, str | None]:
@@ -991,7 +1360,7 @@ async def _extract_notes(
         except Exception as exc:  # noqa: BLE001 - preserve the rest of the batch
             creation_errors.append(str(exc))
             continue
-        ledger.add_note(note)
+        note = ledger.add_note(note)
         created.append(note)
         item = current.get(draft.item_id)
         if item.status is ChecklistStatus.UNEXPLORED:
@@ -1096,6 +1465,8 @@ async def run_research_loop(
 
     consecutive_malformed = 0
     recalled: list[str] = []
+    inspected_note_page: dict[str, Any] | None = None
+    recalled_note_details: list[dict[str, Any]] = []
     candidates: dict[str, dict[str, Any]] = {}
     while True:
         budget_before_decision = _budget_state(
@@ -1116,6 +1487,8 @@ async def run_research_loop(
             cost_used_usd=total_cost,
             recalled_urls=recalled,
             candidates=candidates,
+            inspected_note_page=inspected_note_page,
+            recalled_notes=recalled_note_details,
         )
         rounds_executed += 1
         response: Any = None
@@ -1134,24 +1507,21 @@ async def run_research_loop(
         total_cost += decision_cost
 
         turn: DecisionTurn | None = None
+        rejected_status_updates: list[dict[str, Any]] = []
+        rejected_action: dict[str, Any] | None = None
         action_error = decision_error or envelope_error
         if action_error is None and envelope is not None:
-            turn, action_error = _parse_decision(envelope.content)
-        if turn is not None:
-            referenced_item_ids = [update.item_id for update in turn.status_updates]
-            if isinstance(turn.action, _ItemAction):
-                referenced_item_ids.append(turn.action.item_id)
-            unknown_ids = [
-                item_id
-                for item_id in referenced_item_ids
-                if item_id not in collection_failures
-            ]
-            if unknown_ids:
-                action_error = (
-                    "malformed action: unknown item_id values "
-                    f"{sorted(set(unknown_ids))!r}"
-                )
-                turn = None
+            parsed = _parse_decision(envelope.content)
+            (
+                turn,
+                action_error,
+                rejected_status_updates,
+                rejected_action,
+            ) = _prepare_decision(
+                parsed,
+                checklist=current,
+                ledger=ledger,
+            )
 
         summary: dict[str, Any] = {}
         query: str | None = None
@@ -1387,6 +1757,51 @@ async def run_research_loop(
                         "detail": "url is not in the source cache",
                     }
 
+            elif isinstance(action, InspectNotesAction):
+                page, page_error = _inspect_notes_page(
+                    ledger,
+                    item_id=action.item_id,
+                    cursor=action.cursor,
+                    page_size=context_settings.note_page_size,
+                )
+                if page is None:
+                    summary = {
+                        "item_id": action.item_id,
+                        "cursor": action.cursor,
+                        "inspected": False,
+                        "detail": page_error,
+                    }
+                else:
+                    inspected_note_page = page
+                    summary = {
+                        "item_id": action.item_id,
+                        "cursor": action.cursor,
+                        "inspected": True,
+                        "returned_note_ids": [
+                            note["note_id"] for note in page["notes"]
+                        ],
+                        "returned_count": page["returned_count"],
+                        "total_count": page["total_count"],
+                        "next_cursor": page["next_cursor"],
+                    }
+
+            elif isinstance(action, RecallNotesAction):
+                details, missing_ids, truncated = _recall_note_details(
+                    ledger,
+                    action.note_ids,
+                    max_notes=context_settings.max_recalled_notes,
+                )
+                recalled_note_details = details
+                summary = {
+                    "requested_note_ids": list(action.note_ids),
+                    "recalled_note_ids": [
+                        note["note_id"] for note in details
+                    ],
+                    "missing_note_ids": missing_ids,
+                    "truncated": truncated,
+                    "max_recalled_notes": context_settings.max_recalled_notes,
+                }
+
             elif isinstance(action, StopAction):
                 open_ids = _open_item_ids(current)
                 summary = {"open_item_ids": list(open_ids)}
@@ -1395,6 +1810,10 @@ async def run_research_loop(
 
         if status_audit:
             summary["status_updates"] = status_audit
+        if rejected_status_updates:
+            summary["rejected_status_updates"] = rejected_status_updates
+        if rejected_action is not None:
+            summary["rejected_action"] = rejected_action
         summary["decision_context"] = context_audit
         summary["budget_before_decision"] = budget_before_decision
 

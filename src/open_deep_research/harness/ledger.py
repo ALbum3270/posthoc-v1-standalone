@@ -77,6 +77,33 @@ class ResearchLedger(BaseModel):
     notes: list[ResearchNote] = Field(default_factory=list)
     checklist_history: list[ChecklistChangeRecord] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def _assign_missing_note_ids(self) -> ResearchLedger:
+        """Give legacy serialized notes stable ledger-local identifiers."""
+
+        explicit_ids = [
+            note.note_id for note in self.notes if note.note_id is not None
+        ]
+        if len(explicit_ids) != len(set(explicit_ids)):
+            raise ValueError("ledger note_id values must be unique")
+
+        used_ids = set(explicit_ids)
+        normalized_notes: list[ResearchNote] = []
+        next_number = 1
+        for note in self.notes:
+            if note.note_id is None:
+                note_id = f"note-{next_number:06d}"
+                while note_id in used_ids:
+                    next_number += 1
+                    note_id = f"note-{next_number:06d}"
+                note = note.model_copy(update={"note_id": note_id})
+                used_ids.add(note_id)
+            normalized_notes.append(note)
+            next_number += 1
+
+        self.notes[:] = normalized_notes
+        return self
+
     def record_round(
         self,
         *,
@@ -124,6 +151,20 @@ class ResearchLedger(BaseModel):
     def add_note(self, note: ResearchNote) -> ResearchNote:
         """Retain a note regardless of quote-location status."""
 
+        if note.note_id is None:
+            used_ids = {
+                candidate.note_id
+                for candidate in self.notes
+                if candidate.note_id is not None
+            }
+            number = len(self.notes) + 1
+            note_id = f"note-{number:06d}"
+            while note_id in used_ids:
+                number += 1
+                note_id = f"note-{number:06d}"
+            note = note.model_copy(update={"note_id": note_id})
+        elif any(candidate.note_id == note.note_id for candidate in self.notes):
+            raise ValueError(f"duplicate note_id: {note.note_id}")
         self.notes.append(note)
         return note
 
@@ -165,7 +206,8 @@ class ResearchLedger(BaseModel):
         for index, note in enumerate(self.notes, start=1):
             if note.url != normalized_url:
                 continue
-            grouped.setdefault(note.item_id, []).append(f"note-{index:06d}")
+            note_id = note.note_id or f"note-{index:06d}"
+            grouped.setdefault(note.item_id, []).append(note_id)
         return {item_id: tuple(ids) for item_id, ids in grouped.items()}
 
     @property

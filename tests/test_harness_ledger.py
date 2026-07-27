@@ -84,3 +84,24 @@ def test_source_cache_is_idempotent_but_does_not_overwrite_changed_text():
         ledger.cache_source("https://example.com", "replacement")
 
     assert ledger.get_source("https://example.com") == "original"
+
+
+def test_legacy_serialized_notes_receive_stable_ids_when_loaded():
+    note = create_note(
+        item_id="what-1",
+        finding="A finding.",
+        quote="Original source wording.",
+        url="https://example.com/source",
+        source_text="Original source wording.",
+    )
+    legacy_note = note.model_dump(
+        mode="json",
+        exclude={"note_id", "source_id"},
+    )
+
+    first_load = ResearchLedger.model_validate({"notes": [legacy_note]})
+    second_load = ResearchLedger.model_validate({"notes": [legacy_note]})
+
+    assert first_load.notes[0].note_id == "note-000001"
+    assert second_load.notes[0].note_id == "note-000001"
+    assert first_load.notes[0].source_id == second_load.notes[0].source_id
