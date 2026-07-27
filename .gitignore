@@ -50,6 +50,9 @@ htmlcov/
 *.log
 logs/
 
+# Harness run artifacts
+harness_runs/
+
 # Local development
 .env.local
 .env.development.local
