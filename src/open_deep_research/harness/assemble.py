@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from collections.abc import Iterable
+from hashlib import sha256
 
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
@@ -48,7 +50,40 @@ def _quoted(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def _render_note(note: ResearchNote, number: int) -> list[str]:
+def _fallback_note_ids(notes: list[ResearchNote]) -> list[str]:
+    """Assign deterministic material-local IDs only when no ledger ID exists."""
+
+    canonical = [
+        json.dumps(
+            note.model_dump(mode="json", exclude={"note_id"}),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for note in notes
+    ]
+    bases = [
+        f"note-material-{sha256(value.encode('utf-8')).hexdigest()[:16]}"
+        for value in canonical
+    ]
+    totals = Counter(bases)
+    seen: Counter[str] = Counter()
+    result: list[str] = []
+    for note, base in zip(notes, bases, strict=True):
+        if note.note_id is not None:
+            result.append(note.note_id)
+            continue
+        seen[base] += 1
+        suffix = f"-{seen[base]:03d}" if totals[base] > 1 else ""
+        result.append(f"{base}{suffix}")
+    return result
+
+
+def _render_note(
+    note: ResearchNote,
+    number: int,
+    note_id: str,
+) -> list[str]:
     evidence = source_evidence(note)
     span = (
         f"{evidence.span.start_char}:{evidence.span.end_char}"
@@ -56,7 +91,8 @@ def _render_note(note: ResearchNote, number: int) -> list[str]:
         else "unlocatable"
     )
     lines = [
-        f"### Note {number}",
+        f"### Note {number} | note_id={note_id}",
+        f"- Source ID: {note.source_id}",
         f"- Finding: {_quoted(note.finding)}",
         (
             f"- Source quote: {_quoted(evidence.quote)}"
@@ -78,7 +114,10 @@ def _render_note(note: ResearchNote, number: int) -> list[str]:
     return lines
 
 
-def _render_item(item: ChecklistItem, notes: list[ResearchNote]) -> list[str]:
+def _render_item(
+    item: ChecklistItem,
+    notes: list[tuple[ResearchNote, str]],
+) -> list[str]:
     lines = [
         (
             f"## {item.dimension.value} | priority={item.priority} "
@@ -92,8 +131,9 @@ def _render_item(item: ChecklistItem, notes: list[ResearchNote]) -> list[str]:
         lines.append("- Notes: none")
         return lines
 
-    for number, note in enumerate(sorted(notes, key=_note_sort_key), start=1):
-        lines.extend(("", *_render_note(note, number)))
+    ordered = sorted(notes, key=lambda value: (*_note_sort_key(value[0]), value[1]))
+    for number, (note, note_id) in enumerate(ordered, start=1):
+        lines.extend(("", *_render_note(note, number, note_id)))
     return lines
 
 
@@ -104,16 +144,18 @@ def assemble_notes(
     """Return reproducible structured text without discarding unmatched notes."""
 
     material = list(notes)
+    note_ids = _fallback_note_ids(material)
+    identified = list(zip(material, note_ids, strict=True))
     known_item_ids = {item.item_id for item in checklist.items}
-    by_item: dict[str, list[ResearchNote]] = {
+    by_item: dict[str, list[tuple[ResearchNote, str]]] = {
         item_id: [] for item_id in known_item_ids
     }
-    unmatched: list[ResearchNote] = []
-    for note in material:
+    unmatched: list[tuple[ResearchNote, str]] = []
+    for note, note_id in identified:
         if note.item_id in by_item:
-            by_item[note.item_id].append(note)
+            by_item[note.item_id].append((note, note_id))
         else:
-            unmatched.append(note)
+            unmatched.append((note, note_id))
 
     lines = [
         "# Assembled research notes",
@@ -124,18 +166,25 @@ def assemble_notes(
 
     if unmatched:
         lines.extend(("", "## unmatched notes"))
-        for number, note in enumerate(
+        for number, (note, note_id) in enumerate(
             sorted(
                 unmatched,
-                key=lambda value: (value.item_id, *_note_sort_key(value)),
+                key=lambda value: (
+                    value[0].item_id,
+                    *_note_sort_key(value[0]),
+                    value[1],
+                ),
             ),
             start=1,
         ):
             lines.extend(
                 (
                     "",
-                    f"### Note {number} | item_id={note.item_id}",
-                    *_render_note(note, number)[1:],
+                    (
+                        f"### Note {number} | item_id={note.item_id} "
+                        f"| note_id={note_id}"
+                    ),
+                    *_render_note(note, number, note_id)[1:],
                 )
             )
 

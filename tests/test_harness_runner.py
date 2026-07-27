@@ -104,6 +104,13 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert "- Status: settled" in writer.prompts[0]
 
     audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    assert audit["canonical_draft"] == (
+        "# Report\n\nThe model wrote this report."
+    )
+    assert audit["canonical_draft"] == result.report.canonical_draft
+    assert result.report_path.read_text(encoding="utf-8") == (
+        audit["canonical_draft"]
+    )
     assert audit["ledger"]["research_id"] == "fixed-run"
     assert audit["ledger"]["rounds"][0]["action"] == "settle"
     assert audit["checklist"]["items"][0]["status"] == "settled"

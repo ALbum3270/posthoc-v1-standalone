@@ -24,9 +24,9 @@ presentation pressure that would otherwise hide uncertainty.
 
 ## Post-hoc attribution
 
-The writing model produces a canonical narrative draft. It may emit stable
-note handles as provenance hints, but it never owns footnote identifiers and a
-handle never counts as verified evidence.
+The writing model produces a canonical narrative draft without citations,
+footnotes, source URLs, evidence states, or note/source handles. Attribution is
+entirely post-hoc; the writer never owns identifiers or candidate-source links.
 
 After drafting, the pipeline:
 

@@ -274,5 +274,8 @@ def test_contract_has_one_annotated_report_and_no_evaluation_variant() -> None:
     assert "There is no second report variant" in contract
     assert "report.evaluation.md" not in contract
     assert "may not be removed or weakened" in contract
+    assert "canonical narrative draft without citations" in contract
+    assert "note/source handles" in contract
+    assert "may emit stable note handles" not in contract
     assert "no more than 20 claims" in contract
     assert "full cached source text" in contract

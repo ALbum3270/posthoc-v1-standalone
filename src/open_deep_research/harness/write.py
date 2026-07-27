@@ -1,4 +1,4 @@
-"""One-pass report writing and mechanically parseable citation extraction."""
+"""Canonical narrative drafting plus retained citation-parser diagnostics."""
 
 from __future__ import annotations
 
@@ -19,11 +19,11 @@ class WriteModelClient(Protocol):
 
 
 class ReportDraft(BaseModel):
-    """A generated report and the usage charged for producing it."""
+    """A canonical citation-free draft and its measured model usage."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    markdown: str
+    canonical_draft: str
     token_count: int = Field(ge=0)
     cost_usd: float = Field(ge=0.0)
 
@@ -67,19 +67,20 @@ class _WriteEnvelope(BaseModel):
 
 
 WRITE_PROMPT = """\
-Write the best possible Markdown report from all of the assembled research
-material below. You alone decide the report's content, structure, length, and
-headings.
+Write the best possible canonical Markdown narrative draft from all of the
+assembled research material below. You alone decide the draft's content,
+structure, length, and headings.
 
-The only required presentation rule is this citation protocol:
-- Put every factual assertion in its own paragraph and end that paragraph with
-  one or more reference markers such as [^1] or [^1][^2].
-- Define every used reference on one line as exactly:
-  [^1]: {{"quote":"verbatim source text","url":"https://source.example/path"}}
-- The quote must be copied verbatim from the assembled material.
-- Reference identifiers must be unique. Do not invent a citation when the
-  material does not support an assertion.
-- Return only the Markdown report.
+This is the drafting stage of a post-hoc attribution pipeline. Return narrative
+body text only:
+- Do not add footnotes, citations, reference markers, source lists, or URLs.
+- Do not emit citation or reference numbers in any format.
+- Do not reproduce note_id or source_id metadata in the draft.
+- Do not present any passage as a verbatim quotation or claim that wording is
+  copied exactly from a source.
+- Do not add evidence, grounding, confidence, or verification status labels.
+
+Return only the canonical Markdown draft.
 
 Assembled research material:
 {assembled_notes}
@@ -115,7 +116,7 @@ async def write_report(
     except ValidationError as exc:
         raise ValueError("write model returned an invalid usage envelope") from exc
     return ReportDraft(
-        markdown=envelope.content,
+        canonical_draft=envelope.content,
         token_count=envelope.token_count,
         cost_usd=envelope.cost_usd,
     )

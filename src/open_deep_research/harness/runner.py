@@ -193,13 +193,14 @@ async def run_harness(
         },
         "usage": usage_audit,
         "models": dict(model_names or {}),
+        "canonical_draft": report.canonical_draft,
         "artifacts": {
             "report": report_path.name,
             "audit": audit_path.name,
         },
     }
 
-    report_path.write_text(report.markdown, encoding="utf-8")
+    report_path.write_text(report.canonical_draft, encoding="utf-8")
     audit_path.write_text(
         json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

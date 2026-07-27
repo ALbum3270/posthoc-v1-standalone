@@ -4,6 +4,7 @@ from open_deep_research.harness.checklist import (
     ChecklistItem,
     ResearchChecklist,
 )
+from open_deep_research.harness.ledger import ResearchLedger
 from open_deep_research.harness.notes import create_note, source_evidence
 from open_deep_research.harness.write import build_write_prompt
 
@@ -95,6 +96,8 @@ def test_assembly_is_byte_reproducible_and_preserves_all_notes():
     assert "Absent quote" not in first
     assert "Source quote: unavailable" in first
     assert "Location: unlocatable" in first
+    assert "note_id=note-material-" in first
+    assert "- Source ID: source-" in first
     assert "## unmatched notes" in first
     assert "An unmatched note is not silently discarded" in first
 
@@ -104,22 +107,53 @@ def test_writing_and_verification_consume_source_quote_not_model_quote():
         topic="Any topic",
         items=(item("what-1", ChecklistDimension.WHAT, 1),),
     )
-    note = create_note(
-        item_id="what-1",
-        finding="A repaired note has authoritative source text.",
-        quote="alpha beta.",
-        url="https://example.com/page",
-        source_text="AlphaBeta",
+    ledger = ResearchLedger()
+    note = ledger.add_note(
+        create_note(
+            item_id="what-1",
+            finding="A repaired note has authoritative source text.",
+            quote="alpha beta.",
+            url="https://example.com/page",
+            source_text="AlphaBeta",
+        )
     )
 
-    assembled = assemble_notes(checklist, [note])
+    assembled = assemble_notes(checklist, ledger.notes)
     writing_prompt = build_write_prompt(assembled)
     verification_evidence = source_evidence(note)
 
     assert note.model_quote == "alpha beta."
     assert note.source_quote == "AlphaBeta"
+    assert "note_id=note-000001" in writing_prompt
+    assert note.source_id in writing_prompt
     assert "AlphaBeta" in writing_prompt
     assert "alpha beta." not in writing_prompt
     assert verification_evidence is not None
     assert verification_evidence.quote == "AlphaBeta"
     assert verification_evidence.quote != note.model_quote
+
+
+def test_unlocatable_note_gives_writer_finding_but_never_model_quote():
+    checklist = ResearchChecklist(
+        topic="Any topic",
+        items=(item("what-1", ChecklistDimension.WHAT, 1),),
+    )
+    source = "The cached source contains different wording."
+    note = create_note(
+        item_id="what-1",
+        finding="The finding remains useful drafting context.",
+        quote="MODEL-PROPOSED WORDING THAT IS NOT IN THE SOURCE",
+        url="https://example.com/page",
+        source_text=source,
+    )
+
+    assembled = assemble_notes(checklist, [note])
+    writing_prompt = build_write_prompt(assembled)
+
+    assert "The finding remains useful drafting context." in writing_prompt
+    assert note.source_id in writing_prompt
+    assert "MODEL-PROPOSED WORDING THAT IS NOT IN THE SOURCE" not in (
+        writing_prompt
+    )
+    assert source not in writing_prompt
+    assert "Source quote: unavailable" in writing_prompt

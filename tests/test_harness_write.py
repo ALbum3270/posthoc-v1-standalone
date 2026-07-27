@@ -25,18 +25,29 @@ class FakeWriteModel:
 
 def test_write_report_passes_all_material_once_without_report_template() -> None:
     assembled = "FIRST SOURCE BODY\n\nSECOND SOURCE BODY\n"
-    model = FakeWriteModel("# Model-chosen heading\n\nA claim. [^1]")
+    model = FakeWriteModel("# Model-chosen heading\n\nA narrative claim.")
 
     report = asyncio.run(write_report(assembled, model_client=model))
 
-    assert report.markdown == "# Model-chosen heading\n\nA claim. [^1]"
+    assert report.canonical_draft == (
+        "# Model-chosen heading\n\nA narrative claim."
+    )
     assert report.token_count == 17
     assert report.cost_usd == 0.25
     assert len(model.prompts) == 1
     assert assembled in model.prompts[0]
-    assert "content, structure, length, and\nheadings" in model.prompts[0]
+    assert "content,\nstructure, length, and headings" in model.prompts[0]
     assert "Introduction" not in build_write_prompt(assembled)
     assert "Conclusion" not in build_write_prompt(assembled)
+    assert "citation protocol" not in model.prompts[0]
+    assert "[^1]" not in model.prompts[0]
+    assert '"quote"' not in model.prompts[0]
+    assert "Do not add footnotes, citations" in model.prompts[0]
+    assert "Do not reproduce note_id or source_id" in model.prompts[0]
+    assert "Do not present any passage as a verbatim quotation" in (
+        model.prompts[0]
+    )
+    assert "Do not add evidence, grounding, confidence" in model.prompts[0]
 
 
 def test_parse_report_citations_returns_exact_triples_and_reports_issues() -> None:
