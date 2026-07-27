@@ -218,8 +218,9 @@ claim in the later verification stage. It is not a finding that the source
 supports, contradicts, proves, verifies, or grounds the claim. Do not return a
 support verdict.
 
-Every claim must appear exactly once in the final attribute action. An empty
-candidates array is legal and means no candidate source was identified.
+Return json only. Every claim must appear exactly once in the final attribute
+action. An empty candidates array is legal and means no candidate source was
+identified.
 Candidates may cross checklist item boundaries. Notes marked unlocatable are
 still legal candidates: their source can be inspected later, but the note is
 not evidence by itself.
