@@ -1,0 +1,145 @@
+# Harness post-hoc evidence contract
+
+Version: `posthoc-evidence-v1`
+
+This contract governs the report-writing and evidence-verification stages that
+follow collection. It is intentionally independent of any research topic.
+Changes to a frozen rule require a new contract version and re-evaluation of
+every frozen report fixture.
+
+## One report artifact
+
+Each run has one reader-facing report, `<run_id>.md`, plus its audit JSON.
+There is no second report variant for automated judging. Human reviewers read
+the same annotated report that readers receive.
+
+The canonical draft is retained inside the audit solely to reproduce
+`anchor_text` locations and diagnose deterministic rendering. It is not
+emitted as another report and is not a review surface.
+
+Evidence labels, the evidence summary, and mechanically generated footnotes
+must remain visible in the report. They may not be removed or weakened merely
+to improve aesthetics or reviewer scores. This rule protects readers from
+presentation pressure that would otherwise hide uncertainty.
+
+## Post-hoc attribution
+
+The writing model produces a canonical narrative draft. It may emit stable
+note handles as provenance hints, but it never owns footnote identifiers and a
+handle never counts as verified evidence.
+
+After drafting, the pipeline:
+
+1. selects externally verifiable assertions;
+2. decontextualizes each assertion into a self-contained `claim_text`;
+3. locates an exact contiguous `anchor_text` in the canonical draft;
+4. links candidate notes and identified sources;
+5. verifies each claim against cached source text; and
+6. deterministically renders evidence labels and footnotes into the one report.
+
+The claim registry, not rendered Markdown, is the source of truth for
+verification results and report-level metrics.
+
+## Frozen atomic-claim granularity
+
+`atomic-v1` defines one claim as one independently truth-valued event or state.
+If either coordinated clause could be true while the other is false, the
+clauses are separate claims. All truth-conditional entities, times, places,
+quantities, negation, modality, and attribution qualifiers remain in the
+claim.
+
+`claim_text` is self-contained and may differ from the report wording.
+`anchor_text` is a verbatim, contiguous substring of the canonical draft.
+Failure to find one unique anchor is retained as `normalization_failed`; it is
+never silently discarded.
+
+Granularity is not a score-tuning parameter. Changing it requires a new
+granularity contract version and re-scoring all historical fixtures.
+
+## Source fidelity
+
+Writing, verification, and footnote rendering consume `source_quote`, never
+`model_quote`. A supporting quote must be mechanically located in the cached
+source text. Diagnostic fragments, paraphrases, and unlocatable model quotes
+cannot become supporting evidence.
+
+The verifier may judge a source relation as `supports`, `contradicts`,
+`not_enough_information`, or `error`. Missing evidence is not contradiction.
+
+## Verification batching
+
+Claims are grouped by evidence URL. One model call receives one cached source
+text and no more than 20 claims. Larger groups are split deterministically by
+`claim_id`. Each claim receives an independent result; malformed or omitted
+entries are retried individually without discarding valid siblings.
+
+The first implementation uses the full cached source text. It does not add
+top-k chunking, embedding retrieval, or excerpt selection. Any later source
+text reduction is a separate frozen-fixture A/B experiment. The experiment
+must hold verifier, prompt, claims, and batch size constant and report F1,
+false-support rate, omissions, tokens, and cost before the optimization can
+be adopted.
+
+## Evidence states and FEVER compatibility
+
+Fine-grained evidence states remain authoritative. A deterministic coarse
+mapping is additionally exposed:
+
+- corroborated or supported below the requested independent-source count:
+  `SUPPORTED`;
+- an explicit verifier result of `contradicts`: `REFUTED`;
+- conflicting support and contradiction: `CONFLICTING`;
+- cited sources that do not support the claim, or no candidate source:
+  `NOT_ENOUGH_INFO`;
+- normalization failure or verification not run: unmapped.
+
+`REFUTED` is never inferred from failure to find support.
+
+## Reader-visible rendering
+
+The report starts with an evidence summary and marks deficient evidence at the
+claim anchor. The existence of a warning is evidence honesty and is not itself
+a content defect.
+
+Footnote identifiers are assigned in deterministic anchor, claim, and source
+order. A definition represents one claim-source evidence relation, includes a
+mechanically located `source_quote`, and is globally unique. Inspected but
+non-supporting sources remain in the audit instead of masquerading as ordinary
+supporting footnotes. Conflicting sources are displayed only with their
+supporting or contradicting relation made explicit.
+
+## Metrics and external proxy anchors
+
+At minimum the audit records numerators and denominators for:
+
+- `attribution_coverage`;
+- `fully_grounded_claim_rate`;
+- `citation_support_precision`;
+- corroborated, conflicting, no-candidate, unverified, and normalization
+  failure counts.
+
+The initial attribution-coverage floor is 75% and the stable target is 90%.
+The initial fully-grounded-claim target is 75% and the mature target is 90%.
+These are external proxy anchors, not same-denominator gold standards.
+Coverage and citation accuracy must never be multiplied to manufacture a
+joint threshold.
+
+Collection success and evidence quality are separate signals:
+`is_success` describes honest checklist termination, while
+`evidence_gate_passed` describes post-hoc report evidence.
+
+## Budget and incomplete verification
+
+Collection, writing, claim processing, and verification have separately
+reserved usage. Admission estimates are calibrated from observed model usage.
+If the remaining budget cannot admit every verification call, unprocessed
+claims remain in the registry as `verification_not_run` and are visibly
+marked; they are not dropped.
+
+## Frozen real-run fixture
+
+`tests/fixtures/harness_posthoc_b1407b.json` is the `posthoc-evidence-v1`
+offline fixture. It preserves the fifth run's report, checklist terminal
+state, usage summary, all 32 notes, and all four complete cached source texts.
+It also preserves the legacy report's duplicate-footnote defect and the
+`atomic-v1` selection, decontextualization, and decomposition examples.

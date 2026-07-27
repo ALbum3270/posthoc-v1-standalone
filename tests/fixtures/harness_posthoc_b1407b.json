@@ -1,0 +1,1030 @@
+{
+  "contract_versions": {
+    "artifact_rendering": "single-report-v1",
+    "claim_granularity": "atomic-v1",
+    "posthoc_evidence": "1"
+  },
+  "expectations": {
+    "action_counts": {
+      "read": 4,
+      "search": 11,
+      "stop": 1
+    },
+    "checklist_item_count": 7,
+    "duplicated_reference_distinct_definition_counts": {
+      "11": 2,
+      "13": 2,
+      "14": 2,
+      "15": 2,
+      "16": 2
+    },
+    "duplicated_reference_id_counts": {
+      "11": 2,
+      "13": 3,
+      "14": 3,
+      "15": 3,
+      "16": 2
+    },
+    "legacy_parser_issue_counts": {
+      "duplicate_reference_definition": 9,
+      "missing_reference": 2
+    },
+    "legacy_parser_resolved_citation_count": 26,
+    "location_status_counts": {
+      "locatable": 26,
+      "unlocatable": 6
+    },
+    "note_count": 32,
+    "notes_per_item": {
+      "what-01": 2,
+      "when-01": 18,
+      "who-01": 6,
+      "why-01": 6
+    },
+    "notes_per_publisher": {
+      "apnews.com": 18,
+      "consumernotice.org": 2,
+      "en.wikipedia.org": 6,
+      "tokentax.co": 6
+    },
+    "notes_per_url": {
+      "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e": 18,
+      "https://en.wikipedia.org/wiki/FTX": 6,
+      "https://tokentax.co/blog/ftx-collapse": 6,
+      "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx": 2
+    },
+    "notes_sha256": "e0181875c1c0d2a1df1b5d80698a1afe56f26a2223145037ee663b1cc6f13236",
+    "reference_definitions": [
+      {
+        "line_number": 17,
+        "quote": "Binance CEO Changpeng Zhao was a key figure in the events surrounding FTX's collapse, as Binance bought a stake in FTX, later sold its holdings of FTT tokens, and then signed and quickly withdrew a letter of intent to acquire FTX due to concerns about mishandling customer funds.",
+        "reference_id": "1",
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      {
+        "line_number": 18,
+        "quote": "Caroline Ellison served as CEO of Alameda Research and was involved in decisions related to the transfer of client funds from FTX to Alameda. She later pleaded guilty to multiple charges and cooperated with prosecutors.",
+        "reference_id": "2",
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      {
+        "line_number": 19,
+        "quote": "FTX was founded in May 2019 by Sam Bankman-Fried and Gary Wang. The current CEO after the collapse is John J. Ray III, a corporate restructuring specialist with experience in liquidating failed corporations such as Enron.",
+        "reference_id": "3",
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      {
+        "line_number": 20,
+        "quote": "Regulatory and law enforcement authorities involved after the collapse include the U.S. Department of Justice, the Commodity Futures Trading Commission, the U.S. Attorney's Office for the Southern District of New York, and the Royal Bahamas Police Force, investigating financial offenses and fraud.",
+        "reference_id": "4",
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      {
+        "line_number": 21,
+        "quote": "Several other key individuals involved include Nishad Singh, a former FTX executive and childhood friend of Bankman-Fried's brother, who pleaded guilty to conspiracy charges and cooperated with prosecutors; and Ryan Salame, a former FTX executive who pleaded guilty and was sentenced to prison.",
+        "reference_id": "5",
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      {
+        "line_number": 22,
+        "quote": "Sam Bankman-Fried and Zixiao \"Gary\" Wang \"Gary Wang (American businessman)\") founded FTX in May 2019. FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California.",
+        "reference_id": "6",
+        "url": "https://en.wikipedia.org/wiki/FTX"
+      },
+      {
+        "line_number": 34,
+        "quote": "FTX rose quickly to dominate the cryptocurrency market through acquisitions of competitors, aggressive marketing campaigns and celebrity endorsements promising high yields. FTX built its business on risky trading options not legal in the U.S. and created its digital token, FTT, in May 2019. ... Documents leaked to news site CoinDesk suggested that the FTX-affiliated hedge fund Alameda was receiving customer monies. Rather than transferring the money to FTX, the company was using the cash for other purposes, such as making risky loans. When the article was published, FTX investor Binance, traders and customers caused a run on FTT.",
+        "reference_id": "7",
+        "url": "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx"
+      },
+      {
+        "line_number": 35,
+        "quote": "Nov. 6: Rival cryptocurrency exchange Binance announces that the firm plans to sell all its holdings in FTT. The price of FTT tanks.",
+        "reference_id": "9",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 36,
+        "quote": "The collapse of FTX was triggered by a liquidity crisis involving its digital token, FTT, which led to a crash in its price after Binance announced it would sell its holdings. This caused massive withdrawals by traders and customers, revealing that FTX could not cover an $8 billion gap between owed funds and available assets. Investigations revealed inaccuracies in FTX's balance sheets, misuse of customer funds by Alameda Research for risky loans, and a significant lack of corporate and financial controls.",
+        "reference_id": "11",
+        "url": "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx"
+      },
+      {
+        "line_number": 37,
+        "quote": "Alameda Research's balance sheet (and consequently FTX's true financial position) showed dangerous over concentration in FTT, an asset with negligible market demand or utility beyond FTX's ecosystem.",
+        "reference_id": "13",
+        "url": "https://tokentax.co/blog/ftx-collapse"
+      },
+      {
+        "line_number": 38,
+        "quote": "FTX's failure resulted from systematic commingling of customer assets with Alameda Research holdings, absence of financial controls, poor risk management, and fraudulent misrepresentation of the exchange's solvency to investors and regulators.",
+        "reference_id": "14",
+        "url": "https://tokentax.co/blog/ftx-collapse"
+      },
+      {
+        "line_number": 39,
+        "quote": "Unlike disciplined financial institutions, Alameda's portfolio resembled a disorganized collection of disparate tokens, equity stakes, and speculative ventures lacking coherent strategy.\nWhile professionally-managed cryptocurrency firms implement rigorous risk assessment protocols, FTX deployed virtually no protective measures and seemed to accumulate as many assets as it possibly could.",
+        "reference_id": "15",
+        "url": "https://tokentax.co/blog/ftx-collapse"
+      },
+      {
+        "line_number": 62,
+        "quote": "Nov. 2: Coindesk reports Alameda Reseach, Bankman-Fried’s cryptocurrency trading firm, holds a large amount of FTT, a token issued by FTX, suggesting the finances of the two are intertwined and Alameda faces a cash crunch. The report spooks participants in the crypto market.",
+        "reference_id": "8",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 63,
+        "quote": "Nov. 8: Binance founder and CEO Changpeng Zhao said his company had signed a letter of intent to buy FTX because the smaller exchange was experiencing a “significant liquidity crunch.” That deal would be contingent, however, on a look at the books at FTX. The price for bitcoin tumbles 13%.",
+        "reference_id": "10",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 64,
+        "quote": "Nov. 9: Cryptocurrency prices plunge and after getting a closer look at the finances of FTX, Binance retreated and said there would be no acquisition. “In the beginning, our hope was to be able to support FTX’s customers to provide liquidity, but the issues are beyond our control or ability to help,” Binance said in a statement. Bitcoin prices drop another 14%.",
+        "reference_id": "11",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 65,
+        "quote": "Nov. 10: Cryptocurrency lender BlockFi announced it is “not able to do business as usual” and was pausing client withdrawals as a result of FTX’s implosion.",
+        "reference_id": "12",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 66,
+        "quote": "Nov. 11: FTX files for Chapter 11 and Bankman-Fried resigns. John Ray III, a long-time bankruptcy litigator who is best known for having to clean up the mess made after the collapse of Enron, is named the new CEO.\nIn its bankruptcy filing, FTX listed more than 130 affiliated companies around the globe. The company valued its assets between $10 billion to $50 billion, with a similar estimate for its liabilities. Bitcoin falls 10%.",
+        "reference_id": "13",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 67,
+        "quote": "Nov. 17: Ray gives a damning description of FTX’s operations under Bankman-Fried, from a lack of security controls to business funds being used to buy employees homes and luxuries.",
+        "reference_id": "14",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 68,
+        "quote": "Nov. 30: As part of a media blitz, Bankman-Fried tells New York Time’s Andrew Ross-Sorkin, “Look, I screwed up,” and didn’t knowingly misuse clients’ funds.",
+        "reference_id": "15",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 69,
+        "quote": "Dec. 12: Bankman-Fried is arrested in the Bahamas, where FTX is headquartered.",
+        "reference_id": "16",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 70,
+        "quote": "Dec. 13: The U.S. government charges Bankman-Fried with a host of financial crimes, alleging he intentionally deceived customers and investors to enrich himself and others, while playing a central role in the company’s multibillion-dollar collapse.\nFederal prosecutors said Bankman-Fried devised “a scheme and artifice to defraud” FTX’s customers and investors beginning the year it was founded. He illegally diverted their money to cover expenses, debts and risky trades at Alameda Research, and to make lavish real estate purchases and large political donations, prosecutors said in a 13-page indictment.",
+        "reference_id": "17",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 71,
+        "quote": "Dec. 22: Bankman-Fried’s parents agreed to sign a $250 million bond and keep him at their California home while he awaits trial.",
+        "reference_id": "18",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 72,
+        "quote": "August 11: Judge revoked Bankman-Fried’s bail and sent him to jail after concluding he had repeatedly tried to influence witnesses against him.",
+        "reference_id": "19",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 73,
+        "quote": "Oct. 3: Jury selection began for the trial.",
+        "reference_id": "20",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 74,
+        "quote": "Oct. 27: Bankman-Fried took the stand in his trial. He again acknowledged failures but denied defrauding anyone.",
+        "reference_id": "21",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 75,
+        "quote": "Nov. 3: Bankman-Fried is convicted of fraud for stealing at least $10 billion from customers and investors.",
+        "reference_id": "22",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 76,
+        "quote": "March 28: Bankman-Fried is sentenced to 25 years in prison. Bitcoin has roared back from a massive sell-off during the scandal. Prices are up nearly 70%.",
+        "reference_id": "23",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 77,
+        "quote": "April 30: Changpeng Zhao, the founder of Binance, is sentenced to four months in prison for looking the other way as criminals used the platform to move money connected to child sex abuse, drug trafficking and terrorism.",
+        "reference_id": "24",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      },
+      {
+        "line_number": 89,
+        "quote": "Alameda Research's balance sheet (and consequently FTX's true financial position) showed dangerous over concentration in FTT, an asset with negligible market demand or utility beyond FTX's ecosystem.",
+        "reference_id": "13",
+        "url": "https://tokentax.co/blog/ftx-collapse"
+      },
+      {
+        "line_number": 90,
+        "quote": "FTX's failure resulted from systematic commingling of customer assets with Alameda Research holdings, absence of financial controls, poor risk management, and fraudulent misrepresentation of the exchange's solvency to investors and regulators.",
+        "reference_id": "14",
+        "url": "https://tokentax.co/blog/ftx-collapse"
+      },
+      {
+        "line_number": 91,
+        "quote": "Unlike disciplined financial institutions, Alameda's portfolio resembled a disorganized collection of disparate tokens, equity stakes, and speculative ventures lacking coherent strategy.\nWhile professionally-managed cryptocurrency firms implement rigorous risk assessment protocols, FTX deployed virtually no protective measures and seemed to accumulate as many assets as it possibly could.",
+        "reference_id": "15",
+        "url": "https://tokentax.co/blog/ftx-collapse"
+      },
+      {
+        "line_number": 92,
+        "quote": "Establishing operations in the Bahamas allowed FTX to circumvent numerous regulatory obligations imposed by United States financial authorities.\nFTX simultaneously conducted extensive political influence campaigns in the United States, seeking favorable positioning in emerging cryptocurrency regulation.",
+        "reference_id": "16",
+        "url": "https://tokentax.co/blog/ftx-collapse"
+      },
+      {
+        "line_number": 112,
+        "quote": "FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them.",
+        "reference_id": "25",
+        "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+      }
+    ],
+    "report_reference_definition_count": 33,
+    "report_strict_locatable_definition_count": 26,
+    "report_unlocatable_definition_count": 7,
+    "report_unique_quote_url_pair_count": 30,
+    "report_unique_reference_id_count": 25,
+    "round_count": 16,
+    "settled_without_located_evidence_item_ids": [
+      "where-01"
+    ],
+    "source_count": 4,
+    "source_sha256": {
+      "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e": "90c8e9b3d5a09d3acef5741ca88b3f613588ac86c6e59ba7db8254ace3d5130c",
+      "https://en.wikipedia.org/wiki/FTX": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "https://tokentax.co/blog/ftx-collapse": "b52beccae94920abf093ffa19dde640a8e566bcd24bed53e64f3ec3702df5c6a",
+      "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx": "4d004c8cec79b73e3ec75da6ffdcd1662895f501fa34c6278f7544402021a931"
+    },
+    "strict_locatable_count": 26,
+    "terminal_status_counts": {
+      "exhausted_not_found": 2,
+      "settled": 5
+    },
+    "unlocatable_count": 6
+  },
+  "granularity_contract": {
+    "atomicity": "One claim expresses one independently truth-valued event or state. Coordinated clauses are split when either clause could be true while the other is false.",
+    "cases": [
+      {
+        "anchor_text": "This report details the key individuals and organizations involved, main events leading to the failure, the timeline of critical developments, underlying reasons for the collapse, and the ensuing legal and financial repercussions.",
+        "case_id": "selection-narrative-01",
+        "claim_kind": "non_verifiable_narrative",
+        "claim_texts": [],
+        "purpose": "Selection excludes a description of what the report covers."
+      },
+      {
+        "anchor_text": "Caroline Ellison served as CEO of Alameda Research and was implicated in decisions to transfer client funds from FTX to Alameda; she later pleaded guilty to charges and cooperated with prosecutors",
+        "case_id": "atomic-compound-01",
+        "claim_kind": "verifiable_fact",
+        "claim_texts": [
+          "Caroline Ellison served as CEO of Alameda Research.",
+          "Caroline Ellison was implicated in decisions to transfer client funds from FTX to Alameda Research.",
+          "Caroline Ellison pleaded guilty to charges related to FTX and Alameda Research.",
+          "Caroline Ellison cooperated with prosecutors in proceedings related to FTX and Alameda Research."
+        ],
+        "purpose": "Independently truth-valued clauses are separate atomic claims."
+      },
+      {
+        "anchor_text": "His parents posted $250 million bond for his house arrest in California pending trial",
+        "case_id": "decontextualization-pronoun-01",
+        "claim_kind": "verifiable_fact",
+        "claim_texts": [
+          "On December 22, 2022, Sam Bankman-Fried's parents posted a $250 million bond for Sam Bankman-Fried's house arrest in California while he awaited trial."
+        ],
+        "purpose": "The claim is self-contained while the anchor remains verbatim."
+      },
+      {
+        "anchor_text": "FTX filed for Chapter 11 bankruptcy, Sam Bankman-Fried resigned, and John J. Ray III was appointed CEO. The filing revealed over 130 affiliated entities with assets and liabilities estimated between $10 billion and $50 billion",
+        "case_id": "atomic-timeline-01",
+        "claim_kind": "verifiable_fact",
+        "claim_texts": [
+          "FTX filed for Chapter 11 bankruptcy on November 11, 2022.",
+          "Sam Bankman-Fried resigned from FTX on November 11, 2022.",
+          "John J. Ray III was appointed CEO of FTX on November 11, 2022.",
+          "FTX's bankruptcy filing listed more than 130 affiliated entities.",
+          "FTX's bankruptcy filing estimated assets between $10 billion and $50 billion.",
+          "FTX's bankruptcy filing estimated liabilities between $10 billion and $50 billion."
+        ],
+        "purpose": "A timeline bullet does not become one claim merely because it is one list item."
+      }
+    ],
+    "change_control": "Granularity is not a score-tuning parameter. A change requires a new contract version and re-scoring every frozen report fixture.",
+    "decontextualization": "claim_text must replace pronouns and omitted entities with explicit referents and retain all truth-conditional time, place, quantity, and attribution qualifiers.",
+    "extraction": "anchor_text must be one exact contiguous substring of the canonical draft and is located independently from the self-contained claim_text.",
+    "selection": "Only externally verifiable assertions enter evidence-coverage denominators; narrative, headings, opinions, and recommendations remain in the report but are not scored as factual claims.",
+    "version": "atomic-v1"
+  },
+  "notes": [
+    {
+      "failure_reason": "quote_not_found",
+      "finding": "FTX was founded in May 2019 by Sam Bankman-Fried and Gary Wang. The current CEO after the collapse is John J. Ray III, a corporate restructuring specialist with experience in liquidating failed corporations such as Enron.",
+      "item_id": "who-01",
+      "located_fragment_count": 0,
+      "location_status": "unlocatable",
+      "model_quote": "FTX Trading Ltd., trading as FTX (Futures Exchange), is a bankrupt company that formerly operated a cryptocurrency exchange and crypto hedge fund. The exchange was founded in 2019 by Sam Bankman-Fried and Gary Wang \"Gary Wang (American businessman)\") and collapsed in 2022.\n\nThe current CEO of FTX is John J. Ray III, who specializes in recovering funds from failed corporations.",
+      "note_id": "note-000001",
+      "publisher": "en.wikipedia.org",
+      "repair_method": null,
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_quote": null,
+      "span": null,
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "failure_reason": null,
+      "finding": "Sam Bankman-Fried and Gary Wang founded FTX in May 2019. Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and others, played a significant role in FTX's history and operations.",
+      "item_id": "who-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Sam Bankman-Fried and Zixiao \"Gary\" Wang \"Gary Wang (American businessman)\") founded FTX in May 2019. FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California.",
+      "note_id": "note-000002",
+      "publisher": "en.wikipedia.org",
+      "repair_method": null,
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_quote": "Sam Bankman-Fried and Zixiao \"Gary\" Wang \"Gary Wang (American businessman)\") founded FTX in May 2019. FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California.",
+      "span": {
+        "end_char": 4407,
+        "start_char": 4136
+      },
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "failure_reason": "quote_not_found",
+      "finding": "Binance CEO Changpeng Zhao was a key figure in the events surrounding FTX's collapse, as Binance bought a stake in FTX, later sold its holdings of FTT tokens, and then signed and quickly withdrew a letter of intent to acquire FTX due to concerns about mishandling customer funds.",
+      "item_id": "who-01",
+      "located_fragment_count": 0,
+      "location_status": "unlocatable",
+      "model_quote": "Changpeng Zhao of Binance purchased a 20% stake in FTX for approximately $100 million, six months after Bankman-Fried and Wang started the firm.\n\nSeveral days after the publication of the CoinDesk article, on November 6, Binance CEO Changpeng Zhao said on Twitter that his firm intended to sell all its holdings of FTT.\n\nOn November 8, Zhao announced that Binance had entered into a non-binding agreement to purchase FTX due to what he referred to as a \"liquidity crisis\" at FTX.\n\nLater that day, The Wall Street Journal reported that Binance would not move forward with the deal to acquire FTX. Binance cited FTX's reported mishandling of customer funds and pending investigations of FTX as the reasons for not pursuing the deal.",
+      "note_id": "note-000003",
+      "publisher": "en.wikipedia.org",
+      "repair_method": null,
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_quote": null,
+      "span": null,
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "failure_reason": "quote_not_found",
+      "finding": "Caroline Ellison served as CEO of Alameda Research and was involved in decisions related to the transfer of client funds from FTX to Alameda. She later pleaded guilty to multiple charges and cooperated with prosecutors.",
+      "item_id": "who-01",
+      "located_fragment_count": 0,
+      "location_status": "unlocatable",
+      "model_quote": "Anonymous sources cited by the Wall Street Journal on November 10 said that Alameda Research owed FTX some $10 billion, as FTX had lent funds placed on the exchange for trading to Alameda so that Alameda could make investments with the money. On November 12, anonymous sources cited by the Wall Street Journal said Alameda CEO Caroline Ellison disclosed to other Alameda employees that she, Sam Bankman-Fried, Gary Wang, and Nishad Singh knew that client deposits were transferred from FTX to Alameda.\n\nGary Wang, co-founder of FTX, and Caroline Ellison, who had served as Alameda's CEO, pleaded guilty to multiple charges and began cooperating with federal prosecutors.",
+      "note_id": "note-000004",
+      "publisher": "en.wikipedia.org",
+      "repair_method": null,
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_quote": null,
+      "span": null,
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "failure_reason": "quote_not_found",
+      "finding": "Several other key individuals involved include Nishad Singh, a former FTX executive and childhood friend of Bankman-Fried's brother, who pleaded guilty to conspiracy charges and cooperated with prosecutors; and Ryan Salame, a former FTX executive who pleaded guilty and was sentenced to prison.",
+      "item_id": "who-01",
+      "located_fragment_count": 0,
+      "location_status": "unlocatable",
+      "model_quote": "Former FTX executive Ryan Salame pleaded guilty to both a campaign finance law violation and a charge of operating an unlicensed money transmitting business.\n\nFTX's former engineering director, Nishad Singh, pleaded guilty to six different charges, including three counts of conspiracy to commit fraud.",
+      "note_id": "note-000005",
+      "publisher": "en.wikipedia.org",
+      "repair_method": null,
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_quote": null,
+      "span": null,
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "failure_reason": "quote_not_found",
+      "finding": "Regulatory and law enforcement authorities involved after the collapse include the U.S. Department of Justice, the Commodity Futures Trading Commission, the U.S. Attorney's Office for the Southern District of New York, and the Royal Bahamas Police Force, investigating financial offenses and fraud.",
+      "item_id": "who-01",
+      "located_fragment_count": 0,
+      "location_status": "unlocatable",
+      "model_quote": "On December 12, 2022, founder Sam Bankman-Fried was arrested by the Bahamian authorities for financial offences, at the request of the US government.\n\nFollowing the collapse of FTX, the Royal Bahamas Police Force launched a criminal investigation into the company. Anonymous sources cited by Bloomberg said that the office of the United States Attorney for the Southern District of New York had begun an investigation into FTX's collapse as of November 14, 2022.\n\nOn December 13, 2022, FTX founder and CEO Sam Bankman-Fried was charged by the US Attorney's Office for the Southern District of New York with fraud, conspiracy to commit money laundering, and conspiracy to defraud the US and violate campaign finance laws.\n\nIn August 2024, FTX was ordered by a US court to pay $12.7 billion in compensation to former customers and fraud victims. The Commodity Futures Trading Commission called this the \"largest such recovery\" in their history.",
+      "note_id": "note-000006",
+      "publisher": "en.wikipedia.org",
+      "repair_method": null,
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_quote": null,
+      "span": null,
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "failure_reason": "quote_not_found",
+      "finding": "The collapse of FTX was triggered by a liquidity crisis involving its digital token, FTT, which led to a crash in its price after Binance announced it would sell its holdings. This caused massive withdrawals by traders and customers, revealing that FTX could not cover an $8 billion gap between owed funds and available assets. Investigations revealed inaccuracies in FTX's balance sheets, misuse of customer funds by Alameda Research for risky loans, and a significant lack of corporate and financial controls.",
+      "item_id": "what-01",
+      "located_fragment_count": 0,
+      "location_status": "unlocatable",
+      "model_quote": "A cash crisis (or liquidity crisis) of the company’s digital token, FTT, led to the collapse of FTX and its subsequent bankruptcy. On Nov. 2, 2022, it was discovered that Alameda Research, which FTX CEO Sam Bankman-Fried owned, held a significant amount of FTT. One investigative article by news site CoinDesk alleged that FTX balance sheets were inaccurate and could not show that assets could cover liabilities or customer assets. Following the allegation, Binance, one of FTX’s investors, announced it would sell its FTT, which caused the price to crash. The move also triggered billions in trader and customer withdrawals. FTX could not cover the $8 billion gap between what was owed and what could be paid. The company blocked customers from removing money from the platform, then filed for bankruptcy shortly thereafter. Authorities have since found a lack of corporate and financial controls within FTX and its affiliates.",
+      "note_id": "note-000007",
+      "publisher": "consumernotice.org",
+      "repair_method": null,
+      "source_id": "source-9101098d245ee09e",
+      "source_quote": null,
+      "span": null,
+      "url": "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx"
+    },
+    {
+      "failure_reason": null,
+      "finding": "FTX rapidly grew by acquiring competitors and marketing aggressively while employing risky trading options and creating the FTT token in 2019. After revelations that the hedge fund Alameda Research was using customer funds for risky loans rather than transferring them to FTX, and following the Binance announcement to sell FTT, a run on FTT occurred, which contributed to the collapse.",
+      "item_id": "what-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "FTX rose quickly to dominate the cryptocurrency market through acquisitions of competitors, aggressive marketing campaigns and celebrity endorsements promising high yields. FTX built its business on risky trading options not legal in the U.S. and created its digital token, FTT, in May 2019. Even when Bitcoin declined in value between 2021 and early 2022, FTX continued to acquire competitors. Documents leaked to news site CoinDesk suggested that the FTX-affiliated hedge fund Alameda was receiving customer monies. Rather than transferring the money to FTX, the company was using the cash for other purposes, such as making risky loans. When the article was published, FTX investor Binance, traders and customers caused a run on FTT.",
+      "note_id": "note-000008",
+      "publisher": "consumernotice.org",
+      "repair_method": null,
+      "source_id": "source-9101098d245ee09e",
+      "source_quote": "FTX rose quickly to dominate the cryptocurrency market through acquisitions of competitors, aggressive marketing campaigns and celebrity endorsements promising high yields. FTX built its business on risky trading options not legal in the U.S. and created its digital token, FTT, in May 2019. Even when Bitcoin declined in value between 2021 and early 2022, FTX continued to acquire competitors.\nDocuments leaked to news site CoinDesk suggested that the FTX-affiliated hedge fund Alameda was receiving customer monies. Rather than transferring the money to FTX, the company was using the cash for other purposes, such as making risky loans. When the article was published, FTX investor Binance, traders and customers caused a run on FTT.",
+      "span": {
+        "end_char": 4360,
+        "start_char": 3624
+      },
+      "url": "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Nov. 2, 2022, Coindesk reported that Alameda Research held a large amount of FTT, suggesting intertwined finances and a cash crunch, spooking the crypto market.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 2: Coindesk reports Alameda Reseach, Bankman-Fried’s cryptocurrency trading firm, holds a large amount of FTT, a token issued by FTX, suggesting the finances of the two are intertwined and Alameda faces a cash crunch. The report spooks participants in the crypto market.",
+      "note_id": "note-000009",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 2: Coindesk reports Alameda Reseach, Bankman-Fried’s cryptocurrency trading firm, holds a large amount of FTT, a token issued by FTX, suggesting the finances of the two are intertwined and Alameda faces a cash crunch. The report spooks participants in the crypto market.",
+      "span": {
+        "end_char": 33394,
+        "start_char": 33119
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Nov. 6, 2022, Binance announced plans to sell all its holdings in FTT, causing FTT's price to tank.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 6: Rival cryptocurrency exchange Binance announces that the firm plans to sell all its holdings in FTT. The price of FTT tanks.",
+      "note_id": "note-000010",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 6: Rival cryptocurrency exchange Binance announces that the firm plans to sell all its holdings in FTT. The price of FTT tanks.",
+      "span": {
+        "end_char": 33527,
+        "start_char": 33395
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Nov. 8, 2022, Binance's CEO announced a tentative deal to buy FTX amid liquidity concerns, contingent on reviewing FTX’s books; bitcoin price tumbled 13%.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 8: Binance founder and CEO Changpeng Zhao said his company had signed a letter of intent to buy FTX because the smaller exchange was experiencing a “significant liquidity crunch.” That deal would be contingent, however, on a look at the books at FTX. The price for bitcoin tumbles 13%.",
+      "note_id": "note-000011",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 8: Binance founder and CEO Changpeng Zhao said his company had signed a letter of intent to buy FTX because the smaller exchange was experiencing a “significant liquidity crunch.” That deal would be contingent, however, on a look at the books at FTX. The price for bitcoin tumbles 13%.",
+      "span": {
+        "end_char": 33818,
+        "start_char": 33528
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Nov. 9, 2022, Binance withdrew its acquisition offer after reviewing FTX’s finances, citing issues beyond control; bitcoin dropped another 14%.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 9: Cryptocurrency prices plunge and after getting a closer look at the finances of FTX, Binance retreated and said there would be no acquisition. “In the beginning, our hope was to be able to support FTX’s customers to provide liquidity, but the issues are beyond our control or ability to help,” Binance said in a statement. Bitcoin prices drop another 14%.",
+      "note_id": "note-000012",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 9: Cryptocurrency prices plunge and after getting a closer look at the finances of FTX, Binance retreated and said there would be no acquisition. “In the beginning, our hope was to be able to support FTX’s customers to provide liquidity, but the issues are beyond our control or ability to help,” Binance said in a statement. Bitcoin prices drop another 14%.",
+      "span": {
+        "end_char": 34182,
+        "start_char": 33819
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Nov. 10, 2022, cryptocurrency lender BlockFi paused client withdrawals due to FTX's implosion.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 10: Cryptocurrency lender BlockFi announced it is “not able to do business as usual” and was pausing client withdrawals as a result of FTX’s implosion.",
+      "note_id": "note-000013",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 10: Cryptocurrency lender BlockFi announced it is “not able to do business as usual” and was pausing client withdrawals as a result of FTX’s implosion.",
+      "span": {
+        "end_char": 34702,
+        "start_char": 34546
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Nov. 11, 2022, FTX filed for Chapter 11 bankruptcy and Sam Bankman-Fried resigned; John Ray III was named new CEO. The filing listed over 130 affiliated companies with assets and liabilities estimated between $10 billion to $50 billion.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 11: FTX files for Chapter 11 and Bankman-Fried resigns. John Ray III, a long-time bankruptcy litigator who is best known for having to clean up the mess made after the collapse of Enron, is named the new CEO. In its bankruptcy filing, FTX listed more than 130 affiliated companies around the globe. The company valued its assets between $10 billion to $50 billion, with a similar estimate for its liabilities. Bitcoin falls 10%.",
+      "note_id": "note-000014",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 11: FTX files for Chapter 11 and Bankman-Fried resigns. John Ray III, a long-time bankruptcy litigator who is best known for having to clean up the mess made after the collapse of Enron, is named the new CEO.\nIn its bankruptcy filing, FTX listed more than 130 affiliated companies around the globe. The company valued its assets between $10 billion to $50 billion, with a similar estimate for its liabilities. Bitcoin falls 10%.",
+      "span": {
+        "end_char": 35136,
+        "start_char": 34703
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Nov. 17, 2022, John Ray III publicly criticized FTX's operations under Bankman-Fried, citing lack of security and misuse of business funds.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 17: Ray gives a damning description of FTX’s operations under Bankman-Fried, from a lack of security controls to business funds being used to buy employees homes and luxuries.",
+      "note_id": "note-000015",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 17: Ray gives a damning description of FTX’s operations under Bankman-Fried, from a lack of security controls to business funds being used to buy employees homes and luxuries.",
+      "span": {
+        "end_char": 35317,
+        "start_char": 35137
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Nov. 30, 2022, Bankman-Fried acknowledged mistakes in media statements but denied knowingly misusing client funds.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 30: As part of a media blitz, Bankman-Fried tells New York Time’s Andrew Ross-Sorkin, “Look, I screwed up,” and didn’t knowingly misuse clients’ funds.",
+      "note_id": "note-000016",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 30: As part of a media blitz, Bankman-Fried tells New York Time’s Andrew Ross-Sorkin, “Look, I screwed up,” and didn’t knowingly misuse clients’ funds.",
+      "span": {
+        "end_char": 35570,
+        "start_char": 35414
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Dec. 12, 2022, Bankman-Fried was arrested in the Bahamas, where FTX was headquartered.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Dec. 12: Bankman-Fried is arrested in the Bahamas, where FTX is headquartered.",
+      "note_id": "note-000017",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Dec. 12: Bankman-Fried is arrested in the Bahamas, where FTX is headquartered.",
+      "span": {
+        "end_char": 35649,
+        "start_char": 35571
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Dec. 13, 2022, U.S. government charged Bankman-Fried with multiple financial crimes, alleging intentional deception to enrich himself and others, misusing customers' and investors' funds for expenses, debts, risky trades, real estate, and political donations.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Dec. 13: The U.S. government charges Bankman-Fried with a host of financial crimes, alleging he intentionally deceived customers and investors to enrich himself and others, while playing a central role in the company’s multibillion-dollar collapse. Federal prosecutors said Bankman-Fried devised “a scheme and artifice to defraud” FTX’s customers and investors beginning the year it was founded. He illegally diverted their money to cover expenses, debts and risky trades at Alameda Research, and to make lavish real estate purchases and large political donations, prosecutors said in a 13-page indictment.",
+      "note_id": "note-000018",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Dec. 13: The U.S. government charges Bankman-Fried with a host of financial crimes, alleging he intentionally deceived customers and investors to enrich himself and others, while playing a central role in the company’s multibillion-dollar collapse.\nFederal prosecutors said Bankman-Fried devised “a scheme and artifice to defraud” FTX’s customers and investors beginning the year it was founded. He illegally diverted their money to cover expenses, debts and risky trades at Alameda Research, and to make lavish real estate purchases and large political donations, prosecutors said in a 13-page indictment.",
+      "span": {
+        "end_char": 36256,
+        "start_char": 35650
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On Dec. 22, 2022, Bankman-Fried’s parents signed a $250 million bond and agreed to house arrest at their California home while he awaited trial.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Dec. 22: Bankman-Fried’s parents agreed to sign a $250 million bond and keep him at their California home while he awaits trial.",
+      "note_id": "note-000019",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Dec. 22: Bankman-Fried’s parents agreed to sign a $250 million bond and keep him at their California home while he awaits trial.",
+      "span": {
+        "end_char": 36385,
+        "start_char": 36257
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On August 11, 2023, a judge revoked Bankman-Fried’s bail and sent him to jail for attempting to influence witnesses against him.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "August 11: Judge revoked Bankman-Fried’s bail and sent him to jail after concluding he had repeatedly tried to influence witnesses against him.",
+      "note_id": "note-000020",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "August 11: Judge revoked Bankman-Fried’s bail and sent him to jail after concluding he had repeatedly tried to influence witnesses against him.",
+      "span": {
+        "end_char": 36529,
+        "start_char": 36386
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On October 3, 2023, jury selection began for Bankman-Fried’s trial.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Oct. 3: Jury selection began for the trial.",
+      "note_id": "note-000021",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Oct. 3: Jury selection began for the trial.",
+      "span": {
+        "end_char": 36573,
+        "start_char": 36530
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On October 27, 2023, Bankman-Fried testified in his trial, acknowledging failures but denying fraud.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Oct. 27: Bankman-Fried took the stand in his trial. He again acknowledged failures but denied defrauding anyone.",
+      "note_id": "note-000022",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Oct. 27: Bankman-Fried took the stand in his trial. He again acknowledged failures but denied defrauding anyone.",
+      "span": {
+        "end_char": 36686,
+        "start_char": 36574
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On November 3, 2023, Bankman-Fried was convicted of fraud for stealing at least $10 billion from customers and investors.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Nov. 3: Bankman-Fried is convicted of fraud for stealing at least $10 billion from customers and investors.",
+      "note_id": "note-000023",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "Nov. 3: Bankman-Fried is convicted of fraud for stealing at least $10 billion from customers and investors.",
+      "span": {
+        "end_char": 36794,
+        "start_char": 36687
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On March 28, 2024, Bankman-Fried was sentenced to 25 years in prison; bitcoin prices had recovered, rising nearly 70%.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "March 28: Bankman-Fried is sentenced to 25 years in prison. Bitcoin has roared back from a massive sell-off during the scandal. Prices are up nearly 70%.",
+      "note_id": "note-000024",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "March 28: Bankman-Fried is sentenced to 25 years in prison. Bitcoin has roared back from a massive sell-off during the scandal. Prices are up nearly 70%.",
+      "span": {
+        "end_char": 36948,
+        "start_char": 36795
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On April 30, 2024, Binance founder Changpeng Zhao was sentenced to four months in prison for allowing criminals to use the platform for illicit money movement.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "April 30: Changpeng Zhao, the founder of Binance, is sentenced to four months in prison for looking the other way as criminals used the platform to move money connected to child sex abuse, drug trafficking and terrorism.",
+      "note_id": "note-000025",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "April 30: Changpeng Zhao, the founder of Binance, is sentenced to four months in prison for looking the other way as criminals used the platform to move money connected to child sex abuse, drug trafficking and terrorism.",
+      "span": {
+        "end_char": 37169,
+        "start_char": 36949
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "On May 7, 2024, FTX announced in court that it owed about $11.2 billion to creditors and estimated it had between $14.5 billion and $16.3 billion to distribute, saying nearly all customers will be repaid.",
+      "item_id": "when-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them.",
+      "note_id": "note-000026",
+      "publisher": "apnews.com",
+      "repair_method": null,
+      "source_id": "source-318a2b102dfd9682",
+      "source_quote": "FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them.",
+      "span": {
+        "end_char": 27042,
+        "start_char": 26662
+      },
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "failure_reason": null,
+      "finding": "FTX failed financially and operationally due to the systematic commingling of customer assets with Alameda Research holdings, a lack of financial controls, poor risk management, and fraudulent misrepresentation of the exchange's solvency to investors and regulators.",
+      "item_id": "why-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "FTX's failure resulted from systematic commingling of customer assets with Alameda Research holdings, absence of financial controls, poor risk management, and fraudulent misrepresentation of the exchange's solvency to investors and regulators.",
+      "note_id": "note-000027",
+      "publisher": "tokentax.co",
+      "repair_method": null,
+      "source_id": "source-844ddc3015f068c6",
+      "source_quote": "FTX's failure resulted from systematic commingling of customer assets with Alameda Research holdings, absence of financial controls, poor risk management, and fraudulent misrepresentation of the exchange's solvency to investors and regulators.",
+      "span": {
+        "end_char": 610,
+        "start_char": 367
+      },
+      "url": "https://tokentax.co/blog/ftx-collapse"
+    },
+    {
+      "failure_reason": null,
+      "finding": "FTX illegally funneled approximately $8 billion in user deposits to its sister trading firm Alameda Research to cover risky bets, directly causing its liquidity crisis.",
+      "item_id": "why-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "The exchange illegally funneled approximately $8 billion in user deposits to its sister trading firm Alameda Research to cover risky bets.",
+      "note_id": "note-000028",
+      "publisher": "tokentax.co",
+      "repair_method": null,
+      "source_id": "source-844ddc3015f068c6",
+      "source_quote": "The exchange illegally funneled approximately $8 billion in user deposits to its sister trading firm Alameda Research to cover risky bets.",
+      "span": {
+        "end_char": 1609,
+        "start_char": 1471
+      },
+      "url": "https://tokentax.co/blog/ftx-collapse"
+    },
+    {
+      "failure_reason": null,
+      "finding": "FTX and Alameda Research were dangerously intertwined financially, with Alameda's balance sheet dependent on FTT tokens and exhibiting over concentration in FTT, an asset lacking fundamental support beyond FTX's ecosystem.",
+      "item_id": "why-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Alameda Research's balance sheet (and consequently FTX's true financial position) showed dangerous over concentration in FTT, an asset with negligible market demand or utility beyond FTX's ecosystem.",
+      "note_id": "note-000029",
+      "publisher": "tokentax.co",
+      "repair_method": null,
+      "source_id": "source-844ddc3015f068c6",
+      "source_quote": "Alameda Research's balance sheet (and consequently FTX's true financial position) showed dangerous over concentration in FTT, an asset with negligible market demand or utility beyond FTX's ecosystem.",
+      "span": {
+        "end_char": 6046,
+        "start_char": 5847
+      },
+      "url": "https://tokentax.co/blog/ftx-collapse"
+    },
+    {
+      "failure_reason": null,
+      "finding": "The crisis was triggered when Binance announced plans to liquidate its FTT holdings, causing massive withdrawal requests at FTX that exposed an $8 billion shortfall and FTX's insufficient funds to meet demands.",
+      "item_id": "why-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "When Binance announced plans to liquidate over half a billion (USD) in FTT tokens on November 6, 2022, it triggered $5 billion in withdrawal requests within 72 hours, exposing FTX's $8 billion shortfall.",
+      "note_id": "note-000030",
+      "publisher": "tokentax.co",
+      "repair_method": null,
+      "source_id": "source-844ddc3015f068c6",
+      "source_quote": "When Binance announced plans to liquidate over half a billion (USD) in FTT tokens on November 6, 2022, it triggered $5 billion in withdrawal requests within 72 hours, exposing FTX's $8 billion shortfall.",
+      "span": {
+        "end_char": 1813,
+        "start_char": 1610
+      },
+      "url": "https://tokentax.co/blog/ftx-collapse"
+    },
+    {
+      "failure_reason": null,
+      "finding": "FTX operated with organizational dysfunction and virtually no protective risk measures; Alameda’s portfolio was disorganized, lacking coherent strategy, and management showed a blatant disregard for risk management and customer welfare.",
+      "item_id": "why-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Unlike disciplined financial institutions, Alameda's portfolio resembled a disorganized collection of disparate tokens, equity stakes, and speculative ventures lacking coherent strategy. While professionally-managed cryptocurrency firms implement rigorous risk assessment protocols, FTX deployed virtually no protective measures and seemed to accumulate as many assets as it possibly could.",
+      "note_id": "note-000031",
+      "publisher": "tokentax.co",
+      "repair_method": null,
+      "source_id": "source-844ddc3015f068c6",
+      "source_quote": "Unlike disciplined financial institutions, Alameda's portfolio resembled a disorganized collection of disparate tokens, equity stakes, and speculative ventures lacking coherent strategy.\nWhile professionally-managed cryptocurrency firms implement rigorous risk assessment protocols, FTX deployed virtually no protective measures and seemed to accumulate as many assets as it possibly could.",
+      "span": {
+        "end_char": 7386,
+        "start_char": 6996
+      },
+      "url": "https://tokentax.co/blog/ftx-collapse"
+    },
+    {
+      "failure_reason": null,
+      "finding": "FTX's establishment in the Bahamas enabled it to avoid U.S. regulatory obligations, and political influence campaigns sought to gain favorable regulatory treatment despite poor operational risk management.",
+      "item_id": "why-01",
+      "located_fragment_count": 0,
+      "location_status": "locatable",
+      "model_quote": "Establishing operations in the Bahamas allowed FTX to circumvent numerous regulatory obligations imposed by United States financial authorities. FTX simultaneously conducted extensive political influence campaigns in the United States, seeking favorable positioning in emerging cryptocurrency regulation.",
+      "note_id": "note-000032",
+      "publisher": "tokentax.co",
+      "repair_method": null,
+      "source_id": "source-844ddc3015f068c6",
+      "source_quote": "Establishing operations in the Bahamas allowed FTX to circumvent numerous regulatory obligations imposed by United States financial authorities.\nFTX simultaneously conducted extensive political influence campaigns in the United States, seeking favorable positioning in emerging cryptocurrency regulation.",
+      "span": {
+        "end_char": 8491,
+        "start_char": 8187
+      },
+      "url": "https://tokentax.co/blog/ftx-collapse"
+    }
+  ],
+  "provenance": {
+    "extraction_scope": "Post-hoc evidence fixture: report, checklist terminal state, usage summary, notes, and complete cached source texts. Search candidates and round transcripts remain provenance-only.",
+    "source_audit_sha256": "68cc75ecc6afa89e51afb5f138492d47eb52271a35b78fcdbcd7c164b20e94f0",
+    "source_report_sha256": "4f6b9c386f9652345f4e6fcb73153a9f4749928bd33a10be4847ff9bdac9fc56",
+    "source_run_id": "b1407b310c804b46aa9c5e5e6a163678"
+  },
+  "report_markdown": "# Report on the 2022 Collapse and Bankruptcy of FTX Cryptocurrency Exchange\n\n## Introduction\n\nFTX, once a leading cryptocurrency exchange, faced a dramatic collapse in 2022 that shocked the crypto market and regulatory landscape. This report details the key individuals and organizations involved, main events leading to the failure, the timeline of critical developments, underlying reasons for the collapse, and the ensuing legal and financial repercussions.\n\n---\n\n## Key Individuals and Organizations\n\nFTX was founded in May 2019 by Sam Bankman-Fried and Gary Wang[^6]. Alameda Research, a crypto trading firm closely connected to FTX, was founded by Bankman-Fried, Caroline Ellison, and other former Jane Street employees[^6]. Caroline Ellison served as CEO of Alameda Research and was implicated in decisions to transfer client funds from FTX to Alameda; she later pleaded guilty to charges and cooperated with prosecutors[^2].\n\nBinance CEO Changpeng Zhao played a pivotal role during the events leading to FTX's collapse. Binance initially bought a stake in FTX, sold its holdings in FTT tokens, and signed a letter of intent to acquire FTX but quickly withdrew the offer after reviewing FTX's financial situation[^1]. Other key figures included Nishad Singh, a former FTX executive who pleaded guilty to conspiracy charges, and Ryan Salame, another former executive sentenced to prison for related crimes[^5]. Following the collapse, John J. Ray III, a corporate restructuring specialist known for handling the Enron bankruptcy, became the interim CEO of FTX[^3]. \n\nRegulatory and law enforcement agencies involved in investigating the collapse included the U.S. Department of Justice, the Commodity Futures Trading Commission, the U.S. Attorney's Office for the Southern District of New York, and the Royal Bahamas Police Force[^4].\n\n[^1]: {\"quote\":\"Binance CEO Changpeng Zhao was a key figure in the events surrounding FTX's collapse, as Binance bought a stake in FTX, later sold its holdings of FTT tokens, and then signed and quickly withdrew a letter of intent to acquire FTX due to concerns about mishandling customer funds.\",\"url\":\"https://en.wikipedia.org/wiki/FTX\"}\n[^2]: {\"quote\":\"Caroline Ellison served as CEO of Alameda Research and was involved in decisions related to the transfer of client funds from FTX to Alameda. She later pleaded guilty to multiple charges and cooperated with prosecutors.\",\"url\":\"https://en.wikipedia.org/wiki/FTX\"}\n[^3]: {\"quote\":\"FTX was founded in May 2019 by Sam Bankman-Fried and Gary Wang. The current CEO after the collapse is John J. Ray III, a corporate restructuring specialist with experience in liquidating failed corporations such as Enron.\",\"url\":\"https://en.wikipedia.org/wiki/FTX\"}\n[^4]: {\"quote\":\"Regulatory and law enforcement authorities involved after the collapse include the U.S. Department of Justice, the Commodity Futures Trading Commission, the U.S. Attorney's Office for the Southern District of New York, and the Royal Bahamas Police Force, investigating financial offenses and fraud.\",\"url\":\"https://en.wikipedia.org/wiki/FTX\"}\n[^5]: {\"quote\":\"Several other key individuals involved include Nishad Singh, a former FTX executive and childhood friend of Bankman-Fried's brother, who pleaded guilty to conspiracy charges and cooperated with prosecutors; and Ryan Salame, a former FTX executive who pleaded guilty and was sentenced to prison.\",\"url\":\"https://en.wikipedia.org/wiki/FTX\"}\n[^6]: {\"quote\":\"Sam Bankman-Fried and Zixiao \\\"Gary\\\" Wang \\\"Gary Wang (American businessman)\\\") founded FTX in May 2019. FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California.\",\"url\":\"https://en.wikipedia.org/wiki/FTX\"}\n\n---\n\n## Main Events and Factors Leading to Collapse\n\nThe collapse was primarily triggered by a liquidity crisis centered around FTX’s native token, FTT. Binance’s announcement on November 6, 2022, to liquidate its FTT holdings caused the FTT price to plummet, sparking a withdrawal rush from customers[^7][^9]. FTX’s inability to cover an estimated $8 billion shortfall between owed funds and available assets became apparent during this period[^7][^11].\n\nLeaked documents and reports revealed that Alameda Research was incorrectly using customer funds for risky loan activities instead of transferring them to FTX[^7]. FTX aggressively expanded through acquisitions and marketing, while employing risky trading strategies and relying heavily on its FTT token issued in 2019[^7]. The financial interdependency between Alameda and FTX deepened the crisis, as Alameda's balance sheet showed dangerous overconcentration in FTT, a token lacking substantial external market support[^13].\n\nThe lack of robust financial and risk management controls, along with inappropriate use of customer deposits for Alameda’s high-risk bets, formulated the underlying factors behind the failure[^14][^15].\n\n[^7]: {\"quote\":\"FTX rose quickly to dominate the cryptocurrency market through acquisitions of competitors, aggressive marketing campaigns and celebrity endorsements promising high yields. FTX built its business on risky trading options not legal in the U.S. and created its digital token, FTT, in May 2019. ... Documents leaked to news site CoinDesk suggested that the FTX-affiliated hedge fund Alameda was receiving customer monies. Rather than transferring the money to FTX, the company was using the cash for other purposes, such as making risky loans. When the article was published, FTX investor Binance, traders and customers caused a run on FTT.\",\"url\":\"https://www.consumernotice.org/legal/crypto-bankruptcies/ftx\"}\n[^9]: {\"quote\":\"Nov. 6: Rival cryptocurrency exchange Binance announces that the firm plans to sell all its holdings in FTT. The price of FTT tanks.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^11]: {\"quote\":\"The collapse of FTX was triggered by a liquidity crisis involving its digital token, FTT, which led to a crash in its price after Binance announced it would sell its holdings. This caused massive withdrawals by traders and customers, revealing that FTX could not cover an $8 billion gap between owed funds and available assets. Investigations revealed inaccuracies in FTX's balance sheets, misuse of customer funds by Alameda Research for risky loans, and a significant lack of corporate and financial controls.\",\"url\":\"https://www.consumernotice.org/legal/crypto-bankruptcies/ftx\"}\n[^13]: {\"quote\":\"Alameda Research's balance sheet (and consequently FTX's true financial position) showed dangerous over concentration in FTT, an asset with negligible market demand or utility beyond FTX's ecosystem.\",\"url\":\"https://tokentax.co/blog/ftx-collapse\"}\n[^14]: {\"quote\":\"FTX's failure resulted from systematic commingling of customer assets with Alameda Research holdings, absence of financial controls, poor risk management, and fraudulent misrepresentation of the exchange's solvency to investors and regulators.\",\"url\":\"https://tokentax.co/blog/ftx-collapse\"}\n[^15]: {\"quote\":\"Unlike disciplined financial institutions, Alameda's portfolio resembled a disorganized collection of disparate tokens, equity stakes, and speculative ventures lacking coherent strategy.\\nWhile professionally-managed cryptocurrency firms implement rigorous risk assessment protocols, FTX deployed virtually no protective measures and seemed to accumulate as many assets as it possibly could.\",\"url\":\"https://tokentax.co/blog/ftx-collapse\"}\n\n---\n\n## Timeline of Critical Developments\n\n- **Nov. 2, 2022:** Coindesk reported that Alameda Research held a large amount of FTT, indicating intertwined finances and a looming cash crunch[^8].\n- **Nov. 6, 2022:** Binance declared plans to liquidate all FTT holdings, causing the token’s price to collapse[^9].\n- **Nov. 7-9, 2022:** Massive customer withdrawals overwhelmed FTX. Binance initially signed a letter of intent to acquire FTX on Nov. 8 but withdrew the next day after reviewing FTX’s finances, citing issues beyond their control[^10][^11].\n- **Nov. 10, 2022:** Crypto lender BlockFi paused client withdrawals in response to FTX’s crisis[^12].\n- **Nov. 11, 2022:** FTX filed for Chapter 11 bankruptcy, Sam Bankman-Fried resigned, and John J. Ray III was appointed CEO. The filing revealed over 130 affiliated entities with assets and liabilities estimated between $10 billion and $50 billion[^13].\n- **Nov. 17, 2022:** John Ray III publicly condemned FTX’s operational failures under Bankman-Fried, highlighting poor security and misuse of funds[^14].\n- **Nov. 30, 2022:** Bankman-Fried admitted mistakes but denied intentionally misusing client funds[^15].\n- **Dec. 12, 2022:** Bankman-Fried was arrested in the Bahamas[^16].\n- **Dec. 13, 2022:** U.S. prosecutors charged Bankman-Fried with multiple financial crimes relating to fraud, money diversion, and political donations[^17].\n- **Dec. 22, 2022:** His parents posted $250 million bond for his house arrest in California pending trial[^18].\n- **Aug. 11, 2023:** Bankman-Fried’s bail was revoked due to attempts to influence witnesses[^19].\n- **Oct. 3, 2023:** Jury selection began for his trial[^20].\n- **Oct. 27, 2023:** Bankman-Fried testified, acknowledging failures but denying fraud[^21].\n- **Nov. 3, 2023:** He was convicted of fraud for stealing at least $10 billion from customers and investors[^22].\n- **Mar. 28, 2024:** Sentenced to 25 years in prison; bitcoin prices recovered significantly[^23].\n- **Apr. 30, 2024:** Binance founder Changpeng Zhao was sentenced to four months in prison for failing to prevent illicit use of the platform[^24].\n\n[^8]: {\"quote\":\"Nov. 2: Coindesk reports Alameda Reseach, Bankman-Fried’s cryptocurrency trading firm, holds a large amount of FTT, a token issued by FTX, suggesting the finances of the two are intertwined and Alameda faces a cash crunch. The report spooks participants in the crypto market.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^10]: {\"quote\":\"Nov. 8: Binance founder and CEO Changpeng Zhao said his company had signed a letter of intent to buy FTX because the smaller exchange was experiencing a “significant liquidity crunch.” That deal would be contingent, however, on a look at the books at FTX. The price for bitcoin tumbles 13%.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^11]: {\"quote\":\"Nov. 9: Cryptocurrency prices plunge and after getting a closer look at the finances of FTX, Binance retreated and said there would be no acquisition. “In the beginning, our hope was to be able to support FTX’s customers to provide liquidity, but the issues are beyond our control or ability to help,” Binance said in a statement. Bitcoin prices drop another 14%.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^12]: {\"quote\":\"Nov. 10: Cryptocurrency lender BlockFi announced it is “not able to do business as usual” and was pausing client withdrawals as a result of FTX’s implosion.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^13]: {\"quote\":\"Nov. 11: FTX files for Chapter 11 and Bankman-Fried resigns. John Ray III, a long-time bankruptcy litigator who is best known for having to clean up the mess made after the collapse of Enron, is named the new CEO.\\nIn its bankruptcy filing, FTX listed more than 130 affiliated companies around the globe. The company valued its assets between $10 billion to $50 billion, with a similar estimate for its liabilities. Bitcoin falls 10%.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^14]: {\"quote\":\"Nov. 17: Ray gives a damning description of FTX’s operations under Bankman-Fried, from a lack of security controls to business funds being used to buy employees homes and luxuries.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^15]: {\"quote\":\"Nov. 30: As part of a media blitz, Bankman-Fried tells New York Time’s Andrew Ross-Sorkin, “Look, I screwed up,” and didn’t knowingly misuse clients’ funds.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^16]: {\"quote\":\"Dec. 12: Bankman-Fried is arrested in the Bahamas, where FTX is headquartered.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^17]: {\"quote\":\"Dec. 13: The U.S. government charges Bankman-Fried with a host of financial crimes, alleging he intentionally deceived customers and investors to enrich himself and others, while playing a central role in the company’s multibillion-dollar collapse.\\nFederal prosecutors said Bankman-Fried devised “a scheme and artifice to defraud” FTX’s customers and investors beginning the year it was founded. He illegally diverted their money to cover expenses, debts and risky trades at Alameda Research, and to make lavish real estate purchases and large political donations, prosecutors said in a 13-page indictment.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^18]: {\"quote\":\"Dec. 22: Bankman-Fried’s parents agreed to sign a $250 million bond and keep him at their California home while he awaits trial.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^19]: {\"quote\":\"August 11: Judge revoked Bankman-Fried’s bail and sent him to jail after concluding he had repeatedly tried to influence witnesses against him.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^20]: {\"quote\":\"Oct. 3: Jury selection began for the trial.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^21]: {\"quote\":\"Oct. 27: Bankman-Fried took the stand in his trial. He again acknowledged failures but denied defrauding anyone.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^22]: {\"quote\":\"Nov. 3: Bankman-Fried is convicted of fraud for stealing at least $10 billion from customers and investors.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^23]: {\"quote\":\"March 28: Bankman-Fried is sentenced to 25 years in prison. Bitcoin has roared back from a massive sell-off during the scandal. Prices are up nearly 70%.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n[^24]: {\"quote\":\"April 30: Changpeng Zhao, the founder of Binance, is sentenced to four months in prison for looking the other way as criminals used the platform to move money connected to child sex abuse, drug trafficking and terrorism.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n\n---\n\n## Reasons for Financial and Operational Failure\n\nFTX’s failure stemmed from systematic commingling of customer assets with Alameda Research's holdings along with a profound absence of financial controls and poor risk management[^14]. Approximately $8 billion of user deposits were illegally funneled from FTX to Alameda Research to cover risky bets[^14][^15]. The illicit transfer directly precipitated FTX’s liquidity crisis.\n\nThe intertwined finances of FTX and Alameda were further destabilized by Alameda's excessive concentration in FTT tokens, which lacked meaningful market demand or utility outside the FTX ecosystem[^13]. Unlike disciplined financial institutions, Alameda’s portfolio was a \"disorganized collection\" of speculative tokens and ventures without a coherent strategy, while FTX operated devoid of adequate risk assessments or protective internal controls[^15].\n\nLocating FTX's headquarters in the Bahamas allowed it to circumvent multiple U.S. regulatory obligations, complicating oversight efforts[^16]. Concurrently, FTX engaged in extensive political influence efforts in the United States to obtain favorable regulatory positions, despite having poor operational risk management[^16].\n\n[^13]: {\"quote\":\"Alameda Research's balance sheet (and consequently FTX's true financial position) showed dangerous over concentration in FTT, an asset with negligible market demand or utility beyond FTX's ecosystem.\",\"url\":\"https://tokentax.co/blog/ftx-collapse\"}\n[^14]: {\"quote\":\"FTX's failure resulted from systematic commingling of customer assets with Alameda Research holdings, absence of financial controls, poor risk management, and fraudulent misrepresentation of the exchange's solvency to investors and regulators.\",\"url\":\"https://tokentax.co/blog/ftx-collapse\"}\n[^15]: {\"quote\":\"Unlike disciplined financial institutions, Alameda's portfolio resembled a disorganized collection of disparate tokens, equity stakes, and speculative ventures lacking coherent strategy.\\nWhile professionally-managed cryptocurrency firms implement rigorous risk assessment protocols, FTX deployed virtually no protective measures and seemed to accumulate as many assets as it possibly could.\",\"url\":\"https://tokentax.co/blog/ftx-collapse\"}\n[^16]: {\"quote\":\"Establishing operations in the Bahamas allowed FTX to circumvent numerous regulatory obligations imposed by United States financial authorities.\\nFTX simultaneously conducted extensive political influence campaigns in the United States, seeking favorable positioning in emerging cryptocurrency regulation.\",\"url\":\"https://tokentax.co/blog/ftx-collapse\"}\n\n---\n\n## Headquarters, Jurisdiction, and Legal Proceedings\n\nFTX was headquartered in the Bahamas[^16]. This location allowed FTX to avoid various regulatory requirements imposed by U.S. financial authorities, complicating regulatory oversight.\n\nFollowing FTX’s collapse, multiple jurisdictions engaged in legal proceedings and investigations, including U.S. federal agencies such as the Department of Justice, Commodity Futures Trading Commission, and the Southern District of New York U.S. Attorney’s Office. The Royal Bahamas Police Force also participated due to FTX’s Bahamian base[^4].\n\n---\n\n## Bankruptcy Process and Stakeholder Impact\n\nFTX filed for Chapter 11 bankruptcy protection on November 11, 2022, listing over 130 affiliated companies globally with assets and liabilities each estimated between $10 billion and $50 billion[^13]. John J. Ray III was appointed CEO to oversee the restructuring.\n\nOn May 7, 2024, FTX announced it owed approximately $11.2 billion to creditors and estimated it had between $14.5 billion and $16.3 billion available for distribution, projecting that nearly all customer funds would be repaid, with some creditors potentially receiving amounts beyond their claims[^25].\n\nThe bankruptcy process significantly affected customers, investors, and other stakeholders. Massive customer fund withdrawals led to liquidity shortages that exposed FTX’s insolvency. Investors and customers suffered substantial financial losses, and executives faced criminal charges and prison sentences[^5][^17][^22].\n\n[^25]: {\"quote\":\"FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them.\",\"url\":\"https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e\"}\n\n---\n\n## Conclusion\n\nThe collapse of FTX was a landmark event exposing the risks inherent in the crypto industry related to inadequate regulation, poor internal controls, and financial misconduct. Its ties to Alameda Research and reckless use of customer funds, coupled with risky trading and overreliance on an illiquid digital token, culminated in massive losses and legal consequences for executives. The repercussions continue to reverberate through the cryptocurrency market and regulatory frameworks, emphasizing the need for greater transparency, accountability, and oversight in the sector.",
+  "run_snapshot": {
+    "action_counts": {
+      "read": 4,
+      "search": 11,
+      "stop": 1
+    },
+    "checklist": {
+      "items": [
+        {
+          "dimension": "who",
+          "item_id": "who-01",
+          "priority": 1,
+          "question": "Who were the key individuals and organizations involved in the founding, management, and collapse of FTX?",
+          "required_source_count": 2,
+          "status": "settled"
+        },
+        {
+          "dimension": "what",
+          "item_id": "what-01",
+          "priority": 1,
+          "question": "What were the main events and factors that led to the collapse and bankruptcy of FTX in 2022?",
+          "required_source_count": 2,
+          "status": "settled"
+        },
+        {
+          "dimension": "when",
+          "item_id": "when-01",
+          "priority": 1,
+          "question": "When did the critical developments occur during the timeline leading up to and following the FTX collapse in 2022?",
+          "required_source_count": 1,
+          "status": "settled"
+        },
+        {
+          "dimension": "where",
+          "item_id": "where-01",
+          "priority": 2,
+          "question": "Where was FTX headquartered, and in which jurisdictions did the exchange operate and face legal proceedings after the collapse?",
+          "required_source_count": 1,
+          "status": "settled"
+        },
+        {
+          "dimension": "why",
+          "item_id": "why-01",
+          "priority": 1,
+          "question": "Why did FTX fail financially and operationally, including underlying causes such as business practices, regulatory issues, or market conditions?",
+          "required_source_count": 2,
+          "status": "settled"
+        },
+        {
+          "dimension": "how",
+          "item_id": "how-01",
+          "priority": 2,
+          "question": "How did the bankruptcy process unfold, and how have stakeholders such as customers, investors, and regulators been affected?",
+          "required_source_count": 1,
+          "status": "exhausted_not_found"
+        },
+        {
+          "dimension": "how",
+          "item_id": "how-02",
+          "priority": 3,
+          "question": "How has the collapse of FTX influenced the broader cryptocurrency market and regulatory environment post-2022?",
+          "required_source_count": 1,
+          "status": "exhausted_not_found"
+        }
+      ],
+      "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022"
+    },
+    "collection_summary": {
+      "known_gaps": [
+        "writing_input_budget_preflight_not_enforced"
+      ],
+      "quote_quality": {
+        "format_repair_rate": 0.0,
+        "noncontiguous_composite_count": 0,
+        "noncontiguous_composite_rate": 0.0,
+        "note_count": 32,
+        "repaired_locatable_count": 0,
+        "strict_locatable_count": 26,
+        "strict_locatable_rate": 0.8125,
+        "usable_source_span_count": 26,
+        "usable_source_span_rate": 0.8125
+      },
+      "settled_without_located_evidence": 1,
+      "settled_without_located_evidence_item_ids": [
+        "where-01"
+      ],
+      "writing_reserve": {
+        "cost_usd": 0.0,
+        "tokens": 0
+      }
+    },
+    "models": {
+      "decision": "openai/gpt-4.1-mini",
+      "note": "openai/gpt-4.1-mini",
+      "verification": "openai/gpt-4.1-mini",
+      "writing": "openai/gpt-4.1-mini"
+    },
+    "round_count": 16,
+    "stop": {
+      "detail": "all checklist items reached a terminal state; settled_without_located_evidence=1 (where-01)",
+      "is_success": true,
+      "open_item_ids": [],
+      "reason": "all_items_terminal"
+    },
+    "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+    "usage": {
+      "checklist": {
+        "cost_usd": 0.0007856,
+        "token_count": 590
+      },
+      "collection": {
+        "cost_usd": 0.0508128,
+        "token_count": 110823
+      },
+      "total": {
+        "cost_usd": 0.061244799999999995,
+        "token_count": 121615
+      },
+      "writing": {
+        "cost_usd": 0.0096464,
+        "token_count": 10202
+      }
+    }
+  },
+  "schema_version": 1,
+  "source_cache": {
+    "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e": "AP Logo\nWorld\nIran war Russia-Ukraine war Español China Asia Pacific Latin America Europe Africa\nTOP STORIES\n+ France and Spain battle wildfires as more than 250,000 people are forced to flee homes\n+ Van slams into crowd at Berlin Pride festival, killing 1 and injuring 16, as police identify suspect\n+ Iran-backed Houthis fire missiles at Saudi Arabia in response to airstrikes in Yemen\nThe Afternoon Wire\nOur personalization engine sends you what you may have missed throughout the day. The Morning Wire\nOur flagship newsletter breaks down the biggest headlines of the day.\nSee All Newsletters\nU.S.\nSECTIONS\nImmigration Weather Education Transportation Abortion LGBTQ+ Notable Deaths America at 250\nTOP STORIES\n+ Maine Democratic delegates choose Troy Jackson as new nominee to face US Sen. Susan Collins\n+ Wisconsin's capital city cancels signature events, grapples with fallout from police shooting\n+ Oregon fire looms near town as fourth firefighter dies weeks after Colorado blaze\nNewsletters\nThe Afternoon Wire\nOur personalization engine sends you what you may have missed throughout the day.\nSee All Newsletters\nAP QUIZZES\nWeekly News Quiz\nPolitics\nSECTIONS\n2026 Elections Election Results Election calendar White House Congress Supreme Court The latest AP-NORC polls\nTOP STORIES\n+ Trump administration admits grants for clean energy were canceled based on politics\n+ Talarico is trying to win back Hispanics along the Texas border who swung toward the GOP\n+ Airstrikes have paused and talks are pressing forward. But can the US and Iran take the off-ramp?\nNewsletters\nGround Game\nYour guide to the biggest stories in politics, policy and U.S. elections.\nSee All Newsletters\nSports\nSECTIONS\nFIFA World Cup NFL MLB WNBA Tennis NBA Golf NHL\nTOP STORIES\n+ Scrutiny of WNBA intensifies as mounting discord around the league looms over All-Star festivities\n+ 49ers coach Kyle Shanahan hurt in a car crash, limited as training camp opens\nNewsletters\nThe Sports Wire\nGet AP’s in-depth sports reporting tailored to your interests.\nSee All Newsletters\nEntertainment\nSECTIONS\nMovies Fashion Television Celebrity Interviews Music Books\nTOP STORIES\n+ Rick Moranis met with standing ovation at 'Spaceballs' sequel Comic-Con panel\n+ Comic-Con 2026: David Jonsson is new Black Panther, Ryan Gosling joins Marvel as Ghost Rider\nNewsletters\nAP Entertainment Wire\nAP’s entertainment, media, fashion and culture coverage, personalized to your interests.\nSee All Newsletters\nBusiness\nSECTIONS\nTariffs Inflation Financial Markets Financial Wellness Technology\nTOP STORIES\n+ Americans rewire their grocery shopping routines while digesting the biggest price jump in 50 years\n+ The 'rockets and feathers' effect: Inflation eases but grocery bills do not\n+ America In Focus: New tariffs, soaring gas, mortgages and a down week for Wall Street\nScience\nNewsletters\nQuizzes\nGames\nFact Check\nOddities\nTOP STORIES\n+ Raccoon goes on drunken rampage in Virginia liquor store and passes out on bathroom floor\n+ Viral phenomenon in Argentina has young people identifying themselves as animals\n+ Chicken wings advertised as 'boneless' can have bones, Ohio Supreme Court decides\n+ Fatou, the world's oldest gorilla living in captivity, celebrates her 69th birthday at Berlin Zoo\n+ Ghana's fantasy coffins are a colorful celebration of life and legacy\n+ Lettuce introduce you to the live frog found in this grocery store salad bag\nBe Well\nSECTIONS\nTrending Better health At home Working well For the climate Eating well\nTOP STORIES\n+ Jetting off for a summer vacation? How to eat and drink to minimize jet lag\n+ Being a night owl may not be great for your heart but you can do something about it\n+ As demand for GLP-1 pills and shots surges, healthy habits are still key\nPhotography\nSECTIONS\nPhoto Essays\nTOP STORIES\n+ One frame captures a mother’s anguish during a search through a collapsed building in Venezuela\n+ At the Kaaba during Hajj, a photographer captures sense of unity and devotion\n+ How a photographer captured the speed and danger of Pamplona’s bull run\nNewsletters\nThe World in Pictures\nGet special access to AP's most compelling images from our global team of photojournalists.\nSee All Newsletters\nAP Investigations\nClimate\nSECTIONS\nIndigenous peoples and climate Climate Questions Climate Migration India Focus\nTOP STORIES\n+ Heat dome expands across the central United States, creating dangerous conditions for millions\n+ Water hauling is the new chore no rancher asked for\n+ As Lake Powell shrinks, marinas are having to adapt to dwindling water levels\nHealth\nTOP STORIES\n+ Outbreak of diarrhea-causing parasite linked to 4 more states\n+ Jetting off for a summer vacation? How to eat and drink to minimize jet lag\n+ US health officials are investigating a new outbreak of a diarrhea-causing parasite\n+ Salmonella outbreak tied to eggs has sickened 98 people since November\n+ Being a night owl may not be great for your heart but you can do something about it\n+ There are already more US measles cases this year than in all of 2025\nTech\nSECTIONS\nArtificial Intelligence Social Media\nTOP STORIES\n+ One Tech Tip: Don't use rice for your device. Here's how to dry out your smartphone\n+ Young people are turning to old-school hobbies to get off their phones\n+ Jury finds Instagram and YouTube liable in a landmark social media addiction trial\nLifestyle\nSECTIONS\nFood & Recipes Gardening Fashion Homes Travel Pets\nTOP STORIES\n+ How the lighthearted social media trend of 'teen takeovers' took a serious turn\n+ Cut the number of choices you make each day. Your brain will thank you\n+ The bagel’s journey from Jewish immigrant food to American breakfast staple\nReligion\nTOP STORIES\n+ Replica of the Virgin Mary’s House draws Catholic devotees in the Philippines\n+ This Pittsburgh rabbi led the Tree of Life through its darkest days. Now, he says goodbye\n+ Orthodox monks are the first to live and pray at a monastery in Estonia for 80 years\nNewsletters\nWorld of Faith\nComprehensive global coverage of how religion shapes our world.\nSee All Newsletters\nEspañol\nSECTIONS\nPolítica de EEUU Deportes\nTOP STORIES\n+ Descubren 8 muertos en una casa incendiada en Michigan, algunos de ellos con heridas de bala\n+ Ucrania sigue fortificando su frontera con Bielorrusia años después de la invasión rusa desde allí\n+ El tifón Noul pone en alerta al sur de China y Hong Kong cancela vuelos\nMost watched videos\nStandards\nPress Releases\nMy Account\nAP News Code of Conduct\n+ World\nIran war\nRussia-Ukraine war\nEspañol\nChina\nAsia Pacific\nLatin America\nEurope\nAfrica\nMiddle East\n+ U.S.\nImmigration\nWeather\nEducation\nTransportation\nAbortion\nLGBTQ+\nNotable Deaths\nAmerica at 250\n+ Politics\n2026 Elections\nElection Results\nElection calendar\nWhite House\nCongress\nSupreme Court\nThe latest AP-NORC polls\n+ Sports\nFIFA World Cup\nNFL\nMLB\nWNBA\nTennis Tennis\nNBA\nGolf\nNHL\nAuto Racing\n+ Entertainment\nMovies\nFashion\nTelevision\nCelebrity Interviews\nMusic\nBooks\n+ Business\nTariffs\nInflation\nFinancial Markets\nFinancial Wellness\nTechnology\n+ Science\nSpace\nAnimals\nThe Ancient World\nClimate\nMedicine\n+ Newsletters\n+ Quizzes\n+ Games\n+ Fact Check\n+ Oddities\n+ Be Well\nTrending\nBetter health\nAt home\nWorking well\nFor the climate\nEating well\n+ Photography\nPhoto Essays\n+ AP Investigations\n+ Climate\nIndigenous peoples and climate\nClimate Questions\nClimate Migration\nIndia Focus\n+ Health\n+ Tech\nArtificial Intelligence\nSocial Media\n+ Lifestyle\nFood & Recipes\nGardening\nFashion\nHomes\nTravel\nPets\n+ Religion\n+ Español\nPolítica de EEUU\nDeportes\n+ Most watched videos\n+ Standards\n+ Press Releases\n+ My Account\n+ AP News Code of Conduct\nMORE\nWorld\n+ Iran war\n+ Russia-Ukraine war\n+ Español\n+ China\n+ Asia Pacific\n+ Latin America\n+ Europe\n+ Africa\n+ Middle East\nU.S.\n+ Immigration\n+ Weather\n+ Education\n+ Transportation\n+ Abortion\n+ LGBTQ+\n+ Notable Deaths\n+ America at 250\nPolitics\n+ 2026 Elections\n+ Election Results\n+ Election calendar\n+ White House\n+ Congress\n+ Supreme Court\n+ The latest AP-NORC polls\nSports\n+ FIFA World Cup\n+ NFL\n+ MLB\n+ WNBA\n+ Tennis Tennis\n+ NBA\n+ Golf\n+ NHL\n+ Auto Racing\nEntertainment\n+ Movies\n+ Fashion\n+ Television\n+ Celebrity Interviews\n+ Music\n+ Books\nBusiness\n+ Tariffs\n+ Inflation\n+ Financial Markets\n+ Financial Wellness\n+ Technology\nScience\n+ Space\n+ Animals\n+ The Ancient World\n+ Climate\n+ Medicine\nNewsletters\nQuizzes\nGames\nFact Check\nOddities\nBe Well\n+ Trending\n+ Better health\n+ At home\n+ Working well\n+ For the climate\n+ Eating well\nPhotography\n+ Photo Essays\nAP Investigations\nClimate\n+ Indigenous peoples and climate\n+ Climate Questions\n+ Climate Migration\n+ India Focus\nHealth\nTech\n+ Artificial Intelligence\n+ Social Media\nLifestyle\n+ Food & Recipes\n+ Gardening\n+ Fashion\n+ Homes\n+ Travel\n+ Pets\nReligion\nEspañol\n+ Política de EEUU\n+ Deportes\nMost watched videos\nStandards\nPress Releases\nMy Account\nAP News Code of Conduct\nSign in\nAP Logo\nWorld\nSECTIONS\nIran war Russia-Ukraine war Español China Asia Pacific Latin America Europe Africa\nTOP STORIES\n+ France and Spain battle wildfires as more than 250,000 people are forced to flee homes\n+ Van slams into crowd at Berlin Pride festival, killing 1 and injuring 16, as police identify suspect\n+ Iran-backed Houthis fire missiles at Saudi Arabia in response to airstrikes in Yemen\nNewsletters\nThe Afternoon Wire\nOur personalization engine sends you what you may have missed throughout the day. The Morning Wire\nOur flagship newsletter breaks down the biggest headlines of the day.\nSee All Newsletters\nU.S.\nSECTIONS\nImmigration Weather Education Transportation Abortion LGBTQ+ Notable Deaths America at 250\nTOP STORIES\n+ Maine Democratic delegates choose Troy Jackson as new nominee to face US Sen. Susan Collins\n+ Wisconsin's capital city cancels signature events, grapples with fallout from police shooting\n+ Oregon fire looms near town as fourth firefighter dies weeks after Colorado blaze\nNewsletters\nThe Afternoon Wire\nOur personalization engine sends you what you may have missed throughout the day.\nSee All Newsletters\nAP QUIZZES\nWeekly News Quiz\nPolitics\nSECTIONS\n2026 Elections Election Results Election calendar White House Congress Supreme Court The latest AP-NORC polls\nTOP STORIES\n+ Trump administration admits grants for clean energy were canceled based on politics\n+ Talarico is trying to win back Hispanics along the Texas border who swung toward the GOP\n+ Airstrikes have paused and talks are pressing forward. But can the US and Iran take the off-ramp?\nNewsletters\nGround Game\nYour guide to the biggest stories in politics, policy and U.S. elections.\nSee All Newsletters\nSports\nSECTIONS\nFIFA World Cup NFL MLB WNBA Tennis NBA Golf NHL\nTOP STORIES\n+ Scrutiny of WNBA intensifies as mounting discord around the league looms over All-Star festivities\n+ 49ers coach Kyle Shanahan hurt in a car crash, limited as training camp opens\nNewsletters\nThe Sports Wire\nGet AP’s in-depth sports reporting tailored to your interests.\nSee All Newsletters\nEntertainment\nSECTIONS\nMovies Fashion Television Celebrity Interviews Music Books\nTOP STORIES\n+ Rick Moranis met with standing ovation at 'Spaceballs' sequel Comic-Con panel\n+ Comic-Con 2026: David Jonsson is new Black Panther, Ryan Gosling joins Marvel as Ghost Rider\nNewsletters\nAP Entertainment Wire\nAP’s entertainment, media, fashion and culture coverage, personalized to your interests.\nSee All Newsletters\nBusiness\nSECTIONS\nTariffs Inflation Financial Markets Financial Wellness Technology\nTOP STORIES\n+ Americans rewire their grocery shopping routines while digesting the biggest price jump in 50 years\n+ The 'rockets and feathers' effect: Inflation eases but grocery bills do not\n+ America In Focus: New tariffs, soaring gas, mortgages and a down week for Wall Street\nScience\nNewsletters\nQuizzes\nGames\nFact Check\nOddities\nTOP STORIES\n+ Raccoon goes on drunken rampage in Virginia liquor store and passes out on bathroom floor\n+ Viral phenomenon in Argentina has young people identifying themselves as animals\n+ Chicken wings advertised as 'boneless' can have bones, Ohio Supreme Court decides\n+ Fatou, the world's oldest gorilla living in captivity, celebrates her 69th birthday at Berlin Zoo\n+ Ghana's fantasy coffins are a colorful celebration of life and legacy\n+ Lettuce introduce you to the live frog found in this grocery store salad bag\nBe Well\nSECTIONS\nTrending Better health At home Working well For the climate Eating well\nTOP STORIES\n+ Jetting off for a summer vacation? How to eat and drink to minimize jet lag\n+ Being a night owl may not be great for your heart but you can do something about it\n+ As demand for GLP-1 pills and shots surges, healthy habits are still key\nPhotography\nSECTIONS\nPhoto Essays\nTOP STORIES\n+ One frame captures a mother’s anguish during a search through a collapsed building in Venezuela\n+ At the Kaaba during Hajj, a photographer captures sense of unity and devotion\n+ How a photographer captured the speed and danger of Pamplona’s bull run\nNewsletters\nThe World in Pictures\nGet special access to AP's most compelling images from our global team of photojournalists.\nSee All Newsletters\nAP Investigations\nClimate\nSECTIONS\nIndigenous peoples and climate Climate Questions Climate Migration India Focus\nTOP STORIES\n+ Heat dome expands across the central United States, creating dangerous conditions for millions\n+ Water hauling is the new chore no rancher asked for\n+ As Lake Powell shrinks, marinas are having to adapt to dwindling water levels\nHealth\nTOP STORIES\n+ Outbreak of diarrhea-causing parasite linked to 4 more states\n+ Jetting off for a summer vacation? How to eat and drink to minimize jet lag\n+ US health officials are investigating a new outbreak of a diarrhea-causing parasite\n+ Salmonella outbreak tied to eggs has sickened 98 people since November\n+ Being a night owl may not be great for your heart but you can do something about it\n+ There are already more US measles cases this year than in all of 2025\nTech\nSECTIONS\nArtificial Intelligence Social Media\nTOP STORIES\n+ One Tech Tip: Don't use rice for your device. Here's how to dry out your smartphone\n+ Young people are turning to old-school hobbies to get off their phones\n+ Jury finds Instagram and YouTube liable in a landmark social media addiction trial\nLifestyle\nSECTIONS\nFood & Recipes Gardening Fashion Homes Travel Pets\nTOP STORIES\n+ How the lighthearted social media trend of 'teen takeovers' took a serious turn\n+ Cut the number of choices you make each day. Your brain will thank you\n+ The bagel’s journey from Jewish immigrant food to American breakfast staple\nReligion\nTOP STORIES\n+ Replica of the Virgin Mary’s House draws Catholic devotees in the Philippines\n+ This Pittsburgh rabbi led the Tree of Life through its darkest days. Now, he says goodbye\n+ Orthodox monks are the first to live and pray at a monastery in Estonia for 80 years\nNewsletters\nWorld of Faith\nComprehensive global coverage of how religion shapes our world.\nSee All Newsletters\nEspañol\nSECTIONS\nPolítica de EEUU Deportes\nTOP STORIES\n+ Descubren 8 muertos en una casa incendiada en Michigan, algunos de ellos con heridas de bala\n+ Ucrania sigue fortificando su frontera con Bielorrusia años después de la invasión rusa desde allí\n+ El tifón Noul pone en alerta al sur de China y Hong Kong cancela vuelos\nMost watched videos\nStandards\nPress Releases\nMy Account\nAP News Code of Conduct\n+ World\nIran war\nRussia-Ukraine war\nEspañol\nChina\nAsia Pacific\nLatin America\nEurope\nAfrica\nMiddle East\n+ U.S.\nImmigration\nWeather\nEducation\nTransportation\nAbortion\nLGBTQ+\nNotable Deaths\nAmerica at 250\n+ Politics\n2026 Elections\nElection Results\nElection calendar\nWhite House\nCongress\nSupreme Court\nThe latest AP-NORC polls\n+ Sports\nFIFA World Cup\nNFL\nMLB\nWNBA\nTennis Tennis\nNBA\nGolf\nNHL\nAuto Racing\n+ Entertainment\nMovies\nFashion\nTelevision\nCelebrity Interviews\nMusic\nBooks\n+ Business\nTariffs\nInflation\nFinancial Markets\nFinancial Wellness\nTechnology\n+ Science\nSpace\nAnimals\nThe Ancient World\nClimate\nMedicine\n+ Newsletters\n+ Quizzes\n+ Games\n+ Fact Check\n+ Oddities\n+ Be Well\nTrending\nBetter health\nAt home\nWorking well\nFor the climate\nEating well\n+ Photography\nPhoto Essays\n+ AP Investigations\n+ Climate\nIndigenous peoples and climate\nClimate Questions\nClimate Migration\nIndia Focus\n+ Health\n+ Tech\nArtificial Intelligence\nSocial Media\n+ Lifestyle\nFood & Recipes\nGardening\nFashion\nHomes\nTravel\nPets\n+ Religion\n+ Español\nPolítica de EEUU\nDeportes\n+ Most watched videos\n+ Standards\n+ Press Releases\n+ My Account\n+ AP News Code of Conduct\nMORE\nWorld\n+ Iran war\n+ Russia-Ukraine war\n+ Español\n+ China\n+ Asia Pacific\n+ Latin America\n+ Europe\n+ Africa\n+ Middle East\nU.S.\n+ Immigration\n+ Weather\n+ Education\n+ Transportation\n+ Abortion\n+ LGBTQ+\n+ Notable Deaths\n+ America at 250\nPolitics\n+ 2026 Elections\n+ Election Results\n+ Election calendar\n+ White House\n+ Congress\n+ Supreme Court\n+ The latest AP-NORC polls\nSports\n+ FIFA World Cup\n+ NFL\n+ MLB\n+ WNBA\n+ Tennis Tennis\n+ NBA\n+ Golf\n+ NHL\n+ Auto Racing\nEntertainment\n+ Movies\n+ Fashion\n+ Television\n+ Celebrity Interviews\n+ Music\n+ Books\nBusiness\n+ Tariffs\n+ Inflation\n+ Financial Markets\n+ Financial Wellness\n+ Technology\nScience\n+ Space\n+ Animals\n+ The Ancient World\n+ Climate\n+ Medicine\nNewsletters\nQuizzes\nGames\nFact Check\nOddities\nBe Well\n+ Trending\n+ Better health\n+ At home\n+ Working well\n+ For the climate\n+ Eating well\nPhotography\n+ Photo Essays\nAP Investigations\nClimate\n+ Indigenous peoples and climate\n+ Climate Questions\n+ Climate Migration\n+ India Focus\nHealth\nTech\n+ Artificial Intelligence\n+ Social Media\nLifestyle\n+ Food & Recipes\n+ Gardening\n+ Fashion\n+ Homes\n+ Travel\n+ Pets\nReligion\nEspañol\n+ Política de EEUU\n+ Deportes\nMost watched videos\nStandards\nPress Releases\nMy Account\nAP News Code of Conduct\nSign in\nWorld\n+ Iran war\n+ Russia-Ukraine war\n+ Español\n+ China\n+ Asia Pacific\n+ Latin America\n+ Europe\n+ Africa\n+ Middle East\nSECTIONS\nIran war Russia-Ukraine war Español China Asia Pacific Latin America Europe Africa\nTOP STORIES\nFrance and Spain battle wildfires as more than 250,000 people are forced to flee homes\nVan slams into crowd at Berlin Pride festival, killing 1 and injuring 16, as police identify suspect\nIran-backed Houthis fire missiles at Saudi Arabia in response to airstrikes in Yemen\nNewsletters\nThe Afternoon Wire\nOur personalization engine sends you what you may have missed throughout the day. The Morning Wire\nOur flagship newsletter breaks down the biggest headlines of the day.\nSee All Newsletters\nU.S.\n+ Immigration\n+ Weather\n+ Education\n+ Transportation\n+ Abortion\n+ LGBTQ+\n+ Notable Deaths\n+ America at 250\nSECTIONS\nImmigration Weather Education Transportation Abortion LGBTQ+ Notable Deaths America at 250\nTOP STORIES\nMaine Democratic delegates choose Troy Jackson as new nominee to face US Sen. Susan Collins\nWisconsin's capital city cancels signature events, grapples with fallout from police shooting\nOregon fire looms near town as fourth firefighter dies weeks after Colorado blaze\nNewsletters\nThe Afternoon Wire\nOur personalization engine sends you what you may have missed throughout the day.\nSee All Newsletters\nAP QUIZZES\nWeekly News Quiz\nPolitics\n+ 2026 Elections\n+ Election Results\n+ Election calendar\n+ White House\n+ Congress\n+ Supreme Court\n+ The latest AP-NORC polls\nSECTIONS\n2026 Elections Election Results Election calendar White House Congress Supreme Court The latest AP-NORC polls\nTOP STORIES\nTrump administration admits grants for clean energy were canceled based on politics\nTalarico is trying to win back Hispanics along the Texas border who swung toward the GOP\nAirstrikes have paused and talks are pressing forward. But can the US and Iran take the off-ramp?\nNewsletters\nGround Game\nYour guide to the biggest stories in politics, policy and U.S. elections.\nSee All Newsletters\nSports\n+ FIFA World Cup\n+ NFL\n+ MLB\n+ WNBA\n+ Tennis Tennis\n+ NBA\n+ Golf\n+ NHL\n+ Auto Racing\nSECTIONS\nFIFA World Cup NFL MLB WNBA Tennis NBA Golf NHL\nTOP STORIES\nScrutiny of WNBA intensifies as mounting discord around the league looms over All-Star festivities\n49ers coach Kyle Shanahan hurt in a car crash, limited as training camp opens\nNewsletters\nThe Sports Wire\nGet AP’s in-depth sports reporting tailored to your interests.\nSee All Newsletters\nEntertainment\n+ Movies\n+ Fashion\n+ Television\n+ Celebrity Interviews\n+ Music\n+ Books\nSECTIONS\nMovies Fashion Television Celebrity Interviews Music Books\nTOP STORIES\nRick Moranis met with standing ovation at 'Spaceballs' sequel Comic-Con panel\nComic-Con 2026: David Jonsson is new Black Panther, Ryan Gosling joins Marvel as Ghost Rider\nNewsletters\nAP Entertainment Wire\nAP’s entertainment, media, fashion and culture coverage, personalized to your interests.\nSee All Newsletters\nBusiness\n+ Tariffs\n+ Inflation\n+ Financial Markets\n+ Financial Wellness\n+ Technology\nSECTIONS\nTariffs Inflation Financial Markets Financial Wellness Technology\nTOP STORIES\nAmericans rewire their grocery shopping routines while digesting the biggest price jump in 50 years\nThe 'rockets and feathers' effect: Inflation eases but grocery bills do not\nAmerica In Focus: New tariffs, soaring gas, mortgages and a down week for Wall Street\nScience\n+ Space\n+ Animals\n+ The Ancient World\n+ Climate\n+ Medicine\nSECTIONS\nSpace Animals The Ancient World Climate Medicine\nNewsletters\nQuizzes\nGames\nFact Check\nOddities\nTOP STORIES\nRaccoon goes on drunken rampage in Virginia liquor store and passes out on bathroom floor\nViral phenomenon in Argentina has young people identifying themselves as animals\nChicken wings advertised as 'boneless' can have bones, Ohio Supreme Court decides\nFatou, the world's oldest gorilla living in captivity, celebrates her 69th birthday at Berlin Zoo\nGhana's fantasy coffins are a colorful celebration of life and legacy\nLettuce introduce you to the live frog found in this grocery store salad bag\nBe Well\n+ Trending\n+ Better health\n+ At home\n+ Working well\n+ For the climate\n+ Eating well\nSECTIONS\nTrending Better health At home Working well For the climate Eating well\nTOP STORIES\nJetting off for a summer vacation? How to eat and drink to minimize jet lag\nBeing a night owl may not be great for your heart but you can do something about it\nAs demand for GLP-1 pills and shots surges, healthy habits are still key\nPhotography\n+ Photo Essays\nSECTIONS\nPhoto Essays\nTOP STORIES\nOne frame captures a mother’s anguish during a search through a collapsed building in Venezuela\nAt the Kaaba during Hajj, a photographer captures sense of unity and devotion\nHow a photographer captured the speed and danger of Pamplona’s bull run\nNewsletters\nThe World in Pictures\nGet special access to AP's most compelling images from our global team of photojournalists.\nSee All Newsletters\nAP Investigations\nClimate\n+ Indigenous peoples and climate\n+ Climate Questions\n+ Climate Migration\n+ India Focus\nSECTIONS\nIndigenous peoples and climate Climate Questions Climate Migration India Focus\nTOP STORIES\nHeat dome expands across the central United States, creating dangerous conditions for millions\nWater hauling is the new chore no rancher asked for\nAs Lake Powell shrinks, marinas are having to adapt to dwindling water levels\nHealth\nTOP STORIES\nOutbreak of diarrhea-causing parasite linked to 4 more states\nJetting off for a summer vacation? How to eat and drink to minimize jet lag\nUS health officials are investigating a new outbreak of a diarrhea-causing parasite\nSalmonella outbreak tied to eggs has sickened 98 people since November\nBeing a night owl may not be great for your heart but you can do something about it\nThere are already more US measles cases this year than in all of 2025\nTech\n+ Artificial Intelligence\n+ Social Media\nSECTIONS\nArtificial Intelligence Social Media\nTOP STORIES\nOne Tech Tip: Don't use rice for your device. Here's how to dry out your smartphone\nYoung people are turning to old-school hobbies to get off their phones\nJury finds Instagram and YouTube liable in a landmark social media addiction trial\nLifestyle\n+ Food & Recipes\n+ Gardening\n+ Fashion\n+ Homes\n+ Travel\n+ Pets\nSECTIONS\nFood & Recipes Gardening Fashion Homes Travel Pets\nTOP STORIES\nHow the lighthearted social media trend of 'teen takeovers' took a serious turn\nCut the number of choices you make each day. Your brain will thank you\nThe bagel’s journey from Jewish immigrant food to American breakfast staple\nReligion\nTOP STORIES\nReplica of the Virgin Mary’s House draws Catholic devotees in the Philippines\nThis Pittsburgh rabbi led the Tree of Life through its darkest days. Now, he says goodbye\nOrthodox monks are the first to live and pray at a monastery in Estonia for 80 years\nNewsletters\nWorld of Faith\nComprehensive global coverage of how religion shapes our world.\nSee All Newsletters\nEspañol\n+ Política de EEUU\n+ Deportes\nSECTIONS\nPolítica de EEUU Deportes\nTOP STORIES\nDescubren 8 muertos en una casa incendiada en Michigan, algunos de ellos con heridas de bala\nUcrania sigue fortificando su frontera con Bielorrusia años después de la invasión rusa desde allí\nEl tifón Noul pone en alerta al sur de China y Hong Kong cancela vuelos\nMost watched videos\nStandards\nPress Releases\nMy Account\nAP News Code of Conduct\n\nThe Associated Press is an independent global news organization dedicated to factual reporting. Founded in 1846, AP today remains the most trusted source of fast, accurate, unbiased news in all formats and the essential provider of the technology and services vital to the news business. More than half the world’s population sees AP journalism every day.\n\n+ twitter\n+ instagram\n+ facebook\n+ From AP News\nAbout\nContact Us\nAccessibility Statement\nTerms of Use\nPrivacy Policy\nDo Not Sell or Share My Personal Information\nLimit Use and Disclosure of Sensitive Personal Information\nCA Notice of Collection\n+ The Associated Press\nap.org\nCareers\nAdvertise with us\nAP News Values and Principles\nAP’s Role in Elections\nAP Leads\nAP Definitive Source Blog\nAP Images Spotlight Blog\nAP Stylebook\nAP News Code of Conduct\nFrom AP News\n+ About\n+ Contact Us\n+ Accessibility Statement\n+ Terms of Use\n+ Privacy Policy\n+ Do Not Sell or Share My Personal Information\n+ Limit Use and Disclosure of Sensitive Personal Information\n+ CA Notice of Collection\nThe Associated Press\n+ ap.org\n+ Careers\n+ Advertise with us\n+ AP News Values and Principles\n+ AP’s Role in Elections\n+ AP Leads\n+ AP Definitive Source Blog\n+ AP Images Spotlight Blog\n+ AP Stylebook\n+ AP News Code of Conduct\nSECTIONS\nap.org Careers Advertise with us AP News Values and Principles AP’s Role in Elections AP Leads AP Definitive Source Blog AP Images Spotlight Blog\nCopyright 2026 The Associated Press. All Rights Reserved.\nU.S. News\nA timeline of the collapse at FTX\nA timeline of the collapse at FTX\nFILE - FTX founder Sam Bankman-Fried leaves Manhattan federal court, June 15, 2023, in New York. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Bebeto Matthews, File)\n1 of 2 |\nFILE - FTX founder Sam Bankman-Fried leaves Manhattan federal court, June 15, 2023, in New York. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Bebeto Matthews, File)\nFILE - In this photo taken with a drone, the FTX logo is seen on the roof of the FTX Arena, where the Miami Heat NBA basketball team play, Wednesday, Dec. 7, 2022, in downtown Miami. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Rebecca Blackwell, File)\n2 of 2 |\nFILE - In this photo taken with a drone, the FTX logo is seen on the roof of the FTX Arena, where the Miami Heat NBA basketball team play, Wednesday, Dec. 7, 2022, in downtown Miami. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Rebecca Blackwell, File)\nA timeline of the collapse at FTX\nFILE - FTX founder Sam Bankman-Fried leaves Manhattan federal court, June 15, 2023, in New York. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Bebeto Matthews, File)\n1 of 2 |\nFILE - FTX founder Sam Bankman-Fried leaves Manhattan federal court, June 15, 2023, in New York. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Bebeto Matthews, File)\n1 of 2\nFILE - FTX founder Sam Bankman-Fried leaves Manhattan federal court, June 15, 2023, in New York. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Bebeto Matthews, File)\nShare\nFacebook\nCopy\nLink copied\nPrint\nEmail\nX\nLinkedIn\nBluesky\nFlipboard\nPinterest\nReddit\nFILE - In this photo taken with a drone, the FTX logo is seen on the roof of the FTX Arena, where the Miami Heat NBA basketball team play, Wednesday, Dec. 7, 2022, in downtown Miami. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Rebecca Blackwell, File)\n2 of 2 |\nFILE - In this photo taken with a drone, the FTX logo is seen on the roof of the FTX Arena, where the Miami Heat NBA basketball team play, Wednesday, Dec. 7, 2022, in downtown Miami. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Rebecca Blackwell, File)\n2 of 2\nFILE - In this photo taken with a drone, the FTX logo is seen on the roof of the FTX Arena, where the Miami Heat NBA basketball team play, Wednesday, Dec. 7, 2022, in downtown Miami. FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that. FTX said in a court filing late Tuesday, May 7, 2024, that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them. (AP Photo/Rebecca Blackwell, File)\nShare\nFacebook\nCopy\nLink copied\nPrint\nEmail\nX\nLinkedIn\nBluesky\nFlipboard\nPinterest\nReddit\nBy SALLEE ANN HARRISON\nUpdated [hour]:[minute] [AMPM] [timezone], [monthFull] [day], [year]\nComments\nShare\nFacebook\nCopy\nLink copied\nPrint\nEmail\nX\nLinkedIn\nBluesky\nFlipboard\nPinterest\nReddit\nFTX, once among the largest cryptocurrency exchanges in the world, said this week that nearly all of its customers will receive the money back that they are owed, two years after its monumental collapse.\nFTX said in a court filing late Tuesday that it owes about $11.2 billion to its creditors. The exchange estimates that it has between $14.5 billion and $16.3 billion to distribute to them.\nHere is a timeline of what led up to this week’s announcement after an implosion at FTX kicked off what many had expected to become a “crypto winter.”\n2022\nNov. 2: Coindesk reports Alameda Reseach, Bankman-Fried’s cryptocurrency trading firm, holds a large amount of FTT, a token issued by FTX, suggesting the finances of the two are intertwined and Alameda faces a cash crunch. The report spooks participants in the crypto market.\nNov. 6: Rival cryptocurrency exchange Binance announces that the firm plans to sell all its holdings in FTT. The price of FTT tanks.\nNov. 8: Binance founder and CEO Changpeng Zhao said his company had signed a letter of intent to buy FTX because the smaller exchange was experiencing a “significant liquidity crunch.” That deal would be contingent, however, on a look at the books at FTX. The price for bitcoin tumbles 13%.\nNov. 9: Cryptocurrency prices plunge and after getting a closer look at the finances of FTX, Binance retreated and said there would be no acquisition. “In the beginning, our hope was to be able to support FTX’s customers to provide liquidity, but the issues are beyond our control or ability to help,” Binance said in a statement. Bitcoin prices drop another 14%.\nRelated Stories\nFormer left-wing Prime Minister Alexis Tsipras holds the founding manifesto of his new political party as speaks to supporters in front of the ancient Acropolis , ahead of elections next year, in Athens, on Tuesday, May 26, 2026. (AP Photo/Petros Giannakouris)\nFormer Greek anti-austerity leader Alexis Tsipras steps back into politics\n2 MIN READ\nNov. 10: Cryptocurrency lender BlockFi announced it is “not able to do business as usual” and was pausing client withdrawals as a result of FTX’s implosion.\nNov. 11: FTX files for Chapter 11 and Bankman-Fried resigns. John Ray III, a long-time bankruptcy litigator who is best known for having to clean up the mess made after the collapse of Enron, is named the new CEO.\nIn its bankruptcy filing, FTX listed more than 130 affiliated companies around the globe. The company valued its assets between $10 billion to $50 billion, with a similar estimate for its liabilities. Bitcoin falls 10%.\nNov. 17: Ray gives a damning description of FTX’s operations under Bankman-Fried, from a lack of security controls to business funds being used to buy employees homes and luxuries.\nSign up for Morning Wire: Our flagship newsletter breaks down the biggest headlines of the day.\nNov. 30: As part of a media blitz, Bankman-Fried tells New York Time’s Andrew Ross-Sorkin, “Look, I screwed up,” and didn’t knowingly misuse clients’ funds.\nDec. 12: Bankman-Fried is arrested in the Bahamas, where FTX is headquartered.\nDec. 13: The U.S. government charges Bankman-Fried with a host of financial crimes, alleging he intentionally deceived customers and investors to enrich himself and others, while playing a central role in the company’s multibillion-dollar collapse.\nFederal prosecutors said Bankman-Fried devised “a scheme and artifice to defraud” FTX’s customers and investors beginning the year it was founded. He illegally diverted their money to cover expenses, debts and risky trades at Alameda Research, and to make lavish real estate purchases and large political donations, prosecutors said in a 13-page indictment.\nDec. 22: Bankman-Fried’s parents agreed to sign a $250 million bond and keep him at their California home while he awaits trial.\nAugust 11: Judge revoked Bankman-Fried’s bail and sent him to jail after concluding he had repeatedly tried to influence witnesses against him.\nOct. 3: Jury selection began for the trial.\nOct. 27: Bankman-Fried took the stand in his trial. He again acknowledged failures but denied defrauding anyone.\nNov. 3: Bankman-Fried is convicted of fraud for stealing at least $10 billion from customers and investors.\nMarch 28: Bankman-Fried is sentenced to 25 years in prison. Bitcoin has roared back from a massive sell-off during the scandal. Prices are up nearly 70%.\nApril 30: Changpeng Zhao, the founder of Binance, is sentenced to four months in prison for looking the other way as criminals used the platform to move money connected to child sex abuse, drug trafficking and terrorism.\nMay 8: FTX says that nearly all of its customers will receive the money back that they are owed, two years after the cryptocurrency exchange imploded, and some will get more than that.\nSALLEE ANN HARRISON\nHarrison is a digital engagement editor at The Associated Press.",
+    "https://en.wikipedia.org/wiki/FTX": "Wikipedia The Free Encyclopedia\nContents\n1 History\n2 November 2022 crisis and bankruptcy\n+ 2.1 Background: FTX and Alameda, Binance, and CoinDesk report\n+ 2.2 Crisis begins: Binance FTT sale, sell-off, and withdrawn rescue bid\n+ 2.3 Bankruptcy and unauthorized transactions\n+ 2.4 Widening impact and contagion fears\n+ 2.5 Responses and effects\n2.5.1 Effects on investors\n2.5.2 Effects on other cryptocurrency firms and cryptocurrency markets\n2.5.3 Responses and commentary\n3 Legal process\n4 Sponsorships\n5 References\n6 External links\nFTX\nAfrikaans \"FTX (maatskappy) – Afrikaans\")\nالعربية\nAzərbaycanca\nБългарски\nCatalà\nČeština\nDeutsch \"FTX (Unternehmen) – German\")\nEspañol\nفارسی\nSuomi\nFrançais \"FTX (entreprise) – French\")\nעברית \"FTX (חברה) – Hebrew\")\nՀայերեն \"FTX (կազմակերպություն) – Armenian\")\nBahasa Indonesia\nItaliano \"FTX (azienda) – Italian\")\n日本語 \"FTX (企業) – Japanese\")\n한국어\nNederlands\nРусский \"FTX (компания) – Russian\")\nSimple English\nSvenska \"FTX (företag) – Swedish\")\nTürkçe\nУкраїнська \"FTX (компанія) – Ukrainian\")\n中文\nEdit links\nArticle\nTalk\nRead\nView source\nView history\nTools\nActions\nRead\nView source\nView history\nGeneral\nWhat links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons)\nWikidata item\nAppearance\nPage semi-protected\nFrom Wikipedia, the free encyclopedia\nBankrupt cryptocurrency exchange\nFor other uses, see FTX (disambiguation) \"FTX (disambiguation)\").\nFTX Trading Ltd.\n| Type | Private |\n| Industry | Cryptocurrency |\n| Founded | May 2019; 7 years ago (2019-05) |\n| Founders | Sam Bankman-Fried Gary Wang \"Gary Wang (American businessman)\") |\n| Fate | Filed for Chapter 11 bankruptcy in November 2022 |\n| Headquarters | Nassau, New Providence , The Bahamas |\n| Key people | John J. Ray III (CEO) |\n| Products | Cryptocurrency exchange cryptocurrencies |\n| Revenue | Increase US$1.02 billion (2021) |\n| Operating income | Increase US$272 million (2021) |\n| Net income | Increase US$388 million (2021) |\n| Number of employees | c. 300 (2022) |\nFTX Trading Ltd., trading as FTX (Futures Exchange), is a bankrupt company that formerly operated a cryptocurrency exchange and crypto hedge fund. The exchange was founded in 2019 by Sam Bankman-Fried and Gary Wang \"Gary Wang (American businessman)\") and collapsed in 2022.\nAt its peak in July 2021, the company had over one million users and was the third-largest cryptocurrency exchange by volume, and its app was widely advertised as a \"safe, easy way to get into crypto\". As of November 2022, FTX was the third-largest digital currency exchange boasting an active daily trading volume of US$10 billion and a valuation of $32 billion. FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas. FTX is closely associated with FTX.US, a separate exchange available to US residents.\nSince November 11, 2022, FTX has been in Chapter 11 bankruptcy proceedings in the US court system. Public concern began with rumors of unethical and fraudulent inter-company transfers of client funds. In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT). Following this revelation, rival exchange Binance's CEO Changpeng Zhao announced that Binance would sell its holdings of the token, which was quickly followed by a spike in customer withdrawals from FTX.\nFTX was unable to meet the demand for customer withdrawals. Binance signed a letter of intent to acquire the firm, with due diligence to follow, to ensure that customers could recover their assets from FTX in a timely manner, but Binance withdrew its offer the next day, citing reports of mishandled customer funds and U.S. agency investigations. On December 12, 2022, founder Sam Bankman-Fried was arrested by the Bahamian authorities for financial offences, at the request of the US government. The current CEO of FTX is John J. Ray III, who specializes in recovering funds from failed corporations.\nHistory\n\nFTX founder Sam Bankman-Fried\nSam Bankman-Fried and Zixiao \"Gary\" Wang \"Gary Wang (American businessman)\") founded FTX in May 2019. FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California. FTX is an abbreviation of \"Futures Exchange\". Changpeng Zhao of Binance purchased a 20% stake in FTX for approximately $100 million, six months after Bankman-Fried and Wang started the firm.\nIn August 2020, FTX acquired Blockfolio, a cryptocurrency portfolio tracking app, for $150 million. In July 2021, the venture raised $900 million at an $18 billion valuation from over 60 investors, including Softbank, Sequoia Capital, and other firms. Bankman-Fried bought out Zhao's stake for approximately $2 billion. In September of that year, FTX moved its headquarters from Hong Kong to The Bahamas.\n\nDaily closing price in US dollars of FTT, 2020-2023\nOn January 14, 2022, FTX announced a $2 billion venture fund named FTX Ventures, raising $400 million in Series C funding at a $32 billion valuation that month. The FTX Ventures website went offline in November 2022. On February 11, 2022, FTX.US announced that the company would soon begin offering stock trading to its US customers.\nIn February 2022, it was reported that FTX was creating a gaming division that would help developers add cryptocurrency, NFTs, and other blockchain-related assets into video games. In July 2022, FTX finalized a deal giving it the option to buy BlockFi for about $240 million. The deal included a $400 million credit facility for BlockFi.\nIn August 2022, the Federal Deposit Insurance Corporation (FDIC) issued a cease-and-desist order to FTX for making \"false and misleading representations\" about deposits being covered by FDIC insurance following FTX president Brett Harrison's tweet implying otherwise. Following the regulatory action, Harrison deleted the tweet and Bankman-Fried clarified in another tweet that FTX deposits are not insured by the FDIC.\nOn September 26, 2022, FTX.US won its bid at auction for the digital assets of bankrupt crypto brokerage Voyager Digital. The value of the deal was approximately $1.42 billion, including $1.31 billion in Voyager-held cryptocurrency and $111 million in additional consideration. The deal was subject to approval by bankruptcy courts and Voyager's creditors. Following the FTX bankruptcy, in December 2022, the US subsidiary of Binance won the bid to buy the assets of Voyager for approximately $1 billion.\nOn September 27, 2022, FTX.US President Brett Harrison announced he would be stepping down from an active role at the exchange but would stay on in an advisory capacity. The company did not immediately announce a replacement for Harrison, who had been FTX.US president since May 2021. In October 2022, it was reported that FTX was under investigation in Texas for allegedly selling unregistered securities. In August 2023, it was reported that the company plans to restart offering cryptocurrency trading services after a restructuring of the bankrupt company is completed.\nNovember 2022 crisis and bankruptcy\nFurther information: Bankruptcy of FTX\nFTX Token\n| Denominations |\n| Code | FTT |\n| Development |\n| White paper | FTT Whitepaper |\n| Initial release | May 5, 2019 (7 years ago) (2019-05-05) |\nBackground: FTX and Alameda, Binance, and CoinDesk report\nIn September 2022, Bloomberg reported on the close relationship between Alameda Research and FTX. Bloomberg noted that Alameda had functioned as a market maker for FTX early in the exchange's history, and that the trading firm remained, in June and July 2022, the biggest known depositor of stable coins on FTX. Bloomberg further stated that the regulatory oversight which applies to companies operating in traditional equities markets would have prohibited the relationship between the two firms were it applicable. Alameda's trading on FTX meant the trading firm was potentially in a position to gain financially when others lost money on the exchange. Bankman-Fried defended FTX's use of Alameda as a liquidity provider.\nAccording to John J. Ray III, Alameda had a \"secret exemption\" from FTX's auto-liquidation protocol. Later, the existence of such an undisclosed beneficial relationship was described by Ray, the new CEO of FTX, as a \"complete failure of corporate controls\" and indicated gross mismanagement. Between early 2021 and March 2022, Alameda Research amassed crypto tokens ahead of FTX announcing the decision to list them for trading.\nAccording to anonymous sources cited by The Wall Street Journal, FTX had lent $10 billion of its customers' assets to Alameda Research in 2022. Alameda CEO Caroline Ellison disclosed to other Alameda employees that she, Sam Bankman-Fried, Gary Wang, and Nishad Singh knew about that decision. An anonymous source cited by The New York Times said the same. According to the sources cited by The Wall Street Journal, Ellison said the funds were used in part to pay back loans Alameda had taken to make investments. Ray said that FTX used software to conceal the misuse of customer funds.\nSeveral months after Bloomberg's initial report on the relationship between the two firms, on November 2, 2022, CoinDesk reported that a significant portion of Alameda Research's assets were held in FTT, the exchange token issued by FTX. It said that there were $5.1 billion worth of FTT tokens in circulation, and that Alameda's balance sheet held $3.66 billion of \"unlocked FTT\", $2.16 billion of \"FTT collateral\", and $292 million of \"locked FTT\". In the weeks immediately preceding the publication of the story by CoinDesk, Bankman-Fried was characterized by anonymous sources cited by Bloomberg as \"desperately\" attempting to raise money for FTX. Additionally, Bankman-Fried had been publicly \"dueling\" with Changpeng Zhao on Twitter in the months preceding the CoinDesk article, in part due to disagreements stemming from their differing views on the regulation of cryptocurrency.\nCrisis begins: Binance FTT sale, sell-off, and withdrawn rescue bid\nSeveral days after the publication of the CoinDesk article, on November 6, Binance CEO Changpeng Zhao said on Twitter that his firm intended to sell all its holdings of FTT. Binance had received FTT from FTX in 2021 during a transaction in which FTX bought back Binance's equity stake in FTX. Zhao cited \"recent revelations that came to light\" as the motivation for selling FTT. Bloomberg and TechCrunch reported that any sale by Binance would likely have an outsized impact on FTT's price, given the token's low trading volume. The announcement by Zhao of the pending sale and disputes between Zhao and Bankman-Fried on Twitter led to a decline in the price of FTT and other cryptocurrencies, resulting in a three-day depositor sell-off, like a bank run, of an estimated $6 billion that sent FTX into crisis. On November 8, Zhao announced that Binance had entered into a non-binding agreement to purchase FTX due to what he referred to as a \"liquidity crisis\" at FTX. The deal did not include the sale of FTX.US. Zhao announced on Twitter that the company would complete due diligence soon, adding that all cryptocurrency exchanges should avoid using FTT tokens as collateral. He also wrote that he expected FTT to be \"highly volatile in the coming days as things develop\". On the day of that announcement, FTT price dropped by 80 percent, erasing $2 billion in value.\nOn November 9, Bloomberg called the acquisition of FTX by Binance \"unlikely\" due to the poor state of FTX's finances. Bloomberg also reported that the United States Securities and Exchange Commission and Commodity Futures Trading Commission were investigating the nature of FTX's connections to Bankman-Fried's other holdings and its handling of client funds. Later that day, The Wall Street Journal reported that Binance would not move forward with the deal to acquire FTX. Binance cited FTX's reported mishandling of customer funds and pending investigations of FTX as the reasons for not pursuing the deal. Bankman-Fried said in a Slack \"Slack (software)\") message that FTX had learned through the press about Binance's concern and decision.\nOn November 9, FTX's website said that it was not processing withdrawals at that time. Bankman-Fried said that although the firm's assets were worth more than its clients' deposits, it would need funds from outside to meet demand for withdrawals due to a lack of liquidity. Bankman-Fried stated on November 9 that FTX.US, as a separate company, was \"not currently impacted\" by the crisis.\nBankruptcy and unauthorized transactions\nMain article: Bankruptcy of FTX\nOn November 10, Axios \"Axios (website)\") cited anonymous sources who said that FTX approached Kraken \"Kraken (company)\") for a potential rescue deal. Bankman-Fried made several statements on November 10, taking responsibility for FTX's failure and indicating that FTX was still seeking capital to remain solvent. Bankman-Fried also announced that Alameda Research would cease trading and end operations. FTX's in-house legal and compliance teams had, for the most part, resigned by November 10. Anonymous sources cited by the Wall Street Journal on November 10 said that Alameda Research owed FTX some $10 billion, as FTX had lent funds placed on the exchange for trading to Alameda so that Alameda could make investments with the money. On November 12, anonymous sources cited by the Wall Street Journal said Alameda CEO Caroline Ellison disclosed to other Alameda employees that she, Sam Bankman-Fried, Gary Wang, and Nishad Singh knew that client deposits were transferred from FTX to Alameda. An anonymous source cited by the New York Times on November 14 said the same. According to the sources cited by The Wall Street Journal, Ellison said the funds were used in part to pay back loans Alameda had taken to make investments.\nThough Bankman-Fried, on November 10, wrote on Twitter that FTX's US customers did not have reason to worry, employees began attempting to sell assets belonging to the firm on the same day. These assets include stock-clearing company Embed Financial Technologies and the naming rights to FTX Arena. On November 10, the Securities Commission of the Bahamas froze the assets of one of FTX's subsidiaries, FTX Digital Markets Ltd, \"and related parties\", and provisionally appointed an attorney as liquidator. Japan's Financial Services Agency ordered FTX Japan to suspend some operations. The company's Australian subsidiary was placed under administration \"Administration (law)\").\nOn November 10, the team running the FTX Future Fund, an ostensibly charitable group bankrolled by Bankman-Fried, announced that they had resigned earlier that day. Future Fund had committed $160 million in charitable grants and investments by September 1 of that year. Crypto lender BlockFi, which was affiliated with FTX, announced on November 10 that it was suspending operations as a result of FTX's collapse.\nOn November 11, FTX, FTX.US, Alameda Research, and more than 100 affiliates filed for bankruptcy in Delaware. Anonymous sources cited by The New York Times said that the exchange owed as much as $8 billion. Bankman-Fried resigned as CEO and was replaced by John J. Ray III, a corporate restructuring specialist who'd previously overseen the liquidation of Enron.\nLate on November 11, over $473 million in funds were siphoned from FTX through what Ryne Miller, FTX US's general counsel, characterized as \"unauthorized transactions\". Miller announced that FTX and FTX US intended to move remaining funds denominated in cryptocurrency to offline \"cold storage\" for security. The funds taken from FTX were mostly stablecoins such as Tether \"Tether (cryptocurrency)\"), and were quickly exchanged for Ether, a method used by cryptocurrency thieves to thwart attempts to retrieve stolen funds. A person speaking on behalf of FTX referred to the \"unauthorized transactions\" as a \"hack\" and encouraged users to delete FTX mobile apps as they were compromised. Kraken \"Kraken (company)\") offered to assist in identifying the perpetrator. In January 2024, the U.S. Department of Justice indicted three individuals for running a SIM swap scam operation that allegedly stole “over $400 million in virtual currency” from an unspecified company. Sources told Bloomberg that the company was FTX.\nAs of November 12, Bankman-Fried told Reuters that he was still in the Bahamas, though other high-ranking FTX employees had begun leaving for Hong Kong, the location of the company's former headquarters, or other locations. Authorities in the Bahamas, including the Royal Bahamas Police Force, questioned Bankman-Fried on November 12. Despite FTX's bankruptcy, Bankman-Fried continued to attempt to raise money for the firm during the weekend of November 12 and 13.\nOn November 14, Kraken's chief security officer said on Twitter that the firm knew \"the identity\" of a user who paid transaction fees associated with moving the stolen money through their Kraken account. In an interview with Kelsey Piper published November 16 by Vox \"Vox (website)\"), Bankman-Fried blamed an \"ex-employee\" or malware on a device owned by an ex-employee for the theft.\nAccording to anonymous sources cited by Reuters, between $1 billion and $2 billion in customer funds could not be accounted for as of November 12. The Financial Times reported that FTX's balance sheet shortly before the bankruptcy showed $9 billion in liabilities, with $900 million in liquid assets, $5 billion in \"less liquid\" assets, and $3.2 billion in illiquid private equity investments.\nBankman-Fried began publishing \"cryptic\" messages in sequence on Twitter on November 14. As of November 15, the messages all read \"What HAPPENED\". On November 15, FTX sought to raise $10 billion in liquidity from investors. On November 16, the Bahamas unit of FTX, FTX Digital Markets, officially filed for Chapter 15 bankruptcy protection in the United States.\nOn November 17, John J. Ray III, the CEO brought in as a liquidator \"Liquidator (law)\"), stated in a sworn declaration submitted in bankruptcy court that, according to FTX's records, its subsidiary Alameda Research had on September 30 lent $1 billion to Bankman-Fried and more than $500 million to FTX co-founder Nishad Singh. Ray, having been involved in the bankruptcies of Enron, Residential Capital, Nortel and Overseas Shipholding, stated, \"Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information as occurred here. From compromised systems integrity and faulty regulatory oversight abroad, to the concentration of control in the hands of a very small group of inexperienced, unsophisticated and potentially compromised individuals, this situation is unprecedented.\" Speaking to the House Committee on Financial Services, he testified that \"literally, there's no record-keeping whatsoever\" and that the company used the small-business accounting tool QuickBooks for its accounting needs, despite handling \"billions of dollars.\" In a court filing filed by FTX on May 8, 2024, FTX told that court that most FTX customers would get all their money back and a surplus would be left over.\nWidening impact and contagion fears\nThe exchange token of Crypto.com, Cronos, lost approximately $1 billion in value in November, a decline attributed in part to the collapse of FTX and in part to reporting that Crypto.com had accidentally sent $400 million of Ether to another exchange. On November 14, Crypto.com's CEO assured users that the exchange was functioning as normal. Commenters and customers remained fearful that Crypto.com could experience a collapse similar to FTX.\nBlockFi, a cryptocurrency lender, was reportedly taking steps to file for bankruptcy as of November 15. The firm had earlier begun preventing withdrawals. The company disclosed \"significant exposure\" to FTX on November 14. Another cryptocurrency lender, Genesis, a subsidiary of Digital Currency Group, halted withdrawals on November 16. This halt caused Gemini \"Gemini (company)\"), an exchange owned by the Winklevoss twins, to cease allowing redemptions for clients using a service provided through a partnership with Genesis. Another Digital Currency Group subsidiary, Grayscale, saw the value of its flagship offering, the publicly traded Grayscale Bitcoin Trust, decline by 20% over the two weeks preceding November 17. Grayscale Bitcoin Trust was trading at a discounted price, 42% below the value of its Bitcoin, as of November 14.\nConcerns have also been raised about Silvergate Bank, as FTX was a depositor and could have also been a source of credit exposure. Silvergate has said that it has ample liquidity and no loan exposure to FTX. These concerns have been magnified due to Silvergate's key role as a gateway between its cryptocurrency clients and the wider financial world.\nResponses and effects\nEffects on investors\nInstitutional investors that stand to lose money due to their stakes in FTX include Tiger Global Management, the Ontario Teachers' Pension Plan, SoftBank Group, BlackRock, Lightspeed Venture Partners, Temasek, and Sequoia Capital. Sequoia Capital wrote down its equity in FTX to $0 on November 9, losing some $214 million. Sequoia released a notice to investors, also published on Twitter, assuring them the firm's stake in FTX represented a small amount of its overall portfolio, and replaced a profile of Bankman-Fried published on the firm's website with a link to the same notice. The Ontario Teachers' Pension Plan released a similar statement. Temasek later wrote down its investment on November 16. Several public figures also invested in FTX or received compensation for promoting the company. These include football player Tom Brady, basketball players Shaquille O'Neal and Stephen Curry, model Gisele Bündchen, and businessman Kevin O'Leary.\nGisele Bündchen was also appointed the ESG advisor for the cryptocurrency platform. After its bankruptcy, investors sued her for her involvement and accused her of participating in FTX's alleged scheme to take advantage of unsophisticated investors. Anthony Scaramucci, founder of SkyBridge Capital, announced the firm was attempting to buy back a 30% stake in the business owned by FTX.\nEffects on other cryptocurrency firms and cryptocurrency markets\nCryptocurrency investment firms with assets still held on FTX after its bankruptcy include Galois Capital and Galaxy Digital. Cryptocurrencies experienced swings and declines in value as news of FTX's collapse first emerged in early November: Tether \"Tether (cryptocurrency)\") dropped below its peg price of $1.00 to $0.97 and Bitcoin sank to its lowest price in two years. Share prices for publicly traded cryptocurrency companies declined. The price of Solana \"Solana (blockchain platform)\"), which was affiliated with Bankman-Fried, declined as well.\nThe crisis at FTX has inspired an increase in withdrawals from other exchanges. A decline in the value of Cronos, the token of exchange Crypto.com, triggered fears of the potential for a collapse similar to that of FTX and spurred withdrawals from the platform. CEO Kris Marszalek provided assurances that the firm was liquid and that it did not use Cronos in a manner similar to the way FTX used FTT. Bloomberg reported that the collapse of FTX exacerbated institutional skepticism of cryptocurrencies as an asset class. In December, it emerged that FTX had secretly invested in The Block, a cryptocurrency news firm, and to fund an LLC its CEO Michael McCaffrey used to buy an apartment. Its staff said they had no knowledge of the investments. McCaffrey then resigned.\nResponses and commentary\nInvestment manager and short selling specialist Jim Chanos predicted in November 2022 the collapse of FTX would lead to \"increased scrutiny and regulation\" over cryptocurrencies. Chanos criticized the cryptocurrency sector as \"designed to extract fees from really unsuspecting investors\". Richard Handler, CEO of American financial firm Jefferies Group, tweeted on November 10 that he had attempted to meet with Bankman-Fried in July and again in September, as he perceived the FTX CEO was \"in over his head\". Handler stated that Bankman-Fried did not respond to the emails sent from Jefferies staff on Handler's behalf.\nThe sudden collapse of FTX has been compared to the bankruptcy of Lehman Brothers in publications such as The New York Times and the Financial Times. Lawrence Summers acknowledged the comparisons to Lehman and further compared the collapse to the Enron scandal, caused by fraud perpetrated by Enron executives. Rostin Behnam, the Chairman of the Commodity Futures Trading Commission, called for Congress to grant the organization more power to regulate cryptocurrencies. The financial impact of the collapse having reached beyond the immediate FTX customer base, financial industry executives said at a Reuters conference that \"regulators must step in to protect crypto investors.\" Technology analyst Avivah Litan commented on the cryptocurrency ecosystem that \"everything...needs to improve dramatically in terms of user experience, controls, safety, [and] customer service.\" Risk management firm Titan Grey published a primer on the commencement and early motions practice of the FTX chapter 11 case, analyzing issues such as creditor privacy, relief from the automatic stay, proposed differential treatment of customers from other creditors, and others.\nLegal process\nFollowing the collapse of FTX, the Royal Bahamas Police Force launched a criminal investigation into the company. Anonymous sources cited by Bloomberg said that the office of the United States Attorney for the Southern District of New York had begun an investigation into FTX's collapse as of November 14, 2022. The United States House Committee on Financial Services announced plans to conduct hearings in December on the collapse of FTX, and committee leaders said they would seek testimony from Bankman-Fried. According to anonymous sources cited by The Information \"The Information (website)\"), some venture capital firms are considering suing Bankman-Fried.\nOn December 13, 2022, FTX founder and CEO Sam Bankman-Fried was charged by the US Attorney's Office for the Southern District of New York with fraud, conspiracy to commit money laundering, and conspiracy to defraud the US and violate campaign finance laws. After being extradited from the Bahamas, Bankman-Fried was released on a $250 million bond and ordered to remain under house arrest at his parents' home in Palo Alto, California. He was arraigned in federal court in Manhattan on January 3, 2023, and entered a plea of not guilty to all counts. Judge Lewis A. Kaplan set the trial date for United States v. Bankman-Fried for October 2, 2023, saying he might move it \"forward or backward a day or two.\" Meanwhile, Gary Wang, co-founder of FTX, and Caroline Ellison, who had served as Alameda's CEO, pleaded guilty to multiple charges and began cooperating with federal prosecutors.\nFormer FTX executive Ryan Salame pleaded guilty to both a campaign finance law violation and a charge of operating an unlicensed money transmitting business. On May 28, 2024, Salame was sentenced to 7.5 years in prison and ordered to pay more than $5 million in restitution and forfeit an additional $6 million. Salame began serving his sentence in October 2024.\nOn September 24, 2024, Caroline Ellison was sentenced to two years in prison on charges including wire fraud and money laundering. While Judge Kaplan acknowledged the assistance she'd provided to prosecutors, he said her cooperation should not be a “get out of jail free card.”\nFTX's former engineering director, Nishad Singh, pleaded guilty to six different charges, including three counts of conspiracy to commit fraud. Singh is a childhood friend of Bankman-Fried's brother and worked at Alameda Research before being brought into FTX. On October 30, 2024, Singh was sentenced to time served and three years of supervised release based on his cooperation with prosecutors and Judge Kaplan's view that Singh's role in the fraud was “much more limited” than that of his colleagues.\nOn November 20, 2024, Gary Wang was sentenced to time served and three years of supervised release, with Kaplan saying Wang was “entitled to a lot of credit” for his cooperation with prosecutors.\nIn August 2024, FTX was ordered by a US court to pay $12.7 billion in compensation to former customers and fraud victims. The Commodity Futures Trading Commission called this the \"largest such recovery\" in their history. The sum consists of $8.7 billion in restitution, and $4 billion in disgorgement.\nOn October 7, 2024, U.S. Bankruptcy Judge John Dorsey approved the FTX bankruptcy plan which repays customers with balances less than $50,000 their full balance, but with cryptocurrencies valued as at the date of the collapse.\n\nThe FTX Arena in Miami, Florida\nFTX sponsored a number of sports teams and organizations. Deals included the naming rights to the Miami Heat's basketball stadium, renaming it FTX Arena, a partnership with Major League Baseball to place the FTX logo on the uniforms of umpires, and a deal with Mercedes-AMG Petronas F1 Team to add the FTX logo to their cars and merchandise. The professional esports organization TSM also had a naming rights deal with FTX, under which the organization became TSM FTX.\nOther sponsorships included the title sponsorships of the first season of MLB Home Run Derby X, and the title sponsorship of the tournaments FTX Road to Miami and FTX Crypto Cup as part of the Champions Chess Tour 2022.\nFollowing the bankruptcy of FTX in November 2022, Mercedes-AMG F1, TSM and the Miami Heat cut ties with the company, with the last also announcing that they would be seeking a new naming rights partner for the FTX Arena. FTX held talks with American singer-songwriter Taylor Swift starting in the fall of 2021 regarding a $100 million sponsorship deal but negotiations were broken off the following spring without a deal being reached.\n7. ↑ \"FTX Deal Gives Institutions New Access to Crypto Markets\". Bloomberg.com. July 13, 2021. Retrieved October 7, 2021.\n10. ↑ Vidal-Tomás, David; Briola, Antonio; Aste, Tomaso (September 1, 2023). \"FTX's downfall and Binance's consolidation: The fragility of centralised digital finance\". Physica A: Statistical Mechanics and Its Applications. 625 129044. arXiv \"ArXiv (identifier)\"):2302.11371. Bibcode \"Bibcode (identifier)\"):2023PhyA..62529044V. doi \"Doi (identifier)\"):10.1016/j.physa.2023.129044. ISSN \"ISSN (identifier)\") 0378-4371.\n25. ↑ Weisenthal, Joe; Alloway, Tracy (April 1, 2021). \"The Ex-Jane Street Trader Who's Building a Multi-Billion Crypto Empire\". Bloomberg News.{{cite web}}: CS1 maint: deprecated archival service (link)\n55. ↑ Massa, Annie (November 11, 2022). \"Sam Bankman-Fried Fooled the Crypto World and Maybe Even Himself\". Bloomberg. Retrieved November 14, 2022.\n56. ↑ Lagerkranser, Philip; Nicolle, Emily (November 14, 2022). \"Binance's Billionaire CEO Casts Himself as Crypto's New Savior\". Bloomberg. Retrieved November 14, 2022.\n70. 1 2 Binance Says It Will Walk Away from Deal to Buy FTX Archived November 9, 2022, at the Wayback Machine, Wall Street Journal, November 9, 2022.\n76. ↑ Massa, Annie (November 10, 2022). \"Bankman-Fried Vows to 'Give Anything' for Capital as FTX Flails\". Bloomberg. Retrieved November 10, 2022.\n90. ↑ Nicolle, Emily (November 12, 2022). \"Kraken to Assist In Probing FTX Unauthorized Crypto Withdrawals\". Bloomberg. Bloomberg. Retrieved November 12, 2022.{{cite news}}: CS1 maint: deprecated archival service (link)\n92. ↑ Benny-Morrison, Ava; Murphy, Margi (February 1, 2024). \"FTX's Missing $400 Million Were Stolen in SIM-Swapping Hack, DOJ Says\". Bloomberg.com. Retrieved February 3, 2024.\n100. ↑ Gara, Antoine; Shubber, Kadhim; Oliver, Joshua (November 12, 2022). \"FTX held less than $1bn in liquid assets against $9bn in liabilities\". Retrieved November 12, 2022. Vast gap highlights the dire state of Sam Bankman-Fried's exchange before it collapsed into bankruptcy{{cite news}}: CS1 maint: deprecated archival service (link)\n108. ↑ Kharpal, Arjun (May 8, 2024). \"FTX says most customers of the bankrupt crypto exchange will get all their money back\". CNBC. Retrieved May 9, 2024.\n160. ↑ Benny-Morrison, Ava; Dolmetsch, Chris. \"Bankman-Fried lieutenant Ryan Salame gets 7.5 years in prison for role in FTX debacle\". Fortune Crypto. Retrieved November 20, 2024.\n161. ↑ Sundel, Jenna (October 11, 2024). \"Who is Ryan Salame, disgraced FTX exec who reported to prison on LinkedIn\". Newsweek. Retrieved November 20, 2024.\n162. ↑ \"Caroline Ellison sentenced to two years in FTX crypto fraud\". www.bbc.com. September 24, 2024. Retrieved November 20, 2024.\n164. ↑ \"Nishad Singh, a top FTX executive, is given no prison time after cooperation\". San Juan Daily Star. November 1, 2024. Retrieved November 20, 2024.\n165. ↑ Sigalos, MacKenzie; Giel, Dawn (November 20, 2024). \"FTX co-founder Gary Wang avoids prison time for role in crypto fraud\". NBC Los Angeles. Retrieved November 20, 2024.\n166. ↑ Makortoff, Kalyeena (August 9, 2024). \"Bankrupt crypto exchange FTX ordered by US court to pay customers $12.7bn\". The Guardian. Retrieved August 9, 2024.\n167. ↑ \"Crypto exchange FTX ordered to pay $12.7 billion to customers, US CFTC says\". Reuters. August 8, 2024. Retrieved August 9, 2024.\n168. ↑ Knauth, Dietrich (October 8, 2024). \"FTX cleared to repay billions to customers after bankruptcy plan approval\". Reuters. Retrieved February 16, 2025.",
+    "https://tokentax.co/blog/ftx-collapse": "The FTX Collapse: A Complete Guide\nZac McClure\nByZac McClure, MBA · Reviewed byTynisa (Ty) Gaines, EAUpdated on February 3, 2026 · minute read\nVerifiedExpert verified\nTokenTax content follows strict guidelines for editorial accuracy and integrity. We do not accept money from third party sites, so we can give you the most unbiased and accurate information possible.\nFTX's failure resulted from systematic commingling of customer assets with Alameda Research holdings, absence of financial controls, poor risk management, and fraudulent misrepresentation of the exchange's solvency to investors and regulators.\nFTX operated as one of the cryptocurrency industry's dominant trading platforms before its sudden bankruptcy filing in November 2022.\ncaret\nWhy trust our crypto tax experts\nAt TokenTax, we create original content to educate and empower the many crypto investors we serve. Our informational articles reflect the latest tax guidelines from agencies worldwide and are regularly updated to be accurate, actionable, and current. Certified tax professionals research, write, and review each piece to combine industry expertise with rigorous fact-checking. Whether you're navigating DeFi, NFTs, or complex trades, TokenTax is your trusted partner in the complex, evolving world of crypto taxes.\nFTX, once the world's third-largest cryptocurrency exchange with $32 billion in valuation, collapsed in November 2022 due to systematic misappropriation of customer funds.\nThe exchange illegally funneled approximately $8 billion in user deposits to its sister trading firm Alameda Research to cover risky bets. When Binance announced plans to liquidate over half a billion (USD) in FTT tokens on November 6, 2022, it triggered $5 billion in withdrawal requests within 72 hours, exposing FTX's $8 billion shortfall.\nFounder Sam Bankman-Fried (SBF) received a 25-year federal prison sentence in March 2024 after conviction on seven fraud charges. The bankruptcy estate now projects 98% of creditors will receive full reimbursement by Q2 2026.\nWhen did FTX collapse (2022 timeline)\nNovember 2, 2022: CoinDesk investigation exposes Alameda Research's balance sheet dependency on FTT tokens valued at $3.66 billion, revealing dangerous financial entanglement between the trading firm, the exchange, and the price of FTT.\nNovember 6, 2022: Binance CEO Changpeng Zhao announces liquidation of the exchange's entire $2.1 billion FTT position. FTX experiences $997 million in customer withdrawals within 24 hours.\nNovember 7, 2022: Withdrawal demand surges to $4.02 billion over the subsequent 48 hours, completely overwhelming FTX's available reserves.\nNovember 8, 2022: FTX implements emergency suspension of all customer withdrawal processing due to insufficient funds.\nNovember 11, 2022: FTX submits Chapter 11 bankruptcy petition. Sam Bankman-Fried submits resignation as Chief Executive Officer. Cyber criminals extract $477 million from exchange wallets in an apparent security breach.\nNovember 17, 2022: John J. Ray III, newly appointed restructuring CEO with prior oversight of Enron's bankruptcy, testifies to Congress: \"Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information as occurred here.\"\nDecember 12, 2022: Bahamian authorities execute arrest warrant for Bankman-Fried at U.S. government request.\nNovember 2, 2023: Federal jury delivers guilty verdicts on all seven fraud and conspiracy counts.\nMarch 28, 2024: Federal judge sentences Sam Bankman-Fried to 300 months imprisonment and orders $11.02 billion forfeiture.\nMay 8, 2024: Court filing discloses sufficient recovered assets to satisfy 98% of creditor claims at full dollar value, primarily attributed to cryptocurrency price recovery.\nMay 24, 2024: Bankruptcy estate liquidates final portion of locked SOL token holdings at 45% discount to market value.\nJune 18, 2024: Creditor coalition files motion asserting government-forfeited assets should legally revert to customer claims rather than bankruptcy estate.\nFTX's Business Model\nSam Bankman-Fried established FTX in May 2019 using initial capitalization derived from his quantitative trading operation Alameda Research.\nThe exchange distinguished itself through sophisticated interface design and comprehensive product offerings that often weren't offered on other exchanges. FTX attracted both retail and institutional participants with features including perpetuals, tokenized equity instruments, prediction markets, and much more.\nHigh-profile financial backers and marketing campaigns featuring celebrities were used to generate trust among institutional and retail investors.\nFTX's rise was meteoric. In 2019, the first year of operation, FTX earned $20 million in revenue. By 2021, revenue had climbed to $1.02 billion and FTX was considered one of the top crypto exchanges in the world.\nRoot Causes of FTX's Collapse\nThe central issue was the diversion of customer deposits totaling approximately $8 billion to finance high-risk trading positions at affiliated firm Alameda Research.\nThe FTX-Alameda Research Connection\nAlameda Research operated as a proprietary trading entity under Sam Bankman-Fried's ownership. The trading firm received extraordinary access to FTX customer funds for speculative market positions - a clear violation demonstrating absent risk controls and governance frameworks at both organizations.\nAlameda initially generated substantial returns exploiting price arbitrage inefficiencies between North American and Asian cryptocurrency markets during 2018-2020.\nHowever, Alameda's success started to wane and losses piled up. Leadership decided to use FTX deposits to keep Alameda afloat.\nBinance's FTT Sale Triggers the Crisis\nFTT, the native exchange token of FTX, proved critical to the eventual catastrophe. Alameda Research's balance sheet (and consequently FTX's true financial position) showed dangerous over concentration in FTT, an asset with negligible market demand or utility beyond FTX's ecosystem. Despite marketing portraying FTT as liquid and valuable, the token lacked fundamental support to justify its inflated market capitalization.\nIn early November 2022, investigative reporting by CoinDesk exposed Alameda's precarious reliance on FTT token valuation.\nSubsequently, Binance CEO Changpeng Zhao announced immediate liquidation of his exchange's over half a billion in FTT holdings. This announcement catalyzed FTX's failure within 72 hours.\nMarket panic drove FTT holders to dump positions en masse, eliminating Alameda Research's paper wealth and exposing the firm's inability to meet margin obligations and withdrawal requests by FTX depositors. Both entities filed bankruptcy within days.\nBinance initially signaled acquisition interest to stabilize FTX and prevent broader market contagion. After preliminary due diligence revealed the extent of financial disorder, Binance withdrew from negotiations.\nOrganizational Dysfunction at FTX\nUnlike disciplined financial institutions, Alameda's portfolio resembled a disorganized collection of disparate tokens, equity stakes, and speculative ventures lacking coherent strategy.\nWhile professionally-managed cryptocurrency firms implement rigorous risk assessment protocols, FTX deployed virtually no protective measures and seemed to accumulate as many assets as it possibly could.\nFTX Bankruptcy Proceedings\nFTX's bankruptcy filing immediately froze all customer account access. Though the exchange collapsed in November 2022, complex bankruptcy cases typically require multiple years for complete resolution. This one was no different.\nDistribution priority in bankruptcy allocates funds to secured creditors (FTX's institutional investors) before unsecured creditors (platform users) receive any compensation.\nHowever, the bankruptcy court approved a plan to repay nearly all FTX depositors 118% to 143% of their account values in cash.\nUnfortunately, because these payouts are based on \"petition date\" prices from November 2022, most users effectively lost out on the massive surge in cryptocurrency values that occurred during the multi-year legal process.\nRegulatory Strategy\nEstablishing operations in the Bahamas allowed FTX to circumvent numerous regulatory obligations imposed by United States financial authorities.\nFTX simultaneously conducted extensive political influence campaigns in the United States, seeking favorable positioning in emerging cryptocurrency regulation. Sam Bankman-Fried ranked among the Democratic Party's largest financial contributors, apparently viewing political spending as strategic investment for regulatory advantage.\nSam Bankman-Fried SBF\nSam Bankman-Fried (commonly referenced as SBF) founded both FTX and Alameda Research. His rapid ascent made him a prominent cryptocurrency industry figure before age 30.\nBankman-Fried projected an altruistic philanthropist identity while channeling millions to charitable organizations. Bankman-Fried positioned himself as a genuine effective altruist, frequently claiming his primary FTX and Alameda\nResearch motivation involved generating funds for charity. His actual conduct demonstrated blatant disregard for risk management and his own customer's welfare. Federal courts convicted Bankman-Fried on seven fraud counts, imposing a 300-month prison sentence and ordering $11.02 billion civil forfeiture. Sam Bankman-Fried currently serves his 25-year sentence for multiple fraud convictions.\nImpact of FTX's Collapse on the Cryptocurrency Market\nFTX's failure contributed significantly to the 2022-2023 cryptocurrency bear market. The collapse locked millions in customer funds while severely damaging investor confidence in digital assets.\nBitcoin reached a cyclical peak of $69,044 in November 2021. Financial media interpreted this as cryptocurrency achieving mainstream legitimacy. Only a year later, in late 2022, Bitcoin reached a cycle low of approximately $15,800 in the weeks following the bankruptcy filing. The entire crypto market followed bitcoin's trajectory from all time highs in 2021 to a massive crash down in 2022.\nFTX's collapse likely influenced the SEC's increasingly aggressive enforcement posture toward cryptocurrency businesses. Post-FTX, the SEC initiated dozens of aggressive enforcement proceedings against crypto exchanges, companies, and developers.\nFTX's collapse was a watershed moment in cryptocurrency history. Risk management, transparency, and regulatory oversight are not nice to have but essential. Be sure to only use exchanges and custodians that treat these essentials with the utmost seriousness.\nTo stay up to date on the latest, follow TokenTax on Twitter@tokentax.\nRelated Content\nBinance vs. Coinbase 2026 Comparison\nThe Crypto Outlook for 2026: Critical Tax Updates and Trends\nUnderstanding Cryptocurrency Market Cap: A 2026 Investor Guide\nZac McClure\nZac McClureCo-Founder & CEO at TokenTax\nZac co-founded TokenTax after his career in international finance and accounting at JPMorgan, Imprint Capital and Bain. He has worked in more than a half-dozen countries and received his MBA from the UPenn Wharton School.\nView profile\nTynisa (Ty) Gaines\nReviewed byTynisa (Ty) GainesTax Expert at TokenTax\nTynisa (Ty) Gaines, EA has more than 20 years of experience as a tax professional. Ty has published numerous tax articles, two tax e-books, and an academic publication on cryptocurrency for the National Income Tax Workbook.\nView profile\nGet a personalized crypto tax consultation.\nComplete our questionnaire and we'll evaluate your situation — for free.",
+    "https://www.consumernotice.org/legal/crypto-bankruptcies/ftx": "Consumer Notice, LLC\ncall for a free case review\nNavigation\nHome > Legal Rights > Bankruptcies > FTX\nFTX Bankruptcy\nIn November 2022, crypto exchange FTX Holdings filed for bankruptcy. The FTX collapse is one of the biggest in the cryptocurrency industry. FTX and 130 of its affiliates have begun Chapter 11 bankruptcy proceedings. The FTX scandal also involves IRS claims of almost $44 billion against the FTX estate.\nChart of crypto investments.\nWritten By\nMichelle Llamas, BCPA\nEdited By : Amy Edel\nFinancially Reviewed By : Thomas J. Brock, CFA, CPA\nThis page features 15 Cited Research Articles\nFact Checked\nFact-Checked\nEditors carefully fact-check all Consumer Notice, LLC content for accuracy and quality.\nConsumer Notice, LLC has a stringent fact-checking process. It starts with our strict sourcing guidelines.\nWe only gather information from credible sources. This includes peer-reviewed medical journals, reputable media outlets, government reports, court records and interviews with qualified experts.\nLatest Updates in the FTX Bankruptcy\nIn November 2022, crypto platform FTX Trading and its close affiliates, West Realm Shires Services Inc. and Alameda Research, plus approximately 130 additional affiliated companies, commenced voluntary proceedings under Chapter 11 of the United States Bankruptcy Code.\nThe collapse of FTX represents one of the largest cryptocurrency bankruptcies to date. Subsequent related facts and events from 2023 include:\nMay 2023: Crypto platform SUI begins trading; critics allege FTX missed out on $1 billion in value.\nApril 2023: On April 27 and 28, the Internal Revenue Service filed 45 claims against FTX companies for $20.4 billion, $7.9 billion and $9.5 billion. On April 12, FTX’s attorney stated it recovered $7.3 billion in cash and crypto assets, an increase of more than $800 million in value.\nMarch 2023: On March 28, FTX CEO Sam Bankman-Fried was charged with 13 criminal counts, including securities fraud, money laundering and campaign finance violations. On March 22, FTX trustees sold their interest in the new crypto platform SUI. On March 6, the U.S. Department of Justice-appointed trustee in the FTX bankruptcy case filed an appeal in support of an independent examiner after a trial court denied the request.\nIn May 2023, FTX announced it was seeking $3.9 billion in cash and cryptocurrencies from cryptocurrency lender Genesis Global Capital. Lawyers for FTX intend to “claw back” funds Genesis and other affiliates received to help compensate all FTX creditors. The Genesis bankruptcy was filed in January 2023.\nWhy Did FTX File for Bankruptcy?\nA cash crisis (or liquidity crisis) of the company’s digital token, FTT, led to the collapse of FTX and its subsequent bankruptcy. On Nov. 2, 2022, it was discovered that Alameda Research, which FTX CEO Sam Bankman-Fried owned, held a significant amount of FTT. One investigative article by news site CoinDesk alleged that FTX balance sheets were inaccurate and could not show that assets could cover liabilities or customer assets.\nFollowing the allegation, Binance, one of FTX’s investors, announced it would sell its FTT, which caused the price to crash. The move also triggered billions in trader and customer withdrawals.\nIn its bankruptcy filing, FTX stated it had more than 100,000 creditors. It also claimed assets around $10 billion to $50 billion and liabilities between $10 and $50 billion.\nWhy did FTX declare bankruptcy? - Featuring Daniel Nigh, Esquire\nDaniel Nigh, Esquire | 0:52 Why did FTX declare bankruptcy?\nLawyer Daniel Nigh explains why FTX filed for bankruptcy.\nThe FTX Collapse Explained\nFTX rose quickly to dominate the cryptocurrency market through acquisitions of competitors, aggressive marketing campaigns and celebrity endorsements promising high yields. FTX built its business on risky trading options not legal in the U.S. and created its digital token, FTT, in May 2019. Even when Bitcoin declined in value between 2021 and early 2022, FTX continued to acquire competitors.\nDocuments leaked to news site CoinDesk suggested that the FTX-affiliated hedge fund Alameda was receiving customer monies. Rather than transferring the money to FTX, the company was using the cash for other purposes, such as making risky loans. When the article was published, FTX investor Binance, traders and customers caused a run on FTT.\nFTX could not cover the $8 billion gap between what was owed and what could be paid. The company blocked customers from removing money from the platform, then filed for bankruptcy shortly thereafter.\nAuthorities have since found a lack of corporate and financial controls within FTX and its affiliates. There was also disagreement among lawyers for FTX and its creditors and the U.S. trustee monitoring the proceedings over customer data, which FTX argues should not be made public.\nFTX Bankruptcy and Cryptocurrency Market\nThe FTX scandal has highlighted the dangers of buying a digital currency without a commodity backing it, such as gold. The collapse of FTX led to a swift, deep downturn in the cryptocurrency marketplace, though Bitcoin has rebounded.\nWith limited or no industry regulation, cryptocurrency firms operate with little government oversight and no standardized regulations for managing customer deposits. In addition to the lack of appropriate management and governance, authorities found significant security failures.\nFor these reasons, after Bankman-Fried was arrested, the Securities and Exchange Commission and the U.S. Congress put forward plans to discuss regulation of the cryptocurrency industry.\nWhat Does the FTX Collapse Mean for Investors?\nFTX customers whose money is trapped must join the queue of bankruptcy creditors because there is no special protection for customers of unregistered crypto firms like FTX. U.S. law allows the court to repay funds recovered in bankruptcy based on equitable principles. Creditors are, therefore, likely to take priority, followed by investors and then account holders, though courts have yet to make a final determination.\nIn November 2022, an FTX attorney indicated that many assets had either been stolen or were missing, but authorities have now recovered $7.3 billion of customer funds. Bitcoin has rebounded, which adds another $1 billion to FTX assets. FTX is working on a preliminary plan to allow the company a way out of bankruptcy so it can restart the exchange, which it intends to file with the court in the summer of 2023. Bankruptcy proceedings often take many years to resolve.\nSome investors have filed class-action lawsuits against FTX, claiming the company engaged in deceptive trade practices. One suit, filed in Florida, names sports celebrities Tom Brady, Shaquille O’Neal and Naomi Osaka as defendants, among others. A second lawsuit, also filed in Florida, lists several YouTube influencers among the defendants. The U.S. Securities and Exchange Commission, the U.S. Attorney’s Office for the Southern District of New York and the Commodity Futures Trading Commission have all filed suit against FTX co-founder Bankman-Fried.\nPlease seek the advice of a qualified professional before making decisions about your health or finances.\nLast Modified: March 25, 2024\nShare This Lawsuit page\nShare this legal on Twitter\nShare this legal on Facebook\nWritten By\nMichelle Llamas, writer for ConsumerNotice.org\nMichelle Llamas, BCPA Senior Writer Michelle Llamas has written about products that affect consumer health and safety for more than 10 years. Medical journals and news outlets have cited and published her work. She is passionate about educating consumers and empowering them to become their own advocates.\nEmail\nConsumer Notice editor Amy Edel\nEdited By Amy Edel Editor\nEmail\nThomas Brock Headshot\nReviewed By Thomas J. Brock, CFA, CPA Financial Consultant\n15 Cited Research Articles\nConsumernotice.org adheres to the highest ethical standards for content production and references only credible sources of information, including government reports, interviews with experts, highly regarded nonprofit organizations, peer-reviewed journals, court records and academic organizations. You can learn more about our dedication to relevance, accuracy and transparency by reading our editorial policy.\n1. Sorkin, A.R. (2023, May 11). How FTX Missed a Potentially Lucrative Opportunity. Retrieved from\n2. Wang, T. (2023, May 10). U.S. Internal Revenue Service Files Claims Worth $44 Billion Against FTX Bankruptcy. Retrieved from\n3. Bambysheva, N. (2023, May 6). Genesis ‘Has a Few Defenses’ Against $3.9 Billion Claim From FTX. Retrieved from\n4. Choi, C. (2023, March 9). Crypto Layoffs and Bankruptcies in 2023: Here’s the List to Watch. Retrieved from\n5. Liou, J. & Marinelli, J. (2023, January 27). Crypto Bankruptcies Shed Light on Who Owns Assets for Recovery. Retrieved from\n6. Illien, N., Wilson, T. & Knauth, D. (2023, January 26). FTX opposes new bankruptcy investigation as it probes Bankman-Fried connections. Retrieved from\n7. Reuters. (2023, January 20) Factbox: Crypto’s string of bankruptcies. Retrieved from\n8. Gura, D. (2022, November 23). 5 major revelations about the collapse of crypto giant FTX. Retrieved from\n9. Napolitano, E. & Cheung, B. (2022, November 18). The FTX Collapse, Explained. Retrieved from\n10. Hern, A. & Milmo, D. (2022, November 18). What do we know so far about collapse of crypto exchange FTX? Retrieved from\n11. Brooks, K.J. (2022, November 14). Customers of bankrupt FTX may never get their crypto back, experts say. Retrieved from\n12. Rascoe, A. & Gura, D. (2022, November 13). Cryptocurrency exchange FTX files for bankruptcy in another blow to the industry. Retrieved from\n13. Sigalos, M. (2022, November 11). Sam Bankman-Fried steps down as FTX CEO as his crypto exchange files for bankruptcy. Retrieved from\n14. John, A. & Lang, H. (2022, November 11). Crypto exchange FTX files for bankruptcy as wunderkind CEO exits. Retrieved from\n15. Huang, K. (2022, November 10). Why FTX Collapse? Here’s What to Know. Retrieved from\nWho Am I Calling?\nCalling this number connects you with a Consumer Notice, LLC representative. We will direct you to one of our trusted legal partners for a free case review.\nConsumer Notice, LLC's trusted legal partners support the organization's mission to keep people safe from dangerous drugs and medical devices.\n844-420-1914"
+  }
+}
