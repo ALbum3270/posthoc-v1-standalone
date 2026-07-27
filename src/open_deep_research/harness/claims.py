@@ -1,0 +1,1017 @@
+"""Post-hoc atomic-claim decomposition over a canonical report draft."""
+
+from __future__ import annotations
+
+import inspect
+import json
+import re
+from collections.abc import Awaitable, Mapping, Sequence
+from enum import Enum
+from typing import Any, Protocol
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+
+from open_deep_research.harness.jsonio import loads_lenient
+
+
+class MarkdownBlockKind(str, Enum):
+    """Mechanically recognized Markdown content-unit kinds."""
+
+    HEADING = "heading"
+    PARAGRAPH = "paragraph"
+    LIST_ITEM = "list_item"
+    TABLE_ROW = "table_row"
+    CODE_BLOCK = "code_block"
+
+
+class CitationRequirement(str, Enum):
+    """The kind of evidence a selected assertion requires."""
+
+    EXTERNAL = "external"
+    INTERNAL = "internal"
+    NONE = "none"
+
+
+class SourceResolution(str, Enum):
+    """How a later attribution stage resolved a claim to source material."""
+
+    DIRECT = "direct"
+    INHERITED_SAME_UNIT = "inherited_same_unit"
+    INHERITED_PREVIOUS_UNIT = "inherited_previous_unit"
+    UNRESOLVED = "unresolved"
+
+
+class BlockDisposition(str, Enum):
+    """Selection outcome retained for every report content block."""
+
+    CLAIMS_SELECTED = "claims_selected"
+    NO_VERIFIABLE_CLAIMS = "no_verifiable_claims"
+    SELECTION_FAILED = "selection_failed"
+
+
+class ClaimNormalizationStatus(str, Enum):
+    """Whether a selected claim has a mechanically valid report anchor."""
+
+    LOCATED = "located"
+    NORMALIZATION_FAILED = "normalization_failed"
+
+
+class MarkdownBlock(BaseModel):
+    """One Markdown structure unit with stable absolute character bounds."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    block_id: str
+    ordinal: int = Field(ge=0)
+    kind: MarkdownBlockKind
+    text: str
+    start_char: int = Field(ge=0)
+    end_char: int = Field(ge=0)
+    section_path: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _bounds_are_ordered(self) -> MarkdownBlock:
+        if self.end_char <= self.start_char:
+            raise ValueError("block end_char must be greater than start_char")
+        return self
+
+
+class ContextSpan(BaseModel):
+    """A verbatim report span used only to resolve claim context."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    text: str = Field(min_length=1)
+    start_char: int = Field(ge=0)
+    end_char: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _bounds_are_ordered(self) -> ContextSpan:
+        if self.end_char <= self.start_char:
+            raise ValueError("context span end_char must exceed start_char")
+        return self
+
+
+class SelectedAssertion(BaseModel):
+    """An atomic assertion selected from one report block."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    selected_text: str = Field(min_length=1)
+    citation_requirement: CitationRequirement
+
+    @field_validator("selected_text")
+    @classmethod
+    def _selected_text_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("selected_text must not be blank")
+        return normalized
+
+
+class BlockSelection(BaseModel):
+    """Auditable selection disposition for exactly one Markdown block."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    block_id: str
+    disposition: BlockDisposition
+    rationale: str = ""
+    assertions: tuple[SelectedAssertion, ...] = ()
+
+    @model_validator(mode="after")
+    def _disposition_matches_assertions(self) -> BlockSelection:
+        if (
+            self.disposition == BlockDisposition.CLAIMS_SELECTED
+            and not self.assertions
+        ):
+            raise ValueError("claims_selected requires at least one assertion")
+        if (
+            self.disposition != BlockDisposition.CLAIMS_SELECTED
+            and self.assertions
+        ):
+            raise ValueError(
+                "only claims_selected may contain selected assertions"
+            )
+        return self
+
+
+class AtomicClaim(BaseModel):
+    """One retained atomic claim and its distinct model/report representations."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str
+    block_id: str
+    selected_text: str
+    claim_text: str | None
+    anchor_text: str | None
+    start_char: int | None = Field(default=None, ge=0)
+    end_char: int | None = Field(default=None, ge=0)
+    context_spans: tuple[ContextSpan, ...] = ()
+    citation_requirement: CitationRequirement
+    source_resolution: SourceResolution = SourceResolution.UNRESOLVED
+    normalization_status: ClaimNormalizationStatus
+    normalization_failure: str | None = None
+
+    @model_validator(mode="after")
+    def _location_fields_match_status(self) -> AtomicClaim:
+        location = (self.anchor_text, self.start_char, self.end_char)
+        if self.normalization_status == ClaimNormalizationStatus.LOCATED:
+            if any(value is None for value in location):
+                raise ValueError("located claims require anchor text and bounds")
+            if self.claim_text is None:
+                raise ValueError("located claims require claim_text")
+            if self.end_char <= self.start_char:
+                raise ValueError("claim end_char must exceed start_char")
+            if self.normalization_failure is not None:
+                raise ValueError("located claims cannot have a failure reason")
+        else:
+            if self.normalization_failure is None:
+                raise ValueError(
+                    "normalization_failed requires a failure reason"
+                )
+            if self.start_char is not None or self.end_char is not None:
+                raise ValueError(
+                    "normalization_failed cannot retain untrusted bounds"
+                )
+        return self
+
+
+class ClaimStageUsage(BaseModel):
+    """Measured usage for one claim-processing model stage."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    token_count: int = Field(default=0, ge=0)
+    cost_usd: float = Field(default=0.0, ge=0.0)
+
+
+class ClaimDecompositionResult(BaseModel):
+    """All blocks, dispositions, claims, diagnostics, and measured usage."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    blocks: tuple[MarkdownBlock, ...]
+    selections: tuple[BlockSelection, ...]
+    claims: tuple[AtomicClaim, ...]
+    diagnostics: tuple[str, ...] = ()
+    selection_usage: ClaimStageUsage
+    decontextualization_usage: ClaimStageUsage
+    extraction_usage: ClaimStageUsage
+
+    @property
+    def total_tokens(self) -> int:
+        """Return usage across all three ordered stages."""
+
+        return sum(
+            usage.token_count
+            for usage in (
+                self.selection_usage,
+                self.decontextualization_usage,
+                self.extraction_usage,
+            )
+        )
+
+    @property
+    def total_cost_usd(self) -> float:
+        """Return cost across all three ordered stages."""
+
+        return sum(
+            usage.cost_usd
+            for usage in (
+                self.selection_usage,
+                self.decontextualization_usage,
+                self.extraction_usage,
+            )
+        )
+
+
+class ClaimModelClient(Protocol):
+    """Injected model boundary for post-hoc claim decomposition."""
+
+    def generate(self, prompt: str) -> Any | Awaitable[Any]:
+        """Return JSON in a measured usage envelope."""
+
+
+class _ModelEnvelope(BaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    content: Any
+    token_count: int = Field(ge=0)
+    cost_usd: float = Field(ge=0.0)
+
+
+class _DecontextualizedClaim(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str
+    claim_text: str = Field(min_length=1)
+    context_spans: tuple[ContextSpan, ...] = ()
+
+    @field_validator("claim_text")
+    @classmethod
+    def _claim_text_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("claim_text must not be blank")
+        return normalized
+
+
+class _ExtractedAnchor(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str
+    anchor_text: str = Field(min_length=1)
+    start_char: int = Field(ge=0)
+    end_char: int = Field(ge=0)
+
+    @field_validator("anchor_text")
+    @classmethod
+    def _anchor_not_blank(cls, value: str) -> str:
+        if not value:
+            raise ValueError("anchor_text must not be empty")
+        return value
+
+
+_ATX_HEADING = re.compile(
+    r"^[ ]{0,3}(?P<marks>#{1,6})[ \t]+(?P<title>.*?)[ \t]*#*[ \t]*$"
+)
+_SETEXT_HEADING = re.compile(r"^[ ]{0,3}(?P<marks>=+|-+)[ \t]*$")
+_LIST_ITEM = re.compile(r"^(?P<indent>[ \t]{0,3})(?:[-+*]|\d+[.)])[ \t]+")
+_FENCE = re.compile(r"^[ ]{0,3}(?P<marks>`{3,}|~{3,})")
+_TABLE_DELIMITER_CELL = re.compile(r"^:?-{3,}:?$")
+
+
+def _line_end_without_newline(report: str, start: int, raw: str) -> int:
+    end = start + len(raw)
+    while end > start and report[end - 1] in "\r\n":
+        end -= 1
+    return end
+
+
+def _is_table_delimiter(line: str) -> bool:
+    stripped = line.strip().strip("|")
+    cells = [cell.strip() for cell in stripped.split("|")]
+    return bool(cells) and all(
+        _TABLE_DELIMITER_CELL.fullmatch(cell) is not None for cell in cells
+    )
+
+
+def _looks_like_table_row(line: str) -> bool:
+    stripped = line.strip()
+    return "|" in stripped and not stripped.startswith(("```", "~~~"))
+
+
+def parse_markdown_blocks(report: str) -> tuple[MarkdownBlock, ...]:
+    """Parse Markdown into bounded content units without sentence numbering."""
+
+    if not isinstance(report, str):
+        raise TypeError("report must be text")
+    if not report:
+        return ()
+
+    lines = report.splitlines(keepends=True)
+    starts: list[int] = []
+    offset = 0
+    for raw in lines:
+        starts.append(offset)
+        offset += len(raw)
+
+    table_rows: set[int] = set()
+    for candidate in range(len(lines) - 1):
+        header = lines[candidate].rstrip("\r\n")
+        delimiter = lines[candidate + 1].rstrip("\r\n")
+        if (
+            _looks_like_table_row(header)
+            and "|" in delimiter
+            and _is_table_delimiter(delimiter)
+        ):
+            table_rows.add(candidate)
+            cursor = candidate + 2
+            while cursor < len(lines):
+                row = lines[cursor].rstrip("\r\n")
+                if not row.strip() or not _looks_like_table_row(row):
+                    break
+                table_rows.add(cursor)
+                cursor += 1
+
+    blocks: list[MarkdownBlock] = []
+    section_titles: list[str] = []
+    index = 0
+
+    def add_block(
+        kind: MarkdownBlockKind,
+        first_line: int,
+        last_line: int,
+        *,
+        section_path: Sequence[str] | None = None,
+    ) -> None:
+        start = starts[first_line]
+        end = _line_end_without_newline(
+            report,
+            starts[last_line],
+            lines[last_line],
+        )
+        if end <= start:
+            return
+        blocks.append(
+            MarkdownBlock(
+                block_id=f"block-{len(blocks) + 1:04d}",
+                ordinal=len(blocks),
+                kind=kind,
+                text=report[start:end],
+                start_char=start,
+                end_char=end,
+                section_path=tuple(
+                    section_titles if section_path is None else section_path
+                ),
+            )
+        )
+
+    while index < len(lines):
+        raw = lines[index]
+        line = raw.rstrip("\r\n")
+        if not line.strip():
+            index += 1
+            continue
+
+        atx = _ATX_HEADING.match(line)
+        if atx is not None:
+            level = len(atx.group("marks"))
+            title = atx.group("title").strip()
+            section_titles[level - 1 :] = [title]
+            add_block(
+                MarkdownBlockKind.HEADING,
+                index,
+                index,
+                section_path=section_titles,
+            )
+            index += 1
+            continue
+
+        if index + 1 < len(lines):
+            setext = _SETEXT_HEADING.match(lines[index + 1].rstrip("\r\n"))
+            if setext is not None and line.strip():
+                level = 1 if setext.group("marks").startswith("=") else 2
+                title = line.strip()
+                section_titles[level - 1 :] = [title]
+                add_block(
+                    MarkdownBlockKind.HEADING,
+                    index,
+                    index + 1,
+                    section_path=section_titles,
+                )
+                index += 2
+                continue
+
+        fence = _FENCE.match(line)
+        if fence is not None:
+            marker = fence.group("marks")
+            marker_char = marker[0]
+            marker_length = len(marker)
+            last = index
+            while last + 1 < len(lines):
+                last += 1
+                candidate = lines[last].lstrip()
+                if candidate.startswith(marker_char * marker_length):
+                    break
+            add_block(MarkdownBlockKind.CODE_BLOCK, index, last)
+            index = last + 1
+            continue
+
+        if _is_table_delimiter(line):
+            index += 1
+            continue
+        if index in table_rows:
+            add_block(MarkdownBlockKind.TABLE_ROW, index, index)
+            index += 1
+            continue
+
+        if _LIST_ITEM.match(line) is not None:
+            last = index
+            while last + 1 < len(lines):
+                candidate = lines[last + 1].rstrip("\r\n")
+                if not candidate.strip():
+                    break
+                if (
+                    _ATX_HEADING.match(candidate)
+                    or _FENCE.match(candidate)
+                    or _LIST_ITEM.match(candidate)
+                    or last + 1 in table_rows
+                ):
+                    break
+                last += 1
+            add_block(MarkdownBlockKind.LIST_ITEM, index, last)
+            index = last + 1
+            continue
+
+        last = index
+        while last + 1 < len(lines):
+            candidate = lines[last + 1].rstrip("\r\n")
+            if not candidate.strip():
+                break
+            if (
+                _ATX_HEADING.match(candidate)
+                or _FENCE.match(candidate)
+                or _LIST_ITEM.match(candidate)
+                or last + 1 in table_rows
+            ):
+                break
+            if (
+                last + 2 < len(lines)
+                and _SETEXT_HEADING.match(
+                    lines[last + 2].rstrip("\r\n")
+                )
+                is not None
+            ):
+                break
+            last += 1
+        add_block(MarkdownBlockKind.PARAGRAPH, index, last)
+        index = last + 1
+
+    return tuple(blocks)
+
+
+def source_inheritance_allowed(
+    blocks: Sequence[MarkdownBlock],
+    *,
+    source_block_id: str,
+    target_block_id: str,
+    resolution: SourceResolution,
+) -> bool:
+    """Mechanically validate a proposed source-inheritance boundary."""
+
+    by_id = {block.block_id: block for block in blocks}
+    source = by_id.get(source_block_id)
+    target = by_id.get(target_block_id)
+    if source is None or target is None:
+        return False
+    if resolution == SourceResolution.INHERITED_SAME_UNIT:
+        return source.block_id == target.block_id
+    if resolution != SourceResolution.INHERITED_PREVIOUS_UNIT:
+        return False
+    if source.kind != MarkdownBlockKind.PARAGRAPH:
+        return False
+    if target.kind != MarkdownBlockKind.PARAGRAPH:
+        return False
+    if source.section_path != target.section_path:
+        return False
+    return target.ordinal == source.ordinal + 1
+
+
+_SELECTION_PROMPT = """\
+Stage 1 of 3 — selection.
+
+Apply the frozen atomic-v1 rule: one assertion is one independently
+truth-valued event or state. If either coordinated clause could be true while
+the other is false, select them separately. Preserve every entity, time,
+place, quantity, negation, modality, and attribution qualifier that affects
+truth.
+
+For every supplied block_id, return exactly one disposition:
+- claims_selected: include every independently verifiable assertion in that
+  block;
+- no_verifiable_claims: use only when the block contains no independently
+  verifiable assertion.
+
+Classify each selected assertion independently on the orthogonal evidence
+dimension:
+- external: its truth depends on evidence outside this report;
+- internal: it can be checked against the report artifact itself;
+- none: it makes no evidence-bearing factual assertion.
+
+Do not omit a block. Do not combine disposition with whether a source has
+already been found. Return JSON only:
+{{"blocks":[{{"block_id":"block-0001","disposition":"claims_selected|\
+no_verifiable_claims","rationale":"...",\
+"assertions":[{{"selected_text":"...","citation_requirement":"external|\
+internal|none"}}]}}]}}
+
+Purely structural example: a block saying that an object changed twice may
+contain two independently truth-valued assertions; return two assertions
+instead of joining them.
+
+Markdown blocks:
+{blocks}
+"""
+
+_DECONTEXTUALIZATION_PROMPT = """\
+Stage 2 of 3 — decontextualization.
+
+Turn each selected assertion into a self-contained claim_text. Resolve only
+the references needed to make the assertion independently understandable,
+such as a pronoun or an omitted subject. Do not add facts, remove qualifiers,
+resolve uncertainty, infer a cause, calculate a new value, or otherwise make
+the assertion stronger.
+
+For every piece of surrounding report text used to resolve context, return
+its verbatim text and absolute start_char/end_char. If the selected assertion
+is already self-contained, context_spans must be empty.
+
+Return exactly one entry per claim_id as JSON only:
+{{"claims":[{{"claim_id":"claim-0001","claim_text":"...",\
+"context_spans":[{{"text":"...","start_char":0,"end_char":10}}]}}]}}
+
+Purely structural example: in "A group opened a facility. It expanded the
+facility.", the second assertion may become "The group expanded the
+facility."; the first sentence is recorded as context, but no new reason,
+date, or degree may be added.
+
+Canonical report:
+{report}
+
+Selected assertions:
+{claims}
+"""
+
+_EXTRACTION_PROMPT = """\
+Stage 3 of 3 — extraction.
+
+For each claim_id, identify one exact, contiguous anchor_text in the canonical
+report that expresses the selected assertion. Copy it verbatim, including its
+original punctuation and capitalization, and return its absolute
+start_char/end_char. Do not use claim_text as anchor_text unless those exact
+bytes occur in the report. Do not join noncontiguous fragments.
+
+The code will require report[start_char:end_char] == anchor_text and exactly
+one occurrence of anchor_text in the entire report. It will retain a failed
+normalization instead of guessing.
+
+Return exactly one entry per claim_id as JSON only:
+{{"claims":[{{"claim_id":"claim-0001","anchor_text":"A device stopped.",\
+"start_char":0,"end_char":17}}]}}
+
+Canonical report:
+{report}
+
+Decontextualized claims:
+{claims}
+"""
+
+
+def build_selection_prompt(
+    blocks: Sequence[MarkdownBlock],
+) -> str:
+    """Build the complete block-selection prompt."""
+
+    payload = [block.model_dump(mode="json") for block in blocks]
+    return _SELECTION_PROMPT.format(
+        blocks=json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    )
+
+
+def build_decontextualization_prompt(
+    report: str,
+    claims: Sequence[Mapping[str, Any]],
+) -> str:
+    """Build the claim decontextualization prompt."""
+
+    return _DECONTEXTUALIZATION_PROMPT.format(
+        report=report,
+        claims=json.dumps(list(claims), ensure_ascii=False, sort_keys=True),
+    )
+
+
+def build_extraction_prompt(
+    report: str,
+    claims: Sequence[Mapping[str, Any]],
+) -> str:
+    """Build the exact-anchor extraction prompt."""
+
+    return _EXTRACTION_PROMPT.format(
+        report=report,
+        claims=json.dumps(list(claims), ensure_ascii=False, sort_keys=True),
+    )
+
+
+async def _call_model(
+    client: ClaimModelClient,
+    prompt: str,
+) -> tuple[Any, ClaimStageUsage]:
+    response = client.generate(prompt)
+    if inspect.isawaitable(response):
+        response = await response
+    try:
+        envelope = _ModelEnvelope.model_validate(response)
+    except ValidationError as exc:
+        raise ValueError(
+            "claim model returned an invalid usage envelope"
+        ) from exc
+    content = envelope.content
+    if isinstance(content, str):
+        content = loads_lenient(content)
+    return content, ClaimStageUsage(
+        token_count=envelope.token_count,
+        cost_usd=envelope.cost_usd,
+    )
+
+
+def _selection_for_every_block(
+    blocks: Sequence[MarkdownBlock],
+    content: Any,
+) -> tuple[tuple[BlockSelection, ...], tuple[str, ...]]:
+    if not isinstance(content, Mapping) or not isinstance(
+        content.get("blocks"), (list, tuple)
+    ):
+        failed = tuple(
+            BlockSelection(
+                block_id=block.block_id,
+                disposition=BlockDisposition.SELECTION_FAILED,
+                rationale="selection payload could not be validated",
+            )
+            for block in blocks
+        )
+        return failed, ("selection_payload_invalid",)
+
+    expected = {block.block_id for block in blocks}
+    grouped: dict[str, list[BlockSelection]] = {}
+    diagnostics: list[str] = []
+    for index, raw_selection in enumerate(content["blocks"]):
+        try:
+            selection = BlockSelection.model_validate(raw_selection)
+        except (TypeError, ValidationError, ValueError) as exc:
+            diagnostics.append(
+                f"selection_entry_invalid[{index}]: {exc}"
+            )
+            continue
+        if selection.block_id not in expected:
+            diagnostics.append(
+                f"selection_unknown_block: {selection.block_id}"
+            )
+            continue
+        grouped.setdefault(selection.block_id, []).append(selection)
+
+    ordered: list[BlockSelection] = []
+    for block in blocks:
+        candidates = grouped.get(block.block_id, ())
+        if len(candidates) == 1:
+            ordered.append(candidates[0])
+            continue
+        reason = (
+            "selection omitted this block"
+            if not candidates
+            else "selection returned this block more than once"
+        )
+        diagnostics.append(f"{reason}: {block.block_id}")
+        ordered.append(
+            BlockSelection(
+                block_id=block.block_id,
+                disposition=BlockDisposition.SELECTION_FAILED,
+                rationale=reason,
+            )
+        )
+    return tuple(ordered), tuple(diagnostics)
+
+
+def _claim_seed(
+    selections: Sequence[BlockSelection],
+) -> tuple[dict[str, Any], ...]:
+    claims: list[dict[str, Any]] = []
+    for selection in selections:
+        for assertion in selection.assertions:
+            claims.append(
+                {
+                    "claim_id": f"claim-{len(claims) + 1:04d}",
+                    "block_id": selection.block_id,
+                    "selected_text": assertion.selected_text,
+                    "citation_requirement": (
+                        assertion.citation_requirement.value
+                    ),
+                }
+            )
+    return tuple(claims)
+
+
+def _valid_context_spans(
+    report: str,
+    spans: Sequence[ContextSpan],
+) -> tuple[tuple[ContextSpan, ...], str | None]:
+    for span in spans:
+        if span.end_char > len(report):
+            return (), "context_span_out_of_bounds"
+        if report[span.start_char : span.end_char] != span.text:
+            return (), "context_span_not_verbatim"
+    return tuple(spans), None
+
+
+def _unique_occurrences(text: str, needle: str) -> tuple[int, ...]:
+    starts: list[int] = []
+    cursor = 0
+    while True:
+        position = text.find(needle, cursor)
+        if position < 0:
+            return tuple(starts)
+        starts.append(position)
+        cursor = position + 1
+
+
+def _normalization_failure(
+    *,
+    claim: Mapping[str, Any],
+    claim_text: str | None,
+    context_spans: Sequence[ContextSpan] = (),
+    anchor_text: str | None = None,
+    reason: str,
+) -> AtomicClaim:
+    return AtomicClaim(
+        claim_id=str(claim["claim_id"]),
+        block_id=str(claim["block_id"]),
+        selected_text=str(claim["selected_text"]),
+        claim_text=claim_text,
+        anchor_text=anchor_text,
+        context_spans=tuple(context_spans),
+        citation_requirement=CitationRequirement(
+            claim["citation_requirement"]
+        ),
+        source_resolution=SourceResolution.UNRESOLVED,
+        normalization_status=ClaimNormalizationStatus.NORMALIZATION_FAILED,
+        normalization_failure=reason,
+    )
+
+
+async def decompose_claims(
+    report: str,
+    *,
+    model_client: ClaimModelClient,
+) -> ClaimDecompositionResult:
+    """Run selection, decontextualization, then exact-anchor extraction."""
+
+    if not isinstance(report, str):
+        raise TypeError("report must be text")
+    if not report.strip():
+        raise ValueError("report must not be blank")
+
+    blocks = parse_markdown_blocks(report)
+    selection_content, selection_usage = await _call_model(
+        model_client,
+        build_selection_prompt(blocks),
+    )
+    selections, selection_diagnostics = _selection_for_every_block(
+        blocks,
+        selection_content,
+    )
+    seed_claims = _claim_seed(selections)
+    zero_usage = ClaimStageUsage()
+    if not seed_claims:
+        return ClaimDecompositionResult(
+            blocks=blocks,
+            selections=selections,
+            claims=(),
+            diagnostics=selection_diagnostics,
+            selection_usage=selection_usage,
+            decontextualization_usage=zero_usage,
+            extraction_usage=zero_usage,
+        )
+
+    decontext_content, decontext_usage = await _call_model(
+        model_client,
+        build_decontextualization_prompt(report, seed_claims),
+    )
+    diagnostics = list(selection_diagnostics)
+    decontext_by_id: dict[str, _DecontextualizedClaim] = {}
+    duplicate_decontext_ids: set[str] = set()
+    raw_decontext = (
+        decontext_content.get("claims")
+        if isinstance(decontext_content, Mapping)
+        else None
+    )
+    if not isinstance(raw_decontext, (list, tuple)):
+        diagnostics.append("decontextualization_payload_invalid")
+        raw_decontext = ()
+    for index, raw_claim in enumerate(raw_decontext):
+        try:
+            decontext = _DecontextualizedClaim.model_validate(raw_claim)
+        except (TypeError, ValidationError, ValueError) as exc:
+            diagnostics.append(
+                f"decontextualization_entry_invalid[{index}]: {exc}"
+            )
+            continue
+        if decontext.claim_id in decontext_by_id:
+            duplicate_decontext_ids.add(decontext.claim_id)
+            decontext_by_id.pop(decontext.claim_id, None)
+            diagnostics.append(
+                f"decontextualization_duplicate_claim: "
+                f"{decontext.claim_id}"
+            )
+            continue
+        if decontext.claim_id in duplicate_decontext_ids:
+            continue
+        decontext_by_id[decontext.claim_id] = decontext
+
+    valid_decontext: dict[
+        str, tuple[str, tuple[ContextSpan, ...]]
+    ] = {}
+    failures: dict[str, AtomicClaim] = {}
+    expected_ids = {str(claim["claim_id"]) for claim in seed_claims}
+    for unknown_id in set(decontext_by_id) - expected_ids:
+        diagnostics.append(f"decontextualization_unknown_claim: {unknown_id}")
+    for claim in seed_claims:
+        claim_id = str(claim["claim_id"])
+        decontext = decontext_by_id.get(claim_id)
+        if decontext is None:
+            failure_reason = (
+                "decontextualization_duplicate"
+                if claim_id in duplicate_decontext_ids
+                else "decontextualization_missing"
+            )
+            failures[claim_id] = _normalization_failure(
+                claim=claim,
+                claim_text=None,
+                reason=failure_reason,
+            )
+            continue
+        valid_spans, context_error = _valid_context_spans(
+            report,
+            decontext.context_spans,
+        )
+        if context_error is not None:
+            failures[claim_id] = _normalization_failure(
+                claim=claim,
+                claim_text=decontext.claim_text,
+                reason=context_error,
+            )
+            continue
+        valid_decontext[claim_id] = (
+            decontext.claim_text,
+            valid_spans,
+        )
+
+    if valid_decontext:
+        extraction_input = [
+            {
+                **claim,
+                "claim_text": valid_decontext[str(claim["claim_id"])][0],
+            }
+            for claim in seed_claims
+            if str(claim["claim_id"]) in valid_decontext
+        ]
+        extraction_content, extraction_usage = await _call_model(
+            model_client,
+            build_extraction_prompt(report, extraction_input),
+        )
+        extraction_by_id: dict[str, _ExtractedAnchor] = {}
+        duplicate_extraction_ids: set[str] = set()
+        raw_extraction = (
+            extraction_content.get("claims")
+            if isinstance(extraction_content, Mapping)
+            else None
+        )
+        if not isinstance(raw_extraction, (list, tuple)):
+            diagnostics.append("extraction_payload_invalid")
+            raw_extraction = ()
+        for index, raw_claim in enumerate(raw_extraction):
+            try:
+                extraction = _ExtractedAnchor.model_validate(raw_claim)
+            except (TypeError, ValidationError, ValueError) as exc:
+                diagnostics.append(
+                    f"extraction_entry_invalid[{index}]: {exc}"
+                )
+                continue
+            if extraction.claim_id in extraction_by_id:
+                duplicate_extraction_ids.add(extraction.claim_id)
+                extraction_by_id.pop(extraction.claim_id, None)
+                diagnostics.append(
+                    f"extraction_duplicate_claim: {extraction.claim_id}"
+                )
+                continue
+            if extraction.claim_id in duplicate_extraction_ids:
+                continue
+            extraction_by_id[extraction.claim_id] = extraction
+    else:
+        extraction_usage = zero_usage
+        extraction_by_id = {}
+        duplicate_extraction_ids = set()
+
+    block_by_id = {block.block_id: block for block in blocks}
+    claims: list[AtomicClaim] = []
+    for seed in seed_claims:
+        claim_id = str(seed["claim_id"])
+        if claim_id in failures:
+            claims.append(failures[claim_id])
+            continue
+        claim_text, context_spans = valid_decontext[claim_id]
+        extraction = extraction_by_id.get(claim_id)
+        if extraction is None:
+            failure_reason = (
+                "extraction_duplicate"
+                if claim_id in duplicate_extraction_ids
+                else "extraction_missing"
+            )
+            claims.append(
+                _normalization_failure(
+                    claim=seed,
+                    claim_text=claim_text,
+                    context_spans=context_spans,
+                    reason=failure_reason,
+                )
+            )
+            continue
+
+        occurrences = _unique_occurrences(report, extraction.anchor_text)
+        block = block_by_id[str(seed["block_id"])]
+        reason: str | None = None
+        if not occurrences:
+            reason = "anchor_not_found"
+        elif len(occurrences) != 1:
+            reason = "anchor_not_unique"
+        elif extraction.end_char > len(report):
+            reason = "anchor_out_of_bounds"
+        elif (
+            report[extraction.start_char : extraction.end_char]
+            != extraction.anchor_text
+        ):
+            reason = "anchor_offsets_do_not_match"
+        elif occurrences[0] != extraction.start_char:
+            reason = "anchor_offsets_do_not_match"
+        elif not (
+            block.start_char <= extraction.start_char
+            and extraction.end_char <= block.end_char
+        ):
+            reason = "anchor_outside_selected_block"
+
+        if reason is not None:
+            claims.append(
+                _normalization_failure(
+                    claim=seed,
+                    claim_text=claim_text,
+                    context_spans=context_spans,
+                    anchor_text=extraction.anchor_text,
+                    reason=reason,
+                )
+            )
+            continue
+        claims.append(
+            AtomicClaim(
+                claim_id=claim_id,
+                block_id=str(seed["block_id"]),
+                selected_text=str(seed["selected_text"]),
+                claim_text=claim_text,
+                anchor_text=extraction.anchor_text,
+                start_char=extraction.start_char,
+                end_char=extraction.end_char,
+                context_spans=context_spans,
+                citation_requirement=CitationRequirement(
+                    seed["citation_requirement"]
+                ),
+                source_resolution=SourceResolution.UNRESOLVED,
+                normalization_status=ClaimNormalizationStatus.LOCATED,
+            )
+        )
+
+    return ClaimDecompositionResult(
+        blocks=blocks,
+        selections=selections,
+        claims=tuple(claims),
+        diagnostics=tuple(diagnostics),
+        selection_usage=selection_usage,
+        decontextualization_usage=decontext_usage,
+        extraction_usage=extraction_usage,
+    )
