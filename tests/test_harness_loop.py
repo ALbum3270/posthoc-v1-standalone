@@ -311,13 +311,14 @@ def test_read_fetches_once_extracts_cross_item_notes_and_hides_source_from_decid
     assert json.loads(result.ledger.rounds[1].result_summary)["cache_hit"] is True
     assert result.ledger.rounds[0].token_count == 5
     assert result.ledger.rounds[0].cost_usd == pytest.approx(0.3)
+    # Source bodies stay out of the decision context until the model recalls one.
     assert all(
-        json.loads(record.result_summary)["decision_context"]["enabled"] is False
+        json.loads(record.result_summary)["decision_context"]["recalled_urls"] == []
         for record in result.ledger.rounds
     )
 
 
-def test_enabled_source_context_uses_recent_read_order_and_audits_truncation():
+def test_model_recalled_sources_are_injected_newest_first_and_audited():
     older_url = "https://example.com/older"
     recent_url = "https://example.com/recent"
     tavily = FakeTavily(
@@ -327,20 +328,11 @@ def test_enabled_source_context_uses_recent_read_order_and_audits_truncation():
         }
     )
     decisions = [
-        envelope(
-            {
-                "action": "read",
-                "item_id": "what-1",
-                "url": older_url,
-            }
-        ),
-        envelope(
-            {
-                "action": "read",
-                "item_id": "what-1",
-                "url": recent_url,
-            }
-        ),
+        envelope({"action": "read", "item_id": "what-1", "url": older_url}),
+        envelope({"action": "read", "item_id": "what-1", "url": recent_url}),
+        # The model decides summaries are not enough and asks for both bodies.
+        envelope({"action": "recall", "item_id": "what-1", "url": older_url}),
+        envelope({"action": "recall", "item_id": "what-1", "url": recent_url}),
         envelope({"action": "stop"}),
     ]
 
@@ -348,11 +340,11 @@ def test_enabled_source_context_uses_recent_read_order_and_audits_truncation():
         decisions,
         notes=[envelope({"notes": []}), envelope({"notes": []})],
         tavily=tavily,
-        settings=LoopSettings(
-            include_cached_sources_in_decision=True,
-            decision_source_char_limit=8,
-        ),
+        settings=LoopSettings(decision_source_char_limit=8),
     )
+
+    # Nothing is injected before the first recall lands.
+    assert "BBBBBB" not in decision_model.prompts[2]
 
     final_prompt = decision_model.prompts[-1]
     assert '"content": "BBBBBB"' in final_prompt
@@ -364,7 +356,7 @@ def test_enabled_source_context_uses_recent_read_order_and_audits_truncation():
         result.ledger.rounds[-1].result_summary
     )["decision_context"]
     assert context_audit == {
-        "enabled": True,
+        "recalled_urls": [recent_url, older_url],
         "char_limit": 8,
         "injected_chars": 8,
         "injected_sources": [
@@ -384,6 +376,29 @@ def test_enabled_source_context_uses_recent_read_order_and_audits_truncation():
         "omitted_urls": [],
         "truncated": True,
     }
+
+
+def test_recalling_an_unread_url_is_recorded_as_a_miss_not_a_crash():
+    decisions = [
+        envelope(
+            {
+                "action": "recall",
+                "item_id": "what-1",
+                "url": "https://example.com/never-read",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+
+    result, decision_model, _, _ = run_loop(decisions)
+
+    summary = json.loads(result.ledger.rounds[0].result_summary)
+    assert summary["recalled"] is False
+    assert summary["detail"] == "url is not in the source cache"
+    assert result.consecutive_failures["what-1"] == 1
+    # The run continues; a bad recall is not a malformed action.
+    assert result.stop_reason is StopReason.MODEL_STOP_WITH_OPEN_ITEMS
+    assert "never-read" not in decision_model.prompts[-1].split('"recalled_urls"')[0]
 
 
 def test_zero_note_batch_is_valid_audited_and_counts_as_active_item_failure():

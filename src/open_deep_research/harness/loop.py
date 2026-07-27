@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import Awaitable, Mapping
+from collections.abc import Awaitable, Mapping, Sequence
 from enum import Enum
 from typing import Annotated, Any, Literal, Protocol
 
@@ -47,11 +47,15 @@ class LoopBudget(BaseModel):
 
 
 class LoopSettings(BaseModel):
-    """Configurable context supplied to the decision model."""
+    """Budget for source text the decision model asked to see.
+
+    Whether a source body enters the decision context is the model's call, made
+    by returning a ``recall`` action. Code only caps how much can be injected,
+    which is a budget concern rather than a judgement about relevance.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    include_cached_sources_in_decision: bool = False
     decision_source_char_limit: int = Field(default=100_000, ge=0)
 
 
@@ -111,6 +115,26 @@ class ReadAction(_ItemAction):
         return normalized
 
 
+class RecallAction(_ItemAction):
+    """Ask for an already-read source body in the next decision context.
+
+    Note summaries are the default view because they are cheap, not because the
+    model is untrusted with the original text. When summaries are not enough the
+    model recalls the source itself; code only enforces the character budget.
+    """
+
+    action: Literal["recall"]
+    url: str = Field(min_length=1)
+
+    @field_validator("url")
+    @classmethod
+    def _url_is_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("url must not be blank")
+        return normalized
+
+
 class SettleAction(_ItemAction):
     """Mark one checklist item as sufficiently researched."""
 
@@ -141,7 +165,12 @@ class StopAction(BaseModel):
 
 
 LoopAction = Annotated[
-    SearchAction | ReadAction | SettleAction | MarkExhaustedAction | StopAction,
+    SearchAction
+    | ReadAction
+    | RecallAction
+    | SettleAction
+    | MarkExhaustedAction
+    | StopAction,
     Field(discriminator="action"),
 ]
 _ACTION_ADAPTER = TypeAdapter(LoopAction)
@@ -206,11 +235,18 @@ Choose exactly one next action for this research run.
 You may return:
 {{"action":"search","item_id":"...","query":"..."}}
 {{"action":"read","item_id":"...","url":"..."}}
+{{"action":"recall","item_id":"...","url":"..."}}
 {{"action":"settle","item_id":"..."}}
 {{"action":"mark_exhausted","item_id":"...","reason":"..."}}
 {{"action":"stop"}}
 
 The action item_id identifies the checklist item this round is working on.
+
+You normally see note summaries rather than source bodies. When a summary is not
+enough, recall an already-read url and its full text joins the next round's
+state. Recall as often as you need; the oldest recalled sources drop out first
+once the character budget is reached.
+
 Return JSON only.
 
 Current collection state:
@@ -265,40 +301,25 @@ def _checklist_state(
     ]
 
 
-def _source_urls_by_recent_read(ledger: ResearchLedger) -> list[str]:
-    ordered: list[str] = []
-    seen: set[str] = set()
-    for record in reversed(ledger.rounds):
-        if (
-            record.action == "read"
-            and record.url in ledger.source_cache
-            and record.url not in seen
-        ):
-            ordered.append(record.url)
-            seen.add(record.url)
-    for url in reversed(ledger.source_cache):
-        if url not in seen:
-            ordered.append(url)
-            seen.add(url)
-    return ordered
-
-
 def _source_injection(
     ledger: ResearchLedger | None,
     settings: LoopSettings,
+    recalled_urls: Sequence[str] = (),
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    """Inject the sources the model recalled, newest first, within budget."""
+
     audit: dict[str, Any] = {
-        "enabled": settings.include_cached_sources_in_decision,
+        "recalled_urls": list(recalled_urls),
         "char_limit": settings.decision_source_char_limit,
         "injected_chars": 0,
         "injected_sources": [],
         "omitted_urls": [],
         "truncated": False,
     }
-    if not settings.include_cached_sources_in_decision or ledger is None:
+    if not recalled_urls or ledger is None:
         return [], audit
 
-    urls = _source_urls_by_recent_read(ledger)
+    urls = [url for url in recalled_urls if url in ledger.source_cache]
     remaining = settings.decision_source_char_limit
     sources: list[dict[str, str]] = []
     for url in urls:
@@ -335,16 +356,17 @@ def _build_decision_prompt(
     *,
     ledger: ResearchLedger | None,
     settings: LoopSettings,
+    recalled_urls: Sequence[str] = (),
 ) -> tuple[str, dict[str, Any]]:
-    sources, injection_audit = _source_injection(ledger, settings)
+    sources, injection_audit = _source_injection(ledger, settings, recalled_urls)
 
     state: dict[str, Any] = {
         "topic": checklist.topic,
         "checklist": _checklist_state(checklist, consecutive_failures),
         "note_summaries": [_note_summary(note) for note in notes],
     }
-    if settings.include_cached_sources_in_decision:
-        state["cached_sources"] = sources
+    if sources:
+        state["recalled_sources"] = sources
     prompt = DECISION_PROMPT.format(
         state=json.dumps(state, ensure_ascii=False, sort_keys=True),
     )
@@ -358,8 +380,9 @@ def build_decision_prompt(
     *,
     ledger: ResearchLedger | None = None,
     settings: LoopSettings | None = None,
+    recalled_urls: Sequence[str] = (),
 ) -> str:
-    """Build a decision prompt with optional, explicitly bounded source text."""
+    """Build a decision prompt holding only the sources the model recalled."""
 
     prompt, _ = _build_decision_prompt(
         checklist,
@@ -367,6 +390,7 @@ def build_decision_prompt(
         consecutive_failures,
         ledger=ledger,
         settings=settings or LoopSettings(),
+        recalled_urls=recalled_urls,
     )
     return prompt
 
@@ -581,6 +605,7 @@ async def run_research_loop(
         )
 
     consecutive_malformed = 0
+    recalled: list[str] = []
     while True:
         rounds_executed += 1
         prompt, context_audit = _build_decision_prompt(
@@ -589,6 +614,7 @@ async def run_research_loop(
             failures,
             ledger=ledger,
             settings=context_settings,
+            recalled_urls=recalled,
         )
         response: Any = None
         decision_error: str | None = None
@@ -778,6 +804,29 @@ async def run_research_loop(
                         "note_item_ids": [note.item_id for note in created],
                         "note_output_error": note_error,
                         "note_creation_errors": creation_errors,
+                    }
+
+            elif isinstance(action, RecallAction):
+                url = action.url
+                if action.url in ledger.source_cache:
+                    # Newest first, so the budget drops the stalest recall.
+                    if action.url in recalled:
+                        recalled.remove(action.url)
+                    recalled.insert(0, action.url)
+                    summary = {
+                        "url": action.url,
+                        "recalled": True,
+                        "source_chars": len(ledger.source_cache[action.url]),
+                        "recalled_urls": list(recalled),
+                    }
+                else:
+                    # A recall for an unread url is an honest miss, not a crash:
+                    # record it and let the model pick again next round.
+                    failures[action.item_id] = failures.get(action.item_id, 0) + 1
+                    summary = {
+                        "url": action.url,
+                        "recalled": False,
+                        "detail": "url is not in the source cache",
                     }
 
             elif isinstance(action, SettleAction):

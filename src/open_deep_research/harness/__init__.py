@@ -25,6 +25,7 @@ from open_deep_research.harness.loop import (
     LoopSettings,
     MarkExhaustedAction,
     ReadAction,
+    RecallAction,
     SearchAction,
     SettleAction,
     StopAction,
@@ -39,14 +40,30 @@ from open_deep_research.harness.notes import (
     ResearchNote,
     create_note,
 )
+from open_deep_research.harness.runner import (
+    HarnessRunResult,
+    UsageRecord,
+    run_harness,
+)
 from open_deep_research.harness.tools import (
     SearchResult,
     SourceReadError,
     read,
     search,
 )
+from open_deep_research.harness.write import (
+    CitationIssue,
+    CitationParseResult,
+    ParsedCitation,
+    ReportDraft,
+    build_write_prompt,
+    parse_report_citations,
+    write_report,
+)
 
 __all__ = [
+    "CitationIssue",
+    "CitationParseResult",
     "ChecklistChangeRecord",
     "ChecklistDimension",
     "ChecklistItem",
@@ -61,6 +78,7 @@ __all__ = [
     "ResearchChecklist",
     "ResearchLedger",
     "ResearchNote",
+    "ReportDraft",
     "RoundRecord",
     "SearchAction",
     "SearchResult",
@@ -68,13 +86,20 @@ __all__ = [
     "SourceReadError",
     "StopAction",
     "StopReason",
+    "UsageRecord",
+    "HarnessRunResult",
     "assemble_notes",
     "build_checklist_prompt",
     "build_decision_prompt",
     "build_note_prompt",
+    "build_write_prompt",
     "create_note",
     "generate_checklist",
     "read",
+    "run_harness",
     "run_research_loop",
     "search",
+    "ParsedCitation",
+    "parse_report_citations",
+    "write_report",
 ]
