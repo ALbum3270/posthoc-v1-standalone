@@ -6,6 +6,19 @@ the model owns every judgement. Nothing is rejected before it is recorded.
 """
 
 from open_deep_research.harness.assemble import assemble_notes
+from open_deep_research.harness.attribution import (
+    AttributionCallUsage,
+    AttributionError,
+    AttributionResult,
+    AttributionSettings,
+    AttributionStatus,
+    AttributionStopReason,
+    CandidateSource,
+    ClaimAttribution,
+    InspectedNotePage,
+    attribute_claims,
+    build_attribution_prompt,
+)
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
     ChecklistItem,
@@ -95,11 +108,18 @@ from open_deep_research.harness.write import (
 
 __all__ = [
     "AtomicClaim",
+    "AttributionCallUsage",
+    "AttributionError",
+    "AttributionResult",
+    "AttributionSettings",
+    "AttributionStatus",
+    "AttributionStopReason",
     "BlockDisposition",
     "BlockSelection",
     "CitationIssue",
     "CitationParseResult",
     "CitationRequirement",
+    "CandidateSource",
     "ChecklistChangeRecord",
     "ChecklistDimension",
     "ChecklistItem",
@@ -107,9 +127,11 @@ __all__ = [
     "ClaimDecompositionResult",
     "ClaimNormalizationStatus",
     "ClaimStageUsage",
+    "ClaimAttribution",
     "ContextSpan",
     "DecisionTurn",
     "InspectNotesAction",
+    "InspectedNotePage",
     "LoopBudget",
     "LoopResult",
     "LoopSettings",
@@ -142,6 +164,8 @@ __all__ = [
     "UsageRecord",
     "HarnessRunResult",
     "assemble_notes",
+    "attribute_claims",
+    "build_attribution_prompt",
     "build_checklist_prompt",
     "build_decontextualization_prompt",
     "build_decision_prompt",
