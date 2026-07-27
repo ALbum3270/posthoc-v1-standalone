@@ -128,6 +128,7 @@ async def run_harness(
 
     normalized_run_id = _normalize_run_id(run_id)
     ledger = ResearchLedger(research_id=normalized_run_id, topic=topic.strip())
+    active_budget = budget or LoopBudget()
 
     checklist = await generate_checklist(topic, model_client=checklist_model)
     checklist_usage = _usage_from_model(checklist_model)
@@ -137,7 +138,7 @@ async def run_harness(
         decision_model=decision_model,
         note_model=note_model,
         tavily_client=tavily_client,
-        budget=budget,
+        budget=active_budget,
         settings=loop_settings,
     )
     assembled = assemble_notes(loop_result.checklist, ledger.notes)
@@ -171,6 +172,22 @@ async def run_harness(
             "detail": loop_result.stop_detail,
             "open_item_ids": list(loop_result.open_item_ids),
             "is_success": loop_result.is_success,
+        },
+        "collection_summary": {
+            "settled_without_located_evidence": (
+                ledger.settled_without_located_evidence
+            ),
+            "settled_without_located_evidence_item_ids": list(
+                ledger.settled_without_located_evidence_item_ids
+            ),
+            "writing_reserve": {
+                "tokens": active_budget.writing_token_reserve,
+                "cost_usd": active_budget.writing_cost_reserve_usd,
+            },
+            # Collection protects this allocation, but the first version does
+            # not yet estimate assembled-notes input before the writing call.
+            # Keep the gap explicit until stage admission is implemented.
+            "known_gaps": ["writing_input_budget_preflight_not_enforced"],
         },
         "usage": usage_audit,
         "models": dict(model_names or {}),

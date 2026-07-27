@@ -5,9 +5,33 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from open_deep_research.harness.notes import ResearchNote
+
+
+class SettlementEvidence(BaseModel):
+    """Evidence visible when the model settled one checklist item."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    strict_locatable_notes: int = Field(default=0, ge=0)
+    repaired_locatable_notes: int = Field(default=0, ge=0)
+    located_notes: int = Field(default=0, ge=0)
+    publisher_count: int = Field(default=0, ge=0)
+    publishers: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _derived_counts_are_consistent(self) -> SettlementEvidence:
+        if self.located_notes != (
+            self.strict_locatable_notes + self.repaired_locatable_notes
+        ):
+            raise ValueError(
+                "located_notes must equal strict plus repaired note counts"
+            )
+        if self.publisher_count != len(self.publishers):
+            raise ValueError("publisher_count must equal the publisher list length")
+        return self
 
 
 class RoundRecord(BaseModel):
@@ -35,6 +59,10 @@ class ChecklistChangeRecord(BaseModel):
     reason: str = ""
     from_status: str | None = None
     to_status: str | None = None
+    settlement_evidence: SettlementEvidence | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
 
 
 class ResearchLedger(BaseModel):
@@ -108,6 +136,7 @@ class ResearchLedger(BaseModel):
         reason: str,
         from_status: str | None = None,
         to_status: str | None = None,
+        settlement_evidence: SettlementEvidence | dict[str, Any] | None = None,
     ) -> ChecklistChangeRecord:
         """Append and return one checklist audit record."""
 
@@ -118,9 +147,52 @@ class ResearchLedger(BaseModel):
             reason=reason,
             from_status=from_status,
             to_status=to_status,
+            settlement_evidence=settlement_evidence,
         )
         self.checklist_history.append(record)
         return record
+
+    def note_ids_for_url(self, url: str) -> dict[str, tuple[str, ...]]:
+        """Return deterministic ledger-local note IDs grouped by checklist item.
+
+        Stable note/source identifiers become first-class data in the later
+        paging step. Until then, these IDs let a cache hit refer to existing
+        notes without changing the persisted note schema prematurely.
+        """
+
+        grouped: dict[str, list[str]] = {}
+        normalized_url = url.strip()
+        for index, note in enumerate(self.notes, start=1):
+            if note.url != normalized_url:
+                continue
+            grouped.setdefault(note.item_id, []).append(f"note-{index:06d}")
+        return {item_id: tuple(ids) for item_id, ids in grouped.items()}
+
+    @property
+    def settled_without_located_evidence_item_ids(self) -> tuple[str, ...]:
+        """Return uniquely settled items whose settle-time evidence count was zero."""
+
+        item_ids: list[str] = []
+        seen: set[str] = set()
+        for record in self.checklist_history:
+            evidence = record.settlement_evidence
+            if (
+                not record.accepted
+                or record.to_status != "settled"
+                or evidence is None
+                or evidence.located_notes != 0
+                or record.item_id in seen
+            ):
+                continue
+            seen.add(record.item_id)
+            item_ids.append(record.item_id)
+        return tuple(item_ids)
+
+    @property
+    def settled_without_located_evidence(self) -> int:
+        """Count items settled without strict or repaired located evidence."""
+
+        return len(self.settled_without_located_evidence_item_ids)
 
     @property
     def total_tokens(self) -> int:

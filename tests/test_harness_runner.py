@@ -108,10 +108,19 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["ledger"]["rounds"][0]["action"] == "settle"
     assert audit["checklist"]["items"][0]["status"] == "settled"
     assert audit["stop"] == {
-        "detail": "all checklist items reached a terminal state",
+        "detail": (
+            "all checklist items reached a terminal state; "
+            "settled_without_located_evidence=1 (what-1)"
+        ),
         "is_success": True,
         "open_item_ids": [],
         "reason": "all_items_terminal",
+    }
+    assert audit["collection_summary"] == {
+        "known_gaps": ["writing_input_budget_preflight_not_enforced"],
+        "settled_without_located_evidence": 1,
+        "settled_without_located_evidence_item_ids": ["what-1"],
+        "writing_reserve": {"cost_usd": 0.0, "tokens": 0},
     }
     assert audit["usage"] == {
         "checklist": {"cost_usd": 0.03, "token_count": 3},

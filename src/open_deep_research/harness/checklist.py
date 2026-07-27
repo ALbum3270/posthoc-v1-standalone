@@ -87,6 +87,7 @@ class ChecklistAuditSink(Protocol):
         reason: str,
         from_status: str | None = None,
         to_status: str | None = None,
+        settlement_evidence: Mapping[str, Any] | None = None,
     ) -> Any:
         """Record one accepted or rejected membership/status request."""
 
@@ -179,6 +180,7 @@ class ResearchChecklist(BaseModel):
         *,
         reason: str,
         ledger: ChecklistAuditSink,
+        settlement_evidence: Mapping[str, Any] | None = None,
     ) -> ResearchChecklist:
         """Return a copy with one audited status update."""
 
@@ -188,13 +190,18 @@ class ResearchChecklist(BaseModel):
         items = tuple(
             replacement if item.item_id == item_id else item for item in self.items
         )
+        audit_fields: dict[str, Any] = {
+            "event": "status_change",
+            "item_id": item_id,
+            "accepted": True,
+            "reason": reason.strip(),
+            "from_status": current.status.value,
+            "to_status": target_status.value,
+        }
+        if settlement_evidence is not None:
+            audit_fields["settlement_evidence"] = settlement_evidence
         ledger.record_checklist_change(
-            event="status_change",
-            item_id=item_id,
-            accepted=True,
-            reason=reason.strip(),
-            from_status=current.status.value,
-            to_status=target_status.value,
+            **audit_fields,
         )
         return ResearchChecklist(topic=self.topic, items=items)
 

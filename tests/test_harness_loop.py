@@ -16,6 +16,7 @@ from open_deep_research.harness.loop import (
     StopReason,
     run_research_loop,
 )
+from open_deep_research.harness.notes import create_note
 
 
 class ScriptedModel:
@@ -234,7 +235,7 @@ def test_valid_action_resets_the_malformed_streak():
     assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
 
 
-def test_read_fetches_once_extracts_cross_item_notes_and_hides_source_from_decider():
+def test_cached_read_returns_note_ids_without_rerunning_note_model():
     source = (
         "A useful exact sentence.\n\n"
         "A second exact sentence.\n\n"
@@ -276,19 +277,6 @@ def test_read_fetches_once_extracts_cross_item_notes_and_hides_source_from_decid
             tokens=3,
             cost=0.2,
         ),
-        envelope(
-            {
-                "notes": [
-                    {
-                        "item_id": "what-1",
-                        "finding": "The active item now has material.",
-                        "quote": "A second exact sentence.",
-                    }
-                ]
-            },
-            tokens=4,
-            cost=0.3,
-        ),
     ]
 
     result, decision_model, note_model, client = run_loop(
@@ -298,19 +286,28 @@ def test_read_fetches_once_extracts_cross_item_notes_and_hides_source_from_decid
     )
 
     assert len(client.extract_calls) == 1
-    assert len(note_model.prompts) == 2
+    assert len(note_model.prompts) == 1
     assert all(source in prompt for prompt in note_model.prompts)
+    assert "Active checklist item:\nwhat-1" in note_model.prompts[0]
     assert all("private-source-marker" not in prompt for prompt in decision_model.prompts)
-    assert '"consecutive_failures": 1' in decision_model.prompts[1]
-    assert [note.item_id for note in result.ledger.notes] == ["how-1", "what-1"]
-    assert result.consecutive_failures["what-1"] == 0
+    assert '"consecutive_collection_failures": 1' in decision_model.prompts[1]
+    assert [note.item_id for note in result.ledger.notes] == ["how-1"]
+    assert result.consecutive_collection_failures["what-1"] == 2
     assert result.consecutive_failures["how-1"] == 0
     assert result.checklist.get("how-1").status is ChecklistStatus.HAS_MATERIAL
-    assert result.checklist.get("what-1").status is ChecklistStatus.HAS_MATERIAL
+    assert result.checklist.get("what-1").status is ChecklistStatus.UNEXPLORED
     assert json.loads(result.ledger.rounds[0].result_summary)["cache_hit"] is False
-    assert json.loads(result.ledger.rounds[1].result_summary)["cache_hit"] is True
+    cache_audit = json.loads(result.ledger.rounds[1].result_summary)
+    assert cache_audit["cache_hit"] is True
+    assert cache_audit["note_model_called"] is False
+    assert cache_audit["existing_note_ids"] == ["note-000001"]
+    assert cache_audit["existing_notes_by_item"] == {
+        "how-1": {"count": 1, "note_ids": ["note-000001"]}
+    }
     assert result.ledger.rounds[0].token_count == 5
     assert result.ledger.rounds[0].cost_usd == pytest.approx(0.3)
+    assert result.ledger.rounds[1].token_count == 2
+    assert result.ledger.rounds[1].cost_usd == pytest.approx(0.1)
     # Source bodies stay out of the decision context until the model recalls one.
     assert all(
         json.loads(record.result_summary)["decision_context"]["recalled_urls"] == []
@@ -395,7 +392,7 @@ def test_recalling_an_unread_url_is_recorded_as_a_miss_not_a_crash():
     summary = json.loads(result.ledger.rounds[0].result_summary)
     assert summary["recalled"] is False
     assert summary["detail"] == "url is not in the source cache"
-    assert result.consecutive_failures["what-1"] == 1
+    assert result.consecutive_collection_failures["what-1"] == 0
     # The run continues; a bad recall is not a malformed action.
     assert result.stop_reason is StopReason.MODEL_STOP_WITH_OPEN_ITEMS
     assert "never-read" not in decision_model.prompts[-1].split('"recalled_urls"')[0]
@@ -441,8 +438,8 @@ def test_search_without_an_active_item_note_is_visible_as_a_failure_next_round()
     result, decision_model, _, client = run_loop(decisions)
 
     assert len(client.search_calls) == 1
-    assert result.consecutive_failures["what-1"] == 1
-    assert '"consecutive_failures": 1' in decision_model.prompts[1]
+    assert result.consecutive_collection_failures["what-1"] == 1
+    assert '"consecutive_collection_failures": 1' in decision_model.prompts[1]
 
     # Searching yields candidates, not notes, so the item is still a failure --
     # but the hits must reach the next decision or the model can only search
@@ -451,3 +448,199 @@ def test_search_without_an_active_item_note_is_visible_as_a_failure_next_round()
     assert "Candidate snippet" in next_prompt
     assert '"url": "https://example.com/source"' in next_prompt
     assert '"read": false' in next_prompt
+
+
+def test_reanalyze_is_the_only_way_to_rerun_notes_for_a_cached_url():
+    url = "https://example.com/source"
+    decisions = [
+        envelope({"action": "read", "item_id": "what-1", "url": url}),
+        envelope(
+            {
+                "action": "reanalyze",
+                "item_id": "what-1",
+                "url": url,
+                "reason": "The first pass only found cross-item evidence",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+    note_outputs = [
+        envelope(
+            {
+                "notes": [
+                    {
+                        "item_id": "how-1",
+                        "finding": "Cross-item evidence.",
+                        "quote": "A useful exact sentence.",
+                    }
+                ]
+            }
+        ),
+        envelope(
+            {
+                "notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "Active-item evidence.",
+                        "quote": "A useful exact sentence.",
+                    }
+                ]
+            }
+        ),
+    ]
+
+    result, _, note_model, client = run_loop(decisions, notes=note_outputs)
+
+    assert len(client.extract_calls) == 1
+    assert len(note_model.prompts) == 2
+    assert all("Active checklist item:\nwhat-1" in p for p in note_model.prompts)
+    assert [note.item_id for note in result.ledger.notes] == ["how-1", "what-1"]
+    reanalyze_audit = json.loads(result.ledger.rounds[1].result_summary)
+    assert reanalyze_audit["reanalyze_reason"] == (
+        "The first pass only found cross-item evidence"
+    )
+    assert reanalyze_audit["note_model_called"] is True
+    assert result.consecutive_collection_failures["what-1"] == 0
+
+
+def test_budget_headroom_and_writing_reserve_are_visible_and_enforced():
+    budget = LoopBudget(
+        max_rounds=5,
+        max_tokens=100,
+        max_cost_usd=1.0,
+        writing_token_reserve=20,
+        writing_cost_reserve_usd=0.25,
+    )
+
+    result, model, _, _ = run_loop(
+        [envelope({"action": "stop"})],
+        budget=budget,
+    )
+
+    prompt = model.prompts[0]
+    assert '"remaining_rounds": 5' in prompt
+    assert '"remaining_collection_tokens": 80' in prompt
+    assert '"remaining_collection_cost_usd": 0.75' in prompt
+    assert '"writing_reserve": {"cost_usd": 0.25, "tokens": 20}' in prompt
+    assert result.stop_reason is StopReason.MODEL_STOP_WITH_OPEN_ITEMS
+
+    exhausted, _, _, _ = run_loop(
+        [envelope({"action": "stop"}, tokens=80)],
+        budget=budget,
+    )
+    assert exhausted.stop_reason is StopReason.BUDGET_EXHAUSTED
+
+
+def test_batch_status_updates_audit_settle_evidence_and_keep_success_honest():
+    active = checklist()
+    active = active.model_copy(
+        update={
+            "items": (
+                *active.items,
+                ChecklistItem(
+                    item_id="where-1",
+                    dimension=ChecklistDimension.WHERE,
+                    question="Where did it happen?",
+                    priority=2,
+                    required_source_count=1,
+                ),
+            )
+        }
+    )
+    ledger = ResearchLedger(topic=active.topic)
+    for url in ("https://one.example/a", "https://two.example/b"):
+        source = f"Evidence from {url}."
+        ledger.cache_source(url, source)
+        ledger.add_note(
+            create_note(
+                item_id="what-1",
+                finding="Located evidence.",
+                quote=source,
+                url=url,
+                source_text=source,
+            )
+        )
+
+    decision = envelope(
+        {
+            "status_updates": [
+                {
+                    "item_id": "what-1",
+                    "status": "settled",
+                    "reason": "Two publishers answer it",
+                },
+                {
+                    "item_id": "how-1",
+                    "status": "settled",
+                    "reason": "The model judges it complete",
+                },
+                {
+                    "item_id": "where-1",
+                    "status": "exhausted_not_found",
+                    "reason": "Searches did not identify a location",
+                },
+            ],
+            "action": {
+                "action": "search",
+                "item_id": "how-1",
+                "query": "must be skipped after terminal updates",
+            },
+        }
+    )
+
+    result, _, _, client = run_loop(
+        [decision],
+        active_checklist=active,
+        active_ledger=ledger,
+    )
+
+    assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
+    assert result.is_success is True
+    assert client.search_calls == []
+    assert ledger.settled_without_located_evidence == 1
+    assert ledger.settled_without_located_evidence_item_ids == ("how-1",)
+    assert "settled_without_located_evidence=1 (how-1)" in result.stop_detail
+
+    settled = {
+        record.item_id: record.settlement_evidence
+        for record in ledger.checklist_history
+        if record.to_status == "settled"
+    }
+    assert settled["what-1"].strict_locatable_notes == 2
+    assert settled["what-1"].repaired_locatable_notes == 0
+    assert settled["what-1"].publisher_count == 2
+    assert settled["how-1"].located_notes == 0
+    round_audit = json.loads(ledger.rounds[0].result_summary)
+    assert round_audit["action_skipped"] is True
+    assert len(round_audit["status_updates"]) == 3
+
+
+def test_batch_status_updates_and_collection_action_run_in_the_same_round():
+    decisions = [
+        envelope(
+            {
+                "status_updates": [
+                    {
+                        "item_id": "what-1",
+                        "status": "settled",
+                        "reason": "The model judges this item complete",
+                    }
+                ],
+                "action": {
+                    "action": "search",
+                    "item_id": "how-1",
+                    "query": "continue collecting for the open item",
+                },
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+
+    result, _, _, client = run_loop(decisions)
+
+    assert len(client.search_calls) == 1
+    assert result.checklist.get("what-1").status is ChecklistStatus.SETTLED
+    assert result.checklist.get("how-1").status is ChecklistStatus.UNEXPLORED
+    first_round = json.loads(result.ledger.rounds[0].result_summary)
+    assert first_round["status_updates"][0]["item_id"] == "what-1"
+    assert first_round["result_count"] == 1

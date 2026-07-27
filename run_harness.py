@@ -175,6 +175,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-tokens", type=int, default=100_000)
     parser.add_argument("--max-cost-usd", type=float, default=10.0)
     parser.add_argument(
+        "--writing-token-reserve",
+        type=int,
+        default=0,
+        help="protect this many tokens from collection for report writing",
+    )
+    parser.add_argument(
+        "--writing-cost-reserve-usd",
+        type=float,
+        default=0.0,
+        help="protect this much cost from collection for report writing",
+    )
+    parser.add_argument(
         "--max-malformed-actions",
         type=int,
         default=3,
@@ -212,6 +224,8 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 max_rounds=args.max_rounds,
                 max_tokens=args.max_tokens,
                 max_cost_usd=args.max_cost_usd,
+                writing_token_reserve=args.writing_token_reserve,
+                writing_cost_reserve_usd=args.writing_cost_reserve_usd,
                 max_consecutive_malformed_actions=args.max_malformed_actions,
             ),
             loop_settings=LoopSettings(

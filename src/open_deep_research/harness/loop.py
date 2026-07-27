@@ -15,6 +15,7 @@ from pydantic import (
     TypeAdapter,
     ValidationError,
     field_validator,
+    model_validator,
 )
 
 from open_deep_research.harness.checklist import (
@@ -22,7 +23,7 @@ from open_deep_research.harness.checklist import (
     ResearchChecklist,
 )
 from open_deep_research.harness.jsonio import loads_lenient
-from open_deep_research.harness.ledger import ResearchLedger
+from open_deep_research.harness.ledger import ResearchLedger, SettlementEvidence
 from open_deep_research.harness.notes import ResearchNote, create_note
 from open_deep_research.harness.tools import (
     SearchResult,
@@ -49,7 +50,31 @@ class LoopBudget(BaseModel):
     max_rounds: int = Field(default=25, ge=0)
     max_tokens: int = Field(default=100_000, ge=0)
     max_cost_usd: float = Field(default=10.0, ge=0.0)
+    writing_token_reserve: int = Field(default=0, ge=0)
+    writing_cost_reserve_usd: float = Field(default=0.0, ge=0.0)
     max_consecutive_malformed_actions: int = Field(default=3, ge=1)
+
+    @model_validator(mode="after")
+    def _writing_reserve_fits_total_budget(self) -> LoopBudget:
+        if self.writing_token_reserve > self.max_tokens:
+            raise ValueError("writing_token_reserve must not exceed max_tokens")
+        if self.writing_cost_reserve_usd > self.max_cost_usd:
+            raise ValueError(
+                "writing_cost_reserve_usd must not exceed max_cost_usd"
+            )
+        return self
+
+    @property
+    def collection_token_limit(self) -> int:
+        """Tokens collection may use without consuming the writing reserve."""
+
+        return self.max_tokens - self.writing_token_reserve
+
+    @property
+    def collection_cost_limit_usd(self) -> float:
+        """Cost collection may use without consuming the writing reserve."""
+
+        return self.max_cost_usd - self.writing_cost_reserve_usd
 
 
 class LoopSettings(BaseModel):
@@ -121,6 +146,22 @@ class ReadAction(_ItemAction):
         return normalized
 
 
+class ReanalyzeAction(_ItemAction):
+    """Explicitly rerun note extraction over an already cached source."""
+
+    action: Literal["reanalyze"]
+    url: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+    @field_validator("url", "reason")
+    @classmethod
+    def _required_text_is_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("reanalyze url and reason must not be blank")
+        return normalized
+
+
 class RecallAction(_ItemAction):
     """Ask for an already-read source body in the next decision context.
 
@@ -173,6 +214,7 @@ class StopAction(BaseModel):
 LoopAction = Annotated[
     SearchAction
     | ReadAction
+    | ReanalyzeAction
     | RecallAction
     | SettleAction
     | MarkExhaustedAction
@@ -180,6 +222,47 @@ LoopAction = Annotated[
     Field(discriminator="action"),
 ]
 _ACTION_ADAPTER = TypeAdapter(LoopAction)
+
+PrimaryAction = Annotated[
+    SearchAction | ReadAction | ReanalyzeAction | RecallAction | StopAction,
+    Field(discriminator="action"),
+]
+
+
+class StatusUpdate(BaseModel):
+    """One independently reasoned terminal-state judgement."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    item_id: str = Field(min_length=1)
+    status: Literal["settled", "exhausted_not_found"]
+    reason: str = Field(min_length=1)
+
+    @field_validator("item_id", "reason")
+    @classmethod
+    def _required_text_is_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("status update item_id and reason must not be blank")
+        return normalized
+
+
+class DecisionTurn(BaseModel):
+    """Any number of terminal updates plus at most one next action."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status_updates: tuple[StatusUpdate, ...] = ()
+    action: PrimaryAction | None = None
+
+    @model_validator(mode="after")
+    def _item_updates_are_unique(self) -> DecisionTurn:
+        item_ids = [update.item_id for update in self.status_updates]
+        if len(item_ids) != len(set(item_ids)):
+            raise ValueError("status_updates must not repeat an item_id")
+        if not self.status_updates and self.action is None:
+            raise ValueError("a decision needs a status update or an action")
+        return self
 
 
 class NoteDraft(BaseModel):
@@ -226,7 +309,13 @@ class LoopResult(BaseModel):
     stop_detail: str = ""
     open_item_ids: tuple[str, ...] = ()
     rounds_executed: int = Field(ge=0)
-    consecutive_failures: dict[str, int]
+    consecutive_collection_failures: dict[str, int]
+
+    @property
+    def consecutive_failures(self) -> dict[str, int]:
+        """Backward-compatible access to the renamed collection-failure memory."""
+
+        return self.consecutive_collection_failures
 
     @property
     def is_success(self) -> bool:
@@ -236,14 +325,20 @@ class LoopResult(BaseModel):
 
 
 DECISION_PROMPT = """\
-Choose exactly one next action for this research run.
+Choose terminal status updates and at most one next action for this research run.
 
-You may return:
+Return this JSON shape:
+{{"status_updates":[
+  {{"item_id":"...","status":"settled","reason":"..."}},
+  {{"item_id":"...","status":"exhausted_not_found","reason":"..."}}
+],"action":{{"action":"search|read|reanalyze|recall|stop", ...}}}}
+
+status_updates may contain any number of distinct checklist items. Give every
+update its own reason. The optional action is one of:
 {{"action":"search","item_id":"...","query":"..."}}
 {{"action":"read","item_id":"...","url":"..."}}
+{{"action":"reanalyze","item_id":"...","url":"...","reason":"..."}}
 {{"action":"recall","item_id":"...","url":"..."}}
-{{"action":"settle","item_id":"..."}}
-{{"action":"mark_exhausted","item_id":"...","reason":"..."}}
 {{"action":"stop"}}
 
 The action item_id identifies the checklist item this round is working on.
@@ -252,6 +347,10 @@ search_candidates holds every url search has surfaced so far, with its snippet
 and whether you already read it. Searching only adds candidates; reading one is
 what produces notes. Prefer reading a promising unread candidate over searching
 again for the same thing.
+
+read fetches and analyzes a URL only once. Reading a cached URL returns its
+existing note IDs without rerunning note extraction. Use reanalyze, with a
+reason, when another extraction pass over cached text is warranted.
 
 You normally see note summaries rather than source bodies. When a summary is not
 enough, recall an already-read url and its full text joins the next round's
@@ -266,11 +365,16 @@ Current collection state:
 
 
 NOTE_PROMPT = """\
-Read the single source below and extract every useful note that answers any
-checklist item. A note may target an item other than the action that led here.
+Read the single source below. Prioritize evidence that answers the active
+checklist item, while still extracting useful notes for any other checklist
+item the source answers. A note may target an item other than the action that
+led here.
 Copy each quote verbatim from the source without rewriting it. Return JSON only
 as {{"notes":[{{"item_id":"...","finding":"...","quote":"exact source text"}}]}}.
 Returning {{"notes":[]}} is valid when the source answers nothing.
+
+Active checklist item:
+{active_item_id}
 
 Checklist:
 {checklist}
@@ -331,7 +435,7 @@ def _note_summary(note: ResearchNote) -> dict[str, Any]:
 
 def _checklist_state(
     checklist: ResearchChecklist,
-    failures: Mapping[str, int],
+    collection_failures: Mapping[str, int],
 ) -> list[dict[str, Any]]:
     return [
         {
@@ -341,7 +445,9 @@ def _checklist_state(
             "priority": item.priority,
             "required_source_count": item.required_source_count,
             "status": item.status.value,
-            "consecutive_failures": failures.get(item.item_id, 0),
+            "consecutive_collection_failures": collection_failures.get(
+                item.item_id, 0
+            ),
         }
         for item in checklist.items
     ]
@@ -398,10 +504,14 @@ def _source_injection(
 def _build_decision_prompt(
     checklist: ResearchChecklist,
     notes: list[ResearchNote],
-    consecutive_failures: Mapping[str, int],
+    consecutive_collection_failures: Mapping[str, int],
     *,
     ledger: ResearchLedger | None,
     settings: LoopSettings,
+    budget: LoopBudget,
+    rounds_completed: int,
+    tokens_used: int,
+    cost_used_usd: float,
     recalled_urls: Sequence[str] = (),
     candidates: Mapping[str, dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, Any]]:
@@ -409,7 +519,15 @@ def _build_decision_prompt(
 
     state: dict[str, Any] = {
         "topic": checklist.topic,
-        "checklist": _checklist_state(checklist, consecutive_failures),
+        "checklist": _checklist_state(
+            checklist, consecutive_collection_failures
+        ),
+        "budget": _budget_state(
+            budget,
+            rounds_completed=rounds_completed,
+            tokens_used=tokens_used,
+            cost_used_usd=cost_used_usd,
+        ),
         "search_candidates": _candidate_state(candidates or {}),
         "note_summaries": [_note_summary(note) for note in notes],
     }
@@ -424,10 +542,14 @@ def _build_decision_prompt(
 def build_decision_prompt(
     checklist: ResearchChecklist,
     notes: list[ResearchNote],
-    consecutive_failures: Mapping[str, int],
+    consecutive_collection_failures: Mapping[str, int],
     *,
     ledger: ResearchLedger | None = None,
     settings: LoopSettings | None = None,
+    budget: LoopBudget | None = None,
+    rounds_completed: int = 0,
+    tokens_used: int = 0,
+    cost_used_usd: float = 0.0,
     recalled_urls: Sequence[str] = (),
     candidates: Mapping[str, dict[str, Any]] | None = None,
 ) -> str:
@@ -436,9 +558,13 @@ def build_decision_prompt(
     prompt, _ = _build_decision_prompt(
         checklist,
         notes,
-        consecutive_failures,
+        consecutive_collection_failures,
         ledger=ledger,
         settings=settings or LoopSettings(),
+        budget=budget or LoopBudget(),
+        rounds_completed=rounds_completed,
+        tokens_used=tokens_used,
+        cost_used_usd=cost_used_usd,
         recalled_urls=recalled_urls,
         candidates=candidates,
     )
@@ -448,11 +574,13 @@ def build_decision_prompt(
 def build_note_prompt(
     checklist: ResearchChecklist,
     *,
+    active_item_id: str,
     url: str,
     source_text: str,
 ) -> str:
     """Build the isolated, single-source note extraction prompt."""
 
+    checklist.get(active_item_id)
     items = [
         {
             "item_id": item.item_id,
@@ -462,6 +590,7 @@ def build_note_prompt(
         for item in checklist.items
     ]
     return NOTE_PROMPT.format(
+        active_item_id=active_item_id,
         checklist=json.dumps(items, ensure_ascii=False, sort_keys=True),
         url=url,
         source_text=source_text,
@@ -510,10 +639,45 @@ def _decode_json_content(content: Any) -> Any:
     return content
 
 
-def _parse_action(content: Any) -> tuple[LoopAction | None, str | None]:
+def _parse_decision(content: Any) -> tuple[DecisionTurn | None, str | None]:
     try:
         decoded = _decode_json_content(content)
-        return _ACTION_ADAPTER.validate_python(decoded), None
+        if isinstance(decoded, Mapping) and (
+            "status_updates" in decoded
+            or isinstance(decoded.get("action"), Mapping)
+        ):
+            return DecisionTurn.model_validate(decoded), None
+
+        # Preserve compatibility with already recorded scripted runs and simple
+        # clients that still emit the original one-action protocol.
+        legacy = _ACTION_ADAPTER.validate_python(decoded)
+        if isinstance(legacy, SettleAction):
+            return (
+                DecisionTurn(
+                    status_updates=(
+                        StatusUpdate(
+                            item_id=legacy.item_id,
+                            status="settled",
+                            reason="decision model settled the item",
+                        ),
+                    ),
+                ),
+                None,
+            )
+        if isinstance(legacy, MarkExhaustedAction):
+            return (
+                DecisionTurn(
+                    status_updates=(
+                        StatusUpdate(
+                            item_id=legacy.item_id,
+                            status="exhausted_not_found",
+                            reason=legacy.reason,
+                        ),
+                    ),
+                ),
+                None,
+            )
+        return DecisionTurn(action=legacy), None
     except (json.JSONDecodeError, TypeError, ValidationError, ValueError) as exc:
         return None, f"malformed action: {exc}"
 
@@ -532,6 +696,30 @@ def _open_item_ids(checklist: ResearchChecklist) -> tuple[str, ...]:
     return tuple(item.item_id for item in checklist.items if not item.is_complete)
 
 
+def _budget_state(
+    budget: LoopBudget,
+    *,
+    rounds_completed: int,
+    tokens_used: int,
+    cost_used_usd: float,
+) -> dict[str, Any]:
+    """Expose collection headroom and the protected writing allocation."""
+
+    return {
+        "remaining_rounds": max(0, budget.max_rounds - rounds_completed),
+        "remaining_collection_tokens": max(
+            0, budget.collection_token_limit - tokens_used
+        ),
+        "remaining_collection_cost_usd": max(
+            0.0, budget.collection_cost_limit_usd - cost_used_usd
+        ),
+        "writing_reserve": {
+            "tokens": budget.writing_token_reserve,
+            "cost_usd": budget.writing_cost_reserve_usd,
+        },
+    }
+
+
 def _budget_limit_reached(
     budget: LoopBudget,
     *,
@@ -541,11 +729,55 @@ def _budget_limit_reached(
 ) -> str | None:
     if rounds >= budget.max_rounds:
         return "rounds"
-    if tokens >= budget.max_tokens:
+    if tokens >= budget.collection_token_limit:
         return "tokens"
-    if cost_usd >= budget.max_cost_usd:
+    if cost_usd >= budget.collection_cost_limit_usd:
         return "cost"
     return None
+
+
+def _settlement_evidence(
+    ledger: ResearchLedger,
+    item_id: str,
+) -> SettlementEvidence:
+    """Snapshot strict/repaired evidence without changing grounding policy."""
+
+    strict = 0
+    repaired = 0
+    publishers: set[str] = set()
+    for note in ledger.notes:
+        if note.item_id != item_id:
+            continue
+        status = note.location_status.value
+        if status == "locatable":
+            strict += 1
+        elif status == "repaired_locatable":
+            # The repair status is introduced in step 5. String comparison
+            # keeps this audit forward-compatible without implementing repair
+            # or weakening strict grounding in this step.
+            repaired += 1
+        else:
+            continue
+        publishers.add(note.publisher)
+    ordered_publishers = tuple(sorted(publishers))
+    return SettlementEvidence(
+        strict_locatable_notes=strict,
+        repaired_locatable_notes=repaired,
+        located_notes=strict + repaired,
+        publisher_count=len(ordered_publishers),
+        publishers=ordered_publishers,
+    )
+
+
+def _terminal_stop_detail(ledger: ResearchLedger) -> str:
+    item_ids = ledger.settled_without_located_evidence_item_ids
+    if not item_ids:
+        return "all checklist items reached a terminal state"
+    return (
+        "all checklist items reached a terminal state; "
+        f"settled_without_located_evidence={len(item_ids)} "
+        f"({', '.join(item_ids)})"
+    )
 
 
 def _audit_summary(payload: Mapping[str, Any]) -> str:
@@ -580,7 +812,7 @@ def _result(
     stop_reason: StopReason,
     stop_detail: str,
     rounds_executed: int,
-    failures: Mapping[str, int],
+    collection_failures: Mapping[str, int],
 ) -> LoopResult:
     return LoopResult(
         checklist=checklist,
@@ -589,8 +821,147 @@ def _result(
         stop_detail=stop_detail,
         open_item_ids=_open_item_ids(checklist),
         rounds_executed=rounds_executed,
-        consecutive_failures=dict(failures),
+        consecutive_collection_failures=dict(collection_failures),
     )
+
+
+def _apply_status_updates(
+    checklist: ResearchChecklist,
+    *,
+    updates: Sequence[StatusUpdate],
+    ledger: ResearchLedger,
+) -> tuple[ResearchChecklist, list[dict[str, Any]]]:
+    """Apply independently reasoned model judgements with settle-time evidence."""
+
+    current = checklist
+    audit: list[dict[str, Any]] = []
+    for update in updates:
+        if update.status == "settled":
+            evidence = _settlement_evidence(ledger, update.item_id)
+            current = current.set_status(
+                update.item_id,
+                ChecklistStatus.SETTLED,
+                reason=update.reason,
+                ledger=ledger,
+                settlement_evidence=evidence.model_dump(mode="json"),
+            )
+            audit.append(
+                {
+                    "item_id": update.item_id,
+                    "status": update.status,
+                    "reason": update.reason,
+                    "settlement_evidence": evidence.model_dump(mode="json"),
+                }
+            )
+        else:
+            current = current.set_status(
+                update.item_id,
+                ChecklistStatus.EXHAUSTED_NOT_FOUND,
+                reason=update.reason,
+                ledger=ledger,
+            )
+            audit.append(
+                {
+                    "item_id": update.item_id,
+                    "status": update.status,
+                    "reason": update.reason,
+                }
+            )
+    return current, audit
+
+
+async def _extract_notes(
+    checklist: ResearchChecklist,
+    *,
+    ledger: ResearchLedger,
+    note_model: LoopModelClient,
+    active_item_id: str,
+    url: str,
+    source_text: str,
+) -> tuple[ResearchChecklist, int, float, dict[str, Any]]:
+    """Run one explicit note pass and retain every mechanically checked draft."""
+
+    note_response: Any = None
+    note_call_error: str | None = None
+    try:
+        note_response = await _generate(
+            note_model,
+            build_note_prompt(
+                checklist,
+                active_item_id=active_item_id,
+                url=url,
+                source_text=source_text,
+            ),
+        )
+    except Exception as exc:  # noqa: BLE001 - auditable model turn
+        note_call_error = f"note model error: {exc}"
+
+    note_envelope, note_envelope_error = _parse_envelope(note_response)
+    note_tokens, note_cost = _best_effort_usage(note_response)
+    if note_envelope is not None:
+        note_tokens = note_envelope.token_count
+        note_cost = note_envelope.cost_usd
+
+    batch: NoteBatch | None = None
+    note_error = note_call_error or note_envelope_error
+    if note_error is None and note_envelope is not None:
+        batch, note_error = _parse_notes(note_envelope.content)
+
+    current = checklist
+    created: list[ResearchNote] = []
+    creation_errors: list[str] = []
+    for draft in batch.notes if batch is not None else ():
+        try:
+            current.get(draft.item_id)
+            note = create_note(
+                item_id=draft.item_id,
+                finding=draft.finding,
+                quote=draft.quote,
+                url=url,
+                source_text=source_text,
+            )
+        except Exception as exc:  # noqa: BLE001 - preserve the rest of the batch
+            creation_errors.append(str(exc))
+            continue
+        ledger.add_note(note)
+        created.append(note)
+        item = current.get(draft.item_id)
+        if item.status is ChecklistStatus.UNEXPLORED:
+            current = current.set_status(
+                draft.item_id,
+                ChecklistStatus.HAS_MATERIAL,
+                reason=f"note collected from {url}",
+                ledger=ledger,
+            )
+
+    active_note_count = sum(note.item_id == active_item_id for note in created)
+    summary = {
+        "source_chars": len(source_text),
+        "notes_created": len(created),
+        "active_item_notes": active_note_count,
+        "note_item_ids": [note.item_id for note in created],
+        "note_output_error": note_error,
+        "note_creation_errors": creation_errors,
+        "note_model_called": True,
+    }
+    return current, note_tokens, note_cost, summary
+
+
+def _cached_note_summary(
+    ledger: ResearchLedger,
+    url: str,
+) -> dict[str, Any]:
+    grouped = ledger.note_ids_for_url(url)
+    by_item = {
+        item_id: {"count": len(note_ids), "note_ids": list(note_ids)}
+        for item_id, note_ids in sorted(grouped.items())
+    }
+    return {
+        "existing_note_ids": [
+            note_id for details in by_item.values() for note_id in details["note_ids"]
+        ],
+        "existing_notes_by_item": by_item,
+    }
 
 
 async def run_research_loop(
@@ -609,26 +980,27 @@ async def run_research_loop(
     limits = budget or LoopBudget()
     context_settings = settings or LoopSettings()
     current = checklist
-    failures = {item.item_id: 0 for item in current.items}
+    collection_failures = {item.item_id: 0 for item in current.items}
     rounds_executed = 0
     total_tokens = ledger.total_tokens
     total_cost = ledger.total_cost_usd
 
     open_ids = _open_item_ids(current)
     if not open_ids:
+        detail = _terminal_stop_detail(ledger)
         _record_preflight_stop(
             ledger,
             stop_reason=StopReason.ALL_ITEMS_TERMINAL,
-            stop_detail="all checklist items were already terminal",
+            stop_detail=detail,
             open_item_ids=(),
         )
         return _result(
             checklist=current,
             ledger=ledger,
             stop_reason=StopReason.ALL_ITEMS_TERMINAL,
-            stop_detail="all checklist items were already terminal",
+            stop_detail=detail,
             rounds_executed=0,
-            failures=failures,
+            collection_failures=collection_failures,
         )
 
     initial_limit = _budget_limit_reached(
@@ -651,23 +1023,33 @@ async def run_research_loop(
             stop_reason=StopReason.BUDGET_EXHAUSTED,
             stop_detail=detail,
             rounds_executed=0,
-            failures=failures,
+            collection_failures=collection_failures,
         )
 
     consecutive_malformed = 0
     recalled: list[str] = []
     candidates: dict[str, dict[str, Any]] = {}
     while True:
-        rounds_executed += 1
+        budget_before_decision = _budget_state(
+            limits,
+            rounds_completed=rounds_executed,
+            tokens_used=total_tokens,
+            cost_used_usd=total_cost,
+        )
         prompt, context_audit = _build_decision_prompt(
             current,
             ledger.notes,
-            failures,
+            collection_failures,
             ledger=ledger,
             settings=context_settings,
+            budget=limits,
+            rounds_completed=rounds_executed,
+            tokens_used=total_tokens,
+            cost_used_usd=total_cost,
             recalled_urls=recalled,
             candidates=candidates,
         )
+        rounds_executed += 1
         response: Any = None
         decision_error: str | None = None
         try:
@@ -683,16 +1065,25 @@ async def run_research_loop(
         total_tokens += decision_tokens
         total_cost += decision_cost
 
-        action: LoopAction | None = None
+        turn: DecisionTurn | None = None
         action_error = decision_error or envelope_error
         if action_error is None and envelope is not None:
-            action, action_error = _parse_action(envelope.content)
-        if isinstance(action, _ItemAction):
-            try:
-                current.get(action.item_id)
-            except KeyError:
-                action_error = f"malformed action: unknown item_id {action.item_id!r}"
-                action = None
+            turn, action_error = _parse_decision(envelope.content)
+        if turn is not None:
+            referenced_item_ids = [update.item_id for update in turn.status_updates]
+            if isinstance(turn.action, _ItemAction):
+                referenced_item_ids.append(turn.action.item_id)
+            unknown_ids = [
+                item_id
+                for item_id in referenced_item_ids
+                if item_id not in collection_failures
+            ]
+            if unknown_ids:
+                action_error = (
+                    "malformed action: unknown item_id values "
+                    f"{sorted(set(unknown_ids))!r}"
+                )
+                turn = None
 
         summary: dict[str, Any] = {}
         query: str | None = None
@@ -702,6 +1093,7 @@ async def run_research_loop(
         round_cost = decision_cost
         stop_reason: StopReason | None = None
         stop_detail = ""
+        status_audit: list[dict[str, Any]] = []
 
         decision_budget_limit = _budget_limit_reached(
             limits,
@@ -710,7 +1102,11 @@ async def run_research_loop(
             cost_usd=total_cost,
         )
         if decision_budget_limit is not None:
-            action_name = action.action if action is not None else action_name
+            action_name = (
+                turn.action.action
+                if turn is not None and turn.action is not None
+                else action_name
+            )
             summary = {
                 "action_skipped": True,
                 "error": action_error,
@@ -720,7 +1116,7 @@ async def run_research_loop(
             stop_detail = (
                 f"{decision_budget_limit} budget reached by decision model usage"
             )
-        elif action is None:
+        elif turn is None:
             consecutive_malformed += 1
             summary = {
                 "error": action_error or "malformed action",
@@ -731,12 +1127,6 @@ async def run_research_loop(
                 ),
                 "consecutive_malformed_actions": consecutive_malformed,
             }
-            if isinstance(response, Mapping):
-                candidate_content = response.get("content")
-                if isinstance(candidate_content, Mapping):
-                    candidate_item_id = candidate_content.get("item_id")
-                    if candidate_item_id in failures:
-                        failures[str(candidate_item_id)] += 1
             if (
                 consecutive_malformed
                 >= limits.max_consecutive_malformed_actions
@@ -747,8 +1137,36 @@ async def run_research_loop(
                 )
         else:
             consecutive_malformed = 0
-            action_name = action.action
-            if isinstance(action, SearchAction):
+            action = turn.action
+            if action is not None:
+                action_name = action.action
+            elif len(turn.status_updates) == 1:
+                action_name = (
+                    "settle"
+                    if turn.status_updates[0].status == "settled"
+                    else "mark_exhausted"
+                )
+            else:
+                action_name = "status_updates"
+
+            current, status_audit = _apply_status_updates(
+                current,
+                updates=turn.status_updates,
+                ledger=ledger,
+            )
+            if status_audit:
+                summary["status_updates"] = status_audit
+
+            if current.is_complete:
+                if action is not None:
+                    summary["action_skipped"] = True
+                    summary["action_skip_reason"] = (
+                        "status updates made every checklist item terminal"
+                    )
+                stop_reason = StopReason.ALL_ITEMS_TERMINAL
+                stop_detail = _terminal_stop_detail(ledger)
+
+            elif isinstance(action, SearchAction):
                 query = action.query
                 try:
                     results = await search(
@@ -765,7 +1183,9 @@ async def run_research_loop(
                     }
                 except Exception as exc:  # noqa: BLE001 - tool failure is one turn
                     summary = {"error": f"search failed: {exc}", "result_count": 0}
-                failures[action.item_id] = failures.get(action.item_id, 0) + 1
+                collection_failures[action.item_id] = (
+                    collection_failures.get(action.item_id, 0) + 1
+                )
 
             elif isinstance(action, ReadAction):
                 url = action.url
@@ -782,7 +1202,19 @@ async def run_research_loop(
                 candidate["read"] = True
                 source_text = ledger.get_source(action.url)
                 cache_hit = source_text is not None
-                if source_text is None:
+                if cache_hit:
+                    summary = {
+                        "cache_hit": True,
+                        "source_chars": len(source_text),
+                        "notes_created": 0,
+                        "active_item_notes": 0,
+                        "note_model_called": False,
+                        **_cached_note_summary(ledger, action.url),
+                    }
+                    collection_failures[action.item_id] = (
+                        collection_failures.get(action.item_id, 0) + 1
+                    )
+                else:
                     try:
                         source_text = await read(
                             action.url,
@@ -794,83 +1226,74 @@ async def run_research_loop(
                             "cache_hit": False,
                             "error": f"read failed: {exc}",
                             "notes_created": 0,
+                            "note_model_called": False,
                         }
-                        failures[action.item_id] = failures.get(action.item_id, 0) + 1
+                        collection_failures[action.item_id] = (
+                            collection_failures.get(action.item_id, 0) + 1
+                        )
 
-                if source_text is not None:
-                    note_response: Any = None
-                    note_call_error: str | None = None
-                    try:
-                        note_response = await _generate(
-                            note_model,
-                            build_note_prompt(
+                    if source_text is not None:
+                        current, note_tokens, note_cost, note_summary = (
+                            await _extract_notes(
                                 current,
+                                ledger=ledger,
+                                note_model=note_model,
+                                active_item_id=action.item_id,
                                 url=action.url,
                                 source_text=source_text,
-                            ),
+                            )
                         )
-                    except Exception as exc:  # noqa: BLE001 - auditable model turn
-                        note_call_error = f"note model error: {exc}"
+                        summary = {"cache_hit": False, **note_summary}
+                        if note_summary["active_item_notes"]:
+                            collection_failures[action.item_id] = 0
+                        else:
+                            collection_failures[action.item_id] = (
+                                collection_failures.get(action.item_id, 0) + 1
+                            )
+                        total_tokens += note_tokens
+                        total_cost += note_cost
+                        round_tokens += note_tokens
+                        round_cost += note_cost
 
-                    note_envelope, note_envelope_error = _parse_envelope(note_response)
-                    note_tokens, note_cost = _best_effort_usage(note_response)
-                    if note_envelope is not None:
-                        note_tokens = note_envelope.token_count
-                        note_cost = note_envelope.cost_usd
+            elif isinstance(action, ReanalyzeAction):
+                url = action.url
+                source_text = ledger.get_source(action.url)
+                if source_text is None:
+                    summary = {
+                        "reason": action.reason,
+                        "error": "reanalyze requires a URL in the source cache",
+                        "notes_created": 0,
+                        "note_model_called": False,
+                    }
+                    collection_failures[action.item_id] = (
+                        collection_failures.get(action.item_id, 0) + 1
+                    )
+                else:
+                    current, note_tokens, note_cost, note_summary = (
+                        await _extract_notes(
+                            current,
+                            ledger=ledger,
+                            note_model=note_model,
+                            active_item_id=action.item_id,
+                            url=action.url,
+                            source_text=source_text,
+                        )
+                    )
+                    summary = {
+                        "cache_hit": True,
+                        "reanalyze_reason": action.reason,
+                        **note_summary,
+                    }
+                    if note_summary["active_item_notes"]:
+                        collection_failures[action.item_id] = 0
+                    else:
+                        collection_failures[action.item_id] = (
+                            collection_failures.get(action.item_id, 0) + 1
+                        )
                     total_tokens += note_tokens
                     total_cost += note_cost
                     round_tokens += note_tokens
                     round_cost += note_cost
-
-                    batch: NoteBatch | None = None
-                    note_error = note_call_error or note_envelope_error
-                    if note_error is None and note_envelope is not None:
-                        batch, note_error = _parse_notes(note_envelope.content)
-
-                    created: list[ResearchNote] = []
-                    creation_errors: list[str] = []
-                    for draft in batch.notes if batch is not None else ():
-                        try:
-                            note = create_note(
-                                item_id=draft.item_id,
-                                finding=draft.finding,
-                                quote=draft.quote,
-                                url=action.url,
-                                source_text=source_text,
-                            )
-                        except Exception as exc:  # noqa: BLE001 - preserve the batch
-                            creation_errors.append(str(exc))
-                            continue
-                        ledger.add_note(note)
-                        created.append(note)
-                        if draft.item_id in failures:
-                            item = current.get(draft.item_id)
-                            if item.status is ChecklistStatus.UNEXPLORED:
-                                current = current.set_status(
-                                    draft.item_id,
-                                    ChecklistStatus.HAS_MATERIAL,
-                                    reason=f"note collected from {action.url}",
-                                    ledger=ledger,
-                                )
-
-                    active_note_count = sum(
-                        note.item_id == action.item_id for note in created
-                    )
-                    if active_note_count:
-                        failures[action.item_id] = 0
-                    else:
-                        failures[action.item_id] = (
-                            failures.get(action.item_id, 0) + 1
-                        )
-                    summary = {
-                        "cache_hit": cache_hit,
-                        "source_chars": len(source_text),
-                        "notes_created": len(created),
-                        "active_item_notes": active_note_count,
-                        "note_item_ids": [note.item_id for note in created],
-                        "note_output_error": note_error,
-                        "note_creation_errors": creation_errors,
-                    }
 
             elif isinstance(action, RecallAction):
                 url = action.url
@@ -887,35 +1310,14 @@ async def run_research_loop(
                     }
                 else:
                     # A recall for an unread url is an honest miss, not a crash:
-                    # record it and let the model pick again next round.
-                    failures[action.item_id] = failures.get(action.item_id, 0) + 1
+                    # record it and let the model pick again next round. Recall
+                    # is a memory action, so it cannot change collection failure
+                    # memory even when it misses.
                     summary = {
                         "url": action.url,
                         "recalled": False,
                         "detail": "url is not in the source cache",
                     }
-
-            elif isinstance(action, SettleAction):
-                current = current.set_status(
-                    action.item_id,
-                    ChecklistStatus.SETTLED,
-                    reason="decision model settled the item",
-                    ledger=ledger,
-                )
-                summary = {"item_id": action.item_id, "status": "settled"}
-
-            elif isinstance(action, MarkExhaustedAction):
-                current = current.set_status(
-                    action.item_id,
-                    ChecklistStatus.EXHAUSTED_NOT_FOUND,
-                    reason=action.reason,
-                    ledger=ledger,
-                )
-                summary = {
-                    "item_id": action.item_id,
-                    "status": "exhausted_not_found",
-                    "reason": action.reason,
-                }
 
             elif isinstance(action, StopAction):
                 open_ids = _open_item_ids(current)
@@ -923,11 +1325,14 @@ async def run_research_loop(
                 stop_reason = StopReason.MODEL_STOP_WITH_OPEN_ITEMS
                 stop_detail = "decision model requested stop while items remained open"
 
+        if status_audit:
+            summary["status_updates"] = status_audit
         summary["decision_context"] = context_audit
+        summary["budget_before_decision"] = budget_before_decision
 
         if stop_reason is None and current.is_complete:
             stop_reason = StopReason.ALL_ITEMS_TERMINAL
-            stop_detail = "all checklist items reached a terminal state"
+            stop_detail = _terminal_stop_detail(ledger)
 
         if stop_reason is None:
             limit = _budget_limit_reached(
@@ -963,5 +1368,5 @@ async def run_research_loop(
                 stop_reason=stop_reason,
                 stop_detail=stop_detail,
                 rounds_executed=rounds_executed,
-                failures=failures,
+                collection_failures=collection_failures,
             )
