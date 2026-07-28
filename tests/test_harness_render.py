@@ -135,7 +135,16 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
         "start_char": 10,
         "end_char": 41,
     }
-    assert rendered.markdown.count("〔单一发布方支持〕") == 2
+    assert "〔单一发布方支持〕" not in rendered.markdown
+    assert rendered.evidence_legend_line in rendered.markdown
+    assert (
+        rendered.evidence_legend_line
+        == "> 图例：带脚注且无额外状态标签 = "
+        "单一发布方提供了可定位支持引文"
+    )
+    assert "单一发布方支持 2" in rendered.evidence_summary_line
+    assert "多发布方交叉支持 0" in rendered.evidence_summary_line
+    assert "零发布方支持 0" in rendered.evidence_summary_line
     assert "1/2" not in rendered.markdown
     assert "充分支持" not in rendered.evidence_summary_line
     assert "已核实" not in rendered.evidence_summary_line
@@ -182,7 +191,100 @@ def test_renderer_does_not_read_corroboration_target() -> None:
 
     assert first.markdown == second.markdown
     assert first.evidence_summary_line == second.evidence_summary_line
-    assert "〔单一发布方支持〕" in first.markdown
+    assert "〔单一发布方支持〕" not in first.markdown
+
+
+def test_support_label_rule_does_not_adapt_to_single_publisher_prevalence() -> None:
+    anchors = tuple(f"Claim {index:02d}." for index in range(20))
+    draft = " ".join(anchors)
+    claims = tuple(
+        _claim(draft, f"claim-{index:02d}", anchor)
+        for index, anchor in enumerate(anchors)
+    )
+
+    def render_with_single_publisher_count(count: int):
+        entries = []
+        for index, claim in enumerate(claims):
+            first = _support(
+                claim.claim_id,
+                source_id=f"source-{index:02d}-a",
+                url=f"https://first-{index:02d}.example/article",
+            ).model_copy(
+                update={
+                    "publisher_domain_proxy": (
+                        f"first-{index:02d}.example"
+                    ),
+                }
+            )
+            if index < count:
+                entries.append(
+                    _verified(
+                        claim,
+                        ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                        first,
+                    )
+                )
+                continue
+            second = _support(
+                claim.claim_id,
+                source_id=f"source-{index:02d}-b",
+                source_quote="Second exact source-authored evidence.",
+                url=f"https://second-{index:02d}.example/article",
+            ).model_copy(
+                update={
+                    "publisher_domain_proxy": (
+                        f"second-{index:02d}.example"
+                    ),
+                    "span": QuoteSpan(start_char=50, end_char=88),
+                }
+            )
+            entries.append(
+                _verified(
+                    claim,
+                    ClaimEvidenceState.CORROBORATED,
+                    first,
+                    second,
+                )
+            )
+        return render_verified_report(
+            draft,
+            VerificationResult(claims=tuple(entries)),
+        )
+
+    five_percent = render_with_single_publisher_count(1)
+    ninety_five_percent = render_with_single_publisher_count(19)
+
+    assert five_percent.evidence_legend_line == (
+        ninety_five_percent.evidence_legend_line
+    )
+    for rendered, expected_single_count in (
+        (five_percent, 1),
+        (ninety_five_percent, 19),
+    ):
+        assert rendered.markdown.count(rendered.evidence_legend_line) == 1
+        assert "〔单一发布方支持〕" not in rendered.markdown
+        assert rendered.summary.single_publisher_support == (
+            expected_single_count
+        )
+        assert rendered.summary.multi_publisher_support == (
+            20 - expected_single_count
+        )
+        for annotation in rendered.annotations:
+            if (
+                annotation.evidence_state
+                == ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+            ):
+                assert re.fullmatch(
+                    r"\[\^\d+\]",
+                    annotation.rendered_suffix,
+                )
+            else:
+                assert annotation.evidence_state == (
+                    ClaimEvidenceState.CORROBORATED
+                )
+                assert annotation.rendered_suffix.endswith(
+                    "〔多发布方交叉支持〕"
+                )
 
 
 def test_same_sentence_claims_keep_distinct_evidence_states() -> None:
@@ -211,7 +313,7 @@ def test_same_sentence_claims_keep_distinct_evidence_states() -> None:
     rendered = render_verified_report(draft, verification)
 
     assert (
-        "Alpha happened[^1], while "
+        "Alpha happened[^1]〔多发布方交叉支持〕, while "
         "Beta remained open〔未找到候选来源〕."
     ) in rendered.markdown
     assert [annotation.claim_id for annotation in rendered.annotations] == [
@@ -378,6 +480,9 @@ def test_summary_splits_each_unverified_failure_mode() -> None:
     assert rendered.summary.claim_normalization_failed == 1
     assert rendered.summary.attribution_error == 0
     assert rendered.summary.unverified == 4
+    assert "Unlocatable.〔未核验：支持性引文无法定位〕" in (
+        rendered.markdown
+    )
     assert "核验不完整 1" in rendered.evidence_summary_line
     assert "完全未核验 1" in rendered.evidence_summary_line
     assert "支持性引文无法定位 1" in rendered.evidence_summary_line

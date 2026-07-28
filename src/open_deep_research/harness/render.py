@@ -27,6 +27,10 @@ _FOOTNOTE_DEFINITION = re.compile(
     r"^[ \t]*\[\^([A-Za-z0-9_-]+)\]:",
 )
 _FOOTNOTE_MARKER = re.compile(r"\[\^([A-Za-z0-9_-]+)\]")
+_EVIDENCE_LEGEND_LINE = (
+    "> 图例：带脚注且无额外状态标签 = "
+    "单一发布方提供了可定位支持引文"
+)
 
 
 class EvidenceRegistryKey(BaseModel):
@@ -132,6 +136,7 @@ class RenderedReport(BaseModel):
 
     markdown: str
     evidence_summary_line: str
+    evidence_legend_line: str
     summary: EvidenceSummary
     footnotes: tuple[RenderedFootnote, ...] = ()
     annotations: tuple[ClaimRenderAnnotation, ...] = ()
@@ -241,12 +246,9 @@ def _unverified_reasons(verification: ClaimVerification) -> tuple[str, ...]:
 def _warning_label(verification: ClaimVerification) -> str:
     state = verification.state
     if state == ClaimEvidenceState.CORROBORATED:
-        return ""
+        return "〔多发布方交叉支持〕"
     if state == ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER:
-        actual = verification.publisher_domain_proxy_count
-        if actual == 1:
-            return "〔单一发布方支持〕"
-        return f"〔{actual} 个发布方支持〕"
+        return ""
     if state == ClaimEvidenceState.CONFLICTING_EVIDENCE:
         return "〔来源冲突〕"
     if state == ClaimEvidenceState.REFUTED:
@@ -385,8 +387,10 @@ def _summary_line(summary: EvidenceSummary) -> str:
         f"{coverage_prefix}"
         f"{claim_scope}外部可核验断言 {summary.external_claims}；"
         f"其中 {summary.claims_with_located_support} 条有至少一条"
-        "可定位的支持引文，"
-        f"{summary.corroborated} 条获得多发布方交叉支持；"
+        "可定位的支持引文；"
+        f"单一发布方支持 {summary.single_publisher_support}；"
+        f"多发布方交叉支持 {summary.multi_publisher_support}；"
+        f"零发布方支持 {summary.zero_publisher_support}；"
         f"来源冲突 {summary.conflicting}；"
         f"所检来源反驳 {summary.refuted}；"
         f"所检来源未支持 {summary.inspected_not_supporting}；"
@@ -579,7 +583,7 @@ def render_verified_report(
     footnotes = tuple(
         sorted(footnote_by_key.values(), key=lambda footnote: footnote.number)
     )
-    rendered = summary_line + "\n\n" + body
+    rendered = summary_line + "\n" + _EVIDENCE_LEGEND_LINE + "\n\n" + body
     if footnotes:
         definitions = [
             f"[^{footnote.number}]: "
@@ -608,6 +612,7 @@ def render_verified_report(
     return RenderedReport(
         markdown=rendered,
         evidence_summary_line=summary_line,
+        evidence_legend_line=_EVIDENCE_LEGEND_LINE,
         summary=summary,
         footnotes=footnotes,
         annotations=tuple(annotations),

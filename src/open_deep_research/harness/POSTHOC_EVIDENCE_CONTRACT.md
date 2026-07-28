@@ -103,11 +103,16 @@ mapping is additionally exposed:
 
 ## Reader-visible rendering
 
-The report starts with an evidence summary and states evidence strength or
-failure status at the claim anchor. One-publisher support is a factual evidence
-state, not a failed threshold. `corroboration_target` is a gap-round resource
-priority signal; the renderer never reads it. `corroborated` remains reserved
-for support from at least two publisher-domain proxies.
+The report starts with an evidence summary that separately counts claims with
+zero, one, or multiple supporting publisher-domain proxies. A fixed legend
+states that a footnote without an additional inline status label means one
+publisher supplied a locatable supporting quote. This rule is invariant across
+reports and never changes in response to label prevalence. Multi-publisher
+support and every exceptional evidence state remain visible at the claim
+anchor. One-publisher support is a factual evidence state, not a failed
+threshold. `corroboration_target` is a gap-round resource priority signal; the
+renderer never reads it. `corroborated` remains reserved for support from at
+least two publisher-domain proxies.
 
 Footnote identifiers are assigned in deterministic anchor, claim, and source
 order. A definition represents one claim-source evidence relation, includes a

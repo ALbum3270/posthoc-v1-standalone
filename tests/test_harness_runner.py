@@ -461,7 +461,12 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     )
 
     markdown = result.report_path.read_text(encoding="utf-8")
-    assert "The model wrote this report.[^1]〔单一发布方支持〕" in markdown
+    assert "The model wrote this report.[^1]" in markdown
+    assert "〔单一发布方支持〕" not in markdown
+    assert (
+        "> 图例：带脚注且无额外状态标签 = "
+        "单一发布方提供了可定位支持引文"
+    ) in markdown
     assert markdown.count("[^1]:") == 1
     assert '"quote":"ExactSourceEvidence 2026"' in markdown
     assert "exact source evidence 2026." not in markdown
