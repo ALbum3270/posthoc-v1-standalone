@@ -110,7 +110,7 @@ class ClaimModel:
                     }
                 ]
             }
-        else:
+        elif self.call_number == 3:
             content = {
                 "claims": [
                     {
@@ -118,6 +118,17 @@ class ClaimModel:
                         "anchor_text": paragraph.text,
                         "start_char": paragraph.start_char,
                         "end_char": paragraph.end_char,
+                    }
+                ]
+            }
+        else:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": "claim-0001",
+                        "status": "not_underspecified",
+                        "categories": [],
+                        "reason": "The assertion has explicit boundaries.",
                     }
                 ]
             }
@@ -332,6 +343,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "claim-1",
         "claim-2",
         "claim-3",
+        "claim-4",
         "reconciliation",
         "attribution",
     ]
@@ -394,13 +406,13 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "checklist": {"cost_usd": 0.03, "token_count": 3},
         "collection": {"cost_usd": 0.02, "token_count": 2},
             "decomposition_attribution": {
-                "cost_usd": 0.05,
-                "token_count": 37,
+                "cost_usd": 0.06,
+                "token_count": 47,
             },
             "disagreement": {"cost_usd": 0.0, "token_count": 0},
             "evidence_gap": {"cost_usd": 0.0, "token_count": 0},
         "reconciliation": {"cost_usd": 0.01, "token_count": 4},
-        "total": {"cost_usd": 0.16, "token_count": 51},
+        "total": {"cost_usd": 0.17, "token_count": 61},
         "verification": {"cost_usd": 0.0, "token_count": 0},
         "writing": {"cost_usd": 0.05, "token_count": 5},
     }
@@ -426,6 +438,15 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["posthoc_evidence"]["claim_decomposition"][
         "anchor_copied_from_selection_rate"
     ] == 1.0
+    diagnostic = audit["posthoc_evidence"][
+        "evaluative_claim_diagnostics"
+    ]
+    assert diagnostic["external_denominator_before"] == 1
+    assert diagnostic["external_denominator_after"] == 1
+    assert diagnostic["claim_registry_unchanged"] is True
+    assert diagnostic["citation_requirements_unchanged"] is True
+    assert diagnostic["diagnostic_is_non_gating"] is True
+    assert diagnostic["assessments"][0]["status"] == "not_underspecified"
     assert audit["posthoc_evidence"]["checklist_report_reconciliation"][
         "summary"
     ] == {

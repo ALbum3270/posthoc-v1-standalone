@@ -50,6 +50,11 @@ from open_deep_research.harness.evidence_gap import (
     EvidenceGapStopReason,
     run_evidence_gap_round,
 )
+from open_deep_research.harness.evaluative import (
+    EvaluativeDiagnosticResult,
+    EvaluativeDiagnosticSettings,
+    diagnose_underspecified_evaluative_claims,
+)
 from open_deep_research.harness.loop import (
     LoopBudget,
     LoopModelClient,
@@ -105,6 +110,7 @@ class HarnessRunResult(BaseModel):
     rendered_report: RenderedReport
     loop_result: LoopResult
     claim_decomposition: ClaimDecompositionResult
+    evaluative_diagnostics: EvaluativeDiagnosticResult
     checklist_report_reconciliation: ChecklistReportReconciliation
     domain_proxy_concentration: DomainProxyConcentrationAudit
     attribution: AttributionResult
@@ -194,6 +200,9 @@ async def run_harness(
     budget: LoopBudget | None = None,
     loop_settings: LoopSettings | None = None,
     claim_settings: ClaimDecompositionSettings | None = None,
+    evaluative_diagnostic_settings: (
+        EvaluativeDiagnosticSettings | None
+    ) = None,
     attribution_settings: AttributionSettings | None = None,
     verification_settings: VerificationSettings | None = None,
     verification_budget: VerificationBudget | None = None,
@@ -261,6 +270,13 @@ async def run_harness(
         report.canonical_draft,
         model_client=claim_model,
         settings=claim_settings,
+    )
+    evaluative_diagnostics = (
+        await diagnose_underspecified_evaluative_claims(
+            claim_decomposition.claims,
+            model_client=claim_model,
+            settings=evaluative_diagnostic_settings,
+        )
     )
     checklist_report_reconciliation = await reconcile_checklist_report(
         report.canonical_draft,
@@ -431,10 +447,12 @@ async def run_harness(
     decomposition_attribution_usage = UsageRecord(
         token_count=(
             claim_decomposition.total_tokens
+            + evaluative_diagnostics.total_tokens
             + initial_attribution.total_tokens
         ),
         cost_usd=(
             claim_decomposition.total_cost_usd
+            + evaluative_diagnostics.total_cost_usd
             + initial_attribution.total_cost_usd
         ),
     )
@@ -501,6 +519,9 @@ async def run_harness(
         },
         "posthoc_evidence": {
             "claim_decomposition": claim_decomposition.model_dump(mode="json"),
+            "evaluative_claim_diagnostics": (
+                evaluative_diagnostics.model_dump(mode="json")
+            ),
             "checklist_report_reconciliation": (
                 checklist_report_reconciliation.model_dump(mode="json")
             ),
@@ -546,6 +567,7 @@ async def run_harness(
         rendered_report=rendered_report,
         loop_result=loop_result,
         claim_decomposition=claim_decomposition,
+        evaluative_diagnostics=evaluative_diagnostics,
         checklist_report_reconciliation=(
             checklist_report_reconciliation
         ),

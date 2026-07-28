@@ -116,6 +116,21 @@ checklist, trigger another writing pass, suppress artifact output, or alter
 claim attribution and verification. Invalid or missing model output remains a
 separate assessment failure and is never silently reported as `not_covered`.
 
+## Underspecified evaluative claims
+
+After decomposition freezes the claim registry, a separate non-gating pass may
+diagnose retained external claims whose comparison scope, evaluation
+criterion, or temporal scope is not explicit. The categories may overlap and
+are advisory metadata only. They cannot change a claim's selection
+disposition, `citation_requirement`, evidence state, rendering, or membership
+in any denominator.
+
+The diagnostic result contains no replacement claim collection. It records
+the frozen registry hash and external-claim denominator before and after the
+pass; both must remain identical. Every external claim receives an assessment.
+Missing, duplicate, malformed, or failed model output remains
+`diagnostic_failed` and is never converted to `not_underspecified`.
+
 ## Reader-visible rendering
 
 The report starts with an evidence summary that separately counts claims with
