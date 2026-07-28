@@ -15,6 +15,10 @@ from open_deep_research.harness.claims import (
     ClaimNormalizationStatus,
     ClaimRegistryCoverage,
 )
+from open_deep_research.harness.budget_diagnostics import (
+    BudgetDecisionSignal,
+    RunStopDiagnostic,
+)
 from open_deep_research.harness.concentration import (
     DomainProxyConcentrationAudit,
 )
@@ -868,6 +872,57 @@ def _apply_edits(
     return rendered
 
 
+_BUDGET_SIGNAL_LABEL = {
+    BudgetDecisionSignal.MORE_BUDGET_MAY_HELP: (
+        "近期取材仍在产出且仍有待办，提高上限可能有用"
+    ),
+    BudgetDecisionSignal.FIX_MECHANISM_FIRST: (
+        "近期取材未产出新材料，先修机制而非加预算"
+    ),
+    BudgetDecisionSignal.INDETERMINATE: (
+        "近期取材有产出也有空转，证据不足以判断加预算是否有用"
+    ),
+}
+
+
+def _render_cutoff_line(diagnostic: RunStopDiagnostic | None) -> str | None:
+    """Say in the report itself that a ceiling cut the work short.
+
+    A reader deciding whether to pay for more has to see that the run was
+    interrupted at all. Leaving this only in the audit file means the decision
+    gets made by whoever reads the report, without the one fact that matters.
+    """
+
+    if diagnostic is None or not diagnostic.cap_was_binding:
+        return None
+    boundary = diagnostic.boundary
+    where = (
+        f"{boundary.scope} {boundary.resource} "
+        f"{boundary.used:g}/{boundary.limit:g}"
+        if boundary is not None
+        else diagnostic.resource_stop_reason.value
+    )
+    owed = diagnostic.outstanding
+    owed_parts = []
+    if owed.open_checklist_items:
+        owed_parts.append(f"未结清单项 {owed.open_checklist_items}")
+    if owed.unverified_relations:
+        owed_parts.append(f"因预算未核验关系 {owed.unverified_relations}")
+    if owed.evidence_gap_plan_unexecuted:
+        owed_parts.append("证据缺口补采未执行")
+    if owed.disagreement_plan_unexecuted:
+        owed_parts.append("分歧检测未执行")
+    owed_text = "；".join(owed_parts) if owed_parts else "无剩余待办"
+    judgement = _BUDGET_SIGNAL_LABEL.get(
+        diagnostic.budget_decision_signal,
+        "未触及上限，无需判断",
+    )
+    return (
+        f"> **本次运行被成本上限截断（{where}）。** 截止时：{owed_text}。"
+        f"{judgement}。详见审计 `stop.diagnostic`。"
+    )
+
+
 def render_verified_report(
     canonical_draft: str,
     verification: VerificationResult,
@@ -887,6 +942,7 @@ def render_verified_report(
     domain_proxy_concentration: DomainProxyConcentrationAudit | None = None,
     disagreement_attempted_count: int | None = None,
     initial_collection_snapshot: InitialCollectionSnapshot | None = None,
+    stop_diagnostic: RunStopDiagnostic | None = None,
     run_id: str = "standalone",
     report_filename: str = "report.md",
     sources_filename: str = "report.sources.md",
@@ -1178,6 +1234,9 @@ def render_verified_report(
         "缺失逐字证据、提交标记或摘要不符则证据包不完整。"
     )
     header_lines = [bundle_line]
+    cutoff_line = _render_cutoff_line(stop_diagnostic)
+    if cutoff_line is not None:
+        header_lines.append(cutoff_line)
     if evidence_status_line is not None:
         header_lines.append(evidence_status_line)
     header_lines.append(summary_line)

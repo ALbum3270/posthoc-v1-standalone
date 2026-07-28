@@ -730,3 +730,72 @@ def test_formal_support_suppresses_zero_evidence_warning() -> None:
     assert rendered.evidence_status_line is None
     assert "证据状态：" not in rendered.markdown
     assert "初次采集阶段未取得任何原文" not in rendered.markdown
+
+
+def test_report_discloses_that_a_cost_ceiling_cut_the_run_short() -> None:
+    """The interruption has to be visible to whoever reads the report.
+
+    The person deciding whether to pay for a longer run reads the report, not
+    audit.json. Recording the cutoff only in the audit file hands them the
+    decision while withholding the one fact it turns on.
+    """
+
+    from open_deep_research.harness.budget_diagnostics import (
+        BudgetDecisionSignal,
+        CompletionStatus,
+        OutstandingWork,
+        ResourceStopReason,
+        RunStopDiagnostic,
+        StopBoundary,
+    )
+
+    draft = "First assertion."
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                _claim(draft, "claim-1", "First assertion."),
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                _support("claim-1"),
+            ),
+        )
+    )
+    diagnostic = RunStopDiagnostic(
+        resource_stop_reason=ResourceStopReason.RUN_COST_CAP_REACHED,
+        completion_status=CompletionStatus.PARTIAL,
+        boundary=StopBoundary(
+            scope="run", resource="cost_usd", used=0.5, limit=0.5
+        ),
+        cap_was_binding=True,
+        outstanding=OutstandingWork(
+            open_checklist_items=2, unverified_relations=18
+        ),
+        budget_decision_signal=BudgetDecisionSignal.INDETERMINATE,
+    )
+
+    rendered = render_verified_report(
+        draft, verification, stop_diagnostic=diagnostic
+    )
+
+    assert "本次运行被成本上限截断（run cost_usd 0.5/0.5）" in rendered.markdown
+    assert "未结清单项 2" in rendered.markdown
+    assert "因预算未核验关系 18" in rendered.markdown
+    # Mixed evidence must not be rendered as advice to spend money.
+    assert "证据不足以判断加预算是否有用" in rendered.markdown
+    assert "提高上限可能有用" not in rendered.markdown
+
+
+def test_a_run_that_was_never_cut_off_says_nothing_about_budget() -> None:
+    draft = "First assertion."
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                _claim(draft, "claim-1", "First assertion."),
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                _support("claim-1"),
+            ),
+        )
+    )
+
+    rendered = render_verified_report(draft, verification)
+
+    assert "成本上限截断" not in rendered.markdown

@@ -297,8 +297,21 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=10.0,
         help=(
-            "run-level model-cost admission ceiling; actual provider cost is "
-            "known after each call, so one admitted call may overshoot"
+            "absolute run cost cap enforced by pre-call admission. Not a "
+            "runaway-only guard: it sits close enough to normal run cost that "
+            "it can and does interrupt legitimate work. Provider cost is known "
+            "only after a call, so one admitted call may overshoot"
+        ),
+    )
+    parser.add_argument(
+        "--cost-objective-usd",
+        type=float,
+        default=None,
+        help=(
+            "advisory per-report cost target. Never blocks a call and never "
+            "becomes a stop reason; exceeding it is recorded as an audit "
+            "event only. No default, because no measurement so far shows any "
+            "particular figure to be a defensible target"
         ),
     )
     parser.add_argument(
@@ -475,6 +488,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 verification_reserve_usd=(
                     args.verification_cost_reserve_usd
                 ),
+                cost_objective_usd=args.cost_objective_usd,
             ),
             model_names={
                 "decision": clients.decision_model_name,

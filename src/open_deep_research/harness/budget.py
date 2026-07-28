@@ -23,6 +23,16 @@ class RunCostBudget(BaseModel):
 
     max_cost_usd: float | None = Field(default=None, ge=0.0)
     verification_reserve_usd: float = Field(default=0.0, ge=0.0)
+    cost_objective_usd: float | None = Field(default=None, ge=0.0)
+    """A product target, deliberately not a control-flow input.
+
+    This never blocks a call and never becomes a stop reason. It exists so an
+    audit can distinguish "this run cost $0.42" from "this run cost $0.42
+    against a target of $0.30", which is otherwise unrecoverable after the
+    fact. There is no default: no measurement so far establishes that any
+    particular figure is a defensible target, and inventing one would give a
+    guess the authority of a setting.
+    """
 
     @model_validator(mode="after")
     def _reserve_requires_and_fits_limit(self) -> RunCostBudget:
@@ -67,6 +77,16 @@ class RunCostBudgetAudit(BaseModel):
     observed_total_cost_usd: float = Field(ge=0.0)
     remaining_cost_usd: float | None = None
     observed_overshoot_usd: float = Field(ge=0.0)
+    cost_objective_usd: float | None = None
+    cost_objective_exceeded: bool = False
+    cap_was_binding: bool = False
+    """Whether a ceiling refused a call that would otherwise have been issued.
+
+    This answers only that. It says nothing about whether the refused call was
+    worth making -- a tenth reread of a dead URL still sets it true. Judging
+    the blocked call is a separate field elsewhere, kept separate so that a
+    record of fact never quietly doubles as a verdict on call quality.
+    """
     admitted_call_count: int = Field(ge=0)
     rejected_call_count: int = Field(ge=0)
     unestimated_admitted_call_count: int = Field(ge=0)
@@ -77,6 +97,11 @@ class RunCostBudgetAudit(BaseModel):
         "an admitted call can exceed its estimate and overshoot the ceiling",
         "an unavailable role-specific estimate permits one bootstrap call",
         "the ceiling excludes provider charges not present in usage envelopes",
+        "the configured ceiling is an absolute run cost cap, not a "
+        "runaway-only guard: it sits close enough to normal run cost that it "
+        "can and does interrupt legitimate work",
+        "cost_objective_usd is advisory; exceeding it changes nothing at run "
+        "time and is recorded only for later reading",
     )
 
 
@@ -218,8 +243,16 @@ class RunCostController:
             if limit is not None
             else 0.0
         )
+        objective = self.budget.cost_objective_usd
         return RunCostBudgetAudit(
             configured=limit is not None,
+            cost_objective_usd=objective,
+            cost_objective_exceeded=(
+                objective is not None and self._observed_cost > objective
+            ),
+            cap_was_binding=any(
+                not record.admitted for record in self._admissions
+            ),
             max_cost_usd=limit,
             verification_reserve_usd=(
                 self.budget.verification_reserve_usd

@@ -54,12 +54,35 @@ from open_deep_research.harness.tools import (
 
 
 class StopReason(str, Enum):
-    """Mutually exclusive reasons why collection stopped."""
+    """Mutually exclusive reasons why collection stopped.
+
+    The three collection limits are named separately because a single
+    ``budget_exhausted`` value cannot tell a reader whether a runaway was
+    caught or ordinary work was cut off, and that is exactly the judgement a
+    reader needs in order to decide whether raising the limit would help.
+    """
 
     ALL_ITEMS_TERMINAL = "all_items_terminal"
     MODEL_STOP_WITH_OPEN_ITEMS = "model_stop_with_open_items"
-    BUDGET_EXHAUSTED = "budget_exhausted"
+    COLLECTION_ROUND_LIMIT_REACHED = "collection_round_limit_reached"
+    COLLECTION_TOKEN_LIMIT_REACHED = "collection_token_limit_reached"
+    COLLECTION_COST_LIMIT_REACHED = "collection_cost_limit_reached"
     MALFORMED_ACTION_LIMIT = "malformed_action_limit"
+
+    @property
+    def is_collection_limit(self) -> bool:
+        """Whether this stop was forced by a collection resource ceiling."""
+
+        return self in _COLLECTION_LIMIT_STOP_REASONS
+
+
+_COLLECTION_LIMIT_STOP_REASONS = frozenset(
+    {
+        StopReason.COLLECTION_ROUND_LIMIT_REACHED,
+        StopReason.COLLECTION_TOKEN_LIMIT_REACHED,
+        StopReason.COLLECTION_COST_LIMIT_REACHED,
+    }
+)
 
 
 class LoopBudget(BaseModel):
@@ -95,6 +118,17 @@ class LoopBudget(BaseModel):
         """Cost collection may use without consuming the writing reserve."""
 
         return self.max_cost_usd - self.writing_cost_reserve_usd
+
+
+class _CollectionLimitHit(BaseModel):
+    """Which collection ceiling was reached, and the numbers that prove it."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    stop_reason: StopReason
+    resource: str = Field(min_length=1)
+    used: float = Field(ge=0.0)
+    limit: float = Field(ge=0.0)
 
 
 class LoopSettings(BaseModel):
@@ -431,6 +465,9 @@ class LoopResult(BaseModel):
     open_item_ids: tuple[str, ...] = ()
     rounds_executed: int = Field(ge=0)
     consecutive_collection_failures: dict[str, int]
+    limit_resource: str | None = None
+    limit_used: float | None = None
+    limit_value: float | None = None
 
     @property
     def consecutive_failures(self) -> dict[str, int]:
@@ -1614,13 +1651,30 @@ def _budget_limit_reached(
     rounds: int,
     tokens: int,
     cost_usd: float,
-) -> str | None:
+) -> _CollectionLimitHit | None:
+    """Name which collection ceiling stopped work, with its used/limit pair."""
+
     if rounds >= budget.max_rounds:
-        return "rounds"
+        return _CollectionLimitHit(
+            stop_reason=StopReason.COLLECTION_ROUND_LIMIT_REACHED,
+            resource="rounds",
+            used=float(rounds),
+            limit=float(budget.max_rounds),
+        )
     if tokens >= budget.collection_token_limit:
-        return "tokens"
+        return _CollectionLimitHit(
+            stop_reason=StopReason.COLLECTION_TOKEN_LIMIT_REACHED,
+            resource="tokens",
+            used=float(tokens),
+            limit=float(budget.collection_token_limit),
+        )
     if cost_usd >= budget.collection_cost_limit_usd:
-        return "cost"
+        return _CollectionLimitHit(
+            stop_reason=StopReason.COLLECTION_COST_LIMIT_REACHED,
+            resource="cost_usd",
+            used=float(cost_usd),
+            limit=float(budget.collection_cost_limit_usd),
+        )
     return None
 
 
@@ -1767,6 +1821,7 @@ def _result(
     stop_detail: str,
     rounds_executed: int,
     collection_failures: Mapping[str, int],
+    limit_hit: _CollectionLimitHit | None = None,
 ) -> LoopResult:
     return LoopResult(
         checklist=checklist,
@@ -1776,6 +1831,9 @@ def _result(
         open_item_ids=_open_item_ids(checklist),
         rounds_executed=rounds_executed,
         consecutive_collection_failures=dict(collection_failures),
+        limit_resource=limit_hit.resource if limit_hit else None,
+        limit_used=limit_hit.used if limit_hit else None,
+        limit_value=limit_hit.limit if limit_hit else None,
     )
 
 
@@ -2137,20 +2195,24 @@ async def run_research_loop(
         cost_usd=total_cost,
     )
     if initial_limit is not None:
-        detail = f"{initial_limit} budget was exhausted before the first round"
+        detail = (
+            f"{initial_limit.resource} limit reached before the first round "
+            f"({initial_limit.used:g} of {initial_limit.limit:g})"
+        )
         _record_preflight_stop(
             ledger,
-            stop_reason=StopReason.BUDGET_EXHAUSTED,
+            stop_reason=initial_limit.stop_reason,
             stop_detail=detail,
             open_item_ids=open_ids,
         )
         return _result(
             checklist=current,
             ledger=ledger,
-            stop_reason=StopReason.BUDGET_EXHAUSTED,
+            stop_reason=initial_limit.stop_reason,
             stop_detail=detail,
             rounds_executed=0,
             collection_failures=collection_failures,
+            limit_hit=initial_limit,
         )
 
     consecutive_malformed = 0
@@ -2224,6 +2286,7 @@ async def run_research_loop(
         round_tokens = decision_tokens
         round_cost = decision_cost
         stop_reason: StopReason | None = None
+        limit_hit: _CollectionLimitHit | None = None
         stop_detail = ""
         status_audit: list[dict[str, Any]] = []
         candidate_audit_item_ids: set[str] = set()
@@ -2249,11 +2312,16 @@ async def run_research_loop(
             summary = {
                 "action_skipped": True,
                 "error": action_error,
-                "budget_limit": decision_budget_limit,
+                "budget_limit": decision_budget_limit.resource,
+                "budget_limit_used": decision_budget_limit.used,
+                "budget_limit_value": decision_budget_limit.limit,
             }
-            stop_reason = StopReason.BUDGET_EXHAUSTED
+            stop_reason = decision_budget_limit.stop_reason
+            limit_hit = decision_budget_limit
             stop_detail = (
-                f"{decision_budget_limit} budget reached by decision model usage"
+                f"{decision_budget_limit.resource} limit reached by decision "
+                f"model usage ({decision_budget_limit.used:g} of "
+                f"{decision_budget_limit.limit:g})"
             )
         elif turn is None:
             consecutive_malformed += 1
@@ -2667,9 +2735,15 @@ async def run_research_loop(
                 cost_usd=total_cost,
             )
             if limit is not None:
-                stop_reason = StopReason.BUDGET_EXHAUSTED
-                stop_detail = f"{limit} budget exhausted"
-                summary["budget_limit"] = limit
+                stop_reason = limit.stop_reason
+                limit_hit = limit
+                stop_detail = (
+                    f"{limit.resource} limit reached "
+                    f"({limit.used:g} of {limit.limit:g})"
+                )
+                summary["budget_limit"] = limit.resource
+                summary["budget_limit_used"] = limit.used
+                summary["budget_limit_value"] = limit.limit
 
         if stop_reason is not None:
             if stop_reason is not StopReason.ALL_ITEMS_TERMINAL:
@@ -2704,4 +2778,5 @@ async def run_research_loop(
                 stop_detail=stop_detail,
                 rounds_executed=rounds_executed,
                 collection_failures=collection_failures,
+                limit_hit=limit_hit,
             )

@@ -201,34 +201,65 @@ def test_terminal_completion_and_model_stop_are_distinct_outcomes():
 
 
 @pytest.mark.parametrize(
-    ("budget", "decision"),
+    ("budget", "decision", "stop_reason", "resource", "limit"),
     [
         (
             LoopBudget(max_rounds=1, max_tokens=100, max_cost_usd=10),
             envelope(
                 {"action": "search", "item_id": "what-1", "query": "query"}
             ),
+            StopReason.COLLECTION_ROUND_LIMIT_REACHED,
+            "rounds",
+            1.0,
         ),
         (
             LoopBudget(max_rounds=10, max_tokens=2, max_cost_usd=10),
             envelope({"action": "stop"}, tokens=2),
+            StopReason.COLLECTION_TOKEN_LIMIT_REACHED,
+            "tokens",
+            2.0,
         ),
         (
             LoopBudget(max_rounds=10, max_tokens=100, max_cost_usd=0.25),
             envelope({"action": "stop"}, cost=0.25),
+            StopReason.COLLECTION_COST_LIMIT_REACHED,
+            "cost_usd",
+            0.25,
         ),
     ],
 )
-def test_each_hard_budget_stops_as_budget_exhausted(budget, decision):
+def test_each_hard_budget_names_the_resource_that_stopped_work(
+    budget, decision, stop_reason, resource, limit
+):
+    """Three different ceilings must not collapse into one stop reason.
+
+    A reader deciding whether to raise a limit has to know which limit bound.
+    A shared ``budget_exhausted`` value forced that reader to guess, and the
+    numbers behind it were not recorded at all.
+    """
+
     result, model, _, _ = run_loop([decision], budget=budget)
 
-    assert result.stop_reason is StopReason.BUDGET_EXHAUSTED
+    assert result.stop_reason is stop_reason
     assert result.is_success is False
     assert len(model.prompts) == 1
-    assert (
-        json.loads(result.ledger.rounds[-1].result_summary)["stop_reason"]
-        == "budget_exhausted"
-    )
+    assert result.limit_resource == resource
+    assert result.limit_value == pytest.approx(limit)
+    assert result.limit_used >= result.limit_value
+    audit = json.loads(result.ledger.rounds[-1].result_summary)
+    assert audit["stop_reason"] == stop_reason.value
+
+
+def test_collection_limit_stop_reasons_stay_distinguishable_from_completion():
+    """Every collection ceiling is flagged as one; completion never is."""
+
+    limits = {
+        StopReason.COLLECTION_ROUND_LIMIT_REACHED,
+        StopReason.COLLECTION_TOKEN_LIMIT_REACHED,
+        StopReason.COLLECTION_COST_LIMIT_REACHED,
+    }
+    for reason in StopReason:
+        assert reason.is_collection_limit is (reason in limits)
 
 
 def test_malformed_actions_are_billed_and_stop_at_the_consecutive_limit():
@@ -1239,7 +1270,12 @@ def test_budget_headroom_and_writing_reserve_are_visible_and_enforced():
         [envelope({"action": "stop"}, tokens=80)],
         budget=budget,
     )
-    assert exhausted.stop_reason is StopReason.BUDGET_EXHAUSTED
+    assert exhausted.stop_reason is StopReason.COLLECTION_TOKEN_LIMIT_REACHED
+    # The writing reserve is what made this binding, so the reported limit is
+    # the collection ceiling, not the headline max_tokens.
+    assert exhausted.limit_value == pytest.approx(
+        budget.collection_token_limit
+    )
 
 
 def test_batch_status_updates_audit_settle_evidence_and_keep_success_honest():

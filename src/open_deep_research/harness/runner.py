@@ -20,6 +20,7 @@ from open_deep_research.harness.attribution import (
     AttributionModelClient,
     AttributionResult,
     AttributionSettings,
+    AttributionStatus,
     AttributionStopReason,
     attribute_claims,
 )
@@ -31,6 +32,10 @@ from open_deep_research.harness.budget import (
     RunCostBudget,
     RunCostBudgetAudit,
     RunCostController,
+)
+from open_deep_research.harness.budget_diagnostics import (
+    RunStopDiagnostic,
+    build_run_stop_diagnostic,
 )
 from open_deep_research.harness.claims import (
     CitationRequirement,
@@ -46,6 +51,7 @@ from open_deep_research.harness.concentration import (
 from open_deep_research.harness.disagreement import (
     DisagreementBudget,
     DisagreementResult,
+    DisagreementStopReason,
     PosthocRetrievalBudget,
     PosthocRetrievalBudgetAudit,
     disabled_disagreement_result,
@@ -86,6 +92,7 @@ from open_deep_research.harness.tools import TavilyClient
 from open_deep_research.harness.verify import (
     VerificationBudget,
     VerificationModelClient,
+    VerificationRecordStatus,
     VerificationResult,
     VerificationSettings,
     verify_attributions,
@@ -130,6 +137,7 @@ class HarnessRunResult(BaseModel):
     disagreement: DisagreementResult
     posthoc_retrieval_budget: PosthocRetrievalBudgetAudit
     run_cost_budget: RunCostBudgetAudit
+    stop_diagnostic: RunStopDiagnostic
     usage: dict[str, UsageRecord]
 
 
@@ -708,6 +716,48 @@ async def run_harness(
         source_cache=ledger.source_cache,
         notes=ledger.notes,
     )
+    # Snapshot the cost ledger here rather than after rendering: the report
+    # itself has to disclose that a ceiling cut the run short, so the
+    # diagnostic must exist before the text is built. Nothing between this
+    # point and the audit write calls a model, so the numbers are final.
+    run_cost_audit = run_cost.audit()
+
+    # Counts of work still owed, used only to decide whether more budget has
+    # anything left to buy. NO_CANDIDATE_SOURCE is excluded on purpose: that is
+    # attribution running to completion and finding nothing, which is a result,
+    # not an unfinished task. Counting it would report a finished run as
+    # partial and imply money could buy a conclusion it already reached.
+    unattributed_claims = sum(
+        1
+        for record in attribution.attributions
+        if record.status is AttributionStatus.ATTRIBUTION_ERROR
+    )
+    # Only budget-blocked relations count. A model error is also unverified,
+    # but money does not fix it, and this number exists to answer whether money
+    # would buy anything.
+    unverified_relations = sum(
+        1
+        for claim in verification.claims
+        for relation in claim.relations
+        if relation.status
+        is VerificationRecordStatus.VERIFICATION_NOT_RUN_BUDGET
+    )
+    stop_diagnostic = build_run_stop_diagnostic(
+        loop_result=loop_result,
+        run_cost_audit=run_cost_audit,
+        unattributed_claims=unattributed_claims,
+        unverified_relations=unverified_relations,
+        evidence_gap_plan_unexecuted=(
+            evidence_gap.stop_reason
+            is EvidenceGapStopReason.BUDGET_EXHAUSTED
+        ),
+        disagreement_plan_unexecuted=(
+            disagreement.stop_reason
+            is DisagreementStopReason.BUDGET_EXHAUSTED
+        ),
+        report_written=bool(report.canonical_draft),
+    )
+
     rendered_report = render_verified_report(
         report.canonical_draft,
         verification,
@@ -746,6 +796,7 @@ async def run_harness(
             disagreement.disagreement_search_attempted
         ),
         initial_collection_snapshot=initial_collection_snapshot,
+        stop_diagnostic=stop_diagnostic,
         run_id=normalized_run_id,
         report_filename=report_filename,
         sources_filename=sources_filename,
@@ -796,7 +847,6 @@ async def run_harness(
         evidence_gap_usage=evidence_gap_usage,
         disagreement_usage=disagreement_usage,
     )
-    run_cost_audit = run_cost.audit()
 
     destination = Path(output_dir)
     run_directory = destination / normalized_run_id
@@ -815,7 +865,11 @@ async def run_harness(
             "reason": loop_result.stop_reason.value,
             "detail": loop_result.stop_detail,
             "open_item_ids": list(loop_result.open_item_ids),
+            # Protocol completion only. It is not derived from how much of the
+            # budget was spent, so a run that finished its work under a cap and
+            # a run that was cut off by one are never conflated here.
             "is_success": loop_result.is_success,
+            "diagnostic": stop_diagnostic.model_dump(mode="json"),
         },
         "collection_summary": {
             "initial_collection_snapshot": (
@@ -891,6 +945,9 @@ async def run_harness(
         },
         "usage": usage_audit,
         "run_cost_budget": run_cost_audit.model_dump(mode="json"),
+        "budget_decision_signal": (
+            stop_diagnostic.budget_decision_signal.value
+        ),
         "run_cost_limit_status": (
             "configured_run_level_admission_limit"
             if run_cost_audit.configured
@@ -944,5 +1001,6 @@ async def run_harness(
         disagreement=disagreement,
         posthoc_retrieval_budget=posthoc_budget_audit,
         run_cost_budget=run_cost_audit,
+        stop_diagnostic=stop_diagnostic,
         usage=usage,
     )

@@ -398,6 +398,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["ledger"]["research_id"] == "fixed-run"
     assert audit["ledger"]["rounds"][0]["action"] == "settle"
     assert audit["checklist"]["items"][0]["status"] == "settled"
+    diagnostic = audit["stop"].pop("diagnostic")
     assert audit["stop"] == {
         "detail": (
             "all checklist items reached a terminal state; "
@@ -407,6 +408,16 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "open_item_ids": [],
         "reason": "all_items_terminal",
     }
+    # A completed run reports no resource stop and no binding ceiling, and it
+    # makes no budget recommendation, because nothing was withheld for cost.
+    assert diagnostic["resource_stop_reason"] == "not_resource_limited"
+    assert diagnostic["completion_status"] == "complete"
+    assert diagnostic["cap_was_binding"] is False
+    assert diagnostic["blocked_operation_quality"] == "nothing_blocked"
+    assert diagnostic["budget_decision_signal"] == "not_applicable"
+    assert diagnostic["cost_objective_usd"] is None
+    assert diagnostic["cost_objective_exceeded"] is False
+    assert audit["budget_decision_signal"] == "not_applicable"
     assert audit["collection_summary"] == {
         "initial_collection_snapshot": {
             "cached_source_count": 0,
@@ -754,9 +765,17 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
     assert args.max_cost_usd == 0.28
     assert args.collection_max_cost_usd == 0.09
     assert args.verification_cost_reserve_usd == 0.10
-    help_text = harness_cli.build_parser().format_help()
-    assert "run-level model-cost admission ceiling" in help_text
+    # argparse rewraps help text to the terminal width, so compare on
+    # whitespace-normalised text rather than pinning a line break.
+    help_text = " ".join(harness_cli.build_parser().format_help().split())
+    assert "absolute run cost cap" in help_text
     assert "collection-only sub-cap" in help_text
+    # The cap must not be advertised as a safety net it cannot be. It sits
+    # inside the normal cost range, so saying so is part of its description.
+    assert "Not a runaway-only guard" in help_text
+    # The cost objective is a product target and must stay out of control flow.
+    assert args.cost_objective_usd is None
+    assert "Never blocks a call and never becomes a stop reason" in help_text
 
 
 def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):
