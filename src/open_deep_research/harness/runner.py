@@ -30,6 +30,10 @@ from open_deep_research.harness.claims import (
     ClaimModelClient,
     decompose_claims,
 )
+from open_deep_research.harness.concentration import (
+    DomainProxyConcentrationAudit,
+    audit_domain_proxy_concentration,
+)
 from open_deep_research.harness.ledger import ResearchLedger
 from open_deep_research.harness.evidence_gap import (
     EvidenceGapBudget,
@@ -93,6 +97,7 @@ class HarnessRunResult(BaseModel):
     loop_result: LoopResult
     claim_decomposition: ClaimDecompositionResult
     checklist_report_reconciliation: ChecklistReportReconciliation
+    domain_proxy_concentration: DomainProxyConcentrationAudit
     attribution: AttributionResult
     verification: VerificationResult
     evidence_gap: EvidenceGapResult
@@ -306,6 +311,13 @@ async def run_harness(
         )
     attribution = evidence_gap.final_attribution
     verification = evidence_gap.final_verification
+    domain_proxy_concentration = audit_domain_proxy_concentration(
+        verification,
+        blocks=claim_decomposition.blocks,
+        reconciliation=checklist_report_reconciliation,
+        source_cache=ledger.source_cache,
+        notes=ledger.notes,
+    )
     rendered_report = render_verified_report(
         report.canonical_draft,
         verification,
@@ -317,6 +329,7 @@ async def run_harness(
         ),
         registry_coverage=claim_decomposition.registry_coverage,
         checklist_coverage=checklist_report_reconciliation.summary,
+        domain_proxy_concentration=domain_proxy_concentration,
     )
 
     writing_usage = UsageRecord(
@@ -399,6 +412,9 @@ async def run_harness(
             "evidence_gap": evidence_gap.model_dump(mode="json"),
             "attribution": attribution.model_dump(mode="json"),
             "verification": verification.model_dump(mode="json"),
+            "domain_proxy_concentration": (
+                domain_proxy_concentration.model_dump(mode="json")
+            ),
             "rendering": rendered_report.model_dump(
                 mode="json",
                 exclude={"markdown"},
@@ -432,6 +448,7 @@ async def run_harness(
         checklist_report_reconciliation=(
             checklist_report_reconciliation
         ),
+        domain_proxy_concentration=domain_proxy_concentration,
         attribution=attribution,
         verification=verification,
         evidence_gap=evidence_gap,

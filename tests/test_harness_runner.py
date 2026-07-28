@@ -342,6 +342,10 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert final_markdown == result.rendered_report.markdown
     assert final_markdown.startswith("> 证据摘要：")
     assert "正文块评估 2/2" in final_markdown.splitlines()[0]
+    assert (
+        "> 域名代理集中度：没有正式 claim–source 支持关系；"
+        "域名仅作发布方代理。"
+    ) in final_markdown
     assert "> 清单对账：已评估 1/1；完整覆盖 1/1" in final_markdown
     assert (
         "The model wrote this report.〔未找到候选来源〕"
@@ -455,6 +459,21 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["posthoc_evidence"]["rendering"]["summary"][
         "settled_without_located_evidence"
     ] == 1
+    assert audit["posthoc_evidence"]["domain_proxy_concentration"][
+        "counting_unit"
+    ] == "formal_claim_source_support_relation"
+    assert audit["posthoc_evidence"]["domain_proxy_concentration"][
+        "overall"
+    ]["formal_support_relation_count"] == 0
+    assert audit["posthoc_evidence"]["domain_proxy_concentration"][
+        "is_organization_independence_determination"
+    ] is False
+    assert audit["posthoc_evidence"]["domain_proxy_concentration"][
+        "is_viewpoint_diversity_determination"
+    ] is False
+    assert result.domain_proxy_concentration.model_dump(mode="json") == (
+        audit["posthoc_evidence"]["domain_proxy_concentration"]
+    )
     assert audit["models"]["verification"] == "strong-verifier"
     assert audit["models"]["reconciliation"] == "coverage-model"
     assert audit["artifacts"] == {

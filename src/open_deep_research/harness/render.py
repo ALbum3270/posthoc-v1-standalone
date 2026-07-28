@@ -14,6 +14,9 @@ from open_deep_research.harness.claims import (
     ClaimNormalizationStatus,
     ClaimRegistryCoverage,
 )
+from open_deep_research.harness.concentration import (
+    DomainProxyConcentrationAudit,
+)
 from open_deep_research.harness.reconcile import ChecklistCoverageSummary
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
@@ -139,6 +142,7 @@ class RenderedReport(BaseModel):
     evidence_summary_line: str
     evidence_legend_line: str
     checklist_coverage_line: str
+    domain_proxy_concentration_line: str | None = None
     summary: EvidenceSummary
     footnotes: tuple[RenderedFootnote, ...] = ()
     annotations: tuple[ClaimRenderAnnotation, ...] = ()
@@ -433,6 +437,26 @@ def _checklist_coverage_line(
     )
 
 
+def _domain_proxy_concentration_line(
+    audit: DomainProxyConcentrationAudit,
+) -> str:
+    overall = audit.overall
+    if overall.formal_support_relation_count == 0:
+        return (
+            "> 域名代理集中度：没有正式 claim–source 支持关系；"
+            "域名仅作发布方代理。"
+        )
+    return (
+        "> 域名代理集中度：最大域名代理 "
+        f"{overall.largest_publisher_domain_proxy} 占正式 claim–source "
+        "支持关系的 "
+        f"{overall.largest_publisher_domain_proxy_share:.1%}"
+        f"（{overall.largest_publisher_domain_proxy_relation_count}/"
+        f"{overall.formal_support_relation_count}）；"
+        "域名仅作发布方代理。"
+    )
+
+
 def _apply_edits(
     markdown: str,
     *,
@@ -464,6 +488,7 @@ def render_verified_report(
     settled_without_located_evidence_item_ids: Sequence[str] = (),
     registry_coverage: ClaimRegistryCoverage | None = None,
     checklist_coverage: ChecklistCoverageSummary | None = None,
+    domain_proxy_concentration: DomainProxyConcentrationAudit | None = None,
 ) -> RenderedReport:
     """Insert code-owned evidence markers without rewriting narrative text."""
 
@@ -610,18 +635,19 @@ def render_verified_report(
     )
     summary_line = _summary_line(summary)
     checklist_line = _checklist_coverage_line(checklist_coverage)
+    concentration_line = (
+        _domain_proxy_concentration_line(domain_proxy_concentration)
+        if domain_proxy_concentration is not None
+        else None
+    )
     footnotes = tuple(
         sorted(footnote_by_key.values(), key=lambda footnote: footnote.number)
     )
-    rendered = (
-        summary_line
-        + "\n"
-        + _EVIDENCE_LEGEND_LINE
-        + "\n"
-        + checklist_line
-        + "\n\n"
-        + body
-    )
+    header_lines = [summary_line]
+    if concentration_line is not None:
+        header_lines.append(concentration_line)
+    header_lines.extend([_EVIDENCE_LEGEND_LINE, checklist_line])
+    rendered = "\n".join(header_lines) + "\n\n" + body
     if footnotes:
         definitions = [
             f"[^{footnote.number}]: "
@@ -652,6 +678,7 @@ def render_verified_report(
         evidence_summary_line=summary_line,
         evidence_legend_line=_EVIDENCE_LEGEND_LINE,
         checklist_coverage_line=checklist_line,
+        domain_proxy_concentration_line=concentration_line,
         summary=summary,
         footnotes=footnotes,
         annotations=tuple(annotations),
