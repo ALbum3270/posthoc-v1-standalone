@@ -27,6 +27,11 @@ from open_deep_research.harness.checklist import (
     ChecklistModelClient,
     generate_checklist,
 )
+from open_deep_research.harness.budget import (
+    RunCostBudget,
+    RunCostBudgetAudit,
+    RunCostController,
+)
 from open_deep_research.harness.claims import (
     CitationRequirement,
     ClaimDecompositionResult,
@@ -124,6 +129,7 @@ class HarnessRunResult(BaseModel):
     evidence_gap: EvidenceGapResult
     disagreement: DisagreementResult
     posthoc_retrieval_budget: PosthocRetrievalBudgetAudit
+    run_cost_budget: RunCostBudgetAudit
     usage: dict[str, UsageRecord]
 
 
@@ -288,6 +294,7 @@ async def run_harness(
     evidence_gap_budget: EvidenceGapBudget | None = None,
     disagreement_budget: DisagreementBudget | None = None,
     posthoc_retrieval_budget: PosthocRetrievalBudget | None = None,
+    run_cost_budget: RunCostBudget | None = None,
     corroboration_target_for_external_claims: int = 2,
     verification_required_independent_sources: int | None = None,
     verification_input_token_estimator: Callable[[str], int] | None = None,
@@ -310,6 +317,22 @@ async def run_harness(
     audit_filename = "audit.json"
     ledger = ResearchLedger(research_id=normalized_run_id, topic=topic.strip())
     active_budget = budget or LoopBudget()
+    run_cost = RunCostController(run_cost_budget)
+    verification_reserve_usd = (
+        run_cost.budget.verification_reserve_usd
+    )
+    if (
+        run_cost.budget.max_cost_usd is not None
+        and (
+            active_budget.writing_cost_reserve_usd
+            + verification_reserve_usd
+            > run_cost.budget.max_cost_usd
+        )
+    ):
+        raise ValueError(
+            "writing and verification cost reserves together must not "
+            "exceed the run-level cost limit"
+        )
     if verification_required_independent_sources is not None:
         if corroboration_target_for_external_claims != 2:
             raise ValueError(
@@ -324,8 +347,33 @@ async def run_harness(
             "corroboration_target_for_external_claims must be 1 or 2"
         )
 
-    checklist = await generate_checklist(topic, model_client=checklist_model)
-    checklist_usage = _usage_from_model(checklist_model)
+    budgeted_checklist_model = run_cost.wrap(
+        checklist_model,
+        stage="checklist",
+        protected_reserve_usd=(
+            active_budget.writing_cost_reserve_usd
+            + verification_reserve_usd
+        ),
+    )
+    checklist = await generate_checklist(
+        topic,
+        model_client=budgeted_checklist_model,
+    )
+    checklist_usage = _usage_from_model(budgeted_checklist_model)
+    collection_allowance = run_cost.available_before_reserve(
+        active_budget.writing_cost_reserve_usd
+        + verification_reserve_usd
+    )
+    if collection_allowance is not None:
+        active_budget = active_budget.model_copy(
+            update={
+                "max_cost_usd": min(
+                    active_budget.max_cost_usd,
+                    collection_allowance
+                    + active_budget.writing_cost_reserve_usd,
+                )
+            }
+        )
     loop_result = await run_research_loop(
         checklist,
         ledger=ledger,
@@ -338,6 +386,10 @@ async def run_harness(
     collection_usage = UsageRecord(
         token_count=ledger.total_tokens,
         cost_usd=ledger.total_cost_usd,
+    )
+    run_cost.record_external_usage(
+        "collection",
+        collection_usage.cost_usd,
     )
     # Freeze this before any post-hoc retrieval can grow the ledger. Reader
     # messaging about the initial collection must not be inferred from the
@@ -381,32 +433,55 @@ async def run_harness(
         ledger.exhausted_with_unread_candidates_item_ids
     )
     assembled = assemble_notes(loop_result.checklist, ledger.notes)
-    report = await write_report(assembled, model_client=write_model)
+    budgeted_write_model = run_cost.wrap(
+        write_model,
+        stage="writing",
+        protected_reserve_usd=verification_reserve_usd,
+    )
+    report = await write_report(
+        assembled,
+        model_client=budgeted_write_model,
+    )
+    budgeted_claim_model = run_cost.wrap(
+        claim_model,
+        stage="decomposition_attribution",
+        protected_reserve_usd=verification_reserve_usd,
+    )
     claim_decomposition = await decompose_claims(
         report.canonical_draft,
-        model_client=claim_model,
+        model_client=budgeted_claim_model,
         settings=claim_settings,
     )
     evaluative_diagnostics = (
         await diagnose_underspecified_evaluative_claims(
             claim_decomposition.claims,
-            model_client=claim_model,
+            model_client=budgeted_claim_model,
             settings=evaluative_diagnostic_settings,
         )
+    )
+    budgeted_reconciliation_model = run_cost.wrap(
+        reconciliation_model,
+        stage="reconciliation",
+        protected_reserve_usd=verification_reserve_usd,
     )
     checklist_report_reconciliation = await reconcile_checklist_report(
         report.canonical_draft,
         loop_result.checklist,
         blocks=claim_decomposition.blocks,
         claims=claim_decomposition.claims,
-        model_client=reconciliation_model,
+        model_client=budgeted_reconciliation_model,
+    )
+    budgeted_attribution_model = run_cost.wrap(
+        attribution_model,
+        stage="decomposition_attribution",
+        protected_reserve_usd=verification_reserve_usd,
     )
     if claim_decomposition.claims:
         initial_attribution = await attribute_claims(
             claim_decomposition.claims,
             blocks=claim_decomposition.blocks,
             notes=ledger.notes,
-            model_client=attribution_model,
+            model_client=budgeted_attribution_model,
             settings=attribution_settings,
         )
     else:
@@ -419,15 +494,50 @@ async def run_harness(
         for claim in claim_decomposition.claims
         if claim.citation_requirement == CitationRequirement.EXTERNAL
     }
+    budgeted_verification_model = run_cost.wrap(
+        verification_model,
+        stage="verification",
+    )
+    run_verification_remaining = run_cost.remaining_cost_usd
+    effective_verification_budget = verification_budget
+    if run_verification_remaining is not None:
+        if effective_verification_budget is None:
+            effective_verification_budget = VerificationBudget(
+                max_cost_usd=run_verification_remaining
+            )
+        else:
+            configured_verification_cost = (
+                effective_verification_budget.max_cost_usd
+            )
+            effective_verification_budget = (
+                effective_verification_budget.model_copy(
+                    update={
+                        "max_cost_usd": min(
+                            run_verification_remaining,
+                            configured_verification_cost,
+                        )
+                        if configured_verification_cost is not None
+                        else run_verification_remaining
+                    }
+                )
+            )
+    effective_verification_cost_estimator = verification_cost_estimator
+    if (
+        effective_verification_cost_estimator is None
+        and run_cost.configured
+    ):
+        effective_verification_cost_estimator = (
+            budgeted_verification_model.estimate_cost_usd
+        )
     initial_verification = await verify_attributions(
         initial_attribution.attributions,
         source_cache=ledger.source_cache,
-        model_client=verification_model,
+        model_client=budgeted_verification_model,
         settings=verification_settings,
-        budget=verification_budget,
+        budget=effective_verification_budget,
         corroboration_targets=corroboration_targets,
         estimate_input_tokens=verification_input_token_estimator,
-        estimate_cost_usd=verification_cost_estimator,
+        estimate_cost_usd=effective_verification_cost_estimator,
     )
     effective_evidence_gap_budget = evidence_gap_budget
     if (
@@ -446,6 +556,21 @@ async def run_harness(
                 ),
             }
         )
+    run_gap_remaining = run_cost.remaining_cost_usd
+    if (
+        effective_evidence_gap_budget is not None
+        and run_gap_remaining is not None
+    ):
+        effective_evidence_gap_budget = (
+            effective_evidence_gap_budget.model_copy(
+                update={
+                    "max_cost_usd": min(
+                        effective_evidence_gap_budget.max_cost_usd,
+                        run_gap_remaining,
+                    )
+                }
+            )
+        )
     if effective_evidence_gap_budget is None:
         evidence_gap = EvidenceGapResult(
             stop_reason=EvidenceGapStopReason.DISABLED,
@@ -454,6 +579,22 @@ async def run_harness(
             final_verification=initial_verification,
         )
     else:
+        gap_decision_model = run_cost.wrap(
+            decision_model,
+            stage="evidence_gap",
+        )
+        gap_note_model = run_cost.wrap(
+            note_model,
+            stage="evidence_gap",
+        )
+        gap_attribution_model = run_cost.wrap(
+            attribution_model,
+            stage="evidence_gap",
+        )
+        gap_verification_model = run_cost.wrap(
+            verification_model,
+            stage="evidence_gap",
+        )
         evidence_gap = await run_evidence_gap_round(
             canonical_draft=report.canonical_draft,
             checklist=loop_result.checklist,
@@ -461,10 +602,10 @@ async def run_harness(
             ledger=ledger,
             initial_attribution=initial_attribution,
             initial_verification=initial_verification,
-            gap_model=decision_model,
-            note_model=note_model,
-            attribution_model=attribution_model,
-            verification_model=verification_model,
+            gap_model=gap_decision_model,
+            note_model=gap_note_model,
+            attribution_model=gap_attribution_model,
+            verification_model=gap_verification_model,
             tavily_client=tavily_client,
             budget=effective_evidence_gap_budget,
             attribution_settings=attribution_settings,
@@ -504,6 +645,34 @@ async def run_harness(
                     ),
                 }
             )
+        run_disagreement_remaining = run_cost.remaining_cost_usd
+        if run_disagreement_remaining is not None:
+            effective_disagreement_budget = (
+                effective_disagreement_budget.model_copy(
+                    update={
+                        "max_cost_usd": min(
+                            effective_disagreement_budget.max_cost_usd,
+                            run_disagreement_remaining,
+                        )
+                    }
+                )
+            )
+        disagreement_selection_model = run_cost.wrap(
+            decision_model,
+            stage="disagreement",
+        )
+        disagreement_note_model = run_cost.wrap(
+            note_model,
+            stage="disagreement",
+        )
+        disagreement_attribution_model = run_cost.wrap(
+            attribution_model,
+            stage="disagreement",
+        )
+        disagreement_verification_model = run_cost.wrap(
+            verification_model,
+            stage="disagreement",
+        )
         disagreement = await run_disagreement_detection(
             canonical_draft=report.canonical_draft,
             checklist=loop_result.checklist,
@@ -511,10 +680,10 @@ async def run_harness(
             ledger=ledger,
             initial_attribution=evidence_gap_attribution,
             initial_verification=evidence_gap_verification,
-            selection_model=decision_model,
-            note_model=note_model,
-            attribution_model=attribution_model,
-            verification_model=verification_model,
+            selection_model=disagreement_selection_model,
+            note_model=disagreement_note_model,
+            attribution_model=disagreement_attribution_model,
+            verification_model=disagreement_verification_model,
             tavily_client=tavily_client,
             budget=effective_disagreement_budget,
             attribution_settings=attribution_settings,
@@ -627,6 +796,7 @@ async def run_harness(
         evidence_gap_usage=evidence_gap_usage,
         disagreement_usage=disagreement_usage,
     )
+    run_cost_audit = run_cost.audit()
 
     destination = Path(output_dir)
     run_directory = destination / normalized_run_id
@@ -720,6 +890,12 @@ async def run_harness(
             ),
         },
         "usage": usage_audit,
+        "run_cost_budget": run_cost_audit.model_dump(mode="json"),
+        "run_cost_limit_status": (
+            "configured_run_level_admission_limit"
+            if run_cost_audit.configured
+            else "no_run_level_cost_limit"
+        ),
         "models": dict(model_names or {}),
         "canonical_draft": report.canonical_draft,
         "artifacts": {
@@ -767,5 +943,6 @@ async def run_harness(
         evidence_gap=evidence_gap,
         disagreement=disagreement,
         posthoc_retrieval_budget=posthoc_budget_audit,
+        run_cost_budget=run_cost_audit,
         usage=usage,
     )

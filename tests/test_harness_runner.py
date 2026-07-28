@@ -451,6 +451,16 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "verification": {"cost_usd": 0.0, "token_count": 0},
         "writing": {"cost_usd": 0.05, "token_count": 5},
     }
+    assert audit["run_cost_limit_status"] == "no_run_level_cost_limit"
+    assert audit["run_cost_budget"]["configured"] is False
+    assert audit["run_cost_budget"]["max_cost_usd"] is None
+    assert audit["run_cost_budget"]["enforcement"] == (
+        "no_run_level_cost_limit"
+    )
+    assert audit["run_cost_budget"]["observed_total_cost_usd"] == 0.17
+    assert result.run_cost_budget.model_dump(mode="json") == (
+        audit["run_cost_budget"]
+    )
     assert audit["posthoc_evidence"]["verification"]["claims"][0][
         "state"
     ] == "no_candidate_source"
@@ -726,6 +736,27 @@ def test_cli_configures_openrouter_proxy_without_touching_no_proxy(monkeypatch):
     assert os.environ["https_proxy"] == "http://127.0.0.1:7890"
     assert os.environ["HTTPS_PROXY"] == "http://127.0.0.1:7890"
     assert os.environ["no_proxy"] == "leave-this-alone"
+
+
+def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
+    args = harness_cli.build_parser().parse_args(
+        [
+            "A topic",
+            "--max-cost-usd",
+            "0.28",
+            "--collection-max-cost-usd",
+            "0.09",
+            "--verification-cost-reserve-usd",
+            "0.10",
+        ]
+    )
+
+    assert args.max_cost_usd == 0.28
+    assert args.collection_max_cost_usd == 0.09
+    assert args.verification_cost_reserve_usd == 0.10
+    help_text = harness_cli.build_parser().format_help()
+    assert "run-level model-cost admission ceiling" in help_text
+    assert "collection-only sub-cap" in help_text
 
 
 def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):

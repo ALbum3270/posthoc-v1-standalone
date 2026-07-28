@@ -16,6 +16,7 @@ from openai import AsyncOpenAI
 from tavily import AsyncTavilyClient
 
 from open_deep_research.harness.loop import LoopBudget, LoopSettings
+from open_deep_research.harness.budget import RunCostBudget
 from open_deep_research.harness.disagreement import (
     DisagreementBudget,
     PosthocRetrievalBudget,
@@ -145,6 +146,9 @@ class ChecklistOpenAIModel:
         }
         return str(response["content"])
 
+    def estimate_cost_usd(self, prompt: str) -> float:
+        return self.envelope_model.estimate_cost_usd(prompt)
+
 
 @dataclass(frozen=True)
 class LiveClients:
@@ -225,41 +229,50 @@ def build_live_clients() -> LiveClients:
 
     openai = AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
     tavily = AsyncTavilyClient(api_key=tavily_api_key)
-    calibration = UsageCalibration()
     checklist_envelope = OpenAIEnvelopeModel(
         openai,
         decision_model_name,
-        calibration=calibration,
+        calibration=UsageCalibration(),
     )
     return LiveClients(
         openai=openai,
         tavily=tavily,
         checklist_model=ChecklistOpenAIModel(checklist_envelope),
         decision_model=OpenAIEnvelopeModel(
-            openai, decision_model_name, calibration=calibration
+            openai,
+            decision_model_name,
+            calibration=UsageCalibration(),
         ),
         note_model=OpenAIEnvelopeModel(
-            openai, note_model_name, calibration=calibration
+            openai,
+            note_model_name,
+            calibration=UsageCalibration(),
         ),
         write_model=OpenAIEnvelopeModel(
             openai,
             decision_model_name,
             json_mode=False,
-            calibration=calibration,
+            calibration=UsageCalibration(),
         ),
         claim_model=OpenAIEnvelopeModel(
-            openai, claim_model_name, calibration=calibration
+            openai,
+            claim_model_name,
+            calibration=UsageCalibration(),
         ),
         reconciliation_model=OpenAIEnvelopeModel(
             openai,
             reconciliation_model_name,
-            calibration=calibration,
+            calibration=UsageCalibration(),
         ),
         attribution_model=OpenAIEnvelopeModel(
-            openai, attribution_model_name, calibration=calibration
+            openai,
+            attribution_model_name,
+            calibration=UsageCalibration(),
         ),
         verification_model=OpenAIEnvelopeModel(
-            openai, verification_model_name, calibration=calibration
+            openai,
+            verification_model_name,
+            calibration=UsageCalibration(),
         ),
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,
@@ -279,7 +292,32 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("topic", help="research topic")
     parser.add_argument("--max-rounds", type=int, default=25)
     parser.add_argument("--max-tokens", type=int, default=100_000)
-    parser.add_argument("--max-cost-usd", type=float, default=10.0)
+    parser.add_argument(
+        "--max-cost-usd",
+        type=float,
+        default=10.0,
+        help=(
+            "run-level model-cost admission ceiling; actual provider cost is "
+            "known after each call, so one admitted call may overshoot"
+        ),
+    )
+    parser.add_argument(
+        "--collection-max-cost-usd",
+        type=float,
+        help=(
+            "optional collection-only sub-cap; defaults to the run-level "
+            "ceiling and cannot enlarge it"
+        ),
+    )
+    parser.add_argument(
+        "--verification-cost-reserve-usd",
+        type=float,
+        default=0.0,
+        help=(
+            "protect this portion of the run-level ceiling from all stages "
+            "before initial verification"
+        ),
+    )
     parser.add_argument(
         "--writing-token-reserve",
         type=int,
@@ -396,7 +434,11 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             budget=LoopBudget(
                 max_rounds=args.max_rounds,
                 max_tokens=args.max_tokens,
-                max_cost_usd=args.max_cost_usd,
+                max_cost_usd=(
+                    args.collection_max_cost_usd
+                    if args.collection_max_cost_usd is not None
+                    else args.max_cost_usd
+                ),
                 writing_token_reserve=args.writing_token_reserve,
                 writing_cost_reserve_usd=args.writing_cost_reserve_usd,
                 max_consecutive_malformed_actions=args.max_malformed_actions,
@@ -427,6 +469,12 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             posthoc_retrieval_budget=PosthocRetrievalBudget(
                 max_tokens=args.posthoc_retrieval_max_tokens,
                 max_cost_usd=args.posthoc_retrieval_max_cost_usd,
+            ),
+            run_cost_budget=RunCostBudget(
+                max_cost_usd=args.max_cost_usd,
+                verification_reserve_usd=(
+                    args.verification_cost_reserve_usd
+                ),
             ),
             model_names={
                 "decision": clients.decision_model_name,

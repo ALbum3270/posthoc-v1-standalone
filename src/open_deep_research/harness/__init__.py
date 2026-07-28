@@ -27,6 +27,13 @@ from open_deep_research.harness.checklist import (
     build_checklist_prompt,
     generate_checklist,
 )
+from open_deep_research.harness.budget import (
+    RunCostAdmissionDenied,
+    RunCostAdmissionRecord,
+    RunCostBudget,
+    RunCostBudgetAudit,
+    RunCostController,
+)
 from open_deep_research.harness.claims import (
     AtomicClaim,
     BlockDisposition,
@@ -319,6 +326,11 @@ __all__ = [
     "ResearchChecklist",
     "ResearchLedger",
     "ResearchNote",
+    "RunCostAdmissionDenied",
+    "RunCostAdmissionRecord",
+    "RunCostBudget",
+    "RunCostBudgetAudit",
+    "RunCostController",
     "ResolvedSourceSpan",
     "RenderedFootnote",
     "RenderedReport",
