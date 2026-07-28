@@ -7,20 +7,24 @@ follow collection. It is intentionally independent of any research topic.
 Changes to a frozen rule require a new contract version and re-evaluation of
 every frozen report fixture.
 
-## One report artifact
+## One report, with a mandatory evidence companion
 
-Each run has one reader-facing report, `<run_id>.md`, plus its audit JSON.
-There is no second report variant for automated judging. Human reviewers read
-the same annotated report that readers receive.
+Each complete run is a three-file bundle: one reader-facing report,
+`<run_id>.md`; its full verbatim evidence companion,
+`<run_id>.sources.md`; and its audit JSON. The sources file is not a second
+report variant for automated judging. Human reviewers read the same annotated
+report that readers receive and may follow any footnote to the companion.
 
 The canonical draft is retained inside the audit solely to reproduce
 `anchor_text` locations and diagnose deterministic rendering. It is not
 emitted as another report and is not a review surface.
 
-Evidence labels, the evidence summary, and mechanically generated footnotes
-must remain visible in the report. They may not be removed or weakened merely
-to improve aesthetics or reviewer scores. This rule protects readers from
-presentation pressure that would otherwise hide uncertainty.
+Evidence labels, the evidence summary, and a compact local definition for
+every mechanically generated footnote must remain visible in the report.
+Full, untruncated verbatim quotes may live in the mandatory companion but
+may not be removed or weakened merely to improve aesthetics or reviewer
+scores. This rule protects readers from presentation pressure that would
+otherwise hide uncertainty.
 
 ## Post-hoc attribution
 
@@ -145,11 +149,23 @@ renderer never reads it. `corroborated` remains reserved for support from at
 least two publisher-domain proxies.
 
 Footnote identifiers are assigned in deterministic anchor, claim, and source
-order. A definition represents one claim-source evidence relation, includes a
-mechanically located `source_quote`, and is globally unique. Inspected but
+order. A compact report definition identifies the publisher-domain proxy,
+semantic relation, original URL, and a stable link to the companion evidence
+anchor. That companion entry contains the full, untruncated, mechanically
+located `source_quote`; machine-only source IDs, character offsets, claim IDs,
+and repair details remain in the audit. Every report marker has exactly one
+local definition, every definition maps to exactly one companion anchor, and
+there are no orphan or duplicate definitions or anchors. Inspected but
 non-supporting sources remain in the audit instead of masquerading as ordinary
 supporting footnotes. Conflicting sources are displayed only with their
 supporting or contradicting relation made explicit.
+
+The companion carries the run ID and links back to the report. Its SHA-256 is
+written into both report and audit. Artifact publication stages all three
+files, publishes sources first and the digest-bearing report second, and
+publishes the audit last as the completion marker. An in-process publication
+failure rolls back already published siblings; after an abrupt process crash,
+a missing audit marker means the run is incomplete.
 
 ## Metrics and external proxy anchors
 

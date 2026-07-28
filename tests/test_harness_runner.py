@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import os
 from types import SimpleNamespace
@@ -9,7 +10,10 @@ import run_harness as harness_cli
 from open_deep_research.harness.claims import parse_markdown_blocks
 from open_deep_research.harness.loop import LoopBudget, StopReason
 from open_deep_research.harness.notes import source_id_for_url
-from open_deep_research.harness.runner import run_harness
+from open_deep_research.harness.runner import (
+    _publish_artifact_bundle,
+    run_harness,
+)
 from open_deep_research.harness.verify import ClaimEvidenceState
 
 
@@ -349,11 +353,19 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     ]
     assert result.loop_result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
     assert result.report_path == tmp_path / "fixed-run.md"
+    assert result.sources_path == tmp_path / "fixed-run.sources.md"
     assert result.audit_path == tmp_path / "fixed-run.json"
     final_markdown = result.report_path.read_text(encoding="utf-8")
+    sources_markdown = result.sources_path.read_text(encoding="utf-8")
     assert final_markdown == result.rendered_report.markdown
-    assert final_markdown.startswith("> 证据摘要：")
-    assert "正文块评估 2/2" in final_markdown.splitlines()[0]
+    assert final_markdown.startswith("> 证据包：")
+    assert (
+        "缺失逐字证据、提交标记或摘要不符则证据包不完整"
+        in final_markdown.splitlines()[0]
+    )
+    assert "正文块评估 2/2" in final_markdown.splitlines()[1]
+    assert "Run ID：`fixed-run`" in sources_markdown
+    assert "[fixed-run.md](fixed-run.md)" in sources_markdown
     assert (
         "> 域名代理集中度：没有正式 claim–source 支持关系；"
         "域名仅作发布方代理。"
@@ -478,6 +490,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         not in audit["posthoc_evidence"]
     )
     assert "markdown" not in audit["posthoc_evidence"]["rendering"]
+    assert "sources_markdown" not in audit["posthoc_evidence"]["rendering"]
     assert audit["posthoc_evidence"]["rendering"]["summary"][
         "settled_without_located_evidence"
     ] == 1
@@ -500,7 +513,17 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["models"]["reconciliation"] == "coverage-model"
     assert audit["artifacts"] == {
         "audit": "fixed-run.json",
+        "bundle_complete": True,
+        "commit_marker": "fixed-run.json",
+        "publication_order": ["sources", "report", "audit"],
         "report": "fixed-run.md",
+        "report_sha256": hashlib.sha256(
+            final_markdown.encode("utf-8")
+        ).hexdigest(),
+        "sources": "fixed-run.sources.md",
+        "sources_sha256": hashlib.sha256(
+            sources_markdown.encode("utf-8")
+        ).hexdigest(),
     }
 
 
@@ -554,6 +577,7 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     )
 
     markdown = result.report_path.read_text(encoding="utf-8")
+    sources_markdown = result.sources_path.read_text(encoding="utf-8")
     assert "The model wrote this report.[^1]" in markdown
     assert "〔单一发布方支持〕" not in markdown
     assert (
@@ -561,8 +585,19 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
         "单一发布方提供了可定位支持引文"
     ) in markdown
     assert markdown.count("[^1]:") == 1
-    assert '"quote":"ExactSourceEvidence 2026"' in markdown
+    assert "ExactSourceEvidence 2026" not in markdown
+    assert "ExactSourceEvidence 2026" in sources_markdown
     assert "exact source evidence 2026." not in markdown
+    assert "exact source evidence 2026." not in sources_markdown
+    assert (
+        "[查看逐字证据]"
+        "(verified-run.sources.md#evidence-1)"
+        in markdown
+    )
+    assert '<a id="evidence-1"></a>' in sources_markdown
+    assert "source_id" not in sources_markdown
+    assert "start_char" not in sources_markdown
+    assert "end_char" not in sources_markdown
     assert result.verification.claims[0].relations[0].model_quote == (
         "exact source evidence 2026."
     )
@@ -577,6 +612,48 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     assert audit["posthoc_evidence"]["rendering"]["footnotes"][0][
         "source_quote"
     ] == "ExactSourceEvidence 2026"
+    assert audit["artifacts"]["sources_sha256"] == hashlib.sha256(
+        result.sources_path.read_bytes()
+    ).hexdigest()
+
+
+def test_artifact_bundle_rolls_back_when_report_publish_fails(
+    tmp_path,
+    monkeypatch,
+):
+    report_path = tmp_path / "run.md"
+    sources_path = tmp_path / "run.sources.md"
+    audit_path = tmp_path / "run.json"
+    real_replace = os.replace
+    calls = 0
+
+    def fail_on_report(source, destination):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("simulated report publish failure")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(
+        "open_deep_research.harness.runner.os.replace",
+        fail_on_report,
+    )
+
+    with pytest.raises(OSError, match="simulated report publish failure"):
+        _publish_artifact_bundle(
+            destination=tmp_path,
+            report_path=report_path,
+            sources_path=sources_path,
+            audit_path=audit_path,
+            report_markdown="report",
+            sources_markdown="sources",
+            audit_json="audit",
+        )
+
+    assert not sources_path.exists()
+    assert not report_path.exists()
+    assert not audit_path.exists()
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_cli_configures_openrouter_proxy_without_touching_no_proxy(monkeypatch):

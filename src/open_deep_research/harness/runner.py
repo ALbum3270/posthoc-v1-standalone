@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
+import shutil
+import tempfile
 import uuid
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -105,6 +109,7 @@ class HarnessRunResult(BaseModel):
 
     run_id: str
     report_path: Path
+    sources_path: Path
     audit_path: Path
     report: ReportDraft
     rendered_report: RenderedReport
@@ -133,6 +138,68 @@ def _normalize_run_id(run_id: str | None) -> str:
             "letters, numbers, underscores, or hyphens"
         )
     return candidate
+
+
+def _publish_artifact_bundle(
+    *,
+    destination: Path,
+    report_path: Path,
+    sources_path: Path,
+    audit_path: Path,
+    report_markdown: str,
+    sources_markdown: str,
+    audit_json: str,
+) -> None:
+    """Stage all files and publish the audit commit marker last.
+
+    A flat set of files cannot be renamed atomically as one operation. The
+    audit file is therefore the commit marker: consumers must treat a run
+    without it as incomplete. Best-effort rollback removes already published
+    siblings if a later rename fails.
+    """
+
+    destination.mkdir(parents=True, exist_ok=True)
+    final_paths = (sources_path, report_path, audit_path)
+    existing = tuple(path for path in final_paths if path.exists())
+    if existing:
+        raise FileExistsError(
+            "refusing to overwrite an existing artifact bundle: "
+            + ", ".join(path.name for path in existing)
+        )
+    staging = Path(
+        tempfile.mkdtemp(
+            prefix=f".{report_path.stem}-staging-",
+            dir=destination,
+        )
+    )
+    staged_sources = staging / sources_path.name
+    staged_report = staging / report_path.name
+    staged_audit = staging / audit_path.name
+    published: list[Path] = []
+    try:
+        # Required construction and publication order: evidence first, then
+        # its digest-bearing report, and the audit commit marker last.
+        staged_sources.write_text(sources_markdown, encoding="utf-8")
+        staged_report.write_text(report_markdown, encoding="utf-8")
+        staged_audit.write_text(audit_json, encoding="utf-8")
+        for staged, final in (
+            (staged_sources, sources_path),
+            (staged_report, report_path),
+            (staged_audit, audit_path),
+        ):
+            os.replace(staged, final)
+            published.append(final)
+    except BaseException:
+        for path in reversed(published):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                # The absent audit commit marker still exposes an incomplete
+                # bundle if process-level cleanup cannot finish.
+                pass
+        raise
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
 
 def _usage_from_model(model_client: Any) -> UsageRecord:
@@ -226,6 +293,9 @@ async def run_harness(
     """Run collection, drafting, post-hoc evidence, and artifact rendering."""
 
     normalized_run_id = _normalize_run_id(run_id)
+    report_filename = f"{normalized_run_id}.md"
+    sources_filename = f"{normalized_run_id}.sources.md"
+    audit_filename = f"{normalized_run_id}.json"
     ledger = ResearchLedger(research_id=normalized_run_id, topic=topic.strip())
     active_budget = budget or LoopBudget()
     if verification_required_independent_sources is not None:
@@ -438,6 +508,10 @@ async def run_harness(
         disagreement_attempted_count=len(
             disagreement.disagreement_search_attempted
         ),
+        run_id=normalized_run_id,
+        report_filename=report_filename,
+        sources_filename=sources_filename,
+        audit_filename=audit_filename,
     )
 
     writing_usage = UsageRecord(
@@ -486,9 +560,12 @@ async def run_harness(
     )
 
     destination = Path(output_dir)
-    destination.mkdir(parents=True, exist_ok=True)
-    report_path = destination / f"{normalized_run_id}.md"
-    audit_path = destination / f"{normalized_run_id}.json"
+    report_path = destination / report_filename
+    sources_path = destination / sources_filename
+    audit_path = destination / audit_filename
+    report_sha256 = hashlib.sha256(
+        rendered_report.markdown.encode("utf-8")
+    ).hexdigest()
     audit = {
         "run_id": normalized_run_id,
         "topic": loop_result.checklist.topic,
@@ -539,7 +616,7 @@ async def run_harness(
             ),
             "rendering": rendered_report.model_dump(
                 mode="json",
-                exclude={"markdown"},
+                exclude={"markdown", "sources_markdown"},
             ),
             "corroboration_target_for_external_claims": (
                 corroboration_target_for_external_claims
@@ -550,18 +627,32 @@ async def run_harness(
         "canonical_draft": report.canonical_draft,
         "artifacts": {
             "report": report_path.name,
+            "report_sha256": report_sha256,
+            "sources": sources_path.name,
+            "sources_sha256": rendered_report.sources_sha256,
             "audit": audit_path.name,
+            "commit_marker": audit_path.name,
+            "bundle_complete": True,
+            "publication_order": ["sources", "report", "audit"],
         },
     }
 
-    report_path.write_text(rendered_report.markdown, encoding="utf-8")
-    audit_path.write_text(
-        json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    audit_json = (
+        json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    )
+    _publish_artifact_bundle(
+        destination=destination,
+        report_path=report_path,
+        sources_path=sources_path,
+        audit_path=audit_path,
+        report_markdown=rendered_report.markdown,
+        sources_markdown=rendered_report.sources_markdown,
+        audit_json=audit_json,
     )
     return HarnessRunResult(
         run_id=normalized_run_id,
         report_path=report_path,
+        sources_path=sources_path,
         audit_path=audit_path,
         report=report,
         rendered_report=rendered_report,

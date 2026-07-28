@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections import defaultdict
@@ -62,6 +63,52 @@ class RenderedFootnote(BaseModel):
     key: EvidenceRegistryKey
     source_quote: str
     url: str
+    publisher_domain_proxy: str
+    semantic_verdicts: tuple[VerificationVerdict, ...]
+    claim_ids: tuple[str, ...]
+    claim_anchors: tuple[str, ...]
+
+
+class EvidenceBundleValidation(BaseModel):
+    """Mechanical proof that report references and source entries are bijective."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    footnote_count: int = Field(ge=0)
+    local_definition_count: int = Field(ge=0)
+    source_anchor_count: int = Field(ge=0)
+    every_marker_has_local_definition: bool
+    every_definition_has_marker: bool
+    every_definition_links_to_source_anchor: bool
+    every_definition_has_unique_source_anchor: bool
+    every_source_anchor_has_definition: bool
+    every_source_entry_contains_full_quote: bool
+    no_duplicate_definitions: bool
+    no_duplicate_source_anchors: bool
+    sources_sha256_matches: bool
+
+    @model_validator(mode="after")
+    def _all_guarantees_hold(self) -> EvidenceBundleValidation:
+        guarantees = (
+            self.every_marker_has_local_definition,
+            self.every_definition_has_marker,
+            self.every_definition_links_to_source_anchor,
+            self.every_definition_has_unique_source_anchor,
+            self.every_source_anchor_has_definition,
+            self.every_source_entry_contains_full_quote,
+            self.no_duplicate_definitions,
+            self.no_duplicate_source_anchors,
+            self.sources_sha256_matches,
+        )
+        if not all(guarantees):
+            raise ValueError("rendered evidence bundle failed validation")
+        if not (
+            self.footnote_count
+            == self.local_definition_count
+            == self.source_anchor_count
+        ):
+            raise ValueError("evidence bundle counts must agree")
+        return self
 
 
 class ClaimRenderAnnotation(BaseModel):
@@ -139,6 +186,13 @@ class RenderedReport(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     markdown: str
+    sources_markdown: str
+    report_filename: str
+    sources_filename: str
+    audit_filename: str
+    sources_sha256: str
+    evidence_bundle_line: str
+    bundle_validation: EvidenceBundleValidation
     evidence_summary_line: str
     evidence_legend_line: str
     checklist_coverage_line: str
@@ -149,6 +203,147 @@ class RenderedReport(BaseModel):
     removed_model_footnote_definitions: int = Field(ge=0)
     removed_model_footnote_markers: int = Field(ge=0)
     unanchored_claim_ids: tuple[str, ...] = ()
+
+
+_SOURCE_ANCHOR = re.compile(r'^<a id="evidence-(\d+)"></a>$', re.MULTILINE)
+
+
+def _verdict_label(verdicts: Sequence[VerificationVerdict]) -> str:
+    labels = {
+        VerificationVerdict.SUPPORTS: "支持",
+        VerificationVerdict.CONTRADICTS: "反驳",
+    }
+    return "、".join(
+        labels[verdict]
+        for verdict in verdicts
+        if verdict in labels
+    )
+
+
+def _quote_fence(text: str) -> str:
+    runs = [len(match.group(0)) for match in re.finditer(r"~+", text)]
+    return "~" * max(3, (max(runs) + 1) if runs else 3)
+
+
+def _render_sources_document(
+    footnotes: Sequence[RenderedFootnote],
+    *,
+    run_id: str,
+    report_filename: str,
+) -> str:
+    lines = [
+        "# 逐字证据",
+        "",
+        f"- Run ID：`{run_id}`",
+        f"- 对应报告：[{report_filename}]({report_filename})",
+        "- 说明：域名仅作发布方代理，不代表机构独立性认定。",
+    ]
+    for footnote in footnotes:
+        lines.extend(
+            [
+                "",
+                f'<a id="evidence-{footnote.number}"></a>',
+                f"## 证据 {footnote.number}",
+                "",
+                f"- 域名代理：`{footnote.publisher_domain_proxy}`",
+                f"- 关系：{_verdict_label(footnote.semantic_verdicts)}",
+                f"- 原文：[{footnote.url}](<{footnote.url}>)",
+            ]
+        )
+        if len(footnote.claim_anchors) > 1:
+            lines.extend(["- 用于多个正文锚点："])
+            for anchor in footnote.claim_anchors:
+                lines.append(
+                    "  - "
+                    + json.dumps(anchor, ensure_ascii=False)
+                )
+        fence = _quote_fence(footnote.source_quote)
+        lines.extend(
+            [
+                "",
+                "完整逐字引文：",
+                "",
+                f"{fence}text",
+                footnote.source_quote,
+                fence,
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _validate_evidence_bundle(
+    report_markdown: str,
+    sources_markdown: str,
+    footnotes: Sequence[RenderedFootnote],
+    *,
+    sources_filename: str,
+    sources_sha256: str,
+) -> EvidenceBundleValidation:
+    definitions = [
+        match.group(1)
+        for line in report_markdown.splitlines()
+        if (match := _FOOTNOTE_DEFINITION.match(line)) is not None
+    ]
+    markers = _FOOTNOTE_MARKER.findall(
+        "".join(
+            line
+            for line in report_markdown.splitlines(keepends=True)
+            if _FOOTNOTE_DEFINITION.match(line) is None
+        )
+    )
+    anchors = _SOURCE_ANCHOR.findall(sources_markdown)
+    expected = {str(footnote.number) for footnote in footnotes}
+    definition_set = set(definitions)
+    anchor_set = set(anchors)
+    links_complete = True
+    quote_complete = True
+    anchor_matches = list(_SOURCE_ANCHOR.finditer(sources_markdown))
+    sections: dict[str, str] = {}
+    for index, match in enumerate(anchor_matches):
+        end = (
+            anchor_matches[index + 1].start()
+            if index + 1 < len(anchor_matches)
+            else len(sources_markdown)
+        )
+        sections[match.group(1)] = sources_markdown[match.start() : end]
+    for footnote in footnotes:
+        section = sections.get(str(footnote.number), "")
+        if footnote.source_quote not in section:
+            quote_complete = False
+            break
+        link = (
+            f"[查看逐字证据]"
+            f"({sources_filename}#evidence-{footnote.number})"
+        )
+        definition_line = next(
+            (
+                line
+                for line in report_markdown.splitlines()
+                if line.startswith(f"[^{footnote.number}]:")
+            ),
+            "",
+        )
+        if link not in definition_line:
+            links_complete = False
+    actual_sha256 = hashlib.sha256(
+        sources_markdown.encode("utf-8")
+    ).hexdigest()
+    return EvidenceBundleValidation(
+        footnote_count=len(footnotes),
+        local_definition_count=len(definitions),
+        source_anchor_count=len(anchors),
+        every_marker_has_local_definition=set(markers) <= definition_set,
+        every_definition_has_marker=definition_set <= set(markers),
+        every_definition_links_to_source_anchor=links_complete,
+        every_definition_has_unique_source_anchor=(
+            definition_set == anchor_set == expected
+        ),
+        every_source_anchor_has_definition=anchor_set <= definition_set,
+        every_source_entry_contains_full_quote=quote_complete,
+        no_duplicate_definitions=len(definitions) == len(definition_set),
+        no_duplicate_source_anchors=len(anchors) == len(anchor_set),
+        sources_sha256_matches=actual_sha256 == sources_sha256,
+    )
 
 
 def _definition_spans(markdown: str) -> list[tuple[int, int]]:
@@ -508,6 +703,10 @@ def render_verified_report(
     checklist_coverage: ChecklistCoverageSummary | None = None,
     domain_proxy_concentration: DomainProxyConcentrationAudit | None = None,
     disagreement_attempted_count: int | None = None,
+    run_id: str = "standalone",
+    report_filename: str = "report.md",
+    sources_filename: str = "report.sources.md",
+    audit_filename: str = "report.json",
 ) -> RenderedReport:
     """Insert code-owned evidence markers without rewriting narrative text."""
 
@@ -517,6 +716,19 @@ def render_verified_report(
         raise ValueError(
             "settled_without_located_evidence must be non-negative"
         )
+    for label, filename in (
+        ("report_filename", report_filename),
+        ("sources_filename", sources_filename),
+        ("audit_filename", audit_filename),
+    ):
+        if (
+            not filename
+            or filename != filename.strip()
+            or "/" in filename
+            or "\\" in filename
+            or filename in {".", ".."}
+        ):
+            raise ValueError(f"{label} must be one relative filename")
 
     ordered = sorted(
         verification.claims,
@@ -563,6 +775,10 @@ def render_verified_report(
             )
             existing = footnote_by_key.get(key)
             if existing is None:
+                if relation.semantic_verdict is None:
+                    raise AssertionError(
+                        "renderable relation requires a semantic verdict"
+                    )
                 existing = RenderedFootnote(
                     number=len(footnote_by_key) + 1,
                     key=EvidenceRegistryKey(
@@ -572,15 +788,51 @@ def render_verified_report(
                     ),
                     source_quote=relation.source_quote,
                     url=relation.url,
+                    publisher_domain_proxy=(
+                        relation.publisher_domain_proxy
+                    ),
+                    semantic_verdicts=(relation.semantic_verdict,),
+                    claim_ids=(claim.claim_id,),
+                    claim_anchors=(claim.anchor_text,),
                 )
                 footnote_by_key[key] = existing
             elif (
                 existing.source_quote != relation.source_quote
                 or existing.url != relation.url
+                or existing.publisher_domain_proxy
+                != relation.publisher_domain_proxy
             ):
                 raise ValueError(
                     "one evidence registry key resolved to conflicting content"
                 )
+            else:
+                if relation.semantic_verdict is None:
+                    raise AssertionError(
+                        "renderable relation requires a semantic verdict"
+                    )
+                existing = existing.model_copy(
+                    update={
+                        "semantic_verdicts": tuple(
+                            dict.fromkeys(
+                                (
+                                    *existing.semantic_verdicts,
+                                    relation.semantic_verdict,
+                                )
+                            )
+                        ),
+                        "claim_ids": tuple(
+                            dict.fromkeys(
+                                (*existing.claim_ids, claim.claim_id)
+                            )
+                        ),
+                        "claim_anchors": tuple(
+                            dict.fromkeys(
+                                (*existing.claim_anchors, claim.anchor_text)
+                            )
+                        ),
+                    }
+                )
+                footnote_by_key[key] = existing
             relation_numbers.append((relation, existing.number))
 
         warning = _warning_label(entry)
@@ -665,25 +917,35 @@ def render_verified_report(
     footnotes = tuple(
         sorted(footnote_by_key.values(), key=lambda footnote: footnote.number)
     )
-    header_lines = [summary_line]
+    sources_markdown = _render_sources_document(
+        footnotes,
+        run_id=run_id,
+        report_filename=report_filename,
+    )
+    sources_sha256 = hashlib.sha256(
+        sources_markdown.encode("utf-8")
+    ).hexdigest()
+    bundle_line = (
+        "> 证据包：完整逐字证据见 "
+        f"[{sources_filename}]({sources_filename})；"
+        f"SHA-256 `{sources_sha256}`。审计提交标记见 "
+        f"[{audit_filename}]({audit_filename})；"
+        "缺失逐字证据、提交标记或摘要不符则证据包不完整。"
+    )
+    header_lines = [bundle_line, summary_line]
     if concentration_line is not None:
         header_lines.append(concentration_line)
     header_lines.extend([_EVIDENCE_LEGEND_LINE, checklist_line])
     rendered = "\n".join(header_lines) + "\n\n" + body
     if footnotes:
         definitions = [
-            f"[^{footnote.number}]: "
-            + json.dumps(
-                {
-                    "end_char": footnote.key.end_char,
-                    "quote": footnote.source_quote,
-                    "source_id": footnote.key.source_id,
-                    "start_char": footnote.key.start_char,
-                    "url": footnote.url,
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
+            (
+                f"[^{footnote.number}]: "
+                f"域名代理：`{footnote.publisher_domain_proxy}` · "
+                f"关系：{_verdict_label(footnote.semantic_verdicts)} · "
+                "[查看逐字证据]"
+                f"({sources_filename}#evidence-{footnote.number}) · "
+                f"[原文](<{footnote.url}>)"
             )
             for footnote in footnotes
         ]
@@ -695,8 +957,22 @@ def render_verified_report(
             + "\n".join(definitions)
             + "\n"
         )
+    bundle_validation = _validate_evidence_bundle(
+        rendered,
+        sources_markdown,
+        footnotes,
+        sources_filename=sources_filename,
+        sources_sha256=sources_sha256,
+    )
     return RenderedReport(
         markdown=rendered,
+        sources_markdown=sources_markdown,
+        report_filename=report_filename,
+        sources_filename=sources_filename,
+        audit_filename=audit_filename,
+        sources_sha256=sources_sha256,
+        evidence_bundle_line=bundle_line,
+        bundle_validation=bundle_validation,
         evidence_summary_line=summary_line,
         evidence_legend_line=_EVIDENCE_LEGEND_LINE,
         checklist_coverage_line=checklist_line,

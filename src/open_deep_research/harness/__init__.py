@@ -146,6 +146,7 @@ from open_deep_research.harness.notes import (
 )
 from open_deep_research.harness.render import (
     ClaimRenderAnnotation,
+    EvidenceBundleValidation,
     EvidenceRegistryKey,
     EvidenceSummary,
     RenderedFootnote,
@@ -244,6 +245,7 @@ __all__ = [
     "DisagreementSelection",
     "DisagreementStopReason",
     "EvidenceRegistryKey",
+    "EvidenceBundleValidation",
     "EvidenceGapBudget",
     "EvidenceGapCallUsage",
     "EvidenceGapInformationAudit",

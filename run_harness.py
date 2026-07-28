@@ -449,6 +449,7 @@ def main() -> int:
     load_dotenv(Path(__file__).resolve().parent / ".env")
     result = asyncio.run(_run(args))
     print(result.report_path)
+    print(result.sources_path)
     print(result.audit_path)
     return 0
 

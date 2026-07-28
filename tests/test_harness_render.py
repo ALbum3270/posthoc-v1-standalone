@@ -21,8 +21,6 @@ from open_deep_research.harness.verify import (
     VerificationVerdict,
     VerifiedSourceRelation,
 )
-from open_deep_research.harness.write import parse_report_citations
-
 _FIXTURE_PATH = (
     Path(__file__).parent / "fixtures" / "harness_posthoc_b1407b.json"
 )
@@ -152,12 +150,31 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
     assert rendered.summary.single_publisher_support == 2
     assert rendered.summary.multi_publisher_support == 0
     assert rendered.summary.zero_publisher_support == 0
-    assert "Exact source-authored evidence." in rendered.markdown
+    assert "Exact source-authored evidence." not in rendered.markdown
+    assert "Exact source-authored evidence." in rendered.sources_markdown
     assert "MODEL WORDING MUST NEVER BE RENDERED" not in rendered.markdown
-
-    parsed = parse_report_citations(rendered.markdown)
-    assert {citation.quote for citation in parsed.citations} == {
-        "Exact source-authored evidence."
+    assert (
+        "MODEL WORDING MUST NEVER BE RENDERED"
+        not in rendered.sources_markdown
+    )
+    assert (
+        "[查看逐字证据](report.sources.md#evidence-1)"
+        in rendered.markdown
+    )
+    assert '<a id="evidence-1"></a>' in rendered.sources_markdown
+    assert rendered.bundle_validation.model_dump() == {
+        "every_definition_has_unique_source_anchor": True,
+        "every_definition_has_marker": True,
+        "every_definition_links_to_source_anchor": True,
+        "every_marker_has_local_definition": True,
+        "every_source_anchor_has_definition": True,
+        "every_source_entry_contains_full_quote": True,
+        "footnote_count": 1,
+        "local_definition_count": 1,
+        "no_duplicate_definitions": True,
+        "no_duplicate_source_anchors": True,
+        "source_anchor_count": 1,
+        "sources_sha256_matches": True,
     }
 
 
@@ -190,6 +207,7 @@ def test_renderer_does_not_read_corroboration_target() -> None:
     second = render_verified_report(draft, target_two)
 
     assert first.markdown == second.markdown
+    assert first.sources_markdown == second.sources_markdown
     assert first.evidence_summary_line == second.evidence_summary_line
     assert "〔单一发布方支持〕" not in first.markdown
 

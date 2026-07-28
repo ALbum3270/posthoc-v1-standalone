@@ -269,9 +269,11 @@ def test_atomic_v1_examples_are_unique_verbatim_report_anchors() -> None:
 def test_contract_has_one_annotated_report_and_no_evaluation_variant() -> None:
     contract = _CONTRACT_PATH.read_text(encoding="utf-8")
 
-    assert "one reader-facing report, `<run_id>.md`" in contract
-    assert "plus its audit JSON" in contract
-    assert "There is no second report variant" in contract
+    assert "one reader-facing report" in contract
+    assert "`<run_id>.sources.md`" in contract
+    assert "and its audit JSON" in contract
+    assert "not a second\nreport variant" in contract
+    assert "audit last as the completion marker" in contract
     assert "report.evaluation.md" not in contract
     assert "may not be removed or weakened" in contract
     assert "canonical narrative draft without citations" in contract
