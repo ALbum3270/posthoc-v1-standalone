@@ -23,6 +23,7 @@ from open_deep_research.harness.claims import (
 from open_deep_research.harness.evidence_gap import (
     EvidenceGapBudget,
     EvidenceGapStopReason,
+    _merge_verifications,
     run_evidence_gap_round,
 )
 from open_deep_research.harness.ledger import ResearchLedger
@@ -250,16 +251,6 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
                     "claim_id": claim.claim_id,
                     "verdict": "supports",
                     "quote": "The event occurred.",
-                    "explanation": "direct statement",
-                }
-            ]
-        },
-        {
-            "results": [
-                {
-                    "claim_id": claim.claim_id,
-                    "verdict": "supports",
-                    "quote": "The event occurred.",
                     "explanation": "independent statement",
                 }
             ]
@@ -298,12 +289,175 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
         ClaimEvidenceState.CORROBORATED
     )
     assert result.final_verification.claims[0].publisher_domain_proxy_count == 2
+    assert len(verifier.prompts) == 1
+    assert "https://second.example/article" in verifier.prompts[0]
+    assert "https://first.example/article" not in verifier.prompts[0]
+    assert result.verification_merge is not None
+    assert result.verification_merge.initial_completed_relation_count == 1
+    assert result.verification_merge.incremental_completed_relation_count == 1
+    assert result.verification_merge.final_completed_relation_count == 2
+    assert result.verification_merge.preserved_initial_completed_relation_count == 1
+    assert result.verification_merge.completed_relation_count_non_decreasing is True
     assert result.claim_registry_unchanged is True
     assert ledger.source_cache.keys() == {
         "https://first.example/article",
         "https://second.example/article",
     }
     assert ledger.evidence_gap_history[0].event == "cache_review"
+
+
+def test_budget_failure_for_new_relation_preserves_completed_initial_verdict():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    first = _note(
+        ledger,
+        "https://first.example/article",
+        "The event occurred.",
+    )
+    second = _note(
+        ledger,
+        "https://second.example/article",
+        "The event occurred.",
+    )
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=_candidate(first),
+        state=ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+    )
+    gap_model = ScriptedModel(
+        {
+            "claims": [
+                {
+                    "claim_id": claim.claim_id,
+                    "cached_candidates": [
+                        {
+                            "note_id": second.note_id,
+                            "source_id": second.source_id,
+                            "independent_from_existing_publishers": True,
+                            "publisher_identity": "second",
+                            "independence_rationale": "different publisher",
+                        }
+                    ],
+                    "needs_web_search": False,
+                    "queries": [],
+                }
+            ]
+        }
+    )
+    attribution_model = ScriptedModel(
+        {
+            "action": "attribute",
+            "claims": [
+                {
+                    "claim_id": claim.claim_id,
+                    "candidates": [
+                        {
+                            "note_id": second.note_id,
+                            "source_id": second.source_id,
+                            "inherited_from_claim_id": None,
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    verifier = ScriptedModel()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=attribution_model,
+            verification_model=verifier,
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=10,
+                max_cost_usd=1,
+                max_search_queries=0,
+                max_reads=0,
+            ),
+            required_independent_sources={claim.claim_id: 2},
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    relations = result.final_verification.claims[0].relations
+    assert result.stop_reason == EvidenceGapStopReason.BUDGET_EXHAUSTED
+    assert verifier.prompts == []
+    assert [relation.status for relation in relations] == [
+        VerificationRecordStatus.COMPLETED,
+        VerificationRecordStatus.VERIFICATION_NOT_RUN_BUDGET,
+    ]
+    assert relations[0].semantic_verdict == VerificationVerdict.SUPPORTS
+    assert result.final_verification.claims[0].state == (
+        ClaimEvidenceState.VERIFICATION_INCOMPLETE
+    )
+    assert result.verification_merge is not None
+    assert result.verification_merge.initial_completed_relation_count == 1
+    assert result.verification_merge.final_completed_relation_count == 1
+    assert result.verification_merge.completed_relation_count_non_decreasing is True
+
+
+def test_same_relation_budget_failure_cannot_replace_completed_verdict():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    note = _note(
+        ledger,
+        "https://source.example/article",
+        "The event occurred.",
+    )
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=_candidate(note),
+        state=ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+    )
+    failed_relation = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id=note.source_id,
+        url=note.url,
+        publisher_domain_proxy=note.publisher,
+        candidate_note_ids=(note.note_id,),
+        candidate_source_ids=(note.source_id,),
+        status=VerificationRecordStatus.VERIFICATION_NOT_RUN_BUDGET,
+        error="budget exhausted",
+    )
+    refreshed = VerificationResult(
+        claims=(
+            ClaimVerification(
+                claim=claim,
+                state=ClaimEvidenceState.VERIFICATION_NOT_RUN,
+                required_independent_sources=2,
+                relations=(failed_relation,),
+                formal_supporting_evidence_count=0,
+                publisher_domain_proxy_count=0,
+            ),
+        )
+    )
+
+    merged, audit = _merge_verifications(
+        initial_verification,
+        refreshed,
+        merged_attribution=initial_attribution,
+    )
+
+    relation = merged.claims[0].relations[0]
+    assert relation.status == VerificationRecordStatus.COMPLETED
+    assert relation.semantic_verdict == VerificationVerdict.SUPPORTS
+    assert audit.initial_completed_relation_count == 1
+    assert audit.final_completed_relation_count == 1
+    assert len(audit.protected_completed_relations) == 1
+    assert audit.protected_completed_relations[0].attempted_status == (
+        VerificationRecordStatus.VERIFICATION_NOT_RUN_BUDGET
+    )
 
 
 class SearchAndReadNetwork:

@@ -52,8 +52,11 @@ from open_deep_research.harness.verify import (
     ClaimVerification,
     VerificationBudget,
     VerificationModelClient,
+    VerificationRecordStatus,
     VerificationResult,
     VerificationSettings,
+    VerifiedSourceRelation,
+    build_claim_verification,
     verify_attributions,
 )
 
@@ -159,6 +162,34 @@ class GapSourceAcquisition(BaseModel):
     error: str | None = None
 
 
+class ProtectedCompletedRelation(BaseModel):
+    """A rejected attempt to replace an already completed source verdict."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str
+    source_id: str
+    url: str
+    attempted_status: VerificationRecordStatus
+    reason: str
+
+
+class VerificationMergeAudit(BaseModel):
+    """Mechanical proof that an evidence-gap merge retained prior work."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    initial_relation_count: int = Field(ge=0)
+    initial_completed_relation_count: int = Field(ge=0)
+    incremental_relation_count: int = Field(ge=0)
+    incremental_completed_relation_count: int = Field(ge=0)
+    final_relation_count: int = Field(ge=0)
+    final_completed_relation_count: int = Field(ge=0)
+    preserved_initial_completed_relation_count: int = Field(ge=0)
+    completed_relation_count_non_decreasing: bool
+    protected_completed_relations: tuple[ProtectedCompletedRelation, ...] = ()
+
+
 class EvidenceGapResult(BaseModel):
     """Audit of one non-iterative gap pass plus code-owned final registries."""
 
@@ -189,6 +220,7 @@ class EvidenceGapResult(BaseModel):
         "syndicated_or_republished_content_can_be_missed",
         "final_counts_still_use_publisher_domain_proxy",
     )
+    verification_merge: VerificationMergeAudit | None = None
     final_attribution: AttributionResult = Field(exclude=True)
     final_verification: VerificationResult = Field(exclude=True)
 
@@ -972,24 +1004,190 @@ def _merge_attributions(
     )
 
 
+def _relation_identity(
+    relation: VerifiedSourceRelation,
+) -> tuple[str, str, str]:
+    return (relation.claim_id, relation.source_id, relation.url)
+
+
+def _candidate_identity(
+    claim_id: str,
+    candidate: CandidateSource,
+) -> tuple[str, str, str]:
+    return (claim_id, candidate.source_id, candidate.url)
+
+
+def _completed_relation_identities(
+    verification: VerificationResult,
+) -> set[tuple[str, str, str]]:
+    return {
+        _relation_identity(relation)
+        for claim in verification.claims
+        for relation in claim.relations
+        if relation.status is VerificationRecordStatus.COMPLETED
+    }
+
+
+def _relation_count(verification: VerificationResult) -> int:
+    return sum(len(claim.relations) for claim in verification.claims)
+
+
+def _unchanged_merge_audit(
+    verification: VerificationResult,
+) -> VerificationMergeAudit:
+    completed = len(_completed_relation_identities(verification))
+    relations = _relation_count(verification)
+    return VerificationMergeAudit(
+        initial_relation_count=relations,
+        initial_completed_relation_count=completed,
+        incremental_relation_count=0,
+        incremental_completed_relation_count=0,
+        final_relation_count=relations,
+        final_completed_relation_count=completed,
+        preserved_initial_completed_relation_count=completed,
+        completed_relation_count_non_decreasing=True,
+    )
+
+
+def _incremental_attributions(
+    attributions: Sequence[ClaimAttribution],
+    *,
+    initial_verification: VerificationResult,
+) -> tuple[ClaimAttribution, ...]:
+    """Return only claim/source identities absent from initial verification.
+
+    Claims and cached source text are frozen during the gap pass. Additional
+    note IDs for an already checked claim/source identity therefore do not
+    change the verifier input and must not trigger a duplicate model call.
+    """
+
+    existing = {
+        _relation_identity(relation)
+        for claim in initial_verification.claims
+        for relation in claim.relations
+    }
+    incremental: list[ClaimAttribution] = []
+    for attribution in attributions:
+        candidates = tuple(
+            candidate
+            for candidate in attribution.candidates
+            if _candidate_identity(attribution.claim.claim_id, candidate)
+            not in existing
+        )
+        if not candidates:
+            continue
+        incremental.append(
+            ClaimAttribution(
+                claim=attribution.claim,
+                status=(
+                    AttributionStatus.CANDIDATE_SOURCES_WITH_ERRORS
+                    if attribution.errors
+                    else AttributionStatus.CANDIDATE_SOURCES
+                ),
+                candidates=candidates,
+                errors=attribution.errors,
+            )
+        )
+    return tuple(incremental)
+
+
 def _merge_verifications(
     initial: VerificationResult,
     refreshed_targets: VerificationResult,
-) -> VerificationResult:
+    *,
+    merged_attribution: AttributionResult,
+) -> tuple[VerificationResult, VerificationMergeAudit]:
+    """Add source relations without allowing failed refreshes to erase work."""
+
     refreshed_by_id = {
         result.claim.claim_id: result
         for result in refreshed_targets.claims
     }
-    claims = tuple(
-        refreshed_by_id.get(result.claim.claim_id, result)
-        for result in initial.claims
-    )
-    return VerificationResult(
-        claims=claims,
+    attribution_by_id = {
+        result.claim.claim_id: result
+        for result in merged_attribution.attributions
+    }
+    protected: list[ProtectedCompletedRelation] = []
+    claims: list[ClaimVerification] = []
+    for original in initial.claims:
+        claim_id = original.claim.claim_id
+        relation_by_identity = {
+            _relation_identity(relation): relation
+            for relation in original.relations
+        }
+        refreshed = refreshed_by_id.get(claim_id)
+        if refreshed is not None:
+            for relation in refreshed.relations:
+                identity = _relation_identity(relation)
+                existing = relation_by_identity.get(identity)
+                if existing is None:
+                    relation_by_identity[identity] = relation
+                    continue
+                if existing.status is VerificationRecordStatus.COMPLETED:
+                    protected.append(
+                        ProtectedCompletedRelation(
+                            claim_id=claim_id,
+                            source_id=existing.source_id,
+                            url=existing.url,
+                            attempted_status=relation.status,
+                            reason=(
+                                "a gap refresh cannot replace an already "
+                                "completed source verdict"
+                            ),
+                        )
+                    )
+                    # Completed source verdicts are immutable in a gap pass.
+                    continue
+                if relation.status is VerificationRecordStatus.COMPLETED:
+                    relation_by_identity[identity] = relation
+
+        attribution = attribution_by_id[claim_id]
+        claims.append(
+            build_claim_verification(
+                original.claim,
+                tuple(relation_by_identity.values()),
+                required_sources=original.required_independent_sources,
+                attribution_status=attribution.status,
+            )
+        )
+
+    merged = VerificationResult(
+        claims=tuple(claims),
         usage=initial.usage + refreshed_targets.usage,
         diagnostics=initial.diagnostics + refreshed_targets.diagnostics,
         independence=initial.independence,
     )
+    initial_completed = _completed_relation_identities(initial)
+    final_completed = _completed_relation_identities(merged)
+    missing_completed = initial_completed - final_completed
+    if missing_completed:
+        raise AssertionError(
+            "evidence-gap merge removed completed verification relations: "
+            f"{sorted(missing_completed)}"
+        )
+    audit = VerificationMergeAudit(
+        initial_relation_count=_relation_count(initial),
+        initial_completed_relation_count=len(initial_completed),
+        incremental_relation_count=_relation_count(refreshed_targets),
+        incremental_completed_relation_count=len(
+            _completed_relation_identities(refreshed_targets)
+        ),
+        final_relation_count=_relation_count(merged),
+        final_completed_relation_count=len(final_completed),
+        preserved_initial_completed_relation_count=len(
+            initial_completed & final_completed
+        ),
+        completed_relation_count_non_decreasing=(
+            len(final_completed) >= len(initial_completed)
+        ),
+        protected_completed_relations=tuple(protected),
+    )
+    if not audit.completed_relation_count_non_decreasing:
+        raise AssertionError(
+            "evidence-gap completed relation count decreased without an "
+            "audited relation change"
+        )
+    return merged, audit
 
 
 async def run_evidence_gap_round(
@@ -1027,6 +1225,7 @@ async def run_evidence_gap_round(
         return EvidenceGapResult(
             stop_reason=EvidenceGapStopReason.NO_TARGETS,
             stop_detail="initial verification exposed no eligible evidence gaps",
+            verification_merge=_unchanged_merge_audit(initial_verification),
             final_attribution=initial_attribution,
             final_verification=initial_verification,
         )
@@ -1050,6 +1249,7 @@ async def run_evidence_gap_round(
     hints: tuple[CachedCandidateHint, ...] = ()
     stop_reason = EvidenceGapStopReason.COMPLETED
     stop_detail = "single evidence-gap pass completed"
+    verification_merge = _unchanged_merge_audit(initial_verification)
 
     try:
         plan_response = await tracker.call(
@@ -1312,6 +1512,10 @@ async def run_evidence_gap_round(
             merged_by_id[target.claim.claim_id]
             for target in targets
         ]
+        incremental_attributions = _incremental_attributions(
+            target_attributions,
+            initial_verification=initial_verification,
+        )
         remaining_token_budget = max(
             0, budget.max_tokens - tracker.tokens_used
         )
@@ -1325,34 +1529,40 @@ async def run_evidence_gap_round(
         def verification_cost_estimator(prompt: str) -> float:
             return tracker._estimate(verification_model, prompt)[1]
 
-        refreshed_verification = await verify_attributions(
-            target_attributions,
-            source_cache=ledger.source_cache,
-            model_client=_TrackedClient(
-                verification_model,
-                tracker,
-                "reverification",
-            ),
-            settings=verification_settings,
-            budget=VerificationBudget(
-                max_tokens=remaining_token_budget,
-                max_cost_usd=remaining_cost_budget,
-            ),
-            required_independent_sources={
-                claim_id: count
-                for claim_id, count in (
-                    required_independent_sources or {}
-                ).items()
-                if claim_id in {
-                    target.claim.claim_id for target in targets
-                }
-            },
-            estimate_input_tokens=verification_token_estimator,
-            estimate_cost_usd=verification_cost_estimator,
-        )
-        final_verification = _merge_verifications(
+        if incremental_attributions:
+            incremental_claim_ids = {
+                attribution.claim.claim_id
+                for attribution in incremental_attributions
+            }
+            refreshed_verification = await verify_attributions(
+                incremental_attributions,
+                source_cache=ledger.source_cache,
+                model_client=_TrackedClient(
+                    verification_model,
+                    tracker,
+                    "reverification",
+                ),
+                settings=verification_settings,
+                budget=VerificationBudget(
+                    max_tokens=remaining_token_budget,
+                    max_cost_usd=remaining_cost_budget,
+                ),
+                required_independent_sources={
+                    claim_id: count
+                    for claim_id, count in (
+                        required_independent_sources or {}
+                    ).items()
+                    if claim_id in incremental_claim_ids
+                },
+                estimate_input_tokens=verification_token_estimator,
+                estimate_cost_usd=verification_cost_estimator,
+            )
+        else:
+            refreshed_verification = VerificationResult(claims=())
+        final_verification, verification_merge = _merge_verifications(
             initial_verification,
             refreshed_verification,
+            merged_attribution=merged_attribution,
         )
         if (
             tracker.tokens_used >= budget.max_tokens
@@ -1391,6 +1601,12 @@ async def run_evidence_gap_round(
                 "detail": stop_detail,
                 "added_sources": len(added_source_urls),
                 "added_notes": len(added_note_ids),
+                "initial_completed_relations": (
+                    verification_merge.initial_completed_relation_count
+                ),
+                "final_completed_relations": (
+                    verification_merge.final_completed_relation_count
+                ),
             },
             ensure_ascii=False,
             sort_keys=True,
@@ -1413,6 +1629,7 @@ async def run_evidence_gap_round(
         stop_detail=stop_detail,
         claim_registry_unchanged=claims_unchanged,
         canonical_draft_unchanged=(canonical_draft == frozen_draft),
+        verification_merge=verification_merge,
         final_attribution=merged_attribution,
         final_verification=final_verification,
     )

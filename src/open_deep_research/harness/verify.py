@@ -568,6 +568,46 @@ def _aggregate_state(
     return ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT, 0, ()
 
 
+def build_claim_verification(
+    claim: AtomicClaim,
+    relations: Sequence[VerifiedSourceRelation],
+    *,
+    required_sources: int,
+    attribution_status: AttributionStatus | None = None,
+) -> ClaimVerification:
+    """Aggregate immutable source relations with the canonical verifier rules."""
+
+    ordered_relations = tuple(
+        sorted(
+            relations,
+            key=lambda relation: (
+                relation.url,
+                relation.source_id,
+                relation.status.value,
+            ),
+        )
+    )
+    state, formal_count, publishers = _aggregate_state(
+        claim,
+        ordered_relations,
+        required_sources=required_sources,
+    )
+    if (
+        attribution_status == AttributionStatus.ATTRIBUTION_ERROR
+        and not ordered_relations
+    ):
+        state = ClaimEvidenceState.ATTRIBUTION_ERROR
+    return ClaimVerification(
+        claim=claim,
+        state=state,
+        required_independent_sources=required_sources,
+        relations=ordered_relations,
+        formal_supporting_evidence_count=formal_count,
+        publisher_domain_proxy_count=len(publishers),
+        publisher_domain_proxies=publishers,
+    )
+
+
 def _estimate_admissible(
     prompt: str,
     *,
@@ -779,36 +819,13 @@ async def verify_attributions(
     claim_results: list[ClaimVerification] = []
     for attribution in attributions:
         claim = attribution.claim
-        relations = tuple(
-            sorted(
-                relations_by_claim.get(claim.claim_id, ()),
-                key=lambda relation: (
-                    relation.url,
-                    relation.source_id,
-                    relation.status.value,
-                ),
-            )
-        )
         required_count = required.get(claim.claim_id, 1)
-        state, formal_count, publishers = _aggregate_state(
-            claim,
-            relations,
-            required_sources=required_count,
-        )
-        if (
-            attribution.status == AttributionStatus.ATTRIBUTION_ERROR
-            and not relations
-        ):
-            state = ClaimEvidenceState.ATTRIBUTION_ERROR
         claim_results.append(
-            ClaimVerification(
-                claim=claim,
-                state=state,
-                required_independent_sources=required_count,
-                relations=relations,
-                formal_supporting_evidence_count=formal_count,
-                publisher_domain_proxy_count=len(publishers),
-                publisher_domain_proxies=publishers,
+            build_claim_verification(
+                claim,
+                relations_by_claim.get(claim.claim_id, ()),
+                required_sources=required_count,
+                attribution_status=attribution.status,
             )
         )
 
