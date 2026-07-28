@@ -38,9 +38,17 @@ class OpenAIEnvelopeModel:
     async def generate(self, prompt: str) -> dict[str, object]:
         # Roles that must return JSON ask the provider to enforce it; the report
         # writer must not, because its output is markdown.
-        extra: dict[str, object] = (
-            {"response_format": {"type": "json_object"}} if self.json_mode else {}
-        )
+        if self.json_mode:
+            # Some OpenAI-compatible providers reject json_object unless the
+            # message itself contains the literal word "json". Keep this
+            # adapter-level invariant even if a future role prompt omits it.
+            if "json" not in prompt.casefold():
+                prompt = "Return one JSON object.\n\n" + prompt
+            extra: dict[str, object] = {
+                "response_format": {"type": "json_object"}
+            }
+        else:
+            extra = {}
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],

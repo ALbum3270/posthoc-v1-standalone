@@ -99,6 +99,33 @@ class ContextSpan(BaseModel):
         return self
 
 
+class ContextSpanProposal(BaseModel):
+    """Model-proposed context text retained separately from code-owned bounds."""
+
+    model_config = ConfigDict(
+        extra="ignore",
+        frozen=True,
+        populate_by_name=True,
+    )
+
+    text: str = Field(min_length=1)
+    proposed_start_char: Any = Field(
+        default=None,
+        validation_alias="start_char",
+    )
+    proposed_end_char: Any = Field(
+        default=None,
+        validation_alias="end_char",
+    )
+
+    @field_validator("text")
+    @classmethod
+    def _text_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("context proposal text must not be blank")
+        return value
+
+
 class SelectedAssertion(BaseModel):
     """An atomic assertion selected from one report block."""
 
@@ -156,6 +183,7 @@ class AtomicClaim(BaseModel):
     start_char: int | None = Field(default=None, ge=0)
     end_char: int | None = Field(default=None, ge=0)
     context_spans: tuple[ContextSpan, ...] = ()
+    context_span_proposals: tuple[ContextSpanProposal, ...] = ()
     citation_requirement: CitationRequirement
     source_resolution: SourceResolution = SourceResolution.UNRESOLVED
     normalization_status: ClaimNormalizationStatus
@@ -254,7 +282,17 @@ class _DecontextualizedClaim(BaseModel):
 
     claim_id: str
     claim_text: str = Field(min_length=1)
-    context_spans: tuple[ContextSpan, ...] = ()
+    context_spans: tuple[ContextSpanProposal, ...] = ()
+
+    @field_validator("context_spans", mode="before")
+    @classmethod
+    def _accept_verbatim_text_list(cls, value: Any) -> Any:
+        if isinstance(value, (list, tuple)):
+            return [
+                {"text": item} if isinstance(item, str) else item
+                for item in value
+            ]
+        return value
 
     @field_validator("claim_text")
     @classmethod
@@ -266,12 +304,12 @@ class _DecontextualizedClaim(BaseModel):
 
 
 class _ExtractedAnchor(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    # Ignore legacy model-supplied offsets during rollout. They are neither
+    # trusted nor consulted; code uniquely locates anchor_text below.
+    model_config = ConfigDict(extra="ignore", frozen=True)
 
     claim_id: str
     anchor_text: str = Field(min_length=1)
-    start_char: int = Field(ge=0)
-    end_char: int = Field(ge=0)
 
     @field_validator("anchor_text")
     @classmethod
@@ -552,13 +590,16 @@ such as a pronoun or an omitted subject. Do not add facts, remove qualifiers,
 resolve uncertainty, infer a cause, calculate a new value, or otherwise make
 the assertion stronger.
 
-For every piece of surrounding report text used to resolve context, return
-its verbatim text and absolute start_char/end_char. If the selected assertion
-is already self-contained, context_spans must be empty.
+For every piece of surrounding report text used to resolve context, put its
+exact verbatim text directly in the context_spans string array. Do not wrap
+the strings in objects. Do not calculate or return character offsets; code
+will require each proposed text to have one unique occurrence and will assign
+its absolute start_char/end_char mechanically. If the selected assertion is
+already self-contained, context_spans must be empty.
 
 Return exactly one entry per claim_id as JSON only:
 {{"claims":[{{"claim_id":"claim-0001","claim_text":"...",\
-"context_spans":[{{"text":"...","start_char":0,"end_char":10}}]}}]}}
+"context_spans":["..."]}}]}}
 
 Purely structural example: in "A group opened a facility. It expanded the
 facility.", the second assertion may become "The group expanded the
@@ -577,17 +618,18 @@ Stage 3 of 3 — extraction.
 
 For each claim_id, identify one exact, contiguous anchor_text in the canonical
 report that expresses the selected assertion. Copy it verbatim, including its
-original punctuation and capitalization, and return its absolute
-start_char/end_char. Do not use claim_text as anchor_text unless those exact
-bytes occur in the report. Do not join noncontiguous fragments.
+original punctuation and capitalization. Do not calculate or return character
+offsets. Do not use claim_text as anchor_text unless those exact bytes occur
+in the report. Do not join noncontiguous fragments.
 
-The code will require report[start_char:end_char] == anchor_text and exactly
-one occurrence of anchor_text in the entire report. It will retain a failed
+The code will require exactly one occurrence of anchor_text in the entire
+report, calculate start_char/end_char from that occurrence, and mechanically
+check report[start_char:end_char] == anchor_text. It will retain a failed
 normalization instead of guessing.
 
 Return exactly one entry per claim_id as JSON only:
-{{"claims":[{{"claim_id":"claim-0001","anchor_text":"A device stopped.",\
-"start_char":0,"end_char":17}}]}}
+{{"claims":[{{"claim_id":"claim-0001",\
+"anchor_text":"A device stopped."}}]}}
 
 Canonical report:
 {report}
@@ -730,15 +772,26 @@ def _claim_seed(
     return tuple(claims)
 
 
-def _valid_context_spans(
+def _locate_context_spans(
     report: str,
-    spans: Sequence[ContextSpan],
+    proposals: Sequence[ContextSpanProposal],
 ) -> tuple[tuple[ContextSpan, ...], str | None]:
-    for span in spans:
-        if span.end_char > len(report):
-            return (), "context_span_out_of_bounds"
-        if report[span.start_char : span.end_char] != span.text:
+    spans: list[ContextSpan] = []
+    for proposal in proposals:
+        occurrences = _unique_occurrences(report, proposal.text)
+        if not occurrences:
             return (), "context_span_not_verbatim"
+        if len(occurrences) != 1:
+            return (), "context_span_not_unique"
+        start = occurrences[0]
+        end = start + len(proposal.text)
+        spans.append(
+            ContextSpan(
+                text=proposal.text,
+                start_char=start,
+                end_char=end,
+            )
+        )
     return tuple(spans), None
 
 
@@ -758,6 +811,7 @@ def _normalization_failure(
     claim: Mapping[str, Any],
     claim_text: str | None,
     context_spans: Sequence[ContextSpan] = (),
+    context_span_proposals: Sequence[ContextSpanProposal] = (),
     anchor_text: str | None = None,
     reason: str,
 ) -> AtomicClaim:
@@ -768,6 +822,7 @@ def _normalization_failure(
         claim_text=claim_text,
         anchor_text=anchor_text,
         context_spans=tuple(context_spans),
+        context_span_proposals=tuple(context_span_proposals),
         citation_requirement=CitationRequirement(
             claim["citation_requirement"]
         ),
@@ -818,6 +873,7 @@ async def decompose_claims(
     diagnostics = list(selection_diagnostics)
     decontext_by_id: dict[str, _DecontextualizedClaim] = {}
     duplicate_decontext_ids: set[str] = set()
+    invalid_decontext_ids: set[str] = set()
     raw_decontext = (
         decontext_content.get("claims")
         if isinstance(decontext_content, Mapping)
@@ -827,12 +883,19 @@ async def decompose_claims(
         diagnostics.append("decontextualization_payload_invalid")
         raw_decontext = ()
     for index, raw_claim in enumerate(raw_decontext):
+        raw_claim_id = (
+            raw_claim.get("claim_id")
+            if isinstance(raw_claim, Mapping)
+            else None
+        )
         try:
             decontext = _DecontextualizedClaim.model_validate(raw_claim)
         except (TypeError, ValidationError, ValueError) as exc:
             diagnostics.append(
                 f"decontextualization_entry_invalid[{index}]: {exc}"
             )
+            if isinstance(raw_claim_id, str):
+                invalid_decontext_ids.add(raw_claim_id)
             continue
         if decontext.claim_id in decontext_by_id:
             duplicate_decontext_ids.add(decontext.claim_id)
@@ -847,7 +910,12 @@ async def decompose_claims(
         decontext_by_id[decontext.claim_id] = decontext
 
     valid_decontext: dict[
-        str, tuple[str, tuple[ContextSpan, ...]]
+        str,
+        tuple[
+            str,
+            tuple[ContextSpan, ...],
+            tuple[ContextSpanProposal, ...],
+        ],
     ] = {}
     failures: dict[str, AtomicClaim] = {}
     expected_ids = {str(claim["claim_id"]) for claim in seed_claims}
@@ -860,28 +928,36 @@ async def decompose_claims(
             failure_reason = (
                 "decontextualization_duplicate"
                 if claim_id in duplicate_decontext_ids
-                else "decontextualization_missing"
+                else (
+                    "decontextualization_invalid"
+                    if claim_id in invalid_decontext_ids
+                    else "decontextualization_missing"
+                )
             )
+            diagnostics.append(f"{failure_reason}: {claim_id}")
             failures[claim_id] = _normalization_failure(
                 claim=claim,
                 claim_text=None,
                 reason=failure_reason,
             )
             continue
-        valid_spans, context_error = _valid_context_spans(
+        valid_spans, context_error = _locate_context_spans(
             report,
             decontext.context_spans,
         )
         if context_error is not None:
+            diagnostics.append(f"{context_error}: {claim_id}")
             failures[claim_id] = _normalization_failure(
                 claim=claim,
                 claim_text=decontext.claim_text,
+                context_span_proposals=decontext.context_spans,
                 reason=context_error,
             )
             continue
         valid_decontext[claim_id] = (
             decontext.claim_text,
             valid_spans,
+            decontext.context_spans,
         )
 
     if valid_decontext:
@@ -899,6 +975,7 @@ async def decompose_claims(
         )
         extraction_by_id: dict[str, _ExtractedAnchor] = {}
         duplicate_extraction_ids: set[str] = set()
+        invalid_extraction_ids: set[str] = set()
         raw_extraction = (
             extraction_content.get("claims")
             if isinstance(extraction_content, Mapping)
@@ -908,12 +985,19 @@ async def decompose_claims(
             diagnostics.append("extraction_payload_invalid")
             raw_extraction = ()
         for index, raw_claim in enumerate(raw_extraction):
+            raw_claim_id = (
+                raw_claim.get("claim_id")
+                if isinstance(raw_claim, Mapping)
+                else None
+            )
             try:
                 extraction = _ExtractedAnchor.model_validate(raw_claim)
             except (TypeError, ValidationError, ValueError) as exc:
                 diagnostics.append(
                     f"extraction_entry_invalid[{index}]: {exc}"
                 )
+                if isinstance(raw_claim_id, str):
+                    invalid_extraction_ids.add(raw_claim_id)
                 continue
             if extraction.claim_id in extraction_by_id:
                 duplicate_extraction_ids.add(extraction.claim_id)
@@ -925,10 +1009,14 @@ async def decompose_claims(
             if extraction.claim_id in duplicate_extraction_ids:
                 continue
             extraction_by_id[extraction.claim_id] = extraction
+        requested_extraction_ids = set(valid_decontext)
+        for unknown_id in set(extraction_by_id) - requested_extraction_ids:
+            diagnostics.append(f"extraction_unknown_claim: {unknown_id}")
     else:
         extraction_usage = zero_usage
         extraction_by_id = {}
         duplicate_extraction_ids = set()
+        invalid_extraction_ids = set()
 
     block_by_id = {block.block_id: block for block in blocks}
     claims: list[AtomicClaim] = []
@@ -937,19 +1025,27 @@ async def decompose_claims(
         if claim_id in failures:
             claims.append(failures[claim_id])
             continue
-        claim_text, context_spans = valid_decontext[claim_id]
+        claim_text, context_spans, context_span_proposals = (
+            valid_decontext[claim_id]
+        )
         extraction = extraction_by_id.get(claim_id)
         if extraction is None:
             failure_reason = (
                 "extraction_duplicate"
                 if claim_id in duplicate_extraction_ids
-                else "extraction_missing"
+                else (
+                    "extraction_invalid"
+                    if claim_id in invalid_extraction_ids
+                    else "extraction_missing"
+                )
             )
+            diagnostics.append(f"{failure_reason}: {claim_id}")
             claims.append(
                 _normalization_failure(
                     claim=seed,
                     claim_text=claim_text,
                     context_spans=context_spans,
+                    context_span_proposals=context_span_proposals,
                     reason=failure_reason,
                 )
             )
@@ -958,36 +1054,38 @@ async def decompose_claims(
         occurrences = _unique_occurrences(report, extraction.anchor_text)
         block = block_by_id[str(seed["block_id"])]
         reason: str | None = None
+        anchor_start: int | None = None
+        anchor_end: int | None = None
         if not occurrences:
             reason = "anchor_not_found"
         elif len(occurrences) != 1:
             reason = "anchor_not_unique"
-        elif extraction.end_char > len(report):
-            reason = "anchor_out_of_bounds"
-        elif (
-            report[extraction.start_char : extraction.end_char]
-            != extraction.anchor_text
-        ):
-            reason = "anchor_offsets_do_not_match"
-        elif occurrences[0] != extraction.start_char:
-            reason = "anchor_offsets_do_not_match"
-        elif not (
-            block.start_char <= extraction.start_char
-            and extraction.end_char <= block.end_char
-        ):
-            reason = "anchor_outside_selected_block"
+        else:
+            anchor_start = occurrences[0]
+            anchor_end = anchor_start + len(extraction.anchor_text)
+            if report[anchor_start:anchor_end] != extraction.anchor_text:
+                raise AssertionError("code-owned anchor bounds must round-trip")
+            if not (
+                block.start_char <= anchor_start
+                and anchor_end <= block.end_char
+            ):
+                reason = "anchor_outside_selected_block"
 
         if reason is not None:
+            diagnostics.append(f"{reason}: {claim_id}")
             claims.append(
                 _normalization_failure(
                     claim=seed,
                     claim_text=claim_text,
                     context_spans=context_spans,
+                    context_span_proposals=context_span_proposals,
                     anchor_text=extraction.anchor_text,
                     reason=reason,
                 )
             )
             continue
+        if anchor_start is None or anchor_end is None:
+            raise AssertionError("located anchor requires code-owned bounds")
         claims.append(
             AtomicClaim(
                 claim_id=claim_id,
@@ -995,9 +1093,10 @@ async def decompose_claims(
                 selected_text=str(seed["selected_text"]),
                 claim_text=claim_text,
                 anchor_text=extraction.anchor_text,
-                start_char=extraction.start_char,
-                end_char=extraction.end_char,
+                start_char=anchor_start,
+                end_char=anchor_end,
                 context_spans=context_spans,
+                context_span_proposals=context_span_proposals,
                 citation_requirement=CitationRequirement(
                     seed["citation_requirement"]
                 ),

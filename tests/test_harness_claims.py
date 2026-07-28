@@ -157,7 +157,7 @@ It expanded the facility in 2022.
                     "claim_text": (
                         "The group expanded the facility in 2022."
                     ),
-                    "context_spans": [context],
+                    "context_spans": [context["text"]],
                 }
             ]
         },
@@ -166,8 +166,8 @@ It expanded the facility in 2022.
                 {
                     "claim_id": "claim-0001",
                     "anchor_text": anchor["text"],
-                    "start_char": anchor["start_char"],
-                    "end_char": anchor["end_char"],
+                    "start_char": 0,
+                    "end_char": 1,
                 }
             ]
         },
@@ -185,6 +185,12 @@ It expanded the facility in 2022.
     assert claim.anchor_text == "It expanded the facility in 2022."
     assert report[claim.start_char : claim.end_char] == claim.anchor_text
     assert claim.context_spans[0].text == "A group opened a facility."
+    assert claim.context_spans[0].start_char == report.index(
+        "A group opened a facility."
+    )
+    assert claim.context_span_proposals[0].text == context["text"]
+    assert claim.context_span_proposals[0].proposed_start_char is None
+    assert claim.context_span_proposals[0].proposed_end_char is None
     assert claim.citation_requirement == CitationRequirement.EXTERNAL
     assert claim.source_resolution == SourceResolution.UNRESOLVED
     assert claim.normalization_status == ClaimNormalizationStatus.LOCATED
@@ -193,7 +199,79 @@ It expanded the facility in 2022.
 
     assert "Do not add facts" in model.prompts[1]
     assert "otherwise make\nthe assertion stronger" in model.prompts[1]
-    assert "report[start_char:end_char] == anchor_text" in model.prompts[2]
+    assert "calculate start_char/end_char" in model.prompts[2]
+    assert '"start_char":0' not in model.prompts[2]
+
+
+def test_each_stage_omission_has_a_claim_specific_diagnostic() -> None:
+    report = "First fact. Second fact. Third fact."
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "disposition": "claims_selected",
+                    "rationale": "three independent assertions",
+                    "assertions": [
+                        {
+                            "selected_text": "First fact.",
+                            "citation_requirement": "external",
+                        },
+                        {
+                            "selected_text": "Second fact.",
+                            "citation_requirement": "external",
+                        },
+                        {
+                            "selected_text": "Third fact.",
+                            "citation_requirement": "external",
+                        },
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "First fact.",
+                    "context_spans": [],
+                },
+                {
+                    "claim_id": "claim-0002",
+                    "claim_text": "Second fact.",
+                    "context_spans": [],
+                },
+                {
+                    "claim_id": "claim-0003",
+                    "claim_text": "",
+                    "context_spans": [],
+                },
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "anchor_text": "First fact.",
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    by_id = {claim.claim_id: claim for claim in result.claims}
+    assert by_id["claim-0001"].normalization_status == (
+        ClaimNormalizationStatus.LOCATED
+    )
+    assert by_id["claim-0002"].normalization_failure == "extraction_missing"
+    assert by_id["claim-0003"].normalization_failure == (
+        "decontextualization_invalid"
+    )
+    assert "extraction_missing: claim-0002" in result.diagnostics
+    assert "decontextualization_invalid: claim-0003" in result.diagnostics
+    assert '"claim_id": "claim-0003"' not in model.prompts[2]
 
 
 def test_selection_omission_is_retained_as_failed_disposition() -> None:
@@ -397,6 +475,12 @@ def test_invalid_context_span_cannot_become_a_located_claim() -> None:
     )
     assert claim.normalization_failure == "context_span_not_verbatim"
     assert claim.context_spans == ()
+    assert len(claim.context_span_proposals) == 1
+    assert claim.context_span_proposals[0].text == "Different text"
+    assert claim.context_span_proposals[0].proposed_start_char == 0
+    assert claim.context_span_proposals[0].proposed_end_char == len(
+        "A group acted."
+    )
 
 
 def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
@@ -422,3 +506,10 @@ def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
     assert "source_resolution" not in selection
     assert "source_resolution" not in decontext
     assert "source_resolution" not in extraction
+    assert '"start_char":0' not in decontext
+    assert '"start_char":0' not in extraction
+    assert all("json" in prompt.lower() for prompt in (
+        selection,
+        decontext,
+        extraction,
+    ))

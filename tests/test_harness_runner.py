@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -496,3 +497,39 @@ def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):
     assert clients.attribution_model.model == "cheap-attribution"
     assert clients.verification_model.model == "strong-verifier"
     assert clients.verification_model is not clients.decision_model
+
+
+def test_json_mode_adapter_supplies_provider_required_literal() -> None:
+    class FakeCompletions:
+        def __init__(self):
+            self.calls = []
+
+        async def create(self, **kwargs):
+            self.calls.append(kwargs)
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(content='{"ok":true}')
+                    )
+                ],
+                usage=None,
+            )
+
+    completions = FakeCompletions()
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=completions)
+    )
+    model = harness_cli.OpenAIEnvelopeModel(
+        client,
+        "test-model",
+        json_mode=True,
+    )
+
+    result = asyncio.run(model.generate("Return one structured object."))
+
+    sent_prompt = completions.calls[0]["messages"][0]["content"]
+    assert "json" in sent_prompt.casefold()
+    assert completions.calls[0]["response_format"] == {
+        "type": "json_object"
+    }
+    assert result["content"] == '{"ok":true}'
