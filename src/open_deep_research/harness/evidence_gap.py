@@ -57,6 +57,7 @@ from open_deep_research.harness.verify import (
     VerificationRecordStatus,
     VerificationResult,
     VerificationSettings,
+    VerificationVerdict,
     VerifiedSourceRelation,
     build_claim_verification,
     build_verification_prompt,
@@ -65,7 +66,7 @@ from open_deep_research.harness.verify import (
 
 _TARGET_STATES = {
     ClaimEvidenceState.NO_CANDIDATE_SOURCE,
-    ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+    ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
     ClaimEvidenceState.CONFLICTING_EVIDENCE,
 }
 
@@ -217,6 +218,20 @@ class VerificationReserveAudit(BaseModel):
     )
 
 
+class EvidenceGapInformationAudit(BaseModel):
+    """Factual yield of one bounded pass, independent of corroboration targets."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    pass_completed_within_budget: bool = False
+    new_completed_relation_count: int = Field(default=0, ge=0)
+    new_completed_verdict_counts: dict[str, int] = Field(default_factory=dict)
+    new_publisher_domain_proxies: tuple[str, ...] = ()
+    new_claim_publisher_relation_count: int = Field(default=0, ge=0)
+    claims_newly_corroborated: int = Field(default=0, ge=0)
+    claims_newly_conflicting: int = Field(default=0, ge=0)
+
+
 class EvidenceGapResult(BaseModel):
     """Audit of one non-iterative gap pass plus code-owned final registries."""
 
@@ -236,6 +251,9 @@ class EvidenceGapResult(BaseModel):
     added_source_urls: tuple[str, ...] = ()
     added_note_ids: tuple[str, ...] = ()
     verification_reserve: VerificationReserveAudit | None = None
+    information_yield: EvidenceGapInformationAudit = Field(
+        default_factory=EvidenceGapInformationAudit
+    )
     usage: tuple[EvidenceGapCallUsage, ...] = ()
     stop_reason: EvidenceGapStopReason
     stop_detail: str
@@ -372,6 +390,9 @@ information; do not optimize only for agreement.
 
 Checklist item IDs:
 {item_ids}
+
+Checklist corroboration targets for gap-planning priority only:
+{corroboration_targets}
 
 Target claims and initial source-level outcomes:
 {targets}
@@ -634,9 +655,7 @@ def _target_payload(
             "claim_id": target.claim.claim_id,
             "claim_text": target.claim.claim_text,
             "state": target.state.value,
-            "required_independent_sources": (
-                target.required_independent_sources
-            ),
+            "corroboration_target": target.corroboration_target,
             "formal_publisher_domain_proxies": list(
                 target.publisher_domain_proxies
             ),
@@ -695,6 +714,17 @@ def build_evidence_gap_plan_prompt(
         item_ids=json.dumps(
             [item.item_id for item in checklist.items],
             ensure_ascii=False,
+        ),
+        corroboration_targets=json.dumps(
+            [
+                {
+                    "item_id": item.item_id,
+                    "corroboration_target": item.corroboration_target,
+                }
+                for item in checklist.items
+            ],
+            ensure_ascii=False,
+            sort_keys=True,
         ),
         targets=json.dumps(
             _target_payload(targets),
@@ -1326,6 +1356,82 @@ def _unchanged_merge_audit(
     )
 
 
+def _information_yield(
+    initial: VerificationResult,
+    final: VerificationResult,
+    *,
+    stop_reason: EvidenceGapStopReason,
+) -> EvidenceGapInformationAudit:
+    """Measure newly completed checks without treating support as success."""
+
+    initial_completed = _completed_relation_identities(initial)
+    final_relations = {
+        _relation_identity(relation): relation
+        for claim in final.claims
+        for relation in claim.relations
+        if relation.status is VerificationRecordStatus.COMPLETED
+    }
+    newly_completed = tuple(
+        relation
+        for identity, relation in sorted(final_relations.items())
+        if identity not in initial_completed
+    )
+    verdict_counts = {
+        verdict.value: sum(
+            relation.semantic_verdict is verdict
+            for relation in newly_completed
+        )
+        for verdict in VerificationVerdict
+    }
+    initial_publishers = {
+        relation.publisher_domain_proxy
+        for claim in initial.claims
+        for relation in claim.relations
+        if relation.status is VerificationRecordStatus.COMPLETED
+    }
+    new_publishers = {
+        relation.publisher_domain_proxy for relation in newly_completed
+    }
+    initial_claim_publishers = {
+        (relation.claim_id, relation.publisher_domain_proxy)
+        for claim in initial.claims
+        for relation in claim.relations
+        if relation.status is VerificationRecordStatus.COMPLETED
+    }
+    new_claim_publishers = {
+        (relation.claim_id, relation.publisher_domain_proxy)
+        for relation in newly_completed
+    }
+    initial_states = {
+        claim.claim.claim_id: claim.state for claim in initial.claims
+    }
+    return EvidenceGapInformationAudit(
+        pass_completed_within_budget=(
+            stop_reason is EvidenceGapStopReason.COMPLETED
+        ),
+        new_completed_relation_count=len(newly_completed),
+        new_completed_verdict_counts=verdict_counts,
+        new_publisher_domain_proxies=tuple(
+            sorted(new_publishers - initial_publishers)
+        ),
+        new_claim_publisher_relation_count=len(
+            new_claim_publishers - initial_claim_publishers
+        ),
+        claims_newly_corroborated=sum(
+            claim.state is ClaimEvidenceState.CORROBORATED
+            and initial_states.get(claim.claim.claim_id)
+            is not ClaimEvidenceState.CORROBORATED
+            for claim in final.claims
+        ),
+        claims_newly_conflicting=sum(
+            claim.state is ClaimEvidenceState.CONFLICTING_EVIDENCE
+            and initial_states.get(claim.claim.claim_id)
+            is not ClaimEvidenceState.CONFLICTING_EVIDENCE
+            for claim in final.claims
+        ),
+    )
+
+
 def _incremental_attributions(
     attributions: Sequence[ClaimAttribution],
     *,
@@ -1423,7 +1529,7 @@ def _merge_verifications(
             build_claim_verification(
                 original.claim,
                 tuple(relation_by_identity.values()),
-                required_sources=original.required_independent_sources,
+                required_sources=original.corroboration_target,
                 attribution_status=attribution.status,
             )
         )
@@ -1483,18 +1589,33 @@ async def run_evidence_gap_round(
     budget: EvidenceGapBudget,
     attribution_settings: AttributionSettings | None = None,
     verification_settings: VerificationSettings | None = None,
+    corroboration_targets: Mapping[str, int] | None = None,
     required_independent_sources: Mapping[str, int] | None = None,
     estimate_input_tokens: Callable[[Any, str], int] | None = None,
     estimate_cost_usd: Callable[[Any, str], float] | None = None,
 ) -> EvidenceGapResult:
     """Run one cache-first gap pass, then reattribute and reverify once."""
 
+    if (
+        corroboration_targets is not None
+        and required_independent_sources is not None
+    ):
+        raise ValueError(
+            "use corroboration_targets or legacy "
+            "required_independent_sources, not both"
+        )
     targets = tuple(
         result
         for result in initial_verification.claims
         if (
             result.claim.citation_requirement == CitationRequirement.EXTERNAL
             and result.state in _TARGET_STATES
+            and (
+                result.state
+                is not ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+                or result.publisher_domain_proxy_count
+                < result.corroboration_target
+            )
         )
     )
     initial_states = {
@@ -1904,10 +2025,12 @@ async def run_evidence_gap_round(
                     max_tokens=remaining_token_budget,
                     max_cost_usd=remaining_cost_budget,
                 ),
-                required_independent_sources={
+                corroboration_targets={
                     claim_id: count
                     for claim_id, count in (
-                        required_independent_sources or {}
+                        corroboration_targets
+                        if corroboration_targets is not None
+                        else (required_independent_sources or {})
                     ).items()
                     if claim_id in incremental_claim_ids
                 },
@@ -1961,6 +2084,17 @@ async def run_evidence_gap_round(
     if canonical_draft != frozen_draft:
         raise AssertionError("evidence-gap round mutated the canonical draft")
 
+    information_yield = _information_yield(
+        initial_verification,
+        final_verification,
+        stop_reason=stop_reason,
+    )
+    if stop_reason is EvidenceGapStopReason.COMPLETED:
+        stop_detail = (
+            "single bounded evidence-gap pass completed; "
+            "new completed claim-source relations="
+            f"{information_yield.new_completed_relation_count}"
+        )
     ledger.record_evidence_gap(
         event="gap_stop",
         result_summary=json.dumps(
@@ -1974,6 +2108,24 @@ async def run_evidence_gap_round(
                 ),
                 "final_completed_relations": (
                     verification_merge.final_completed_relation_count
+                ),
+                "new_completed_relations": (
+                    information_yield.new_completed_relation_count
+                ),
+                "new_completed_verdict_counts": (
+                    information_yield.new_completed_verdict_counts
+                ),
+                "new_publisher_domain_proxies": list(
+                    information_yield.new_publisher_domain_proxies
+                ),
+                "new_claim_publisher_relations": (
+                    information_yield.new_claim_publisher_relation_count
+                ),
+                "claims_newly_corroborated": (
+                    information_yield.claims_newly_corroborated
+                ),
+                "claims_newly_conflicting": (
+                    information_yield.claims_newly_conflicting
                 ),
             },
             ensure_ascii=False,
@@ -1993,6 +2145,7 @@ async def run_evidence_gap_round(
         added_source_urls=tuple(added_source_urls),
         added_note_ids=tuple(added_note_ids),
         verification_reserve=verification_reserve,
+        information_yield=information_yield,
         usage=tuple(tracker.usage),
         stop_reason=stop_reason,
         stop_detail=stop_detail,

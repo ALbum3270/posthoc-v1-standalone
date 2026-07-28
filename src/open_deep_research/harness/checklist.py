@@ -8,7 +8,13 @@ from collections.abc import Awaitable, Mapping
 from enum import Enum
 from typing import Any, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from open_deep_research.harness.jsonio import loads_lenient
 
@@ -59,8 +65,21 @@ class ChecklistItem(BaseModel):
     dimension: ChecklistDimension
     question: str = Field(min_length=1)
     priority: int = Field(ge=1)
-    required_source_count: int = Field(ge=1, le=2)
+    corroboration_target: int = Field(
+        ge=1,
+        le=2,
+        validation_alias=AliasChoices(
+            "corroboration_target",
+            "required_source_count",
+        ),
+    )
     status: ChecklistStatus = ChecklistStatus.UNEXPLORED
+
+    @property
+    def required_source_count(self) -> int:
+        """Read legacy code without emitting the obsolete audit field."""
+
+        return self.corroboration_target
 
     @property
     def is_complete(self) -> bool:
@@ -219,10 +238,11 @@ Create a research checklist for the supplied topic.
 Use all six topic-neutral dimensions: who, what, when, where, why, and how.
 Write concrete questions that together support a thorough investigation.
 Set priority to a positive integer where a smaller number means earlier work.
-Set required_source_count to 1 or 2.
+Set corroboration_target to 1 or 2. It is a later evidence-gap resource
+priority signal, not a truth threshold or a report-quality label.
 Return JSON only, in this shape:
 {{"items":[{{"item_id":"unique-id","dimension":"who|what|when|where|why|how",\
-"question":"...","priority":1,"required_source_count":1}}]}}
+"question":"...","priority":1,"corroboration_target":1}}]}}
 
 Topic:
 {topic}

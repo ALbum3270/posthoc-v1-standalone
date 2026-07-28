@@ -525,6 +525,8 @@ def test_budget_headroom_and_writing_reserve_are_visible_and_enforced():
     assert '"remaining_collection_tokens": 80' in prompt
     assert '"remaining_collection_cost_usd": 0.75' in prompt
     assert '"writing_reserve": {"cost_usd": 0.25, "tokens": 20}' in prompt
+    assert "required_source_count" not in prompt
+    assert "corroboration_target" not in prompt
     assert result.stop_reason is StopReason.MODEL_STOP_WITH_OPEN_ITEMS
 
     exhausted, _, _, _ = run_loop(

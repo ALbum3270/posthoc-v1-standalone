@@ -702,7 +702,6 @@ def _checklist_state(
             "dimension": item.dimension.value,
             "question": item.question,
             "priority": item.priority,
-            "required_source_count": item.required_source_count,
             "status": item.status.value,
             "consecutive_collection_failures": collection_failures.get(
                 item.item_id, 0

@@ -11,6 +11,7 @@ from typing import Any, Protocol
 from urllib.parse import urlparse
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     ConfigDict,
     Field,
@@ -70,7 +71,9 @@ class ClaimEvidenceState(str, Enum):
     """Non-optimistic aggregate state for one atomic claim."""
 
     CORROBORATED = "corroborated"
-    SUPPORTED_BELOW_REQUIREMENT = "supported_below_requirement"
+    SUPPORTED_SINGLE_PUBLISHER = "supported_single_publisher"
+    # Source compatibility for callers using the former Python member name.
+    SUPPORTED_BELOW_REQUIREMENT = "supported_single_publisher"
     SUPPORT_QUOTE_UNLOCATABLE = "support_quote_unlocatable"
     CONFLICTING_EVIDENCE = "conflicting_evidence"
     REFUTED = "refuted"
@@ -80,6 +83,14 @@ class ClaimEvidenceState(str, Enum):
     VERIFICATION_INCOMPLETE = "verification_incomplete"
     VERIFICATION_NOT_RUN = "verification_not_run"
     NORMALIZATION_FAILED = "normalization_failed"
+
+    @classmethod
+    def _missing_(cls, value: object) -> ClaimEvidenceState | None:
+        """Read historical audit values without re-emitting deficit language."""
+
+        if value == "supported_below_requirement":
+            return cls.SUPPORTED_SINGLE_PUBLISHER
+        return None
 
 
 class VerificationSettings(BaseModel):
@@ -187,11 +198,23 @@ class ClaimVerification(BaseModel):
 
     claim: AtomicClaim
     state: ClaimEvidenceState
-    required_independent_sources: int = Field(ge=1)
+    corroboration_target: int = Field(
+        ge=1,
+        validation_alias=AliasChoices(
+            "corroboration_target",
+            "required_independent_sources",
+        ),
+    )
     relations: tuple[VerifiedSourceRelation, ...] = ()
     formal_supporting_evidence_count: int = Field(ge=0)
     publisher_domain_proxy_count: int = Field(ge=0)
     publisher_domain_proxies: tuple[str, ...] = ()
+
+    @property
+    def required_independent_sources(self) -> int:
+        """Read historical code without emitting an obsolete audit field."""
+
+        return self.corroboration_target
 
 
 class VerificationResult(BaseModel):
@@ -507,8 +530,6 @@ def _completed_relation(
 def _aggregate_state(
     claim: AtomicClaim,
     relations: Sequence[VerifiedSourceRelation],
-    *,
-    required_sources: int,
 ) -> tuple[ClaimEvidenceState, int, tuple[str, ...]]:
     formal = [
         relation
@@ -549,11 +570,14 @@ def _aggregate_state(
             len(formal),
             publishers,
         )
-    if len(publishers) >= required_sources:
+    # Corroboration is a factual multi-publisher condition. The separate
+    # corroboration target may prioritize a later gap pass, but cannot turn
+    # one publisher into corroboration.
+    if len(publishers) >= 2:
         return ClaimEvidenceState.CORROBORATED, len(formal), publishers
     if formal:
         return (
-            ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+            ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
             len(formal),
             publishers,
         )
@@ -590,7 +614,6 @@ def build_claim_verification(
     state, formal_count, publishers = _aggregate_state(
         claim,
         ordered_relations,
-        required_sources=required_sources,
     )
     if (
         attribution_status == AttributionStatus.ATTRIBUTION_ERROR
@@ -600,7 +623,7 @@ def build_claim_verification(
     return ClaimVerification(
         claim=claim,
         state=state,
-        required_independent_sources=required_sources,
+        corroboration_target=required_sources,
         relations=ordered_relations,
         formal_supporting_evidence_count=formal_count,
         publisher_domain_proxy_count=len(publishers),
@@ -649,6 +672,7 @@ async def verify_attributions(
     model_client: VerificationModelClient,
     settings: VerificationSettings | None = None,
     budget: VerificationBudget | None = None,
+    corroboration_targets: Mapping[str, int] | None = None,
     required_independent_sources: Mapping[str, int] | None = None,
     estimate_input_tokens: Callable[[str], int] | None = None,
     estimate_cost_usd: Callable[[str], float] | None = None,
@@ -657,15 +681,27 @@ async def verify_attributions(
 
     active_settings = settings or VerificationSettings()
     active_budget = budget or VerificationBudget()
-    required = dict(required_independent_sources or {})
+    if (
+        corroboration_targets is not None
+        and required_independent_sources is not None
+    ):
+        raise ValueError(
+            "use corroboration_targets or legacy "
+            "required_independent_sources, not both"
+        )
+    required = dict(
+        corroboration_targets
+        if corroboration_targets is not None
+        else (required_independent_sources or {})
+    )
     tasks_by_url, claims_by_id = _tasks_by_url(attributions)
     if len(claims_by_id) != len(attributions):
         raise ValueError("verification requires unique claim_id values")
     for claim_id, count in required.items():
         if claim_id not in claims_by_id:
-            raise ValueError(f"unknown required-source claim_id: {claim_id}")
+            raise ValueError(f"unknown corroboration-target claim_id: {claim_id}")
         if count < 1:
-            raise ValueError("required independent source counts must be positive")
+            raise ValueError("corroboration targets must be positive")
 
     usage: list[VerificationCallUsage] = []
     diagnostics: list[str] = []

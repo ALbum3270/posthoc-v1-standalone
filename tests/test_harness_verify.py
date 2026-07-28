@@ -193,7 +193,20 @@ def test_groups_by_url_sorts_claim_ids_and_never_exceeds_twenty() -> None:
     assert all("TAIL-SENTINEL-THAT-MUST-NOT-BE-TRUNCATED" in prompt for prompt in model.prompts)
     assert len(result.claims) == 21
     assert all(
-        claim.state == ClaimEvidenceState.CORROBORATED
+        claim.state == ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+        for claim in result.claims
+    )
+    assert all(
+        claim.model_dump(mode="json")["state"]
+        == "supported_single_publisher"
+        for claim in result.claims
+    )
+    assert (
+        ClaimEvidenceState("supported_below_requirement")
+        is ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+    )
+    assert all(
+        claim.publisher_domain_proxy_count == 1
         for claim in result.claims
     )
     with pytest.raises(ValidationError):
@@ -632,6 +645,7 @@ def test_publisher_count_is_disclosed_as_a_proxy_not_strict_independence() -> No
     )
 
     assert result.claims[0].publisher_domain_proxy_count == 2
+    assert result.claims[0].state == ClaimEvidenceState.CORROBORATED
     assert result.independence.method == "publisher_domain_proxy"
     assert result.independence.is_strict_independence_determination is False
     assert "common_ownership_not_resolved" in result.independence.limitations

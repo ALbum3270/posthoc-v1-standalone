@@ -171,7 +171,8 @@ async def run_harness(
     verification_settings: VerificationSettings | None = None,
     verification_budget: VerificationBudget | None = None,
     evidence_gap_budget: EvidenceGapBudget | None = None,
-    verification_required_independent_sources: int = 2,
+    corroboration_target_for_external_claims: int = 2,
+    verification_required_independent_sources: int | None = None,
     verification_input_token_estimator: Callable[[str], int] | None = None,
     verification_cost_estimator: Callable[[str], float] | None = None,
     evidence_gap_input_token_estimator: (
@@ -189,9 +190,18 @@ async def run_harness(
     normalized_run_id = _normalize_run_id(run_id)
     ledger = ResearchLedger(research_id=normalized_run_id, topic=topic.strip())
     active_budget = budget or LoopBudget()
-    if verification_required_independent_sources not in {1, 2}:
+    if verification_required_independent_sources is not None:
+        if corroboration_target_for_external_claims != 2:
+            raise ValueError(
+                "use corroboration_target_for_external_claims or legacy "
+                "verification_required_independent_sources, not both"
+            )
+        corroboration_target_for_external_claims = (
+            verification_required_independent_sources
+        )
+    if corroboration_target_for_external_claims not in {1, 2}:
         raise ValueError(
-            "verification_required_independent_sources must be 1 or 2"
+            "corroboration_target_for_external_claims must be 1 or 2"
         )
 
     checklist = await generate_checklist(topic, model_client=checklist_model)
@@ -236,8 +246,8 @@ async def run_harness(
             attributions=(),
             stop_reason=AttributionStopReason.COMPLETED,
         )
-    required_sources = {
-        claim.claim_id: verification_required_independent_sources
+    corroboration_targets = {
+        claim.claim_id: corroboration_target_for_external_claims
         for claim in claim_decomposition.claims
         if claim.citation_requirement == CitationRequirement.EXTERNAL
     }
@@ -247,7 +257,7 @@ async def run_harness(
         model_client=verification_model,
         settings=verification_settings,
         budget=verification_budget,
-        required_independent_sources=required_sources,
+        corroboration_targets=corroboration_targets,
         estimate_input_tokens=verification_input_token_estimator,
         estimate_cost_usd=verification_cost_estimator,
     )
@@ -274,7 +284,7 @@ async def run_harness(
             budget=evidence_gap_budget,
             attribution_settings=attribution_settings,
             verification_settings=verification_settings,
-            required_independent_sources=required_sources,
+            corroboration_targets=corroboration_targets,
             estimate_input_tokens=evidence_gap_input_token_estimator,
             estimate_cost_usd=evidence_gap_cost_estimator,
         )
@@ -368,8 +378,8 @@ async def run_harness(
                 mode="json",
                 exclude={"markdown"},
             ),
-            "required_independent_sources_for_external_claims": (
-                verification_required_independent_sources
+            "corroboration_target_for_external_claims": (
+                corroboration_target_for_external_claims
             ),
         },
         "usage": usage_audit,

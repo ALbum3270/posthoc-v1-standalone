@@ -305,13 +305,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="maximum full notes injected by one recall_notes action",
     )
     parser.add_argument(
+        "--corroboration-target",
         "--verification-required-sources",
+        dest="corroboration_target",
         type=int,
         choices=(1, 2),
         default=2,
         help=(
-            "independent-source proxy requirement for each externally "
-            "verifiable report claim"
+            "gap-round resource target for publisher corroboration; the "
+            "legacy --verification-required-sources spelling is accepted"
         ),
     )
     parser.add_argument("--evidence-gap-max-tokens", type=int, default=60_000)
@@ -359,8 +361,8 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             ),
             output_dir=args.output_dir,
             run_id=args.run_id,
-            verification_required_independent_sources=(
-                args.verification_required_sources
+            corroboration_target_for_external_claims=(
+                args.corroboration_target
             ),
             evidence_gap_budget=EvidenceGapBudget(
                 max_tokens=args.evidence_gap_max_tokens,

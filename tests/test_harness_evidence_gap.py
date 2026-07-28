@@ -339,9 +339,60 @@ def test_planner_uses_one_ordered_query_for_multiple_claims_within_hard_cap():
     assert "hard budget of at most 1 web search queries" in prompt
     assert "upper bound, not a target" in prompt
     assert "A target claim\ndoes not need its own output entry" in prompt
+    assert '"corroboration_target": 2' in prompt
     assert result.verification_reserve is not None
     assert result.verification_reserve.planned_query_count == 1
     assert result.verification_reserve.planned_query_claim_count == 2
+    assert result.information_yield.pass_completed_within_budget is True
+    assert result.information_yield.new_completed_relation_count == 0
+    assert "new completed claim-source relations=0" in result.stop_detail
+    assert "not found" not in result.stop_detail
+
+
+def test_single_publisher_target_one_does_not_enter_gap_round() -> None:
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    note = _note(
+        ledger,
+        "https://source.example/article",
+        "The event occurred.",
+    )
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=_candidate(note),
+        state=ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+    )
+    initial_verification = VerificationResult(
+        claims=(
+            initial_verification.claims[0].model_copy(
+                update={"corroboration_target": 1}
+            ),
+        )
+    )
+    gap_model = ScriptedModel()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason == EvidenceGapStopReason.NO_TARGETS
+    assert gap_model.prompts == []
 
 
 def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
@@ -361,7 +412,7 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
     initial_attribution, initial_verification = _initial(
         claim,
         candidate=_candidate(first),
-        state=ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+        state=ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
     )
     gap_model = ScriptedModel(
         {
@@ -449,6 +500,10 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
     assert result.verification_merge.final_completed_relation_count == 2
     assert result.verification_merge.preserved_initial_completed_relation_count == 1
     assert result.verification_merge.completed_relation_count_non_decreasing is True
+    assert result.information_yield.new_completed_relation_count == 1
+    assert result.information_yield.new_completed_verdict_counts["supports"] == 1
+    assert result.information_yield.claims_newly_corroborated == 1
+    assert result.information_yield.claims_newly_conflicting == 0
     assert result.verification_reserve is not None
     assert result.verification_reserve.cached_hint_batch_count == 1
     assert result.verification_reserve.reserved_tokens == 1
@@ -481,7 +536,7 @@ def test_budget_failure_for_new_relation_preserves_completed_initial_verdict():
     initial_attribution, initial_verification = _initial(
         claim,
         candidate=_candidate(first),
-        state=ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+        state=ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
     )
     gap_model = ScriptedModel(
         {
@@ -547,6 +602,7 @@ def test_budget_failure_for_new_relation_preserves_completed_initial_verdict():
 
     relations = result.final_verification.claims[0].relations
     assert result.stop_reason == EvidenceGapStopReason.BUDGET_EXHAUSTED
+    assert result.information_yield.pass_completed_within_budget is False
     assert verifier.prompts == []
     assert [relation.status for relation in relations] == [
         VerificationRecordStatus.COMPLETED,
@@ -574,7 +630,7 @@ def test_same_relation_budget_failure_cannot_replace_completed_verdict():
     initial_attribution, initial_verification = _initial(
         claim,
         candidate=_candidate(note),
-        state=ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+        state=ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
     )
     failed_relation = VerifiedSourceRelation(
         claim_id=claim.claim_id,
@@ -658,7 +714,7 @@ def test_search_and_read_admission_cannot_consume_verification_reserve():
     initial_attribution, initial_verification = _initial(
         claim,
         candidate=_candidate(initial_note),
-        state=ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+        state=ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
     )
     new_url = "https://new.example/article"
     gap_model = ScriptedModel(
@@ -844,6 +900,19 @@ def test_new_source_and_notes_enter_gap_history_without_collection_rounds():
     assert result.final_verification.claims[0].relations[0].semantic_verdict == (
         VerificationVerdict.CONTRADICTS
     )
+    assert result.information_yield.pass_completed_within_budget is True
+    assert result.information_yield.new_completed_relation_count == 1
+    assert result.information_yield.new_completed_verdict_counts == {
+        "supports": 0,
+        "does_not_support": 0,
+        "contradicts": 1,
+        "not_enough_information": 0,
+    }
+    assert result.information_yield.new_publisher_domain_proxies == (
+        "new.example",
+    )
+    assert result.information_yield.new_claim_publisher_relation_count == 1
+    assert "new completed claim-source relations=1" in result.stop_detail
 
 
 def test_gap_budget_exhaustion_is_not_reported_as_sources_exhausted():
@@ -893,7 +962,7 @@ def test_same_brand_on_another_domain_is_rejected_before_read():
     initial_attribution, initial_verification = _initial(
         claim,
         candidate=_candidate(first),
-        state=ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+        state=ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
     )
     other_domain = "https://bbc.co.uk/other"
     gap_model = ScriptedModel(
@@ -983,5 +1052,5 @@ def test_same_brand_on_another_domain_is_rejected_before_read():
         for entry in result.rejected_entries
     )
     assert result.final_verification.claims[0].state == (
-        ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT
+        ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
     )

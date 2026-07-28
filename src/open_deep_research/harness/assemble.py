@@ -125,7 +125,6 @@ def _render_item(
         ),
         f"- Question: {_quoted(item.question)}",
         f"- Status: {item.status.value}",
-        f"- Required source count: {item.required_source_count}",
     ]
     if not notes:
         lines.append("- Notes: none")

@@ -45,7 +45,7 @@ def test_model_generated_checklist_is_parsed_and_prompt_is_topic_neutral():
     model = FakeModel(
         '{"items":[{"item_id":"who-1","dimension":"who",'
         '"question":"Who is involved?","priority":1,'
-        '"required_source_count":1}]}'
+        '"corroboration_target":1}]}'
     )
 
     checklist = asyncio.run(
@@ -53,8 +53,19 @@ def test_model_generated_checklist_is_parsed_and_prompt_is_topic_neutral():
     )
 
     assert checklist.items == (item(),)
+    assert checklist.items[0].corroboration_target == 1
     assert "who, what, when, where, why, and how" in model.prompts[0]
+    assert "corroboration_target" in model.prompts[0]
+    assert "required_source_count" not in model.prompts[0]
     assert model.prompts[0].endswith("Topic:\nA topic supplied at runtime\n")
+
+
+def test_legacy_required_source_count_is_read_but_not_reemitted() -> None:
+    legacy = item()
+
+    assert legacy.required_source_count == 1
+    assert legacy.model_dump(mode="json")["corroboration_target"] == 1
+    assert "required_source_count" not in legacy.model_dump(mode="json")
 
 
 def test_generated_membership_is_immutable_and_delete_is_rejected_and_audited():

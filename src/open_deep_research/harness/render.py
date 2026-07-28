@@ -74,8 +74,11 @@ class EvidenceSummary(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     external_claims: int = Field(ge=0)
+    claims_with_located_support: int = Field(ge=0)
+    single_publisher_support: int = Field(ge=0)
+    multi_publisher_support: int = Field(ge=0)
+    zero_publisher_support: int = Field(ge=0)
     corroborated: int = Field(ge=0)
-    source_shortfall: int = Field(ge=0)
     conflicting: int = Field(ge=0)
     refuted: int = Field(ge=0)
     inspected_not_supporting: int = Field(ge=0)
@@ -102,6 +105,22 @@ class EvidenceSummary(BaseModel):
         if self.unverified != components:
             raise ValueError(
                 "unverified must equal its reader-facing component counts"
+            )
+        if (
+            self.single_publisher_support
+            + self.multi_publisher_support
+            + self.zero_publisher_support
+            != self.external_claims
+        ):
+            raise ValueError(
+                "publisher-support distribution must cover external claims"
+            )
+        if self.claims_with_located_support != (
+            self.single_publisher_support
+            + self.multi_publisher_support
+        ):
+            raise ValueError(
+                "located-support total must match publisher-support counts"
             )
         return self
 
@@ -223,12 +242,11 @@ def _warning_label(verification: ClaimVerification) -> str:
     state = verification.state
     if state == ClaimEvidenceState.CORROBORATED:
         return ""
-    if state == ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT:
+    if state == ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER:
         actual = verification.publisher_domain_proxy_count
-        required = verification.required_independent_sources
         if actual == 1:
-            return f"〔单一来源：{actual}/{required}〕"
-        return f"〔来源不足：{actual}/{required}〕"
+            return "〔单一发布方支持〕"
+        return f"〔{actual} 个发布方支持〕"
     if state == ClaimEvidenceState.CONFLICTING_EVIDENCE:
         return "〔来源冲突〕"
     if state == ClaimEvidenceState.REFUTED:
@@ -284,12 +302,27 @@ def _summary(
         ClaimEvidenceState.NORMALIZATION_FAILED
     )
     attribution_error = count(ClaimEvidenceState.ATTRIBUTION_ERROR)
+    single_publisher_support = sum(
+        verification.publisher_domain_proxy_count == 1
+        for verification in external
+    )
+    multi_publisher_support = sum(
+        verification.publisher_domain_proxy_count >= 2
+        for verification in external
+    )
+    zero_publisher_support = sum(
+        verification.publisher_domain_proxy_count == 0
+        for verification in external
+    )
     return EvidenceSummary(
         external_claims=len(external),
-        corroborated=count(ClaimEvidenceState.CORROBORATED),
-        source_shortfall=count(
-            ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+        claims_with_located_support=(
+            single_publisher_support + multi_publisher_support
         ),
+        single_publisher_support=single_publisher_support,
+        multi_publisher_support=multi_publisher_support,
+        zero_publisher_support=zero_publisher_support,
+        corroborated=count(ClaimEvidenceState.CORROBORATED),
         conflicting=count(ClaimEvidenceState.CONFLICTING_EVIDENCE),
         refuted=count(ClaimEvidenceState.REFUTED),
         inspected_not_supporting=count(
@@ -351,8 +384,9 @@ def _summary_line(summary: EvidenceSummary) -> str:
         "> 证据摘要："
         f"{coverage_prefix}"
         f"{claim_scope}外部可核验断言 {summary.external_claims}；"
-        f"充分支持 {summary.corroborated}；"
-        f"来源不足 {summary.source_shortfall}；"
+        f"其中 {summary.claims_with_located_support} 条有至少一条"
+        "可定位的支持引文，"
+        f"{summary.corroborated} 条获得多发布方交叉支持；"
         f"来源冲突 {summary.conflicting}；"
         f"所检来源反驳 {summary.refuted}；"
         f"所检来源未支持 {summary.inspected_not_supporting}；"

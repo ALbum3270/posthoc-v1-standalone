@@ -92,8 +92,7 @@ domain or organization wordlist is used to guess those relationships.
 Fine-grained evidence states remain authoritative. A deterministic coarse
 mapping is additionally exposed:
 
-- corroborated or supported below the requested independent-source count:
-  `SUPPORTED`;
+- supported by one publisher or corroborated across publishers: `SUPPORTED`;
 - an explicit verifier result of `contradicts`: `REFUTED`;
 - conflicting support and contradiction: `CONFLICTING`;
 - cited sources that do not support the claim, or no candidate source:
@@ -104,9 +103,11 @@ mapping is additionally exposed:
 
 ## Reader-visible rendering
 
-The report starts with an evidence summary and marks deficient evidence at the
-claim anchor. The existence of a warning is evidence honesty and is not itself
-a content defect.
+The report starts with an evidence summary and states evidence strength or
+failure status at the claim anchor. One-publisher support is a factual evidence
+state, not a failed threshold. `corroboration_target` is a gap-round resource
+priority signal; the renderer never reads it. `corroborated` remains reserved
+for support from at least two publisher-domain proxies.
 
 Footnote identifiers are assigned in deterministic anchor, claim, and source
 order. A definition represents one claim-source evidence relation, includes a
@@ -122,8 +123,8 @@ At minimum the audit records numerators and denominators for:
 - `attribution_coverage`;
 - `fully_grounded_claim_rate`;
 - `citation_support_precision`;
-- corroborated, conflicting, no-candidate, unverified, and normalization
-  failure counts.
+- one-publisher support, multi-publisher support, zero-support, corroborated,
+  conflicting, no-candidate, unverified, and normalization failure counts.
 
 The initial attribution-coverage floor is 75% and the stable target is 90%.
 The initial fully-grounded-claim target is 75% and the mature target is 90%.

@@ -373,6 +373,13 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["posthoc_evidence"]["verification"]["claims"][0][
         "state"
     ] == "no_candidate_source"
+    assert audit["posthoc_evidence"]["verification"]["claims"][0][
+        "corroboration_target"
+    ] == 2
+    assert (
+        "required_independent_sources"
+        not in audit["posthoc_evidence"]["verification"]["claims"][0]
+    )
     assert audit["posthoc_evidence"]["claim_decomposition"][
         "registry_coverage"
     ] == {
@@ -389,8 +396,12 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         ClaimEvidenceState.NO_CANDIDATE_SOURCE
     )
     assert audit["posthoc_evidence"][
-        "required_independent_sources_for_external_claims"
+        "corroboration_target_for_external_claims"
     ] == 2
+    assert (
+        "required_independent_sources_for_external_claims"
+        not in audit["posthoc_evidence"]
+    )
     assert "markdown" not in audit["posthoc_evidence"]["rendering"]
     assert audit["posthoc_evidence"]["rendering"]["summary"][
         "settled_without_located_evidence"
@@ -450,7 +461,7 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     )
 
     markdown = result.report_path.read_text(encoding="utf-8")
-    assert "The model wrote this report.[^1]〔单一来源：1/2〕" in markdown
+    assert "The model wrote this report.[^1]〔单一发布方支持〕" in markdown
     assert markdown.count("[^1]:") == 1
     assert '"quote":"ExactSourceEvidence 2026"' in markdown
     assert "exact source evidence 2026." not in markdown

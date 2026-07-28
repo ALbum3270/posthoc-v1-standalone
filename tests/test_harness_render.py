@@ -113,12 +113,12 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
         claims=(
             _verified(
                 first,
-                ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
                 evidence,
             ),
             _verified(
                 second,
-                ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
                 repeated,
             ),
         )
@@ -135,7 +135,14 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
         "start_char": 10,
         "end_char": 41,
     }
-    assert rendered.markdown.count("〔单一来源：1/2〕") == 2
+    assert rendered.markdown.count("〔单一发布方支持〕") == 2
+    assert "1/2" not in rendered.markdown
+    assert "充分支持" not in rendered.evidence_summary_line
+    assert "已核实" not in rendered.evidence_summary_line
+    assert rendered.summary.claims_with_located_support == 2
+    assert rendered.summary.single_publisher_support == 2
+    assert rendered.summary.multi_publisher_support == 0
+    assert rendered.summary.zero_publisher_support == 0
     assert "Exact source-authored evidence." in rendered.markdown
     assert "MODEL WORDING MUST NEVER BE RENDERED" not in rendered.markdown
 
@@ -143,6 +150,39 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
     assert {citation.quote for citation in parsed.citations} == {
         "Exact source-authored evidence."
     }
+
+
+def test_renderer_does_not_read_corroboration_target() -> None:
+    draft = "One assertion."
+    claim = _claim(draft, "claim-1", "One assertion.")
+    evidence = _support("claim-1")
+    target_one = VerificationResult(
+        claims=(
+            _verified(
+                claim,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                evidence,
+                required=1,
+            ),
+        )
+    )
+    target_two = VerificationResult(
+        claims=(
+            _verified(
+                claim,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                evidence,
+                required=2,
+            ),
+        )
+    )
+
+    first = render_verified_report(draft, target_one)
+    second = render_verified_report(draft, target_two)
+
+    assert first.markdown == second.markdown
+    assert first.evidence_summary_line == second.evidence_summary_line
+    assert "〔单一发布方支持〕" in first.markdown
 
 
 def test_same_sentence_claims_keep_distinct_evidence_states() -> None:

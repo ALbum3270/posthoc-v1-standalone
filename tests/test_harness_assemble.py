@@ -43,6 +43,8 @@ def test_assembly_orders_dimension_then_priority_then_item_id():
     assert [assembled.index(heading) for heading in headings] == sorted(
         assembled.index(heading) for heading in headings
     )
+    assert "Required source count" not in assembled
+    assert "corroboration_target" not in assembled
 
 
 def test_assembly_is_byte_reproducible_and_preserves_all_notes():
