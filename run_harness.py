@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,9 +16,42 @@ from openai import AsyncOpenAI
 from tavily import AsyncTavilyClient
 
 from open_deep_research.harness.loop import LoopBudget, LoopSettings
+from open_deep_research.harness.evidence_gap import EvidenceGapBudget
 from open_deep_research.harness.runner import HarnessRunResult, run_harness
 
 _OPENROUTER_PROXY = "http://127.0.0.1:7890"
+
+
+@dataclass
+class UsageCalibration:
+    """Observed prompt-character to provider-usage calibration."""
+
+    prompt_chars: int = 0
+    token_count: int = 0
+    cost_usd: float = 0.0
+
+    def observe(
+        self,
+        *,
+        prompt_chars: int,
+        token_count: int,
+        cost_usd: float,
+    ) -> None:
+        self.prompt_chars += max(0, prompt_chars)
+        self.token_count += max(0, token_count)
+        self.cost_usd += max(0.0, cost_usd)
+
+    def estimate_tokens(self, prompt: str) -> int:
+        if self.prompt_chars <= 0:
+            raise RuntimeError("no observed usage is available for admission")
+        return math.ceil(
+            len(prompt) * self.token_count / self.prompt_chars
+        )
+
+    def estimate_cost_usd(self, prompt: str) -> float:
+        if self.prompt_chars <= 0:
+            raise RuntimeError("no observed usage is available for admission")
+        return len(prompt) * self.cost_usd / self.prompt_chars
 
 
 class OpenAIEnvelopeModel:
@@ -29,10 +63,12 @@ class OpenAIEnvelopeModel:
         model: str,
         *,
         json_mode: bool = True,
+        calibration: UsageCalibration | None = None,
     ) -> None:
         self.client = client
         self.model = model
         self.json_mode = json_mode
+        self.calibration = calibration or UsageCalibration()
         self.last_usage = {"token_count": 0, "cost_usd": 0.0}
 
     async def generate(self, prompt: str) -> dict[str, object]:
@@ -72,7 +108,22 @@ class OpenAIEnvelopeModel:
             "token_count": int(token_count or 0),
             "cost_usd": float(cost_usd or 0.0),
         }
+        self.calibration.observe(
+            prompt_chars=len(prompt),
+            token_count=int(token_count or 0),
+            cost_usd=float(cost_usd or 0.0),
+        )
         return {"content": content, **self.last_usage}
+
+    def estimate_tokens(self, prompt: str) -> int:
+        """Estimate from observed real provider usage, never a fixed ratio."""
+
+        return self.calibration.estimate_tokens(prompt)
+
+    def estimate_cost_usd(self, prompt: str) -> float:
+        """Estimate from observed real provider cost, never a fixed ratio."""
+
+        return self.calibration.estimate_cost_usd(prompt)
 
 
 class ChecklistOpenAIModel:
@@ -165,22 +216,36 @@ def build_live_clients() -> LiveClients:
 
     openai = AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
     tavily = AsyncTavilyClient(api_key=tavily_api_key)
-    checklist_envelope = OpenAIEnvelopeModel(openai, decision_model_name)
+    calibration = UsageCalibration()
+    checklist_envelope = OpenAIEnvelopeModel(
+        openai,
+        decision_model_name,
+        calibration=calibration,
+    )
     return LiveClients(
         openai=openai,
         tavily=tavily,
         checklist_model=ChecklistOpenAIModel(checklist_envelope),
-        decision_model=OpenAIEnvelopeModel(openai, decision_model_name),
-        note_model=OpenAIEnvelopeModel(openai, note_model_name),
-        write_model=OpenAIEnvelopeModel(
-            openai, decision_model_name, json_mode=False
+        decision_model=OpenAIEnvelopeModel(
+            openai, decision_model_name, calibration=calibration
         ),
-        claim_model=OpenAIEnvelopeModel(openai, claim_model_name),
+        note_model=OpenAIEnvelopeModel(
+            openai, note_model_name, calibration=calibration
+        ),
+        write_model=OpenAIEnvelopeModel(
+            openai,
+            decision_model_name,
+            json_mode=False,
+            calibration=calibration,
+        ),
+        claim_model=OpenAIEnvelopeModel(
+            openai, claim_model_name, calibration=calibration
+        ),
         attribution_model=OpenAIEnvelopeModel(
-            openai, attribution_model_name
+            openai, attribution_model_name, calibration=calibration
         ),
         verification_model=OpenAIEnvelopeModel(
-            openai, verification_model_name
+            openai, verification_model_name, calibration=calibration
         ),
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,
@@ -249,6 +314,14 @@ def build_parser() -> argparse.ArgumentParser:
             "verifiable report claim"
         ),
     )
+    parser.add_argument("--evidence-gap-max-tokens", type=int, default=60_000)
+    parser.add_argument(
+        "--evidence-gap-max-cost-usd",
+        type=float,
+        default=0.10,
+    )
+    parser.add_argument("--evidence-gap-max-searches", type=int, default=3)
+    parser.add_argument("--evidence-gap-max-reads", type=int, default=3)
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -288,6 +361,12 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             run_id=args.run_id,
             verification_required_independent_sources=(
                 args.verification_required_sources
+            ),
+            evidence_gap_budget=EvidenceGapBudget(
+                max_tokens=args.evidence_gap_max_tokens,
+                max_cost_usd=args.evidence_gap_max_cost_usd,
+                max_search_queries=args.evidence_gap_max_searches,
+                max_reads=args.evidence_gap_max_reads,
             ),
             model_names={
                 "decision": clients.decision_model_name,

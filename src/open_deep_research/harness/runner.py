@@ -31,6 +31,12 @@ from open_deep_research.harness.claims import (
     decompose_claims,
 )
 from open_deep_research.harness.ledger import ResearchLedger
+from open_deep_research.harness.evidence_gap import (
+    EvidenceGapBudget,
+    EvidenceGapResult,
+    EvidenceGapStopReason,
+    run_evidence_gap_round,
+)
 from open_deep_research.harness.loop import (
     LoopBudget,
     LoopModelClient,
@@ -83,6 +89,7 @@ class HarnessRunResult(BaseModel):
     claim_decomposition: ClaimDecompositionResult
     attribution: AttributionResult
     verification: VerificationResult
+    evidence_gap: EvidenceGapResult
     usage: dict[str, UsageRecord]
 
 
@@ -125,6 +132,7 @@ def _usage_payload(
     writing_usage: UsageRecord,
     decomposition_attribution_usage: UsageRecord,
     verification_usage: UsageRecord,
+    evidence_gap_usage: UsageRecord,
 ) -> tuple[dict[str, UsageRecord], dict[str, Any]]:
     stages = {
         "checklist": checklist_usage,
@@ -132,6 +140,7 @@ def _usage_payload(
         "writing": writing_usage,
         "decomposition_attribution": decomposition_attribution_usage,
         "verification": verification_usage,
+        "evidence_gap": evidence_gap_usage,
     }
     total = UsageRecord(
         token_count=sum(value.token_count for value in stages.values()),
@@ -161,9 +170,16 @@ async def run_harness(
     attribution_settings: AttributionSettings | None = None,
     verification_settings: VerificationSettings | None = None,
     verification_budget: VerificationBudget | None = None,
+    evidence_gap_budget: EvidenceGapBudget | None = None,
     verification_required_independent_sources: int = 2,
     verification_input_token_estimator: Callable[[str], int] | None = None,
     verification_cost_estimator: Callable[[str], float] | None = None,
+    evidence_gap_input_token_estimator: (
+        Callable[[Any, str], int] | None
+    ) = None,
+    evidence_gap_cost_estimator: (
+        Callable[[Any, str], float] | None
+    ) = None,
     output_dir: str | Path = Path("harness_runs"),
     run_id: str | None = None,
     model_names: Mapping[str, str] | None = None,
@@ -189,6 +205,17 @@ async def run_harness(
         budget=active_budget,
         settings=loop_settings,
     )
+    collection_usage = UsageRecord(
+        token_count=ledger.total_tokens,
+        cost_usd=ledger.total_cost_usd,
+    )
+    collection_quote_quality = quote_quality_metrics(ledger.notes)
+    settled_without_located_evidence = (
+        ledger.settled_without_located_evidence
+    )
+    settled_without_located_evidence_item_ids = (
+        ledger.settled_without_located_evidence_item_ids
+    )
     assembled = assemble_notes(loop_result.checklist, ledger.notes)
     report = await write_report(assembled, model_client=write_model)
     claim_decomposition = await decompose_claims(
@@ -197,7 +224,7 @@ async def run_harness(
         settings=claim_settings,
     )
     if claim_decomposition.claims:
-        attribution = await attribute_claims(
+        initial_attribution = await attribute_claims(
             claim_decomposition.claims,
             blocks=claim_decomposition.blocks,
             notes=ledger.notes,
@@ -205,7 +232,7 @@ async def run_harness(
             settings=attribution_settings,
         )
     else:
-        attribution = AttributionResult(
+        initial_attribution = AttributionResult(
             attributions=(),
             stop_reason=AttributionStopReason.COMPLETED,
         )
@@ -214,8 +241,8 @@ async def run_harness(
         for claim in claim_decomposition.claims
         if claim.citation_requirement == CitationRequirement.EXTERNAL
     }
-    verification = await verify_attributions(
-        attribution.attributions,
+    initial_verification = await verify_attributions(
+        initial_attribution.attributions,
         source_cache=ledger.source_cache,
         model_client=verification_model,
         settings=verification_settings,
@@ -224,38 +251,68 @@ async def run_harness(
         estimate_input_tokens=verification_input_token_estimator,
         estimate_cost_usd=verification_cost_estimator,
     )
+    if evidence_gap_budget is None:
+        evidence_gap = EvidenceGapResult(
+            stop_reason=EvidenceGapStopReason.DISABLED,
+            stop_detail="no independent evidence-gap budget was configured",
+            final_attribution=initial_attribution,
+            final_verification=initial_verification,
+        )
+    else:
+        evidence_gap = await run_evidence_gap_round(
+            canonical_draft=report.canonical_draft,
+            checklist=loop_result.checklist,
+            blocks=claim_decomposition.blocks,
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=decision_model,
+            note_model=note_model,
+            attribution_model=attribution_model,
+            verification_model=verification_model,
+            tavily_client=tavily_client,
+            budget=evidence_gap_budget,
+            attribution_settings=attribution_settings,
+            verification_settings=verification_settings,
+            required_independent_sources=required_sources,
+            estimate_input_tokens=evidence_gap_input_token_estimator,
+            estimate_cost_usd=evidence_gap_cost_estimator,
+        )
+    attribution = evidence_gap.final_attribution
+    verification = evidence_gap.final_verification
     rendered_report = render_verified_report(
         report.canonical_draft,
         verification,
         settled_without_located_evidence=(
-            ledger.settled_without_located_evidence
+            settled_without_located_evidence
         ),
         settled_without_located_evidence_item_ids=(
-            ledger.settled_without_located_evidence_item_ids
+            settled_without_located_evidence_item_ids
         ),
         registry_coverage=claim_decomposition.registry_coverage,
     )
 
-    collection_usage = UsageRecord(
-        token_count=ledger.total_tokens,
-        cost_usd=ledger.total_cost_usd,
-    )
     writing_usage = UsageRecord(
         token_count=report.token_count,
         cost_usd=report.cost_usd,
     )
     decomposition_attribution_usage = UsageRecord(
         token_count=(
-            claim_decomposition.total_tokens + attribution.total_tokens
+            claim_decomposition.total_tokens
+            + initial_attribution.total_tokens
         ),
         cost_usd=(
             claim_decomposition.total_cost_usd
-            + attribution.total_cost_usd
+            + initial_attribution.total_cost_usd
         ),
     )
     verification_usage = UsageRecord(
-        token_count=verification.total_tokens,
-        cost_usd=verification.total_cost_usd,
+        token_count=initial_verification.total_tokens,
+        cost_usd=initial_verification.total_cost_usd,
+    )
+    evidence_gap_usage = UsageRecord(
+        token_count=evidence_gap.total_tokens,
+        cost_usd=evidence_gap.total_cost_usd,
     )
     usage, usage_audit = _usage_payload(
         checklist_usage=checklist_usage,
@@ -265,6 +322,7 @@ async def run_harness(
             decomposition_attribution_usage
         ),
         verification_usage=verification_usage,
+        evidence_gap_usage=evidence_gap_usage,
     )
 
     destination = Path(output_dir)
@@ -284,16 +342,16 @@ async def run_harness(
         },
         "collection_summary": {
             "settled_without_located_evidence": (
-                ledger.settled_without_located_evidence
+                settled_without_located_evidence
             ),
             "settled_without_located_evidence_item_ids": list(
-                ledger.settled_without_located_evidence_item_ids
+                settled_without_located_evidence_item_ids
             ),
             "writing_reserve": {
                 "tokens": active_budget.writing_token_reserve,
                 "cost_usd": active_budget.writing_cost_reserve_usd,
             },
-            "quote_quality": quote_quality_metrics(ledger.notes),
+            "quote_quality": collection_quote_quality,
             # Collection protects this allocation, but the first version does
             # not yet estimate assembled-notes input before the writing call.
             # Keep the gap explicit until stage admission is implemented.
@@ -301,6 +359,9 @@ async def run_harness(
         },
         "posthoc_evidence": {
             "claim_decomposition": claim_decomposition.model_dump(mode="json"),
+            "initial_attribution": initial_attribution.model_dump(mode="json"),
+            "initial_verification": initial_verification.model_dump(mode="json"),
+            "evidence_gap": evidence_gap.model_dump(mode="json"),
             "attribution": attribution.model_dump(mode="json"),
             "verification": verification.model_dump(mode="json"),
             "rendering": rendered_report.model_dump(
@@ -335,5 +396,6 @@ async def run_harness(
         claim_decomposition=claim_decomposition,
         attribution=attribution,
         verification=verification,
+        evidence_gap=evidence_gap,
         usage=usage,
     )

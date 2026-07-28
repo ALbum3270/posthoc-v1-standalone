@@ -65,6 +65,17 @@ class ChecklistChangeRecord(BaseModel):
     )
 
 
+class EvidenceGapLedgerRecord(BaseModel):
+    """One post-draft ledger mutation, separate from initial collection."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    event: str = Field(min_length=1)
+    result_summary: str = ""
+    url: str | None = None
+    note_ids: tuple[str, ...] = ()
+
+
 class ResearchLedger(BaseModel):
     """All durable evidence and audit events for one research run."""
 
@@ -76,6 +87,9 @@ class ResearchLedger(BaseModel):
     source_cache: dict[str, str] = Field(default_factory=dict)
     notes: list[ResearchNote] = Field(default_factory=list)
     checklist_history: list[ChecklistChangeRecord] = Field(default_factory=list)
+    evidence_gap_history: list[EvidenceGapLedgerRecord] = Field(
+        default_factory=list
+    )
 
     @model_validator(mode="after")
     def _assign_missing_note_ids(self) -> ResearchLedger:
@@ -191,6 +205,25 @@ class ResearchLedger(BaseModel):
             settlement_evidence=settlement_evidence,
         )
         self.checklist_history.append(record)
+        return record
+
+    def record_evidence_gap(
+        self,
+        *,
+        event: str,
+        result_summary: str = "",
+        url: str | None = None,
+        note_ids: tuple[str, ...] = (),
+    ) -> EvidenceGapLedgerRecord:
+        """Append a post-draft event without changing collection rounds."""
+
+        record = EvidenceGapLedgerRecord(
+            event=event,
+            result_summary=result_summary,
+            url=url,
+            note_ids=note_ids,
+        )
+        self.evidence_gap_history.append(record)
         return record
 
     def note_ids_for_url(self, url: str) -> dict[str, tuple[str, ...]]:

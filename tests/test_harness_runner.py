@@ -365,6 +365,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
             "cost_usd": 0.05,
             "token_count": 37,
         },
+        "evidence_gap": {"cost_usd": 0.0, "token_count": 0},
         "total": {"cost_usd": 0.15, "token_count": 47},
         "verification": {"cost_usd": 0.0, "token_count": 0},
         "writing": {"cost_usd": 0.05, "token_count": 5},

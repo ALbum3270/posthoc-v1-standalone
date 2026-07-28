@@ -7,7 +7,10 @@ from open_deep_research.harness.checklist import (
     ChecklistItem,
     ResearchChecklist,
 )
-from open_deep_research.harness.ledger import ResearchLedger
+from open_deep_research.harness.ledger import (
+    ResearchLedger,
+    SettlementEvidence,
+)
 from open_deep_research.harness.notes import NoteLocationStatus, create_note
 
 
@@ -105,3 +108,38 @@ def test_legacy_serialized_notes_receive_stable_ids_when_loaded():
     assert first_load.notes[0].note_id == "note-000001"
     assert second_load.notes[0].note_id == "note-000001"
     assert first_load.notes[0].source_id == second_load.notes[0].source_id
+
+
+def test_gap_notes_do_not_rewrite_settle_time_evidence_snapshot():
+    ledger = ResearchLedger()
+    ledger.record_checklist_change(
+        event="status_update",
+        item_id="what-1",
+        accepted=True,
+        reason="settled during initial collection",
+        from_status="has_material",
+        to_status="settled",
+        settlement_evidence=SettlementEvidence(),
+    )
+    text = "Later source wording."
+    url = "https://later.example/source"
+    ledger.cache_source(url, text)
+    note = ledger.add_note(
+        create_note(
+            item_id="what-1",
+            finding="A post-draft finding.",
+            quote=text,
+            url=url,
+            source_text=text,
+        )
+    )
+    ledger.record_evidence_gap(
+        event="source_acquired",
+        url=url,
+        note_ids=(note.note_id,),
+    )
+
+    assert ledger.settled_without_located_evidence_item_ids == ("what-1",)
+    assert ledger.settled_without_located_evidence == 1
+    assert ledger.evidence_gap_history[0].event == "source_acquired"
+    assert ledger.rounds == []
