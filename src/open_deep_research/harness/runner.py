@@ -49,6 +49,11 @@ from open_deep_research.harness.render import (
     RenderedReport,
     render_verified_report,
 )
+from open_deep_research.harness.reconcile import (
+    ChecklistReportReconciliation,
+    ReconciliationModelClient,
+    reconcile_checklist_report,
+)
 from open_deep_research.harness.tools import TavilyClient
 from open_deep_research.harness.verify import (
     VerificationBudget,
@@ -87,6 +92,7 @@ class HarnessRunResult(BaseModel):
     rendered_report: RenderedReport
     loop_result: LoopResult
     claim_decomposition: ClaimDecompositionResult
+    checklist_report_reconciliation: ChecklistReportReconciliation
     attribution: AttributionResult
     verification: VerificationResult
     evidence_gap: EvidenceGapResult
@@ -131,6 +137,7 @@ def _usage_payload(
     collection_usage: UsageRecord,
     writing_usage: UsageRecord,
     decomposition_attribution_usage: UsageRecord,
+    reconciliation_usage: UsageRecord,
     verification_usage: UsageRecord,
     evidence_gap_usage: UsageRecord,
 ) -> tuple[dict[str, UsageRecord], dict[str, Any]]:
@@ -139,6 +146,7 @@ def _usage_payload(
         "collection": collection_usage,
         "writing": writing_usage,
         "decomposition_attribution": decomposition_attribution_usage,
+        "reconciliation": reconciliation_usage,
         "verification": verification_usage,
         "evidence_gap": evidence_gap_usage,
     }
@@ -161,6 +169,7 @@ async def run_harness(
     note_model: LoopModelClient,
     write_model: WriteModelClient,
     claim_model: ClaimModelClient,
+    reconciliation_model: ReconciliationModelClient,
     attribution_model: AttributionModelClient,
     verification_model: VerificationModelClient,
     tavily_client: TavilyClient,
@@ -233,6 +242,13 @@ async def run_harness(
         model_client=claim_model,
         settings=claim_settings,
     )
+    checklist_report_reconciliation = await reconcile_checklist_report(
+        report.canonical_draft,
+        loop_result.checklist,
+        blocks=claim_decomposition.blocks,
+        claims=claim_decomposition.claims,
+        model_client=reconciliation_model,
+    )
     if claim_decomposition.claims:
         initial_attribution = await attribute_claims(
             claim_decomposition.claims,
@@ -300,6 +316,7 @@ async def run_harness(
             settled_without_located_evidence_item_ids
         ),
         registry_coverage=claim_decomposition.registry_coverage,
+        checklist_coverage=checklist_report_reconciliation.summary,
     )
 
     writing_usage = UsageRecord(
@@ -320,6 +337,10 @@ async def run_harness(
         token_count=initial_verification.total_tokens,
         cost_usd=initial_verification.total_cost_usd,
     )
+    reconciliation_usage = UsageRecord(
+        token_count=checklist_report_reconciliation.total_tokens,
+        cost_usd=checklist_report_reconciliation.total_cost_usd,
+    )
     evidence_gap_usage = UsageRecord(
         token_count=evidence_gap.total_tokens,
         cost_usd=evidence_gap.total_cost_usd,
@@ -331,6 +352,7 @@ async def run_harness(
         decomposition_attribution_usage=(
             decomposition_attribution_usage
         ),
+        reconciliation_usage=reconciliation_usage,
         verification_usage=verification_usage,
         evidence_gap_usage=evidence_gap_usage,
     )
@@ -369,6 +391,9 @@ async def run_harness(
         },
         "posthoc_evidence": {
             "claim_decomposition": claim_decomposition.model_dump(mode="json"),
+            "checklist_report_reconciliation": (
+                checklist_report_reconciliation.model_dump(mode="json")
+            ),
             "initial_attribution": initial_attribution.model_dump(mode="json"),
             "initial_verification": initial_verification.model_dump(mode="json"),
             "evidence_gap": evidence_gap.model_dump(mode="json"),
@@ -404,6 +429,9 @@ async def run_harness(
         rendered_report=rendered_report,
         loop_result=loop_result,
         claim_decomposition=claim_decomposition,
+        checklist_report_reconciliation=(
+            checklist_report_reconciliation
+        ),
         attribution=attribution,
         verification=verification,
         evidence_gap=evidence_gap,

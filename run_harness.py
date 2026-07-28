@@ -153,11 +153,13 @@ class LiveClients:
     note_model: OpenAIEnvelopeModel
     write_model: OpenAIEnvelopeModel
     claim_model: OpenAIEnvelopeModel
+    reconciliation_model: OpenAIEnvelopeModel
     attribution_model: OpenAIEnvelopeModel
     verification_model: OpenAIEnvelopeModel
     decision_model_name: str
     note_model_name: str
     claim_model_name: str
+    reconciliation_model_name: str
     attribution_model_name: str
     verification_model_name: str
 
@@ -212,6 +214,9 @@ def build_live_clients() -> LiveClients:
     attribution_model_name = _model_name(
         "attribution", decision_model_name
     )
+    reconciliation_model_name = _model_name(
+        "reconciliation", attribution_model_name
+    )
     verification_model_name = _model_name("verification", default_model)
 
     openai = AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
@@ -241,6 +246,11 @@ def build_live_clients() -> LiveClients:
         claim_model=OpenAIEnvelopeModel(
             openai, claim_model_name, calibration=calibration
         ),
+        reconciliation_model=OpenAIEnvelopeModel(
+            openai,
+            reconciliation_model_name,
+            calibration=calibration,
+        ),
         attribution_model=OpenAIEnvelopeModel(
             openai, attribution_model_name, calibration=calibration
         ),
@@ -250,6 +260,7 @@ def build_live_clients() -> LiveClients:
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,
         claim_model_name=claim_model_name,
+        reconciliation_model_name=reconciliation_model_name,
         attribution_model_name=attribution_model_name,
         verification_model_name=verification_model_name,
     )
@@ -343,6 +354,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             note_model=clients.note_model,
             write_model=clients.write_model,
             claim_model=clients.claim_model,
+            reconciliation_model=clients.reconciliation_model,
             attribution_model=clients.attribution_model,
             verification_model=clients.verification_model,
             tavily_client=clients.tavily,
@@ -375,6 +387,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 "note": clients.note_model_name,
                 "writing": clients.decision_model_name,
                 "claim": clients.claim_model_name,
+                "reconciliation": clients.reconciliation_model_name,
                 "attribution": clients.attribution_model_name,
                 "verification": clients.verification_model_name,
             },

@@ -14,6 +14,7 @@ from open_deep_research.harness.claims import (
     ClaimNormalizationStatus,
     ClaimRegistryCoverage,
 )
+from open_deep_research.harness.reconcile import ChecklistCoverageSummary
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
@@ -137,6 +138,7 @@ class RenderedReport(BaseModel):
     markdown: str
     evidence_summary_line: str
     evidence_legend_line: str
+    checklist_coverage_line: str
     summary: EvidenceSummary
     footnotes: tuple[RenderedFootnote, ...] = ()
     annotations: tuple[ClaimRenderAnnotation, ...] = ()
@@ -405,6 +407,32 @@ def _summary_line(summary: EvidenceSummary) -> str:
     )
 
 
+def _checklist_coverage_line(
+    summary: ChecklistCoverageSummary | None,
+) -> str:
+    if summary is None:
+        return "> 清单对账：未执行。"
+    uncovered = (
+        ", ".join(summary.not_covered_item_ids)
+        if summary.not_covered_item_ids
+        else "无"
+    )
+    failed = (
+        ", ".join(summary.assessment_failed_item_ids)
+        if summary.assessment_failed_item_ids
+        else "无"
+    )
+    return (
+        "> 清单对账："
+        f"已评估 {summary.assessed_items}/{summary.total_items}；"
+        f"完整覆盖 {summary.covered_items}/{summary.total_items}"
+        f"（{summary.covered_rate:.1%}）；"
+        f"部分覆盖 {summary.partially_covered_items}；"
+        f"未覆盖 {summary.not_covered_items}（{uncovered}）；"
+        f"对账失败 {summary.assessment_failed_items}（{failed}）。"
+    )
+
+
 def _apply_edits(
     markdown: str,
     *,
@@ -435,6 +463,7 @@ def render_verified_report(
     settled_without_located_evidence: int = 0,
     settled_without_located_evidence_item_ids: Sequence[str] = (),
     registry_coverage: ClaimRegistryCoverage | None = None,
+    checklist_coverage: ChecklistCoverageSummary | None = None,
 ) -> RenderedReport:
     """Insert code-owned evidence markers without rewriting narrative text."""
 
@@ -580,10 +609,19 @@ def render_verified_report(
         registry_coverage=registry_coverage,
     )
     summary_line = _summary_line(summary)
+    checklist_line = _checklist_coverage_line(checklist_coverage)
     footnotes = tuple(
         sorted(footnote_by_key.values(), key=lambda footnote: footnote.number)
     )
-    rendered = summary_line + "\n" + _EVIDENCE_LEGEND_LINE + "\n\n" + body
+    rendered = (
+        summary_line
+        + "\n"
+        + _EVIDENCE_LEGEND_LINE
+        + "\n"
+        + checklist_line
+        + "\n\n"
+        + body
+    )
     if footnotes:
         definitions = [
             f"[^{footnote.number}]: "
@@ -613,6 +651,7 @@ def render_verified_report(
         markdown=rendered,
         evidence_summary_line=summary_line,
         evidence_legend_line=_EVIDENCE_LEGEND_LINE,
+        checklist_coverage_line=checklist_line,
         summary=summary,
         footnotes=footnotes,
         annotations=tuple(annotations),

@@ -101,6 +101,21 @@ mapping is additionally exposed:
 
 `REFUTED` is never inferred from failure to find support.
 
+## Checklist/report reconciliation
+
+After the canonical draft and claim registry are frozen, a read-only model
+judges whether each frozen checklist item is `covered`, `partially_covered`, or
+`not_covered`. The model must identify existing claim IDs and give a reason;
+code resolves every accepted claim ID to its block, verbatim anchor, and
+character bounds. A covered or partially covered judgement without at least
+one mechanically valid report location is rejected and audited rather than
+accepted on the model's assertion alone.
+
+Reconciliation is observability only. Its result cannot rewrite the report or
+checklist, trigger another writing pass, suppress artifact output, or alter
+claim attribution and verification. Invalid or missing model output remains a
+separate assessment failure and is never silently reported as `not_covered`.
+
 ## Reader-visible rendering
 
 The report starts with an evidence summary that separately counts claims with

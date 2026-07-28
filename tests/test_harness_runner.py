@@ -128,6 +128,30 @@ class ClaimModel:
         }
 
 
+class CoverageModel:
+    def __init__(self, events):
+        self.events = events
+
+    async def generate(self, prompt):
+        self.events.append("reconciliation")
+        return {
+            "content": json.dumps(
+                {
+                    "items": [
+                        {
+                            "item_id": "what-1",
+                            "disposition": "covered",
+                            "reason": "The report answers the item.",
+                            "claim_ids": ["claim-0001"],
+                        }
+                    ]
+                }
+            ),
+            "token_count": 4,
+            "cost_usd": 0.01,
+        }
+
+
 class AttributionModel:
     def __init__(self, events):
         self.events = events
@@ -285,6 +309,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
             note_model=UnusedNoteModel(),
             write_model=writer,
             claim_model=ClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
             attribution_model=AttributionModel(events),
             verification_model=UnusedVerificationModel(),
             tavily_client=UnusedTavily(),
@@ -294,6 +319,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
             model_names={
                 "decision": "cheap-decision",
                 "note": "cheap-note",
+                "reconciliation": "coverage-model",
                 "verification": "strong-verifier",
             },
         )
@@ -306,6 +332,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "claim-1",
         "claim-2",
         "claim-3",
+        "reconciliation",
         "attribution",
     ]
     assert result.loop_result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
@@ -315,6 +342,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert final_markdown == result.rendered_report.markdown
     assert final_markdown.startswith("> 证据摘要：")
     assert "正文块评估 2/2" in final_markdown.splitlines()[0]
+    assert "> 清单对账：已评估 1/1；完整覆盖 1/1" in final_markdown
     assert (
         "The model wrote this report.〔未找到候选来源〕"
         in final_markdown
@@ -366,7 +394,8 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
             "token_count": 37,
         },
         "evidence_gap": {"cost_usd": 0.0, "token_count": 0},
-        "total": {"cost_usd": 0.15, "token_count": 47},
+        "reconciliation": {"cost_usd": 0.01, "token_count": 4},
+        "total": {"cost_usd": 0.16, "token_count": 51},
         "verification": {"cost_usd": 0.0, "token_count": 0},
         "writing": {"cost_usd": 0.05, "token_count": 5},
     }
@@ -392,6 +421,26 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["posthoc_evidence"]["claim_decomposition"][
         "anchor_copied_from_selection_rate"
     ] == 1.0
+    assert audit["posthoc_evidence"]["checklist_report_reconciliation"][
+        "summary"
+    ] == {
+        "assessed_items": 1,
+        "assessment_failed_item_ids": [],
+        "assessment_failed_items": 0,
+        "covered_items": 1,
+        "covered_rate": 1.0,
+        "not_covered_item_ids": [],
+        "not_covered_items": 0,
+        "partially_covered_item_ids": [],
+        "partially_covered_items": 0,
+        "total_items": 1,
+    }
+    assert audit["posthoc_evidence"]["checklist_report_reconciliation"][
+        "affects_report_content"
+    ] is False
+    assert audit["posthoc_evidence"]["checklist_report_reconciliation"][
+        "blocks_artifact_write"
+    ] is False
     assert result.verification.claims[0].state == (
         ClaimEvidenceState.NO_CANDIDATE_SOURCE
     )
@@ -407,6 +456,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "settled_without_located_evidence"
     ] == 1
     assert audit["models"]["verification"] == "strong-verifier"
+    assert audit["models"]["reconciliation"] == "coverage-model"
     assert audit["artifacts"] == {
         "audit": "fixed-run.json",
         "report": "fixed-run.md",
@@ -426,6 +476,7 @@ def test_runner_rejects_run_id_that_could_escape_output_directory(tmp_path):
                     [],
                     "# Report\n\nThe model wrote this report.",
                 ),
+                reconciliation_model=CoverageModel([]),
                 attribution_model=AttributionModel([]),
                 verification_model=UnusedVerificationModel(),
                 tavily_client=UnusedTavily(),
@@ -447,6 +498,7 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
             note_model=OneNoteModel(events),
             write_model=WriteModel(events),
             claim_model=ClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
             attribution_model=EvidenceAttributionModel(events, url),
             verification_model=EvidenceVerificationModel(events),
             tavily_client=ReadingTavily(url),
@@ -515,6 +567,7 @@ def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):
     monkeypatch.setenv("HARNESS_DECISION_MODEL", "cheap-decision")
     monkeypatch.setenv("HARNESS_NOTE_MODEL", "cheap-note")
     monkeypatch.setenv("HARNESS_CLAIM_MODEL", "cheap-claim")
+    monkeypatch.setenv("HARNESS_RECONCILIATION_MODEL", "coverage-model")
     monkeypatch.setenv("HARNESS_ATTRIBUTION_MODEL", "cheap-attribution")
     monkeypatch.setenv("HARNESS_VERIFICATION_MODEL", "strong-verifier")
 
@@ -523,9 +576,34 @@ def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):
     assert clients.decision_model.model == "cheap-decision"
     assert clients.note_model.model == "cheap-note"
     assert clients.claim_model.model == "cheap-claim"
+    assert clients.reconciliation_model.model == "coverage-model"
     assert clients.attribution_model.model == "cheap-attribution"
     assert clients.verification_model.model == "strong-verifier"
     assert clients.verification_model is not clients.decision_model
+
+
+def test_cli_defaults_reconciliation_to_attribution_tier(monkeypatch):
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class FakeTavily:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr(harness_cli, "AsyncOpenAI", FakeOpenAI)
+    monkeypatch.setattr(harness_cli, "AsyncTavilyClient", FakeTavily)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("TAVILY_API_KEY", "test-tavily-key")
+    monkeypatch.setenv("OPENAI_MODEL", "default-model")
+    monkeypatch.setenv("HARNESS_ATTRIBUTION_MODEL", "attribution-tier")
+    monkeypatch.delenv("HARNESS_RECONCILIATION_MODEL", raising=False)
+
+    clients = harness_cli.build_live_clients()
+
+    assert clients.attribution_model.model == "attribution-tier"
+    assert clients.reconciliation_model.model == "attribution-tier"
+    assert clients.reconciliation_model is not clients.attribution_model
 
 
 def test_json_mode_adapter_supplies_provider_required_literal() -> None:
