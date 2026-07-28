@@ -217,13 +217,14 @@ class OneNoteModel:
         self.events.append("note")
         return {
             "content": {
-                "notes": [
+                "active_notes": [
                     {
                         "item_id": "what-1",
                         "finding": "A finding used after drafting.",
                         "quote": "ExactSourceEvidence 2026.",
                     }
-                ]
+                ],
+                "cross_item_seeds": [],
             },
             "token_count": 3,
             "cost_usd": 0.01,

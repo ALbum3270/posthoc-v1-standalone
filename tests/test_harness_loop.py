@@ -14,9 +14,10 @@ from open_deep_research.harness.loop import (
     LoopBudget,
     LoopSettings,
     StopReason,
+    build_note_prompt,
     run_research_loop,
 )
-from open_deep_research.harness.notes import create_note
+from open_deep_research.harness.notes import NoteLocationStatus, create_note
 
 
 class ScriptedModel:
@@ -96,6 +97,23 @@ def checklist(*, second=True):
             )
         )
     return ResearchChecklist(topic="A neutral topic", items=tuple(items))
+
+
+def checklist_with_item_ids(*item_ids):
+    dimensions = tuple(ChecklistDimension)
+    return ResearchChecklist(
+        topic="A neutral topic",
+        items=tuple(
+            ChecklistItem(
+                item_id=item_id,
+                dimension=dimensions[index % len(dimensions)],
+                question=f"Question {index}?",
+                priority=index + 1,
+                required_source_count=1,
+            )
+            for index, item_id in enumerate(item_ids)
+        ),
+    )
 
 
 def run_loop(
@@ -266,7 +284,8 @@ def test_cached_read_returns_note_ids_without_rerunning_note_model():
     note_outputs = [
         envelope(
             {
-                "notes": [
+                "active_notes": [],
+                "cross_item_seeds": [
                     {
                         "item_id": "how-1",
                         "finding": "The source also answers another item.",
@@ -338,7 +357,10 @@ def test_model_recalled_sources_are_injected_newest_first_and_audited():
 
     result, decision_model, _, _ = run_loop(
         decisions,
-        notes=[envelope({"notes": []}), envelope({"notes": []})],
+        notes=[
+            envelope({"active_notes": [], "cross_item_seeds": []}),
+            envelope({"active_notes": [], "cross_item_seeds": []}),
+        ],
         tavily=tavily,
         settings=LoopSettings(decision_source_char_limit=8),
     )
@@ -412,7 +434,13 @@ def test_zero_note_batch_is_valid_audited_and_counts_as_active_item_failure():
         ),
         envelope({"action": "stop"}),
     ]
-    note_outputs = [envelope({"notes": []}, tokens=5, cost=0.4)]
+    note_outputs = [
+        envelope(
+            {"active_notes": [], "cross_item_seeds": []},
+            tokens=5,
+            cost=0.4,
+        )
+    ]
 
     result, _, _, _ = run_loop(decisions, notes=note_outputs)
 
@@ -424,6 +452,210 @@ def test_zero_note_batch_is_valid_audited_and_counts_as_active_item_failure():
     assert audit["active_item_notes"] == 0
     assert audit["note_output_error"] is None
     assert result.ledger.rounds[0].token_count == 6
+
+
+def test_note_prompt_has_two_bounded_channels_without_changing_active_pass():
+    prompt = build_note_prompt(
+        checklist(),
+        active_item_id="what-1",
+        url="https://example.com/source",
+        source_text="A useful exact sentence.",
+        max_cross_item_seeds=3,
+    )
+
+    assert "active_notes" in prompt
+    assert "cross_item_seeds" in prompt
+    assert "at most\n3 different items" in prompt
+    assert "not a quality threshold" in prompt
+    assert "Every entry's\nitem_id must equal the active item_id" in prompt
+    assert all(
+        term not in prompt.casefold()
+        for term in ("receivership", "regulators", "asset_flow")
+    )
+
+
+def test_note_channels_parse_entries_independently_and_cross_does_not_reset_failure():
+    source = "Cross evidence is exact."
+    decisions = [
+        envelope(
+            {
+                "action": "read",
+                "item_id": "what-1",
+                "url": "https://example.com/source",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+    note_outputs = [
+        envelope(
+            {
+                "active_notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "Missing quote makes only this entry bad.",
+                    }
+                ],
+                "cross_item_seeds": [
+                    {
+                        "item_id": "how-1",
+                        "finding": "A valid cross-item seed.",
+                        "quote": source,
+                    }
+                ],
+            }
+        )
+    ]
+
+    result, _, _, _ = run_loop(
+        decisions,
+        notes=note_outputs,
+        tavily=FakeTavily(raw_text=source),
+    )
+
+    assert [(note.item_id, note.finding) for note in result.ledger.notes] == [
+        ("how-1", "A valid cross-item seed.")
+    ]
+    assert result.consecutive_collection_failures["what-1"] == 1
+    assert result.checklist.get("how-1").status is ChecklistStatus.HAS_MATERIAL
+    audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert audit["active_notes_created"] == 0
+    assert audit["cross_item_seeds_created"] == 1
+    assert audit["cross_item_seed_item_ids"] == ["how-1"]
+    assert len(audit["active_note_errors"]) == 1
+    assert audit["cross_item_seed_errors"] == []
+
+
+def test_cross_item_seed_capacity_is_per_distinct_open_item_and_audited():
+    active = checklist_with_item_ids(
+        "what-1", "who-1", "when-1", "where-1", "why-1", "how-1"
+    )
+    active = active.model_copy(
+        update={
+            "items": tuple(
+                item.model_copy(update={"status": ChecklistStatus.SETTLED})
+                if item.item_id == "how-1"
+                else item
+                for item in active.items
+            )
+        }
+    )
+    sentences = [f"Exact sentence {index}." for index in range(6)]
+    decisions = [
+        envelope(
+            {
+                "action": "read",
+                "item_id": "what-1",
+                "url": "https://example.com/source",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+    note_outputs = [
+        envelope(
+            {
+                "active_notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "Active finding.",
+                        "quote": sentences[0],
+                    }
+                ],
+                "cross_item_seeds": [
+                    {
+                        "item_id": item_id,
+                        "finding": f"Seed {index}.",
+                        "quote": sentences[index],
+                    }
+                    for index, item_id in enumerate(
+                        ("who-1", "when-1", "where-1", "why-1", "how-1"),
+                        start=1,
+                    )
+                ],
+            }
+        )
+    ]
+
+    result, _, _, _ = run_loop(
+        decisions,
+        notes=note_outputs,
+        active_checklist=active,
+        tavily=FakeTavily(raw_text=" ".join(sentences)),
+        settings=LoopSettings(max_cross_item_seeds=3),
+    )
+
+    assert [note.item_id for note in result.ledger.notes] == [
+        "what-1",
+        "who-1",
+        "when-1",
+        "where-1",
+    ]
+    audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert audit["active_notes_created"] == 1
+    assert audit["cross_item_seeds_proposed"] == 5
+    assert audit["cross_item_seeds_created"] == 3
+    assert audit["cross_item_seed_capacity"] == 3
+    assert any(
+        "exceeds cross-item seed capacity 3" in error
+        for error in audit["cross_item_seed_errors"]
+    )
+    assert any(
+        "targets terminal item 'how-1'" in error
+        for error in audit["cross_item_seed_errors"]
+    )
+
+
+def test_cross_seed_is_grounded_like_any_note_and_survives_later_exhaustion():
+    source = "The source does not contain the proposed cross wording."
+    decisions = [
+        envelope(
+            {
+                "action": "read",
+                "item_id": "what-1",
+                "url": "https://example.com/source",
+            }
+        ),
+        envelope(
+            {
+                "status_updates": [
+                    {
+                        "item_id": "how-1",
+                        "status": "exhausted_not_found",
+                        "reason": "The bounded search is complete.",
+                    }
+                ],
+                "action": {"action": "stop"},
+            }
+        ),
+    ]
+    note_outputs = [
+        envelope(
+            {
+                "active_notes": [],
+                "cross_item_seeds": [
+                    {
+                        "item_id": "how-1",
+                        "finding": "An unlocatable seed remains historical.",
+                        "quote": "Different proposed wording.",
+                    }
+                ],
+            }
+        )
+    ]
+
+    result, _, _, _ = run_loop(
+        decisions,
+        notes=note_outputs,
+        tavily=FakeTavily(raw_text=source),
+    )
+
+    assert len(result.ledger.notes) == 1
+    assert result.ledger.notes[0].location_status is (
+        NoteLocationStatus.UNLOCATABLE
+    )
+    assert result.checklist.get("how-1").status is (
+        ChecklistStatus.EXHAUSTED_NOT_FOUND
+    )
+    assert result.ledger.notes[0].item_id == "how-1"
 
 
 def test_search_without_an_active_item_note_is_visible_as_a_failure_next_round():
@@ -470,7 +702,8 @@ def test_reanalyze_is_the_only_way_to_rerun_notes_for_a_cached_url():
     note_outputs = [
         envelope(
             {
-                "notes": [
+                "active_notes": [],
+                "cross_item_seeds": [
                     {
                         "item_id": "how-1",
                         "finding": "Cross-item evidence.",
@@ -481,13 +714,14 @@ def test_reanalyze_is_the_only_way_to_rerun_notes_for_a_cached_url():
         ),
         envelope(
             {
-                "notes": [
+                "active_notes": [
                     {
                         "item_id": "what-1",
                         "finding": "Active-item evidence.",
                         "quote": "A useful exact sentence.",
                     }
-                ]
+                ],
+                "cross_item_seeds": [],
             }
         ),
     ]
@@ -670,7 +904,7 @@ def test_composite_quote_is_retained_once_and_its_rate_reaches_next_decision():
     note_outputs = [
         envelope(
             {
-                "notes": [
+                "active_notes": [
                     {
                         "item_id": "what-1",
                         "finding": "Two passages support the finding.",
@@ -679,7 +913,8 @@ def test_composite_quote_is_retained_once_and_its_rate_reaches_next_decision():
                             "Second continuous passage."
                         ),
                     }
-                ]
+                ],
+                "cross_item_seeds": [],
             }
         )
     ]

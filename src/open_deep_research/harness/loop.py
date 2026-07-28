@@ -96,6 +96,9 @@ class LoopSettings(BaseModel):
     decision_source_char_limit: int = Field(default=100_000, ge=0)
     note_page_size: int = Field(default=8, ge=1, le=50)
     max_recalled_notes: int = Field(default=8, ge=1, le=50)
+    # This is a capacity bound on cross-item discovery, not an evidence-quality
+    # threshold. Keep it fixed during the first comparison run.
+    max_cross_item_seeds: int = Field(default=3, ge=0, le=20)
 
 
 class ModelEnvelope(BaseModel):
@@ -347,12 +350,15 @@ class NoteDraft(BaseModel):
         return normalized
 
 
-class NoteBatch(BaseModel):
-    """The note model may legitimately return an empty batch."""
+@dataclass(frozen=True)
+class _NoteParse:
+    """Independently parsed active notes and bounded cross-item seeds."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    notes: tuple[NoteDraft, ...] = ()
+    active_notes: tuple[NoteDraft, ...] = ()
+    cross_item_seeds: tuple[NoteDraft, ...] = ()
+    active_errors: tuple[str, ...] = ()
+    cross_errors: tuple[str, ...] = ()
+    error: str | None = None
 
 
 class LoopModelClient(Protocol):
@@ -439,10 +445,21 @@ Current collection state:
 
 
 NOTE_PROMPT = """\
-Read the single source below. Prioritize evidence that answers the active
-checklist item, while still extracting useful notes for any other checklist
-item the source answers. A note may target an item other than the action that
-led here.
+Read the single source below once and perform two distinct tasks in order.
+
+1. active_notes: Extract evidence for the active checklist item. Every entry's
+item_id must equal the active item_id. This remains the complete active-item
+extraction pass.
+2. cross_item_seeds: After the active pass, scan for other non-terminal
+checklist items that this source directly answers. Select at most
+{max_cross_item_seeds} different items and return at most one seed note for
+each. A seed only makes useful cross-item material visible; it is not a full
+extraction for that item. Return an empty list when no other item is directly
+answered.
+
+The cross-item limit is a fixed output-capacity bound, not a quality threshold.
+Do not put the active item in cross_item_seeds, and do not put a terminal item
+there.
 
 Each quote must be one continuous passage copied verbatim from the source:
 - Do not use an ellipsis ("..." or "…").
@@ -459,8 +476,12 @@ Valid: two notes, one quoting "First statement." and one quoting
 Invalid: one note quoting "First statement. ... Second statement."
 
 Return JSON only as
-{{"notes":[{{"item_id":"...","finding":"...","quote":"exact source text"}}]}}.
-Returning {{"notes":[]}} is valid when the source answers nothing.
+{{"active_notes":[
+  {{"item_id":"...","finding":"...","quote":"exact source text"}}
+],"cross_item_seeds":[
+  {{"item_id":"...","finding":"...","quote":"exact source text"}}
+]}}.
+Returning two empty lists is valid when the source answers nothing.
 
 Active checklist item:
 {active_item_id}
@@ -846,10 +867,13 @@ def build_note_prompt(
     active_item_id: str,
     url: str,
     source_text: str,
+    max_cross_item_seeds: int = 3,
 ) -> str:
     """Build the isolated, single-source note extraction prompt."""
 
     checklist.get(active_item_id)
+    if max_cross_item_seeds < 0:
+        raise ValueError("max_cross_item_seeds must be non-negative")
     items = [
         {
             "item_id": item.item_id,
@@ -860,6 +884,7 @@ def build_note_prompt(
     ]
     return NOTE_PROMPT.format(
         active_item_id=active_item_id,
+        max_cross_item_seeds=max_cross_item_seeds,
         checklist=json.dumps(items, ensure_ascii=False, sort_keys=True),
         url=url,
         source_text=source_text,
@@ -1118,14 +1143,58 @@ def _prepare_decision(
     )
 
 
-def _parse_notes(content: Any) -> tuple[NoteBatch | None, str | None]:
+def _parse_note_channel(
+    value: Any,
+    *,
+    channel: str,
+) -> tuple[tuple[NoteDraft, ...], tuple[str, ...]]:
+    if not isinstance(value, list):
+        return (), (f"{channel} must be a JSON array",)
+    drafts: list[NoteDraft] = []
+    errors: list[str] = []
+    for index, raw in enumerate(value):
+        try:
+            drafts.append(NoteDraft.model_validate(raw))
+        except ValidationError as exc:
+            errors.append(f"{channel}[{index}] invalid: {exc}")
+    return tuple(drafts), tuple(errors)
+
+
+def _parse_notes(content: Any) -> _NoteParse:
+    """Parse both channels independently so one malformed entry stays local."""
+
     try:
         decoded = _decode_json_content(content)
-        if isinstance(decoded, list):
-            decoded = {"notes": decoded}
-        return NoteBatch.model_validate(decoded), None
-    except (json.JSONDecodeError, TypeError, ValidationError, ValueError) as exc:
-        return None, f"malformed note output: {exc}"
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        return _NoteParse(error=f"malformed note output: {exc}")
+    if not isinstance(decoded, Mapping):
+        return _NoteParse(
+            error="malformed note output: top-level value must be an object"
+        )
+    active, active_errors = _parse_note_channel(
+        decoded.get("active_notes"),
+        channel="active_notes",
+    )
+    cross, cross_errors = _parse_note_channel(
+        decoded.get("cross_item_seeds"),
+        channel="cross_item_seeds",
+    )
+    unexpected = sorted(
+        str(key)
+        for key in decoded
+        if key not in {"active_notes", "cross_item_seeds"}
+    )
+    if unexpected:
+        active_errors = (
+            *active_errors,
+            f"unexpected top-level fields: {unexpected}",
+        )
+    return _NoteParse(
+        active_notes=active,
+        cross_item_seeds=cross,
+        active_errors=active_errors,
+        cross_errors=cross_errors,
+    )
 
 
 def _open_item_ids(checklist: ResearchChecklist) -> tuple[str, ...]:
@@ -1314,6 +1383,7 @@ async def _extract_notes(
     active_item_id: str,
     url: str,
     source_text: str,
+    max_cross_item_seeds: int,
 ) -> tuple[ResearchChecklist, int, float, dict[str, Any]]:
     """Run one explicit note pass and retain every mechanically checked draft."""
 
@@ -1327,6 +1397,7 @@ async def _extract_notes(
                 active_item_id=active_item_id,
                 url=url,
                 source_text=source_text,
+                max_cross_item_seeds=max_cross_item_seeds,
             ),
         )
     except Exception as exc:  # noqa: BLE001 - auditable model turn
@@ -1338,15 +1409,18 @@ async def _extract_notes(
         note_tokens = note_envelope.token_count
         note_cost = note_envelope.cost_usd
 
-    batch: NoteBatch | None = None
-    note_error = note_call_error or note_envelope_error
-    if note_error is None and note_envelope is not None:
-        batch, note_error = _parse_notes(note_envelope.content)
+    parsed = _NoteParse(error=note_call_error or note_envelope_error)
+    if parsed.error is None and note_envelope is not None:
+        parsed = _parse_notes(note_envelope.content)
 
     current = checklist
     created: list[ResearchNote] = []
-    creation_errors: list[str] = []
-    for draft in batch.notes if batch is not None else ():
+    active_created: list[ResearchNote] = []
+    cross_created: list[ResearchNote] = []
+    active_errors = list(parsed.active_errors)
+    cross_errors = list(parsed.cross_errors)
+
+    def retain(draft: NoteDraft) -> tuple[ResearchNote | None, str | None]:
         try:
             current.get(draft.item_id)
             note = create_note(
@@ -1357,27 +1431,86 @@ async def _extract_notes(
                 source_text=source_text,
             )
         except Exception as exc:  # noqa: BLE001 - preserve the rest of the batch
-            creation_errors.append(str(exc))
-            continue
+            return None, str(exc)
         note = ledger.add_note(note)
         created.append(note)
-        item = current.get(draft.item_id)
+        return note, None
+
+    for index, draft in enumerate(parsed.active_notes):
+        if draft.item_id != active_item_id:
+            active_errors.append(
+                f"active_notes[{index}] item_id must equal active item "
+                f"{active_item_id!r}, got {draft.item_id!r}"
+            )
+            continue
+        note, error = retain(draft)
+        if note is None:
+            active_errors.append(
+                f"active_notes[{index}] could not be retained: {error}"
+            )
+            continue
+        active_created.append(note)
+
+    cross_item_ids: set[str] = set()
+    for index, draft in enumerate(parsed.cross_item_seeds):
+        prefix = f"cross_item_seeds[{index}]"
+        if draft.item_id == active_item_id:
+            cross_errors.append(f"{prefix} must not target the active item")
+            continue
+        try:
+            item = current.get(draft.item_id)
+        except Exception as exc:  # noqa: BLE001 - preserve valid siblings
+            cross_errors.append(f"{prefix} unknown item_id: {exc}")
+            continue
+        if item.is_complete:
+            cross_errors.append(
+                f"{prefix} targets terminal item {draft.item_id!r}"
+            )
+            continue
+        if draft.item_id in cross_item_ids:
+            cross_errors.append(
+                f"{prefix} repeats cross-item seed {draft.item_id!r}"
+            )
+            continue
+        if len(cross_item_ids) >= max_cross_item_seeds:
+            cross_errors.append(
+                f"{prefix} exceeds cross-item seed capacity "
+                f"{max_cross_item_seeds}"
+            )
+            continue
+        cross_item_ids.add(draft.item_id)
+        note, error = retain(draft)
+        if note is None:
+            cross_errors.append(f"{prefix} could not be retained: {error}")
+            continue
+        cross_created.append(note)
+
+    for note in created:
+        item = current.get(note.item_id)
         if item.status is ChecklistStatus.UNEXPLORED:
             current = current.set_status(
-                draft.item_id,
+                note.item_id,
                 ChecklistStatus.HAS_MATERIAL,
                 reason=f"note collected from {url}",
                 ledger=ledger,
             )
 
-    active_note_count = sum(note.item_id == active_item_id for note in created)
+    active_note_count = len(active_created)
     summary = {
         "source_chars": len(source_text),
         "notes_created": len(created),
         "active_item_notes": active_note_count,
+        "active_notes_proposed": len(parsed.active_notes),
+        "active_notes_created": len(active_created),
+        "cross_item_seeds_proposed": len(parsed.cross_item_seeds),
+        "cross_item_seeds_created": len(cross_created),
+        "cross_item_seed_item_ids": [note.item_id for note in cross_created],
+        "cross_item_seed_capacity": max_cross_item_seeds,
         "note_item_ids": [note.item_id for note in created],
-        "note_output_error": note_error,
-        "note_creation_errors": creation_errors,
+        "note_output_error": parsed.error,
+        "active_note_errors": active_errors,
+        "cross_item_seed_errors": cross_errors,
+        "note_creation_errors": [*active_errors, *cross_errors],
         "note_model_called": True,
     }
     return current, note_tokens, note_cost, summary
@@ -1678,6 +1811,9 @@ async def run_research_loop(
                                 active_item_id=action.item_id,
                                 url=action.url,
                                 source_text=source_text,
+                                max_cross_item_seeds=(
+                                    context_settings.max_cross_item_seeds
+                                ),
                             )
                         )
                         summary = {"cache_hit": False, **note_summary}
@@ -1714,6 +1850,9 @@ async def run_research_loop(
                             active_item_id=action.item_id,
                             url=action.url,
                             source_text=source_text,
+                            max_cross_item_seeds=(
+                                context_settings.max_cross_item_seeds
+                            ),
                         )
                     )
                     summary = {
