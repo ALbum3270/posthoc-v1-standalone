@@ -34,6 +34,15 @@ from open_deep_research.harness.concentration import (
     DomainProxyConcentrationAudit,
     audit_domain_proxy_concentration,
 )
+from open_deep_research.harness.disagreement import (
+    DisagreementBudget,
+    DisagreementResult,
+    PosthocRetrievalBudget,
+    PosthocRetrievalBudgetAudit,
+    disabled_disagreement_result,
+    run_disagreement_detection,
+    shared_posthoc_budget_audit,
+)
 from open_deep_research.harness.ledger import ResearchLedger
 from open_deep_research.harness.evidence_gap import (
     EvidenceGapBudget,
@@ -101,6 +110,8 @@ class HarnessRunResult(BaseModel):
     attribution: AttributionResult
     verification: VerificationResult
     evidence_gap: EvidenceGapResult
+    disagreement: DisagreementResult
+    posthoc_retrieval_budget: PosthocRetrievalBudgetAudit
     usage: dict[str, UsageRecord]
 
 
@@ -145,6 +156,7 @@ def _usage_payload(
     reconciliation_usage: UsageRecord,
     verification_usage: UsageRecord,
     evidence_gap_usage: UsageRecord,
+    disagreement_usage: UsageRecord,
 ) -> tuple[dict[str, UsageRecord], dict[str, Any]]:
     stages = {
         "checklist": checklist_usage,
@@ -154,6 +166,7 @@ def _usage_payload(
         "reconciliation": reconciliation_usage,
         "verification": verification_usage,
         "evidence_gap": evidence_gap_usage,
+        "disagreement": disagreement_usage,
     }
     total = UsageRecord(
         token_count=sum(value.token_count for value in stages.values()),
@@ -185,6 +198,8 @@ async def run_harness(
     verification_settings: VerificationSettings | None = None,
     verification_budget: VerificationBudget | None = None,
     evidence_gap_budget: EvidenceGapBudget | None = None,
+    disagreement_budget: DisagreementBudget | None = None,
+    posthoc_retrieval_budget: PosthocRetrievalBudget | None = None,
     corroboration_target_for_external_claims: int = 2,
     verification_required_independent_sources: int | None = None,
     verification_input_token_estimator: Callable[[str], int] | None = None,
@@ -282,7 +297,24 @@ async def run_harness(
         estimate_input_tokens=verification_input_token_estimator,
         estimate_cost_usd=verification_cost_estimator,
     )
-    if evidence_gap_budget is None:
+    effective_evidence_gap_budget = evidence_gap_budget
+    if (
+        evidence_gap_budget is not None
+        and posthoc_retrieval_budget is not None
+    ):
+        effective_evidence_gap_budget = evidence_gap_budget.model_copy(
+            update={
+                "max_tokens": min(
+                    evidence_gap_budget.max_tokens,
+                    posthoc_retrieval_budget.max_tokens,
+                ),
+                "max_cost_usd": min(
+                    evidence_gap_budget.max_cost_usd,
+                    posthoc_retrieval_budget.max_cost_usd,
+                ),
+            }
+        )
+    if effective_evidence_gap_budget is None:
         evidence_gap = EvidenceGapResult(
             stop_reason=EvidenceGapStopReason.DISABLED,
             stop_detail="no independent evidence-gap budget was configured",
@@ -302,15 +334,72 @@ async def run_harness(
             attribution_model=attribution_model,
             verification_model=verification_model,
             tavily_client=tavily_client,
-            budget=evidence_gap_budget,
+            budget=effective_evidence_gap_budget,
             attribution_settings=attribution_settings,
             verification_settings=verification_settings,
             corroboration_targets=corroboration_targets,
             estimate_input_tokens=evidence_gap_input_token_estimator,
             estimate_cost_usd=evidence_gap_cost_estimator,
         )
-    attribution = evidence_gap.final_attribution
-    verification = evidence_gap.final_verification
+    evidence_gap_attribution = evidence_gap.final_attribution
+    evidence_gap_verification = evidence_gap.final_verification
+    if disagreement_budget is None:
+        disagreement = disabled_disagreement_result(
+            evidence_gap_attribution,
+            evidence_gap_verification,
+        )
+    else:
+        if posthoc_retrieval_budget is None:
+            effective_disagreement_budget = disagreement_budget
+        else:
+            effective_disagreement_budget = disagreement_budget.model_copy(
+                update={
+                    "max_tokens": min(
+                        disagreement_budget.max_tokens,
+                        max(
+                            0,
+                            posthoc_retrieval_budget.max_tokens
+                            - evidence_gap.total_tokens,
+                        ),
+                    ),
+                    "max_cost_usd": min(
+                        disagreement_budget.max_cost_usd,
+                        max(
+                            0.0,
+                            posthoc_retrieval_budget.max_cost_usd
+                            - evidence_gap.total_cost_usd,
+                        ),
+                    ),
+                }
+            )
+        disagreement = await run_disagreement_detection(
+            canonical_draft=report.canonical_draft,
+            checklist=loop_result.checklist,
+            blocks=claim_decomposition.blocks,
+            ledger=ledger,
+            initial_attribution=evidence_gap_attribution,
+            initial_verification=evidence_gap_verification,
+            selection_model=decision_model,
+            note_model=note_model,
+            attribution_model=attribution_model,
+            verification_model=verification_model,
+            tavily_client=tavily_client,
+            budget=effective_disagreement_budget,
+            attribution_settings=attribution_settings,
+            verification_settings=verification_settings,
+            corroboration_targets=corroboration_targets,
+            estimate_input_tokens=evidence_gap_input_token_estimator,
+            estimate_cost_usd=evidence_gap_cost_estimator,
+        )
+    attribution = disagreement.final_attribution
+    verification = disagreement.final_verification
+    posthoc_budget_audit = shared_posthoc_budget_audit(
+        budget=posthoc_retrieval_budget,
+        evidence_gap_tokens=evidence_gap.total_tokens,
+        evidence_gap_cost_usd=evidence_gap.total_cost_usd,
+        disagreement_tokens=disagreement.total_tokens,
+        disagreement_cost_usd=disagreement.total_cost_usd,
+    )
     domain_proxy_concentration = audit_domain_proxy_concentration(
         verification,
         blocks=claim_decomposition.blocks,
@@ -330,6 +419,9 @@ async def run_harness(
         registry_coverage=claim_decomposition.registry_coverage,
         checklist_coverage=checklist_report_reconciliation.summary,
         domain_proxy_concentration=domain_proxy_concentration,
+        disagreement_attempted_count=len(
+            disagreement.disagreement_search_attempted
+        ),
     )
 
     writing_usage = UsageRecord(
@@ -358,6 +450,10 @@ async def run_harness(
         token_count=evidence_gap.total_tokens,
         cost_usd=evidence_gap.total_cost_usd,
     )
+    disagreement_usage = UsageRecord(
+        token_count=disagreement.total_tokens,
+        cost_usd=disagreement.total_cost_usd,
+    )
     usage, usage_audit = _usage_payload(
         checklist_usage=checklist_usage,
         collection_usage=collection_usage,
@@ -368,6 +464,7 @@ async def run_harness(
         reconciliation_usage=reconciliation_usage,
         verification_usage=verification_usage,
         evidence_gap_usage=evidence_gap_usage,
+        disagreement_usage=disagreement_usage,
     )
 
     destination = Path(output_dir)
@@ -410,6 +507,10 @@ async def run_harness(
             "initial_attribution": initial_attribution.model_dump(mode="json"),
             "initial_verification": initial_verification.model_dump(mode="json"),
             "evidence_gap": evidence_gap.model_dump(mode="json"),
+            "disagreement": disagreement.model_dump(mode="json"),
+            "posthoc_retrieval_budget": posthoc_budget_audit.model_dump(
+                mode="json"
+            ),
             "attribution": attribution.model_dump(mode="json"),
             "verification": verification.model_dump(mode="json"),
             "domain_proxy_concentration": (
@@ -452,5 +553,7 @@ async def run_harness(
         attribution=attribution,
         verification=verification,
         evidence_gap=evidence_gap,
+        disagreement=disagreement,
+        posthoc_retrieval_budget=posthoc_budget_audit,
         usage=usage,
     )

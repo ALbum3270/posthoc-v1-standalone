@@ -1593,6 +1593,9 @@ async def run_evidence_gap_round(
     required_independent_sources: Mapping[str, int] | None = None,
     estimate_input_tokens: Callable[[Any, str], int] | None = None,
     estimate_cost_usd: Callable[[Any, str], float] | None = None,
+    explicit_target_claim_ids: Sequence[str] | None = None,
+    plan_prompt_builder: Callable[..., str] | None = None,
+    ledger_event_prefix: str = "gap",
 ) -> EvidenceGapResult:
     """Run one cache-first gap pass, then reattribute and reverify once."""
 
@@ -1604,20 +1607,47 @@ async def run_evidence_gap_round(
             "use corroboration_targets or legacy "
             "required_independent_sources, not both"
         )
-    targets = tuple(
-        result
-        for result in initial_verification.claims
-        if (
-            result.claim.citation_requirement == CitationRequirement.EXTERNAL
-            and result.state in _TARGET_STATES
-            and (
-                result.state
-                is not ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
-                or result.publisher_domain_proxy_count
-                < result.corroboration_target
+    if not ledger_event_prefix.strip():
+        raise ValueError("ledger_event_prefix must not be blank")
+
+    def ledger_event(name: str) -> str:
+        if ledger_event_prefix == "gap":
+            return "gap_stop" if name == "stop" else name
+        return f"{ledger_event_prefix}_{name}"
+
+    if explicit_target_claim_ids is None:
+        targets = tuple(
+            result
+            for result in initial_verification.claims
+            if (
+                result.claim.citation_requirement
+                == CitationRequirement.EXTERNAL
+                and result.state in _TARGET_STATES
+                and (
+                    result.state
+                    is not ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+                    or result.publisher_domain_proxy_count
+                    < result.corroboration_target
+                )
             )
         )
-    )
+    else:
+        requested = tuple(dict.fromkeys(explicit_target_claim_ids))
+        available = {
+            result.claim.claim_id: result
+            for result in initial_verification.claims
+            if result.claim.citation_requirement
+            == CitationRequirement.EXTERNAL
+        }
+        unknown = tuple(
+            claim_id for claim_id in requested if claim_id not in available
+        )
+        if unknown:
+            raise ValueError(
+                "explicit evidence-gap targets must be external claims: "
+                + ", ".join(unknown)
+            )
+        targets = tuple(available[claim_id] for claim_id in requested)
     initial_states = {
         result.claim.claim_id: result.state
         for result in targets
@@ -1657,9 +1687,12 @@ async def run_evidence_gap_round(
     )
 
     try:
+        active_plan_builder = (
+            plan_prompt_builder or build_evidence_gap_plan_prompt
+        )
         plan_response = await tracker.call(
             gap_model,
-            build_evidence_gap_plan_prompt(
+            active_plan_builder(
                 targets=targets,
                 notes=ledger.notes,
                 checklist=checklist,
@@ -1688,7 +1721,7 @@ async def run_evidence_gap_round(
             verification_settings=active_verification_settings,
         )
         ledger.record_evidence_gap(
-            event="cache_review",
+            event=ledger_event("cache_review"),
             result_summary=json.dumps(
                 {
                     "target_claim_ids": [target.claim.claim_id for target in targets],
@@ -1779,7 +1812,7 @@ async def run_evidence_gap_round(
                     )
                 )
                 ledger.record_evidence_gap(
-                    event="source_read_error",
+                    event=ledger_event("source_read_error"),
                     url=selection.url,
                     result_summary=str(exc),
                 )
@@ -1806,7 +1839,7 @@ async def run_evidence_gap_round(
                     )
                 )
                 ledger.record_evidence_gap(
-                    event="source_cache_hit",
+                    event=ledger_event("source_cache_hit"),
                     url=selection.url,
                     note_ids=existing_note_ids,
                     result_summary="cached source reused without note reanalysis",
@@ -1864,7 +1897,7 @@ async def run_evidence_gap_round(
                     )
                 )
                 ledger.record_evidence_gap(
-                    event="note_model_error",
+                    event=ledger_event("note_model_error"),
                     url=selection.url,
                     result_summary=error,
                 )
@@ -1926,7 +1959,7 @@ async def run_evidence_gap_round(
                 )
             )
             ledger.record_evidence_gap(
-                event="source_acquired",
+                event=ledger_event("source_acquired"),
                 url=selection.url,
                 note_ids=tuple(created_ids),
                 result_summary=json.dumps(
@@ -2096,7 +2129,7 @@ async def run_evidence_gap_round(
             f"{information_yield.new_completed_relation_count}"
         )
     ledger.record_evidence_gap(
-        event="gap_stop",
+        event=ledger_event("stop"),
         result_summary=json.dumps(
             {
                 "reason": stop_reason.value,

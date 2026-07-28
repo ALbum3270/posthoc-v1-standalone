@@ -359,7 +359,11 @@ def _summary(
     )
 
 
-def _summary_line(summary: EvidenceSummary) -> str:
+def _summary_line(
+    summary: EvidenceSummary,
+    *,
+    disagreement_attempted_count: int | None,
+) -> str:
     item_ids = ", ".join(summary.settled_without_located_evidence_item_ids)
     collection = (
         f"settled_without_located_evidence="
@@ -388,6 +392,20 @@ def _summary_line(summary: EvidenceSummary) -> str:
         )
         claim_scope = "已识别"
         unverified_scope = "已识别断言中"
+    if summary.conflicting:
+        conflict = f"来源冲突 {summary.conflicting}"
+        if disagreement_attempted_count is not None:
+            conflict += f"（分歧探测已尝试 {disagreement_attempted_count} 条）"
+    elif disagreement_attempted_count:
+        conflict = (
+            "来源冲突 0（分歧探测已尝试 "
+            f"{disagreement_attempted_count} 条，未发现冲突；"
+            "不表示已确认无争议）"
+        )
+    else:
+        conflict = (
+            "来源冲突 0（仅表示现有候选中未发现；未执行分歧探测）"
+        )
     return (
         "> 证据摘要："
         f"{coverage_prefix}"
@@ -397,7 +415,7 @@ def _summary_line(summary: EvidenceSummary) -> str:
         f"单一发布方支持 {summary.single_publisher_support}；"
         f"多发布方交叉支持 {summary.multi_publisher_support}；"
         f"零发布方支持 {summary.zero_publisher_support}；"
-        f"来源冲突 {summary.conflicting}；"
+        f"{conflict}；"
         f"所检来源反驳 {summary.refuted}；"
         f"所检来源未支持 {summary.inspected_not_supporting}；"
         f"未找到候选来源 {summary.no_candidate}；"
@@ -489,6 +507,7 @@ def render_verified_report(
     registry_coverage: ClaimRegistryCoverage | None = None,
     checklist_coverage: ChecklistCoverageSummary | None = None,
     domain_proxy_concentration: DomainProxyConcentrationAudit | None = None,
+    disagreement_attempted_count: int | None = None,
 ) -> RenderedReport:
     """Insert code-owned evidence markers without rewriting narrative text."""
 
@@ -633,7 +652,10 @@ def render_verified_report(
         ),
         registry_coverage=registry_coverage,
     )
-    summary_line = _summary_line(summary)
+    summary_line = _summary_line(
+        summary,
+        disagreement_attempted_count=disagreement_attempted_count,
+    )
     checklist_line = _checklist_coverage_line(checklist_coverage)
     concentration_line = (
         _domain_proxy_concentration_line(domain_proxy_concentration)

@@ -16,6 +16,10 @@ from openai import AsyncOpenAI
 from tavily import AsyncTavilyClient
 
 from open_deep_research.harness.loop import LoopBudget, LoopSettings
+from open_deep_research.harness.disagreement import (
+    DisagreementBudget,
+    PosthocRetrievalBudget,
+)
 from open_deep_research.harness.evidence_gap import EvidenceGapBudget
 from open_deep_research.harness.runner import HarnessRunResult, run_harness
 
@@ -336,6 +340,37 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--evidence-gap-max-searches", type=int, default=3)
     parser.add_argument("--evidence-gap-max-reads", type=int, default=3)
     parser.add_argument(
+        "--posthoc-retrieval-max-tokens",
+        type=int,
+        default=60_000,
+        help=(
+            "shared token cap across evidence-gap and disagreement passes; "
+            "the default equals the former evidence-gap cap"
+        ),
+    )
+    parser.add_argument(
+        "--posthoc-retrieval-max-cost-usd",
+        type=float,
+        default=0.10,
+        help=(
+            "shared cost cap across evidence-gap and disagreement passes; "
+            "the default equals the former evidence-gap cap"
+        ),
+    )
+    parser.add_argument(
+        "--disagreement-max-tokens",
+        type=int,
+        default=30_000,
+    )
+    parser.add_argument(
+        "--disagreement-max-cost-usd",
+        type=float,
+        default=0.05,
+    )
+    parser.add_argument("--disagreement-max-claims", type=int, default=6)
+    parser.add_argument("--disagreement-max-searches", type=int, default=3)
+    parser.add_argument("--disagreement-max-reads", type=int, default=3)
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("harness_runs"),
@@ -381,6 +416,17 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 max_cost_usd=args.evidence_gap_max_cost_usd,
                 max_search_queries=args.evidence_gap_max_searches,
                 max_reads=args.evidence_gap_max_reads,
+            ),
+            disagreement_budget=DisagreementBudget(
+                max_tokens=args.disagreement_max_tokens,
+                max_cost_usd=args.disagreement_max_cost_usd,
+                max_selected_claims=args.disagreement_max_claims,
+                max_search_queries=args.disagreement_max_searches,
+                max_reads=args.disagreement_max_reads,
+            ),
+            posthoc_retrieval_budget=PosthocRetrievalBudget(
+                max_tokens=args.posthoc_retrieval_max_tokens,
+                max_cost_usd=args.posthoc_retrieval_max_cost_usd,
             ),
             model_names={
                 "decision": clients.decision_model_name,

@@ -393,11 +393,12 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["usage"] == {
         "checklist": {"cost_usd": 0.03, "token_count": 3},
         "collection": {"cost_usd": 0.02, "token_count": 2},
-        "decomposition_attribution": {
-            "cost_usd": 0.05,
-            "token_count": 37,
-        },
-        "evidence_gap": {"cost_usd": 0.0, "token_count": 0},
+            "decomposition_attribution": {
+                "cost_usd": 0.05,
+                "token_count": 37,
+            },
+            "disagreement": {"cost_usd": 0.0, "token_count": 0},
+            "evidence_gap": {"cost_usd": 0.0, "token_count": 0},
         "reconciliation": {"cost_usd": 0.01, "token_count": 4},
         "total": {"cost_usd": 0.16, "token_count": 51},
         "verification": {"cost_usd": 0.0, "token_count": 0},
