@@ -1,0 +1,900 @@
+{
+  "topic": "2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)",
+  "research_id": "run-29743e46",
+  "stop_reason": "no_improvement",
+  "stop_detail": "4 round(s) without new coverage >= 4",
+  "coverage_ratio": 0.3,
+  "gap_status": [
+    {
+      "slot_id": "who.primary_actor",
+      "dimension": "WHO",
+      "question": "Which person, organization, or system is the central subject of the event, excluding later responders, buyers, and merely affected parties?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "dimension": "WHO",
+      "question": "Who is affected, targeted, or impacted?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "05532439-5b84-4cbc-8ba2-6aef1ac8433c"
+      ],
+      "notes": "3 active fact(s)"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "dimension": "WHO",
+      "question": "Which organizations, subsidiaries, or partners are involved?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "who.regulators",
+      "dimension": "WHO",
+      "question": "Which regulators, investigators, or authorities are involved?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "what.core_event",
+      "dimension": "WHAT",
+      "question": "What exactly happened?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "ef208787-f1f1-4cf5-827c-f730fb7edb3b"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.scale",
+      "dimension": "WHAT",
+      "question": "What is the scale, size, or material impact of the event?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "what.products",
+      "dimension": "WHAT",
+      "question": "Which products, services, or assets are involved?",
+      "filled": false,
+      "applicability": "not_applicable",
+      "confidence": 0.95,
+      "supporting_episode_ids": [],
+      "notes": "not applicable: The event is a natural disaster, not involving products, services, or assets directly."
+    },
+    {
+      "slot_id": "when.event_time",
+      "dimension": "WHEN",
+      "question": "When did the key event occur?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "dimension": "WHEN",
+      "question": "When was the event discovered or disclosed?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "dimension": "WHEN",
+      "question": "When did an official intervention or response occur?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "dimension": "WHERE",
+      "question": "Where is the primary legal or operational jurisdiction?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "dimension": "WHERE",
+      "question": "Where did money, assets, or activity move?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.event_location",
+      "dimension": "WHERE",
+      "question": "Where did the event happen or become visible?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "why.motivation",
+      "dimension": "WHY",
+      "question": "Why did the actor behave this way or pursue this action?",
+      "filled": false,
+      "applicability": "not_applicable",
+      "confidence": 0.95,
+      "supporting_episode_ids": [],
+      "notes": "not applicable: No actor motivation applies as this is a natural disaster, not a deliberate action."
+    },
+    {
+      "slot_id": "why.trigger",
+      "dimension": "WHY",
+      "question": "What immediate trigger and underlying conditions caused or catalyzed the event?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "01e4acac-97b9-48f8-849b-2e0b75bde88a"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "dimension": "HOW",
+      "question": "What causal mechanism made the event happen, or how was it executed?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "how.sequence",
+      "dimension": "HOW",
+      "question": "How did the activity unfold step by step?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    }
+  ],
+  "slot_applicability": [
+    {
+      "slot_id": "who.primary_actor",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.regulators",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Authorities such as disaster management agencies and government bodies are involved in response and investigation."
+    },
+    {
+      "slot_id": "what.core_event",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.scale",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.products",
+      "status": "not_applicable",
+      "confidence": 0.95,
+      "reason": "The event is a natural disaster, not involving products, services, or assets directly."
+    },
+    {
+      "slot_id": "when.event_time",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "The earthquake occurrence time is known and reported."
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Official response times and interventions are documented."
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "status": "optional",
+      "confidence": 0.95,
+      "reason": "The event occurred within the legal jurisdictions of Türkiye and Syria."
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "status": "optional",
+      "confidence": 0.7,
+      "reason": "There may be financial flows related to aid and reconstruction after the earthquake."
+    },
+    {
+      "slot_id": "where.event_location",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "why.motivation",
+      "status": "not_applicable",
+      "confidence": 0.95,
+      "reason": "No actor motivation applies as this is a natural disaster, not a deliberate action."
+    },
+    {
+      "slot_id": "why.trigger",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.sequence",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    }
+  ],
+  "relevance_audit": [
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/10662",
+      "source_url": "https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/10662",
+      "quote": "On February 6, 2023, a magnitude 7.8 earthquake occurred in southern Turkey near the northern border of Syria.",
+      "structured_claim": "A magnitude 7.8 earthquake | occurred | in southern Turkey near the northern border of Syria on February 6, 2023",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states the exact event—a magnitude 7.8 earthquake occurring in southern Turkey near the northern border of Syria on February 6, 2023—answering the question about what exactly happened."
+    },
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://www.preventionweb.net/news/preliminary-report-february-6-2023-earthquakes-turkiye",
+      "source_url": "https://www.preventionweb.net/news/preliminary-report-february-6-2023-earthquakes-turkiye",
+      "quote": "6, 2023, a magnitude-7.8 earthquake struck at 4:17 a.m. local time near Pazarcık City in south-central Türkiye.",
+      "structured_claim": "a magnitude-7.8 earthquake | struck | near Pazarcık City in south-central Türkiye on Feb. 6, 2023 at 4:17 a.m. local time",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that a magnitude 7.8 earthquake struck near Pazarcık City in south-central Türkiye on February 6, 2023, directly answering the question about what exactly happened and supporting the target claim."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "Refugees and expatriates also opened their homes as shelters for people.",
+      "structured_claim": "Refugees and expatriates | opened their homes as shelters for | people",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states that refugees and expatriates opened their homes as shelters for people, indicating they are affected or involved in the event."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "Sports facilities, events venues, university dormitories and halls were also opened to take in people.",
+      "structured_claim": "Sports facilities, events venues, university dormitories and halls | were opened to take in | people",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote clearly states that sports facilities, event venues, university dormitories, and halls were opened to take in people, showing these places and the people they sheltered are affected."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "Many hospitals were overwhelmed by the large number of casualties and prior to the earthquakes, were already experiencing supply shortages.",
+      "structured_claim": "Many hospitals | were overwhelmed by | the large number of casualties",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote states that many hospitals were overwhelmed by casualties, indicating hospitals and patients are affected parties."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "At least 100 countries pledged support for victims of the earthquake, including humanitarian aid.",
+      "structured_claim": "At least 100 countries | pledged support for | victims of the earthquake",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote mentions countries pledging support, but these countries are not the affected or impacted parties; rather, they are responders or supporters."
+    },
+    {
+      "slot_id": "how.mechanism",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "The Mw7.7 earthquake triggered its own aftershock sequence, including two mb 6.0 aftershocks.",
+      "structured_claim": "The Mw7.7 earthquake | was executed by | rupture along the East Anatolian Fault and associated faults",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote describes aftershocks triggered by the earthquake but does not explain the causal mechanism or how the earthquake was executed."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://temblor.net/earthquake-insights/turkey-syria-earthquake-feb-6-2023-14918",
+      "source_url": "https://temblor.net/earthquake-insights/turkey-syria-earthquake-feb-6-2023-14918",
+      "quote": "The magnitude-7.8 quake struck on the East Anatolian Fault.",
+      "structured_claim": "magnitude-7.8 quake | struck on | the East Anatolian Fault",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly identifies the immediate trigger of the earthquake as the magnitude-7.8 quake on the East Anatolian Fault, which answers the question about the immediate trigger of the event."
+    }
+  ],
+  "claim_match_audit": [],
+  "evidence_pack": {
+    "topic": "2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)",
+    "coverage_ratio": 0.3,
+    "items": [
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Many hospitals were overwhelmed by the large number of casualties and prior to the earthquakes, were already experiencing supply shortages.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "05532439-5b84-4cbc-8ba2-6aef1ac8433c"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote states that many hospitals were overwhelmed by casualties, indicating hospitals and patients are affected parties.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Refugees and expatriates also opened their homes as shelters for people.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "05532439-5b84-4cbc-8ba2-6aef1ac8433c"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states that refugees and expatriates opened their homes as shelters for people, indicating they are affected or involved in the event.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Sports facilities, events venues, university dormitories and halls were also opened to take in people.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "05532439-5b84-4cbc-8ba2-6aef1ac8433c"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote clearly states that sports facilities, event venues, university dormitories, and halls were opened to take in people, showing these places and the people they sheltered are affected.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "On February 6, 2023, a magnitude 7.8 earthquake occurred in southern Turkey near the northern border of Syria.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ef208787-f1f1-4cf5-827c-f730fb7edb3b"
+        ],
+        "source_urls": [
+          "https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/10662"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states the exact event—a magnitude 7.8 earthquake occurring in southern Turkey near the northern border of Syria on February 6, 2023—answering the question about what exactly happened.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required"
+        ]
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "The magnitude-7.8 quake struck on the East Anatolian Fault.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "01e4acac-97b9-48f8-849b-2e0b75bde88a"
+        ],
+        "source_urls": [
+          "https://temblor.net/earthquake-insights/turkey-syria-earthquake-feb-6-2023-14918"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly identifies the immediate trigger of the earthquake as the magnitude-7.8 quake on the East Anatolian Fault, which answers the question about the immediate trigger of the event.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      }
+    ],
+    "unresolved_conflicts": [],
+    "provenance": [
+      "01e4acac-97b9-48f8-849b-2e0b75bde88a",
+      "05532439-5b84-4cbc-8ba2-6aef1ac8433c",
+      "ef208787-f1f1-4cf5-827c-f730fb7edb3b"
+    ],
+    "slot_applicability": [
+      {
+        "slot_id": "who.primary_actor",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.regulators",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Authorities such as disaster management agencies and government bodies are involved in response and investigation."
+      },
+      {
+        "slot_id": "what.core_event",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.scale",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.products",
+        "status": "not_applicable",
+        "confidence": 0.95,
+        "reason": "The event is a natural disaster, not involving products, services, or assets directly."
+      },
+      {
+        "slot_id": "when.event_time",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "The earthquake occurrence time is known and reported."
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Official response times and interventions are documented."
+      },
+      {
+        "slot_id": "where.jurisdiction",
+        "status": "optional",
+        "confidence": 0.95,
+        "reason": "The event occurred within the legal jurisdictions of Türkiye and Syria."
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "status": "optional",
+        "confidence": 0.7,
+        "reason": "There may be financial flows related to aid and reconstruction after the earthquake."
+      },
+      {
+        "slot_id": "where.event_location",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "why.motivation",
+        "status": "not_applicable",
+        "confidence": 0.95,
+        "reason": "No actor motivation applies as this is a natural disaster, not a deliberate action."
+      },
+      {
+        "slot_id": "why.trigger",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.mechanism",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.sequence",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      }
+    ]
+  },
+  "report": "# 调查报告：2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)\n\n> **覆盖率** 3/10 必填槽位（30%）　**选填槽** 0/5（不计入覆盖率）　**事实** 5 条　**结论级双源支持** 0/5　**来源 episode** 3 个\n\n> 本报告仅消费图谱证据包。每条结论都标注了来源 episode；无证据的槽位如实标记为未查到，不做推断补全。\n\n## WHO\n\n**Primary Actor** — ⚠️ 未查到相关证据\n\n**Affected Parties**\n  - Many hospitals were overwhelmed by the large number of casualties and prior to the earthquakes, were already experiencing supply shortages. `05532439`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Refugees and expatriates also opened their homes as shelters for people. `05532439`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Sports facilities, events venues, university dormitories and halls were also opened to take in people. `05532439`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[2023 Turkey–Syria earthquakes](https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes)\n\n**Related Organizations** — ⚠️ 未查到相关证据\n\n**Regulators** — ⚠️ 未查到相关证据\n\n## WHAT\n\n**Core Event**\n  - On February 6, 2023, a magnitude 7.8 earthquake occurred in southern Turkey near the northern border of Syria. `ef208787`\n    ⚠️ claim has 1 independent source(s); 2 required；single source; no claim-level corroboration\n  来源：[NCEI Hazard Earthquake Information - NOAA](https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/10662)\n\n**Scale** — ⚠️ 未查到相关证据\n\n**Products** — ⏭️ 不适用：The event is a natural disaster, not involving products, services, or assets directly.\n\n## WHEN\n\n**Event Time** — ⚠️ 未查到相关证据\n\n**Discovery Time** — ⚠️ 未查到相关证据\n\n**Intervention Time** — ⚠️ 未查到相关证据\n\n## WHERE\n\n**Jurisdiction** — ⚠️ 未查到相关证据\n\n**Asset Flow** — ⚠️ 未查到相关证据\n\n**Event Location** — ⚠️ 未查到相关证据\n\n## WHY\n\n**Motivation** — ⏭️ 不适用：No actor motivation applies as this is a natural disaster, not a deliberate action.\n\n**Trigger**\n  - The magnitude-7.8 quake struck on the East Anatolian Fault. `01e4acac`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[Turkey and Syria devastated by earthquake - Temblor.net](https://temblor.net/earthquake-insights/turkey-syria-earthquake-feb-6-2023-14918)\n\n## HOW\n\n**Mechanism** — ⚠️ 未查到相关证据\n\n**Sequence** — ⚠️ 未查到相关证据\n\n---\n*由证据包生成。冲突 0 处未消解。无明确日期的事实不带 valid_at（§3.12）。*",
+  "rounds": [
+    {
+      "round_number": 1,
+      "slot_id": "what.core_event",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"February 6, 2023\" \"Mw 7.8 mainshock\" event details summary",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+        "https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/10662",
+        "https://www.preventionweb.net/news/preliminary-report-february-6-2023-earthquakes-turkiye"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/10662"
+      ],
+      "contributing_source_identities": [
+        "noaa.gov"
+      ],
+      "target_edge_uuids": [
+        "d8c3855f-2614-4dc1-b6e9-381c6d59600b"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 2,
+      "slot_id": "who.primary_actor",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"Mw 7.8 mainshock\" central subject",
+      "documents_seen": [
+        "https://2023.meetings.seismosoc.org/wp-content/uploads/2023/04/SSA-Program-2023-Turkey-Earthquake-Rev-C.pdf"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 3,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"February 6, 2023\" \"Mw 7.8 mainshock\" date and time",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+        "https://www.facebook.com/trtworld/posts/it-was-417-am-on-february-6-2023-when-a-massive-77-magnitude-earthquake-hit-11-p/1372471988248372"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 4,
+      "slot_id": "what.scale",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock scale size material impact report",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 5,
+      "slot_id": "who.affected_parties",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" affected populations \"Türkiye\" \"Syria\" February 6 2023 Mw 7.8 mainshock impact report victims humanitarian response",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+      ],
+      "succeeded": true,
+      "facts_written": 3,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "01c98dac-fa2a-4246-b65e-80f20d8bf2c1",
+        "2c9c854b-2564-4905-a5ea-3a2c8a9a9173",
+        "02d57841-1d89-467b-bd2f-0e3b95260e58"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 6,
+      "slot_id": "how.mechanism",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"February 6, 2023\" Mw 7.8 mainshock causal mechanism fault rupture \"East Anatolian Fault\" strike-slip tectonic setting \"Arabian Plate\" \"Anatolian Plate\" collision seismic slip rate stress accumulation",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+        "https://temblor.net/earthquake-insights/turkey-syria-earthquake-feb-6-2023-14918",
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC10492857"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 7,
+      "slot_id": "who.related_organizations",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" organizations involved response coordination partners subsidiaries",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 8,
+      "slot_id": "how.sequence",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" timeline February 6 2023 Mw 7.8 mainshock sequence detailed report",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 9,
+      "slot_id": "where.event_location",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 locations affected and visible areas",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 10,
+      "slot_id": "why.trigger",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock \"immediate trigger\" \"fault rupture\" \"East Anatolian Fault\" \"underlying conditions\" \"tectonic stress accumulation\" \"plate boundary deformation\" \"Anatolian Plate\" \"Arabian Plate collision\" \"seismic gap\" \"stress transfer\" \"fault locking\"",
+      "documents_seen": [
+        "https://www.nature.com/articles/s41467-023-41404-5",
+        "https://temblor.net/earthquake-insights/turkey-syria-earthquake-feb-6-2023-14918",
+        "https://2023.meetings.seismosoc.org/wp-content/uploads/2023/04/SSA-Program-2023-Turkey-Earthquake-Rev-C.pdf"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://temblor.net/earthquake-insights/turkey-syria-earthquake-feb-6-2023-14918"
+      ],
+      "contributing_source_identities": [
+        "temblor.net"
+      ],
+      "target_edge_uuids": [
+        "dd671048-4160-4d6e-b4e3-454e74166290"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 11,
+      "slot_id": "who.primary_actor",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"Mw 7.8 mainshock\" seismic fault system central subject",
+      "documents_seen": [
+        "https://www.nature.com/articles/s43247-023-01030-x"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 12,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"Mw 7.8 mainshock\" exact time and date of occurrence",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 13,
+      "slot_id": "what.scale",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock damage assessment structural impact statistics",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 14,
+      "slot_id": "how.mechanism",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"February 6, 2023\" Mw 7.8 mainshock fault rupture mechanism \"East Anatolian Fault\" strike-slip earthquake stress transfer \"Dead Sea Transform\" plate boundary interaction \"Arabian Plate\" \"Anatolian Plate\" tectonic collision seismic cycle modeling",
+      "documents_seen": [
+        "https://storymaps.arcgis.com/stories/355bfc8b3c5941e683d4f258e8fb2dfa",
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+        "https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/10662"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    }
+  ],
+  "fact_count": 5,
+  "source_count": 3,
+  "dated_fact_count": 1,
+  "usage": {
+    "llm_calls": 38,
+    "search_calls": 14,
+    "search_results_rejected": 42,
+    "prompt_tokens": 15622,
+    "completion_tokens": 3088,
+    "total_tokens": 18710,
+    "chat_provider_cost_usd": 0.0111896,
+    "provider_cost_reported": true,
+    "extraction_rows": 22,
+    "grounding_rejections": 14,
+    "relevance_accepted": 6,
+    "relevance_uncertain": 0,
+    "relevance_rejected": 2,
+    "support_rows_rejected": 0,
+    "not_applicable_slots": 2,
+    "elapsed_seconds": 174.38880971600884
+  }
+}

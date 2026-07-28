@@ -1,0 +1,1347 @@
+{
+  "topic": "2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)",
+  "research_id": "run-c2a15205",
+  "stop_reason": "all_slots_exhausted",
+  "stop_detail": "all 2 open slot(s) hit the 3-attempt limit",
+  "coverage_ratio": 0.8,
+  "gap_status": [
+    {
+      "slot_id": "who.primary_actor",
+      "dimension": "WHO",
+      "question": "Which person, organization, or system is the central subject of the event, excluding later responders, buyers, and merely affected parties?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "4f52a0c8-feb7-450f-8cc0-31afb73127ef"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "dimension": "WHO",
+      "question": "Who is affected, targeted, or impacted?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "e8f4b173-e684-4b36-ad20-3ce9502ade2e"
+      ],
+      "notes": "3 active fact(s)"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "dimension": "WHO",
+      "question": "Which organizations, subsidiaries, or partners are involved?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "da279ae8-5833-471e-9cb7-07123efa3ae9"
+      ],
+      "notes": "4 active fact(s)"
+    },
+    {
+      "slot_id": "who.regulators",
+      "dimension": "WHO",
+      "question": "Which regulators, investigators, or authorities are involved?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "what.core_event",
+      "dimension": "WHAT",
+      "question": "What exactly happened?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "94e1d9d1-90d8-4005-bf03-d8a5b98d51f7"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.scale",
+      "dimension": "WHAT",
+      "question": "What is the scale, size, or material impact of the event?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "what.products",
+      "dimension": "WHAT",
+      "question": "Which products, services, or assets are involved?",
+      "filled": false,
+      "applicability": "not_applicable",
+      "confidence": 1.0,
+      "supporting_episode_ids": [],
+      "notes": "not applicable: The event is a natural disaster, not involving products, services, or assets directly."
+    },
+    {
+      "slot_id": "when.event_time",
+      "dimension": "WHEN",
+      "question": "When did the key event occur?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "e4469b97-3882-4fc2-9518-c56589f55091"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "dimension": "WHEN",
+      "question": "When was the event discovered or disclosed?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "dimension": "WHEN",
+      "question": "When did an official intervention or response occur?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "dimension": "WHERE",
+      "question": "Where is the primary legal or operational jurisdiction?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "dimension": "WHERE",
+      "question": "Where did money, assets, or activity move?",
+      "filled": false,
+      "applicability": "not_applicable",
+      "confidence": 1.0,
+      "supporting_episode_ids": [],
+      "notes": "not applicable: There is no typical asset or money flow caused by the earthquake itself."
+    },
+    {
+      "slot_id": "where.event_location",
+      "dimension": "WHERE",
+      "question": "Where did the event happen or become visible?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "0ca4b7ef-4808-43d1-8f12-19fe4108e68c"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "why.motivation",
+      "dimension": "WHY",
+      "question": "Why did the actor behave this way or pursue this action?",
+      "filled": false,
+      "applicability": "not_applicable",
+      "confidence": 1.0,
+      "supporting_episode_ids": [],
+      "notes": "not applicable: No actor motivation applies as this is a natural disaster, not a deliberate action."
+    },
+    {
+      "slot_id": "why.trigger",
+      "dimension": "WHY",
+      "question": "What immediate trigger and underlying conditions caused or catalyzed the event?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "8fab0a68-80b4-4e33-8060-b812fa4d98c8"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "dimension": "HOW",
+      "question": "What causal mechanism made the event happen, or how was it executed?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "1e525a88-3342-4b0e-bb96-e9fa68e44019"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "how.sequence",
+      "dimension": "HOW",
+      "question": "How did the activity unfold step by step?",
+      "filled": false,
+      "applicability": "required",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    }
+  ],
+  "slot_applicability": [
+    {
+      "slot_id": "who.primary_actor",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.regulators",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Authorities such as disaster management agencies and government bodies are involved in response and investigation."
+    },
+    {
+      "slot_id": "what.core_event",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.scale",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.products",
+      "status": "not_applicable",
+      "confidence": 1.0,
+      "reason": "The event is a natural disaster, not involving products, services, or assets directly."
+    },
+    {
+      "slot_id": "when.event_time",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "status": "optional",
+      "confidence": 0.8,
+      "reason": "The earthquake occurrence time is known, but 'discovery' is immediate as it is a natural event."
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Official interventions such as rescue and relief efforts have specific start times."
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "status": "optional",
+      "confidence": 0.95,
+      "reason": "The primary jurisdiction is the affected regions in Türkiye and Syria."
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "status": "not_applicable",
+      "confidence": 1.0,
+      "reason": "There is no typical asset or money flow caused by the earthquake itself."
+    },
+    {
+      "slot_id": "where.event_location",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "why.motivation",
+      "status": "not_applicable",
+      "confidence": 1.0,
+      "reason": "No actor motivation applies as this is a natural disaster, not a deliberate action."
+    },
+    {
+      "slot_id": "why.trigger",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.sequence",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    }
+  ],
+  "relevance_audit": [
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "A Mww 6.0 earthquake struck Kale District, Malatya Province on 16 October 2024, causing 254 injuries across seven provinces, with Elazığ Province alone recording 116 injuries.",
+      "structured_claim": "A Mww 6.0 earthquake | caused | 254 injuries across seven provinces",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote refers to a Mww 6.0 earthquake in 2024, not the 2023 Türkiye–Syria earthquakes, so it is not relevant to the topic."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "A Mww 6.0 earthquake struck Kale District, Malatya Province on 16 October 2024, causing 254 injuries across seven provinces, with Elazığ Province alone recording 116 injuries.",
+      "structured_claim": "Elazığ Province | recorded | 116 injuries",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote is about injuries from a 2024 earthquake, not the 2023 Türkiye–Syria earthquakes, so it does not answer the question for the topic."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "Many hospitals were overwhelmed by the large number of casualties and prior to the earthquakes, were already experiencing supply shortages.",
+      "structured_claim": "Many hospitals | were overwhelmed by | the large number of casualties",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote mentions hospitals overwhelmed by casualties but does not specify that this is related to the 2023 Türkiye–Syria earthquakes; also, it does not identify who is affected."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "Refugees and expatriates also opened their homes as shelters for people.",
+      "structured_claim": "Refugees and expatriates | opened | their homes as shelters for people",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote mentions refugees and expatriates opening homes as shelters but does not specify this is in the context of the 2023 Türkiye–Syria earthquakes or that they are affected parties."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "Sports facilities, events venues, university dormitories and halls were also opened to take in people.",
+      "structured_claim": "Sports facilities, events venues, university dormitories and halls | were opened to | take in people",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote mentions facilities opened to take in people but does not specify affected parties or that this is related to the 2023 Türkiye–Syria earthquakes."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "The Syria Trust for Development announced the establishment of shelters across many governorates.",
+      "structured_claim": "The Syria Trust for Development | announced | the establishment of shelters across many governorates",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote is about the Syria Trust for Development establishing shelters, not about who is affected or impacted by the earthquake."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "Volunteer groups inspected buildings for damage and distributed food items, blankets and first aid essentials.",
+      "structured_claim": "Volunteer groups | inspected and distributed | buildings for damage and food items, blankets and first aid essentials",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote describes volunteer groups' actions, not who is affected or impacted by the earthquake."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "(edit | history)\nCountries\n[edit]\nAt least 100 countries pledged support for victims of the earthquake, including humanitarian aid.",
+      "structured_claim": "At least 100 countries | pledged | support for victims of the earthquake, including humanitarian aid",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote mentions countries pledging support, not who is affected or impacted by the earthquake."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake",
+      "source_url": "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake",
+      "quote": "Syria’s current complex humanitarian emergency is among the largest humanitarian crises in the world, and the earthquake only exacerbated the situation and vulnerabilities.",
+      "structured_claim": "The earthquake | exacerbated | Syria’s current complex humanitarian emergency",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states that Syria's humanitarian emergency was exacerbated by the earthquake, indicating those affected."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake",
+      "source_url": "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake",
+      "quote": "The earthquakes and underlying vulnerabilities resulted in the deaths of at least 56,000 people in Turkey and Syria.",
+      "structured_claim": "The earthquakes and underlying vulnerabilities | resulted in deaths of | at least 56,000 people in Turkey and Syria",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states the death toll in Turkey and Syria caused by the earthquakes, directly answering who was affected."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake",
+      "source_url": "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake",
+      "quote": "Aid workers were among those killed.",
+      "structured_claim": "Aid workers | were | among those killed",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "Aid workers are mentioned as among those killed but are not the central affected parties; the earthquake is the primary actor affecting civilians."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake",
+      "source_url": "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake",
+      "quote": "The humanitarian community estimated that 8.8 million people lived in areas most affected by the earthquake in Syria.",
+      "structured_claim": "The humanitarian community | estimated population affected | 8.8 million people lived in areas most affected by the earthquake in Syria",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote provides an estimate of the population affected in Syria, directly answering who was impacted."
+    },
+    {
+      "slot_id": "how.mechanism",
+      "document_id": "https://riskfrontiers.com/insights/turkey-earthquakes-cause-surface-faulting-2023",
+      "source_url": "https://riskfrontiers.com/insights/turkey-earthquakes-cause-surface-faulting-2023",
+      "quote": "Faults Ruptured in the Two Earthquakes\nThe Mw 7.8 earthquake of 2023 ruptured the southwestern part of the East Anatolian Fault (left side of Figure 1), and evidently triggered the occurrence of the Mw 7.5 earthquake on the Surgu Fault System nine hours later.",
+      "structured_claim": "The Mw 7.8 earthquake of 2023 | was caused by rupture of | the southwestern part of the East Anatolian Fault",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly explains the causal mechanism of the 2023 Mw 7.8 earthquake as rupture of the southwestern part of the East Anatolian Fault, which answers the question about how the event happened."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/Turkish_Red_Crescent",
+      "source_url": "https://en.wikipedia.org/wiki/Turkish_Red_Crescent",
+      "quote": "Turkish Red Crescent\n| Türk Kızılay |\n| Logo of the Turkish Red Crescent |\n| Formation | 1868; 158 years ago (1868) |\n| Founded at | Ottoman Empire (1868) re-established in Ankara, Turkey (1935) |\n| Type | Humanitarian Aid |\n| Legal status | Active; auxiliary role to the Turkish government and public authorities in emergency and humanitarian operations |\n| Purpose | Disaster relief; emergency medical aid; refugee support; blood donation; healthcare; social services; international humanitarian aid |\n| Headquarters | Ankara, Turkey |\n| Members | International Federation of Red Cross and Red Crescent Societies (IFRC) |\n| Official language | Turkish |\n| President | Fatma Meriç Yılmaz |\n| Staff | 6,423 (headquarters & branch employees, 2023) |\n| Volunteers | 327,114 (2023) |\n| Website | www.kizilay.org.tr |\nThe Turkish Red Crescent (Turkish: Türk Kızılay) is the Turkish affiliate of the\n\nInternational Red Crescent and the first worldwide adopter of the crescent symbol for humanitarian aid.",
+      "structured_claim": "Turkish Red Crescent | is affiliate of | International Red Crescent",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote explicitly states that the Turkish Red Crescent is the Turkish affiliate of the International Red Crescent, directly answering the question about related organizations."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/Turkish_Red_Crescent",
+      "source_url": "https://en.wikipedia.org/wiki/Turkish_Red_Crescent",
+      "quote": "Turkish Red Crescent\n| Türk Kızılay |\n| Logo of the Turkish Red Crescent |\n| Formation | 1868; 158 years ago (1868) |\n| Founded at | Ottoman Empire (1868) re-established in Ankara, Turkey (1935) |\n| Type | Humanitarian Aid |\n| Legal status | Active; auxiliary role to the Turkish government and public authorities in emergency and humanitarian operations |\n| Purpose | Disaster relief; emergency medical aid; refugee support; blood donation; healthcare; social services; international humanitarian aid |\n| Headquarters | Ankara, Turkey |\n| Members | International Federation of Red Cross and Red Crescent Societies (IFRC) |\n| Official language | Turkish |\n| President | Fatma Meriç Yılmaz |\n| Staff | 6,423 (headquarters & branch employees, 2023) |\n| Volunteers | 327,114 (2023) |\n| Website | www.kizilay.org.tr |\nThe Turkish Red Crescent (Turkish: Türk Kızılay) is the Turkish affiliate of the",
+      "structured_claim": "Turkish Red Crescent | members | International Federation of Red Cross and Red Crescent Societies (IFRC)",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote clearly identifies the Turkish Red Crescent as a member of the International Federation of Red Cross and Red Crescent Societies (IFRC), directly relevant to the question."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/Turkish_Red_Crescent",
+      "source_url": "https://en.wikipedia.org/wiki/Turkish_Red_Crescent",
+      "quote": "Partnership with Turkish government\n[edit]\nFollowing the 2016 Turkish coup d'état attempt, the Turkish Red Crescent backed the Turkish government, sending a letter to hundreds of international aid organizations and NGOs, including to organizations of the United Nations and Red Crescents in 191 total countries.",
+      "structured_claim": "Turkish Red Crescent | partnered with | Turkish government",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.8,
+      "reason": "The quote shows a partnership between the Turkish Red Crescent and the Turkish government, indicating involvement of these organizations."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/Turkish_Red_Crescent",
+      "source_url": "https://en.wikipedia.org/wiki/Turkish_Red_Crescent",
+      "quote": "Global gathering\n[edit]\nIn November 6–11, 2017, the International Red Cross and the Turkish Red Crescent movement brought together 190 national Red Cross and Red Crescent societies.",
+      "structured_claim": "International Red Cross and the Turkish Red Crescent movement | brought together | 190 national Red Cross and Red Crescent societies",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.7,
+      "reason": "The quote indicates that the International Red Cross and the Turkish Red Crescent movement brought together 190 national societies, showing organizational involvement."
+    },
+    {
+      "slot_id": "where.event_location",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons\nWikiquote\nWikidata item\nAppearance\nCoordinates: 37°09′58″N 37°01′55″E﻿ / ﻿37.166°N 37.032°E﻿ / 37.166; 37.032\nFrom Wikipedia, the free encyclopedia\nMajor earthquakes in the Turkey–Syria border region\n2023 Turkey–Syria earthquakes\n| Clockwise from top: Collapsed buildings in Hatay Province; a view of the wreckage from Aleppo, Syria; Chinese Blue Sky Rescue\") [zh] and Iranian search and rescue teams in Adıyaman; an assistance of USAID in İncirlik Air Base; and a tent city in Kahramanmaraş |\n| 2023 Turkey–Syria earthquakes is located in Turkey M7.8 M7.8 M7.7 M7.7 Kahramanmaraş Kahramanmaraş Antakya Antakya Gaziantep Gaziantep |\n| UTC time | 2023-02-06 01:17:35 |\n| | 2023-02-06",
+      "structured_claim": "2023 Turkey–Syria earthquakes | happened or became visible | Turkey–Syria border region",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote explicitly mentions the 'Turkey–Syria border region' as the location of the 2023 Turkey–Syria earthquakes, directly answering the question about where the event happened or became visible."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "source_url": "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+      "quote": "Map of the Anatolian sub-plate, showing the location of the East Anatolian Fault\nCentral southern Turkey and northwestern Syria are affected by the interaction between three tectonic plates: the African plate, Arabian plate, and Anatolian sub-plate.",
+      "structured_claim": "interaction between three tectonic plates | caused | earthquake event",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote directly identifies the interaction between three tectonic plates as the underlying condition causing the earthquake event, which answers the question about immediate trigger and underlying conditions."
+    },
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+      "source_url": "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+      "quote": "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north.",
+      "structured_claim": "The 2023 Türkiye-Syria Earthquakes | occurred | a magnitude 7.8 earthquake struck southern Türkiye followed 9 hours later by a magnitude 7.5 earthquake 90 kilometers to the north",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly and explicitly describes the main event: a magnitude 7.8 earthquake struck southern Türkiye followed 9 hours later by a magnitude 7.5 earthquake 90 kilometers to the north, exactly answering the question about what happened."
+    },
+    {
+      "slot_id": "who.primary_actor",
+      "document_id": "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+      "source_url": "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+      "quote": "The two major 6 February earthquakes (together referred to as the Kahramanmaraş earthquake sequence) occurred on separate faults branching off the 600-kilometer-long (380-mile-long) East Anatolian Fault, which runs through eastern Türkiye and south into Syria, separating the Anatolian and Arabian tectonic plates.",
+      "structured_claim": "the Kahramanmaraş earthquake sequence | occurred on | separate faults branching off the 600-kilometer-long East Anatolian Fault",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote identifies the Kahramanmaraş earthquake sequence as the central subject (primary actor) of the event, describing the fault system responsible for the earthquakes, which directly answers the question about the primary actor."
+    },
+    {
+      "slot_id": "when.event_time",
+      "document_id": "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+      "source_url": "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+      "quote": "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye.",
+      "structured_claim": "The 2023 Türkiye-Syria Earthquakes | occurred on | 6 February 2023",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states the earthquake occurred in the early hours of 6 February 2023, directly answering the question about the event time."
+    }
+  ],
+  "claim_match_audit": [],
+  "evidence_pack": {
+    "topic": "2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)",
+    "coverage_ratio": 0.8,
+    "items": [
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "The two major 6 February earthquakes (together referred to as the Kahramanmaraş earthquake sequence) occurred on separate faults branching off the 600-kilometer-long (380-mile-long) East Anatolian Fault, which runs through eastern Türkiye and south into Syria, separating the Anatolian and Arabian tectonic plates.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "4f52a0c8-feb7-450f-8cc0-31afb73127ef"
+        ],
+        "source_urls": [
+          "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote identifies the Kahramanmaraş earthquake sequence as the central subject (primary actor) of the event, describing the fault system responsible for the earthquakes, which directly answers the question about the primary actor.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Syria’s current complex humanitarian emergency is among the largest humanitarian crises in the world, and the earthquake only exacerbated the situation and vulnerabilities.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e8f4b173-e684-4b36-ad20-3ce9502ade2e"
+        ],
+        "source_urls": [
+          "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states that Syria's humanitarian emergency was exacerbated by the earthquake, indicating those affected.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "The earthquakes and underlying vulnerabilities resulted in the deaths of at least 56,000 people in Turkey and Syria.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e8f4b173-e684-4b36-ad20-3ce9502ade2e"
+        ],
+        "source_urls": [
+          "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states the death toll in Turkey and Syria caused by the earthquakes, directly answering who was affected.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "The humanitarian community estimated that 8.8 million people lived in areas most affected by the earthquake in Syria.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e8f4b173-e684-4b36-ad20-3ce9502ade2e"
+        ],
+        "source_urls": [
+          "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote provides an estimate of the population affected in Syria, directly answering who was impacted.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "Global gathering\n[edit]\nIn November 6–11, 2017, the International Red Cross and the Turkish Red Crescent movement brought together 190 national Red Cross and Red Crescent societies.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "da279ae8-5833-471e-9cb7-07123efa3ae9"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Turkish_Red_Crescent"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.7,
+        "relevance_reason": "The quote indicates that the International Red Cross and the Turkish Red Crescent movement brought together 190 national societies, showing organizational involvement.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "Partnership with Turkish government\n[edit]\nFollowing the 2016 Turkish coup d'état attempt, the Turkish Red Crescent backed the Turkish government, sending a letter to hundreds of international aid organizations and NGOs, including to organizations of the United Nations and Red Crescents in 191 total countries.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "da279ae8-5833-471e-9cb7-07123efa3ae9"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Turkish_Red_Crescent"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.8,
+        "relevance_reason": "The quote shows a partnership between the Turkish Red Crescent and the Turkish government, indicating involvement of these organizations.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "Turkish Red Crescent\n| Türk Kızılay |\n| Logo of the Turkish Red Crescent |\n| Formation | 1868; 158 years ago (1868) |\n| Founded at | Ottoman Empire (1868) re-established in Ankara, Turkey (1935) |\n| Type | Humanitarian Aid |\n| Legal status | Active; auxiliary role to the Turkish government and public authorities in emergency and humanitarian operations |\n| Purpose | Disaster relief; emergency medical aid; refugee support; blood donation; healthcare; social services; international humanitarian aid |\n| Headquarters | Ankara, Turkey |\n| Members | International Federation of Red Cross and Red Crescent Societies (IFRC) |\n| Official language | Turkish |\n| President | Fatma Meriç Yılmaz |\n| Staff | 6,423 (headquarters & branch employees, 2023) |\n| Volunteers | 327,114 (2023) |\n| Website | www.kizilay.org.tr |\nThe Turkish Red Crescent (Turkish: Türk Kızılay) is the Turkish affiliate of the",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "da279ae8-5833-471e-9cb7-07123efa3ae9"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Turkish_Red_Crescent"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote clearly identifies the Turkish Red Crescent as a member of the International Federation of Red Cross and Red Crescent Societies (IFRC), directly relevant to the question.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "Turkish Red Crescent\n| Türk Kızılay |\n| Logo of the Turkish Red Crescent |\n| Formation | 1868; 158 years ago (1868) |\n| Founded at | Ottoman Empire (1868) re-established in Ankara, Turkey (1935) |\n| Type | Humanitarian Aid |\n| Legal status | Active; auxiliary role to the Turkish government and public authorities in emergency and humanitarian operations |\n| Purpose | Disaster relief; emergency medical aid; refugee support; blood donation; healthcare; social services; international humanitarian aid |\n| Headquarters | Ankara, Turkey |\n| Members | International Federation of Red Cross and Red Crescent Societies (IFRC) |\n| Official language | Turkish |\n| President | Fatma Meriç Yılmaz |\n| Staff | 6,423 (headquarters & branch employees, 2023) |\n| Volunteers | 327,114 (2023) |\n| Website | www.kizilay.org.tr |\nThe Turkish Red Crescent (Turkish: Türk Kızılay) is the Turkish affiliate of the\n\nInternational Red Crescent and the first worldwide adopter of the crescent symbol for humanitarian aid.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "da279ae8-5833-471e-9cb7-07123efa3ae9"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Turkish_Red_Crescent"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote explicitly states that the Turkish Red Crescent is the Turkish affiliate of the International Red Crescent, directly answering the question about related organizations.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "94e1d9d1-90d8-4005-bf03-d8a5b98d51f7"
+        ],
+        "source_urls": [
+          "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly and explicitly describes the main event: a magnitude 7.8 earthquake struck southern Türkiye followed 9 hours later by a magnitude 7.5 earthquake 90 kilometers to the north, exactly answering the question about what happened.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required"
+        ]
+      },
+      {
+        "slot_id": "when.event_time",
+        "conclusion": "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "e4469b97-3882-4fc2-9518-c56589f55091"
+        ],
+        "source_urls": [
+          "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states the earthquake occurred in the early hours of 6 February 2023, directly answering the question about the event time.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required"
+        ]
+      },
+      {
+        "slot_id": "where.event_location",
+        "conclusion": "links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons\nWikiquote\nWikidata item\nAppearance\nCoordinates: 37°09′58″N 37°01′55″E﻿ / ﻿37.166°N 37.032°E﻿ / 37.166; 37.032\nFrom Wikipedia, the free encyclopedia\nMajor earthquakes in the Turkey–Syria border region\n2023 Turkey–Syria earthquakes\n| Clockwise from top: Collapsed buildings in Hatay Province; a view of the wreckage from Aleppo, Syria; Chinese Blue Sky Rescue\") [zh] and Iranian search and rescue teams in Adıyaman; an assistance of USAID in İncirlik Air Base; and a tent city in Kahramanmaraş |\n| 2023 Turkey–Syria earthquakes is located in Turkey M7.8 M7.8 M7.7 M7.7 Kahramanmaraş Kahramanmaraş Antakya Antakya Gaziantep Gaziantep |\n| UTC time | 2023-02-06 01:17:35 |\n| | 2023-02-06",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "0ca4b7ef-4808-43d1-8f12-19fe4108e68c"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote explicitly mentions the 'Turkey–Syria border region' as the location of the 2023 Turkey–Syria earthquakes, directly answering the question about where the event happened or became visible.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "Map of the Anatolian sub-plate, showing the location of the East Anatolian Fault\nCentral southern Turkey and northwestern Syria are affected by the interaction between three tectonic plates: the African plate, Arabian plate, and Anatolian sub-plate.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "8fab0a68-80b4-4e33-8060-b812fa4d98c8"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote directly identifies the interaction between three tectonic plates as the underlying condition causing the earthquake event, which answers the question about immediate trigger and underlying conditions.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "Faults Ruptured in the Two Earthquakes\nThe Mw 7.8 earthquake of 2023 ruptured the southwestern part of the East Anatolian Fault (left side of Figure 1), and evidently triggered the occurrence of the Mw 7.5 earthquake on the Surgu Fault System nine hours later.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "1e525a88-3342-4b0e-bb96-e9fa68e44019"
+        ],
+        "source_urls": [
+          "https://riskfrontiers.com/insights/turkey-earthquakes-cause-surface-faulting-2023"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly explains the causal mechanism of the 2023 Mw 7.8 earthquake as rupture of the southwestern part of the East Anatolian Fault, which answers the question about how the event happened.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      }
+    ],
+    "unresolved_conflicts": [],
+    "provenance": [
+      "0ca4b7ef-4808-43d1-8f12-19fe4108e68c",
+      "1e525a88-3342-4b0e-bb96-e9fa68e44019",
+      "4f52a0c8-feb7-450f-8cc0-31afb73127ef",
+      "8fab0a68-80b4-4e33-8060-b812fa4d98c8",
+      "94e1d9d1-90d8-4005-bf03-d8a5b98d51f7",
+      "da279ae8-5833-471e-9cb7-07123efa3ae9",
+      "e4469b97-3882-4fc2-9518-c56589f55091",
+      "e8f4b173-e684-4b36-ad20-3ce9502ade2e"
+    ],
+    "slot_applicability": [
+      {
+        "slot_id": "who.primary_actor",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.regulators",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Authorities such as disaster management agencies and government bodies are involved in response and investigation."
+      },
+      {
+        "slot_id": "what.core_event",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.scale",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.products",
+        "status": "not_applicable",
+        "confidence": 1.0,
+        "reason": "The event is a natural disaster, not involving products, services, or assets directly."
+      },
+      {
+        "slot_id": "when.event_time",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "status": "optional",
+        "confidence": 0.8,
+        "reason": "The earthquake occurrence time is known, but 'discovery' is immediate as it is a natural event."
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Official interventions such as rescue and relief efforts have specific start times."
+      },
+      {
+        "slot_id": "where.jurisdiction",
+        "status": "optional",
+        "confidence": 0.95,
+        "reason": "The primary jurisdiction is the affected regions in Türkiye and Syria."
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "status": "not_applicable",
+        "confidence": 1.0,
+        "reason": "There is no typical asset or money flow caused by the earthquake itself."
+      },
+      {
+        "slot_id": "where.event_location",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "why.motivation",
+        "status": "not_applicable",
+        "confidence": 1.0,
+        "reason": "No actor motivation applies as this is a natural disaster, not a deliberate action."
+      },
+      {
+        "slot_id": "why.trigger",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.mechanism",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.sequence",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      }
+    ]
+  },
+  "report": "# 调查报告：2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)\n\n> **覆盖率** 8/10 必填槽位（80%）　**选填槽** 0/4（不计入覆盖率）　**事实** 13 条　**结论级双源支持** 0/13　**来源 episode** 8 个\n\n> 本报告仅消费图谱证据包。每条结论都标注了来源 episode；无证据的槽位如实标记为未查到，不做推断补全。\n\n## WHO\n\n**Primary Actor**\n  - The two major 6 February earthquakes (together referred to as the Kahramanmaraş earthquake sequence) occurred on separate faults branching off the 600-kilometer-long (380-mile-long) East Anatolian Fault, which runs through eastern Türkiye and south into Syria, separating the Anatolian and Arabian tectonic plates. `4f52a0c8`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[The 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust](https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust)\n\n**Affected Parties**\n  - Syria’s current complex humanitarian emergency is among the largest humanitarian crises in the world, and the earthquake only exacerbated the situation and vulnerabilities. `e8f4b173`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - The earthquakes and underlying vulnerabilities resulted in the deaths of at least 56,000 people in Turkey and Syria. `e8f4b173`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - The humanitarian community estimated that 8.8 million people lived in areas most affected by the earthquake in Syria. `e8f4b173`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[2023 Turkey-Syria Earthquake - Center for ...](https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake)\n\n**Related Organizations**\n  - Global gathering\n[edit]\nIn November 6–11, 2017, the International Red Cross and the Turkish Red Crescent movement brought together 190 national Red Cross and Red Crescent societies. `da279ae8`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Partnership with Turkish government\n[edit]\nFollowing the 2016 Turkish coup d'état attempt, the Turkish Red Crescent backed the Turkish government, sending a letter to hundreds of international aid organizations and NGOs, including to organizations of the United Nations and Red Crescents in 191 total countries. `da279ae8`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Turkish Red Crescent\n| Türk Kızılay |\n| Logo of the Turkish Red Crescent |\n| Formation | 1868; 158 years ago (1868) |\n| Founded at | Ottoman Empire (1868) re-established in Ankara, Turkey (1935) |\n| Type | Humanitarian Aid |\n| Legal status | Active; auxiliary role to the Turkish government and public authorities in emergency and humanitarian operations |\n| Purpose | Disaster relief; emergency medical aid; refugee support; blood donation; healthcare; social services; international humanitarian aid |\n| Headquarters | Ankara, Turkey |\n| Members | International Federation of Red Cross and Red Crescent Societies (IFRC) |\n| Official language | Turkish |\n| President | Fatma Meriç Yılmaz |\n| Staff | 6,423 (headquarters & branch employees, 2023) |\n| Volunteers | 327,114 (2023) |\n| Website | www.kizilay.org.tr |\nThe Turkish Red Crescent (Turkish: Türk Kızılay) is the Turkish affiliate of the `da279ae8`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Turkish Red Crescent\n| Türk Kızılay |\n| Logo of the Turkish Red Crescent |\n| Formation | 1868; 158 years ago (1868) |\n| Founded at | Ottoman Empire (1868) re-established in Ankara, Turkey (1935) |\n| Type | Humanitarian Aid |\n| Legal status | Active; auxiliary role to the Turkish government and public authorities in emergency and humanitarian operations |\n| Purpose | Disaster relief; emergency medical aid; refugee support; blood donation; healthcare; social services; international humanitarian aid |\n| Headquarters | Ankara, Turkey |\n| Members | International Federation of Red Cross and Red Crescent Societies (IFRC) |\n| Official language | Turkish |\n| President | Fatma Meriç Yılmaz |\n| Staff | 6,423 (headquarters & branch employees, 2023) |\n| Volunteers | 327,114 (2023) |\n| Website | www.kizilay.org.tr |\nThe Turkish Red Crescent (Turkish: Türk Kızılay) is the Turkish affiliate of the\n\nInternational Red Crescent and the first worldwide adopter of the crescent symbol for humanitarian aid. `da279ae8`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[Turkish Red Crescent - Wikipedia](https://en.wikipedia.org/wiki/Turkish_Red_Crescent)\n\n**Regulators** — ⚠️ 未查到相关证据\n\n## WHAT\n\n**Core Event**\n  - An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north. `94e1d9d1`\n    ⚠️ claim has 1 independent source(s); 2 required；single source; no claim-level corroboration\n  来源：[The 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust](https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust)\n\n**Scale** — ⚠️ 未查到相关证据\n\n**Products** — ⏭️ 不适用：The event is a natural disaster, not involving products, services, or assets directly.\n\n## WHEN\n\n**Event Time**\n  - An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. `e4469b97`\n    ⚠️ claim has 1 independent source(s); 2 required；single source; no claim-level corroboration\n  来源：[The 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust](https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust)\n\n**Discovery Time** — ⚠️ 未查到相关证据\n\n**Intervention Time** — ⚠️ 未查到相关证据\n\n## WHERE\n\n**Jurisdiction** — ⚠️ 未查到相关证据\n\n**Asset Flow** — ⏭️ 不适用：There is no typical asset or money flow caused by the earthquake itself.\n\n**Event Location**\n  - links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons\nWikiquote\nWikidata item\nAppearance\nCoordinates: 37°09′58″N 37°01′55″E﻿ / ﻿37.166°N 37.032°E﻿ / 37.166; 37.032\nFrom Wikipedia, the free encyclopedia\nMajor earthquakes in the Turkey–Syria border region\n2023 Turkey–Syria earthquakes\n| Clockwise from top: Collapsed buildings in Hatay Province; a view of the wreckage from Aleppo, Syria; Chinese Blue Sky Rescue\") [zh] and Iranian search and rescue teams in Adıyaman; an assistance of USAID in İncirlik Air Base; and a tent city in Kahramanmaraş |\n| 2023 Turkey–Syria earthquakes is located in Turkey M7.8 M7.8 M7.7 M7.7 Kahramanmaraş Kahramanmaraş Antakya Antakya Gaziantep Gaziantep |\n| UTC time | 2023-02-06 01:17:35 |\n| | 2023-02-06 `0ca4b7ef`\n    ⚠️ single source; no claim-level corroboration\n  来源：[2023 Turkey–Syria earthquakes](https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes)\n\n## WHY\n\n**Motivation** — ⏭️ 不适用：No actor motivation applies as this is a natural disaster, not a deliberate action.\n\n**Trigger**\n  - Map of the Anatolian sub-plate, showing the location of the East Anatolian Fault\nCentral southern Turkey and northwestern Syria are affected by the interaction between three tectonic plates: the African plate, Arabian plate, and Anatolian sub-plate. `8fab0a68`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[2023 Turkey–Syria earthquakes](https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes)\n\n## HOW\n\n**Mechanism**\n  - Faults Ruptured in the Two Earthquakes\nThe Mw 7.8 earthquake of 2023 ruptured the southwestern part of the East Anatolian Fault (left side of Figure 1), and evidently triggered the occurrence of the Mw 7.5 earthquake on the Surgu Fault System nine hours later. `1e525a88`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[Cause and Surface Faulting of the Türkiye Earthquakes of February 6, 2023](https://riskfrontiers.com/insights/turkey-earthquakes-cause-surface-faulting-2023)\n\n**Sequence** — ⚠️ 未查到相关证据\n\n---\n*由证据包生成。冲突 0 处未消解。无明确日期的事实不带 valid_at（§3.12）。*",
+  "rounds": [
+    {
+      "round_number": 1,
+      "slot_id": "what.core_event",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock detailed report",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.0
+    },
+    {
+      "round_number": 2,
+      "slot_id": "who.primary_actor",
+      "purpose": "coverage",
+      "query": "\"Türkiye–Syria earthquakes\" \"February 6, 2023\" \"Mw 7.8 mainshock\"",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.0
+    },
+    {
+      "round_number": 3,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"February 6, 2023\" \"Mw 7.8 mainshock\" date and time",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.0
+    },
+    {
+      "round_number": 4,
+      "slot_id": "what.scale",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock scale size material impact damage statistics",
+      "documents_seen": [
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.0
+    },
+    {
+      "round_number": 5,
+      "slot_id": "who.affected_parties",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" affected populations \"Türkiye\" \"Syria\" February 6 2023 Mw 7.8 impact victims casualties displaced persons humanitarian response",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+        "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake"
+      ],
+      "succeeded": true,
+      "facts_written": 3,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://disasterphilanthropy.org/disasters/2023-turkey-syria-earthquake"
+      ],
+      "contributing_source_identities": [
+        "disasterphilanthropy.org"
+      ],
+      "target_edge_uuids": [
+        "e8e2fb7b-27ed-4ee3-bbce-0582f403e483",
+        "a1bb14bc-2d1d-43bc-95ca-a369cde61a19",
+        "d02240d1-965c-4243-819a-f51863a1a8fc"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 6,
+      "slot_id": "how.mechanism",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"February 6, 2023\" Mw 7.8 mainshock causal mechanism \"East Anatolian Fault\" strike-slip faulting \"Dead Sea Transform\" tectonic setting seismic rupture propagation",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+        "https://riskfrontiers.com/insights/turkey-earthquakes-cause-surface-faulting-2023",
+        "https://temblor.net/earthquake-insights/turkey-syria-earthquake-feb-6-2023-14918"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://riskfrontiers.com/insights/turkey-earthquakes-cause-surface-faulting-2023"
+      ],
+      "contributing_source_identities": [
+        "riskfrontiers.com"
+      ],
+      "target_edge_uuids": [
+        "cb283ca3-6a51-4477-970e-3e0f8e7caabe"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 7,
+      "slot_id": "who.related_organizations",
+      "purpose": "coverage",
+      "query": "\"Türkiye Disaster and Emergency Management Authority\" OR \"AFAD\" \"United Nations\" \"Red Crescent\" \"Turkish Red Crescent\" \"Syrian Arab Red Crescent\" \"International Federation of Red Cross and Red Crescent Societies\" \"United Nations Office for the Coordination of Humanitarian Affairs\" \"World Health Organization\" \"Médecins Sans Frontières\" \"Turkish Ministry of Health\" \"Syrian Ministry of Health\" \"Turkish Armed Forces\" \"Syrian Civil Defense\" \"White Helmets\" \"European Civil Protection and Humanitarian Aid Operations\" \"USAID\" \"International Organization for Migration\" \"UNICEF\" \"World Food Programme\" \"Turkish Disaster Relief Foundation\" \"AFAD\" partners 2023 Türkiye–Syria earthquakes February 6",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Turkish_Red_Crescent"
+      ],
+      "succeeded": true,
+      "facts_written": 4,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/Turkish_Red_Crescent"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "fc0ecaa2-d1d4-4507-8cfa-7512e22195e5",
+        "2385e6b5-c2b8-48a4-818d-f263d045af33",
+        "504417bd-cbb0-46d0-a669-2147e874e948",
+        "c1d8ed37-2fca-43aa-bf5d-4ec0c516d4c1"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 8,
+      "slot_id": "how.sequence",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" timeline February 6 2023 Mw 7.8 mainshock step by step sequence",
+      "documents_seen": [
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 9,
+      "slot_id": "where.event_location",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"February 6, 2023\" \"Mw 7.8 mainshock\" affected regions and visibility locations",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "0e58977b-dd04-410a-9fa4-06afb43771af"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.4
+    },
+    {
+      "round_number": 10,
+      "slot_id": "why.trigger",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock \"immediate trigger\" \"fault rupture\" \"East Anatolian Fault\" \"underlying mechanism\" \"tectonic plate collision\" \"Anatolian Plate\" \"Arabian Plate\" \"stress accumulation\" \"seismic cycle\" \"strike-slip faulting\"",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+        "https://riskfrontiers.com/insights/turkey-earthquakes-cause-surface-faulting-2023"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "1b8406e9-b947-40fb-8c12-738dc76ae27c"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.5
+    },
+    {
+      "round_number": 11,
+      "slot_id": "what.core_event",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock sequence impact analysis",
+      "documents_seen": [
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+      ],
+      "contributing_source_identities": [
+        "eos.org"
+      ],
+      "target_edge_uuids": [
+        "8507d4e3-ef0a-4be4-a48f-bb2aa70e250b"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.6
+    },
+    {
+      "round_number": 12,
+      "slot_id": "who.primary_actor",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"February 6, 2023\" \"Mw 7.8 mainshock\" \"East Anatolian Fault\"",
+      "documents_seen": [
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust",
+        "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+        "https://link.springer.com/article/10.1007/s12594-023-2331-z"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+      ],
+      "contributing_source_identities": [
+        "eos.org"
+      ],
+      "target_edge_uuids": [
+        "195449cd-0e15-4669-99c7-f9bcca01e6e6"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 13,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"Mw 7.8 mainshock\" exact time and date of occurrence",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 14,
+      "slot_id": "what.scale",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock casualty figures infrastructure damage economic losses official reports",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 15,
+      "slot_id": "how.sequence",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" detailed sequence February 6 2023 Mw 7.8 mainshock aftershocks timeline",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 16,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" \"Mw 7.8 mainshock\" precise time February 6 2023",
+      "documents_seen": [
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://eos.org/features/the-2023-turkiye-syria-earthquakes-shifted-stress-in-the-crust"
+      ],
+      "contributing_source_identities": [
+        "eos.org"
+      ],
+      "target_edge_uuids": [
+        "0835db2d-2930-4b32-b5cb-6ca657b0a26e"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.8
+    },
+    {
+      "round_number": 17,
+      "slot_id": "what.scale",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" February 6 2023 Mw 7.8 mainshock magnitude intensity ground rupture length affected area geological impact",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.8
+    },
+    {
+      "round_number": 18,
+      "slot_id": "how.sequence",
+      "purpose": "coverage",
+      "query": "\"2023 Türkiye–Syria earthquakes\" detailed timeline February 6 2023 Mw 7.8 mainshock sequence of events aftershocks step by step",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.8
+    }
+  ],
+  "fact_count": 13,
+  "source_count": 5,
+  "dated_fact_count": 3,
+  "usage": {
+    "llm_calls": 47,
+    "search_calls": 18,
+    "search_results_rejected": 58,
+    "prompt_tokens": 22439,
+    "completion_tokens": 4764,
+    "total_tokens": 27203,
+    "chat_provider_cost_usd": 0.016598,
+    "provider_cost_reported": true,
+    "extraction_rows": 35,
+    "grounding_rejections": 11,
+    "relevance_accepted": 13,
+    "relevance_uncertain": 0,
+    "relevance_rejected": 9,
+    "support_rows_rejected": 2,
+    "not_applicable_slots": 3,
+    "elapsed_seconds": 214.31360270199366
+  }
+}

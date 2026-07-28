@@ -1,0 +1,88 @@
+{
+  "case_id": "ftx_2022",
+  "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+  "research_id": "run-903381f2",
+  "stop_reason": "all_slots_exhausted",
+  "coverage_ratio": 0.9,
+  "factual_check_pass_rate": 0.8333333333333334,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 17,
+  "claim_corroboration_rate": 0.0,
+  "high_impact_support_rate": 0.0,
+  "multi_source_slot_rate": 0.0,
+  "cross_corroborated_slot_rate": 0.0,
+  "round_success_rate": 0.6923076923076923,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.4791666666666667,
+  "dated_fact_rate": 0.17647058823529413,
+  "fact_count": 17,
+  "source_count": 5,
+  "episode_count": 9,
+  "rounds": 13,
+  "llm_calls": 52,
+  "search_calls": 13,
+  "search_results_rejected": 20,
+  "relevance_accepted": 19,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 6,
+  "support_rounds": 0,
+  "prompt_tokens": 24623,
+  "completion_tokens": 5390,
+  "total_tokens": 30013,
+  "chat_provider_cost_usd": 0.018473199999999995,
+  "elapsed_seconds": 195.07846405298915,
+  "fact_checks": [
+    {
+      "check_id": "ftx_bankruptcy_2022",
+      "description": "FTX bankruptcy is anchored to 2022",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "The FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange, owned by Sam Bankman-Fried, beginning in November 2022."
+      ]
+    },
+    {
+      "check_id": "ftx_sbf",
+      "description": "Sam Bankman-Fried is identified",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_alameda",
+      "description": "Alameda Research is connected to the event",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On November 11, Alameda Research and FTX declared bankruptcy, and Bankman-Fried stepped down as CEO of FTX."
+      ]
+    },
+    {
+      "check_id": "ftx_bahamas",
+      "description": "The Bahamas appears as FTX's operating jurisdiction",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas.",
+        "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas."
+      ]
+    },
+    {
+      "check_id": "ftx_no_2023_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2023",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_no_2026_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "case_id": "crowdstrike_2024",
+  "topic": "CrowdStrike global IT outage on July 19, 2024",
+  "research_id": "run-963dfad1",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 1.0,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 20,
+  "claim_corroboration_rate": 0.2,
+  "high_impact_support_rate": 0.6666666666666666,
+  "multi_source_slot_rate": 0.26666666666666666,
+  "cross_corroborated_slot_rate": 0.2,
+  "round_success_rate": 0.7391304347826086,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.19298245614035087,
+  "dated_fact_rate": 0.4,
+  "fact_count": 20,
+  "source_count": 13,
+  "episode_count": 19,
+  "rounds": 23,
+  "llm_calls": 98,
+  "search_calls": 23,
+  "search_results_rejected": 15,
+  "relevance_accepted": 24,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 22,
+  "support_rounds": 7,
+  "prompt_tokens": 44344,
+  "completion_tokens": 7193,
+  "total_tokens": 51537,
+  "chat_provider_cost_usd": 0.029246399999999995,
+  "elapsed_seconds": 394.6331847279798,
+  "fact_checks": [
+    {
+      "check_id": "crowdstrike_date",
+      "description": "The outage is anchored to July 19, 2024",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "| Date | 19 July 2024; 2 years ago (2024-07-19) |",
+        "July 19, 2024, 05:27 UTC: CrowdStrike identified the issue and reverted the changes, but by then, many systems had already been affected."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_falcon",
+      "description": "CrowdStrike Falcon is identified as the affected product",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "Information on how the update to the CrowdStrike Falcon sensor configuration file, Channel File 291, caused the logic error that led to the outage.",
+        "On July 19, 2024, CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software"
+      ]
+    },
+    {
+      "check_id": "crowdstrike_windows",
+      "description": "Windows systems are identified as affected",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On July 19, 2024, a defective update from CrowdStrike, an American cybersecurity company, triggered a major IT outage for over 8.5 million devices running the Microsoft system.",
+        "In July 2024, millions of Windows users were locked out of their systems due to a flaw in a CrowdStrike update.",
+        "Update 9:45 a.m., EDT, July 21, 2024:\nMicrosoft released a recovery tool that uses a USB drive to boot and repair affected systems.",
+        "July 19, 2024, 04:09 UTC: CrowdStrike released a sensor configuration update, Channel File 291, to Windows systems as part of their ongoing operations."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_update",
+      "description": "A faulty content/software update is identified as the trigger",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On July 19, 2024, a defective update from CrowdStrike, an American cybersecurity company, triggered a major IT outage for over 8.5 million devices running the Microsoft system.",
+        "On July 19, 2024, CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software"
+      ]
+    },
+    {
+      "check_id": "crowdstrike_no_2025_event",
+      "description": "The 2024 outage is not dated to 2025",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "crowdstrike_no_2026_event",
+      "description": "The 2024 outage is not dated to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

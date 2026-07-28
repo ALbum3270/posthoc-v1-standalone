@@ -1,0 +1,86 @@
+{
+  "case_id": "svb_2023",
+  "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+  "research_id": "run-e30a003d",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 0.5,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 17,
+  "claim_corroboration_rate": 0.11764705882352941,
+  "high_impact_support_rate": 0.2857142857142857,
+  "multi_source_slot_rate": 0.2,
+  "cross_corroborated_slot_rate": 0.11764705882352941,
+  "round_success_rate": 0.5,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.5172413793103449,
+  "dated_fact_rate": 0.47058823529411764,
+  "fact_count": 17,
+  "source_count": 9,
+  "episode_count": 12,
+  "rounds": 22,
+  "llm_calls": 90,
+  "search_calls": 22,
+  "search_results_rejected": 5,
+  "relevance_accepted": 19,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 9,
+  "support_rounds": 11,
+  "prompt_tokens": 44741,
+  "completion_tokens": 7127,
+  "total_tokens": 51868,
+  "chat_provider_cost_usd": 0.029299599999999995,
+  "elapsed_seconds": 283.2714658220066,
+  "fact_checks": [
+    {
+      "check_id": "svb_closure_date",
+      "description": "SVB's closure is anchored to March 10, 2023",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_fdic",
+      "description": "The FDIC is identified as an intervening authority",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_bank_run",
+      "description": "Depositor withdrawals or a bank run appear in the mechanism",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis."
+      ]
+    },
+    {
+      "check_id": "svb_rates_bonds",
+      "description": "Interest rates and securities losses appear in the explanation",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "However, the SVB DST did not shift its attention to the rising interest rates and SVB’s unrealized losses on investment securities and did not sufficiently assess the extent of the potential effect to the bank’s capital and liquidity."
+      ]
+    },
+    {
+      "check_id": "svb_no_2022_closure",
+      "description": "SVB's closure is not dated to 2022",
+      "passed": false,
+      "should_exist": false,
+      "matching_facts": [
+        "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+        "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis."
+      ]
+    },
+    {
+      "check_id": "svb_no_2024_closure",
+      "description": "SVB's closure is not dated to 2024",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

@@ -1,0 +1,349 @@
+{
+  "cases": [
+    {
+      "case_id": "ftx_2022",
+      "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+      "research_id": "run-903381f2",
+      "stop_reason": "all_slots_exhausted",
+      "coverage_ratio": 0.9,
+      "factual_check_pass_rate": 0.8333333333333334,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 1.0,
+      "judged_item_count": 17,
+      "claim_corroboration_rate": 0.0,
+      "high_impact_support_rate": 0.0,
+      "multi_source_slot_rate": 0.0,
+      "cross_corroborated_slot_rate": 0.0,
+      "round_success_rate": 0.6923076923076923,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.4791666666666667,
+      "dated_fact_rate": 0.17647058823529413,
+      "fact_count": 17,
+      "source_count": 5,
+      "episode_count": 9,
+      "rounds": 13,
+      "llm_calls": 52,
+      "search_calls": 13,
+      "search_results_rejected": 20,
+      "relevance_accepted": 19,
+      "relevance_uncertain": 0,
+      "relevance_rejected": 6,
+      "support_rounds": 0,
+      "prompt_tokens": 24623,
+      "completion_tokens": 5390,
+      "total_tokens": 30013,
+      "chat_provider_cost_usd": 0.018473199999999995,
+      "elapsed_seconds": 195.07846405298915,
+      "fact_checks": [
+        {
+          "check_id": "ftx_bankruptcy_2022",
+          "description": "FTX bankruptcy is anchored to 2022",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+            "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+            "The FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange, owned by Sam Bankman-Fried, beginning in November 2022."
+          ]
+        },
+        {
+          "check_id": "ftx_sbf",
+          "description": "Sam Bankman-Fried is identified",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "ftx_alameda",
+          "description": "Alameda Research is connected to the event",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "On November 11, Alameda Research and FTX declared bankruptcy, and Bankman-Fried stepped down as CEO of FTX."
+          ]
+        },
+        {
+          "check_id": "ftx_bahamas",
+          "description": "The Bahamas appears as FTX's operating jurisdiction",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas.",
+            "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas."
+          ]
+        },
+        {
+          "check_id": "ftx_no_2023_bankruptcy",
+          "description": "The report does not date FTX's bankruptcy to 2023",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        },
+        {
+          "check_id": "ftx_no_2026_bankruptcy",
+          "description": "The report does not date FTX's bankruptcy to 2026",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    },
+    {
+      "case_id": "crowdstrike_2024",
+      "topic": "CrowdStrike global IT outage on July 19, 2024",
+      "research_id": "run-8e487fca",
+      "stop_reason": "no_improvement",
+      "coverage_ratio": 0.5,
+      "factual_check_pass_rate": 0.8333333333333334,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 1.0,
+      "judged_item_count": 10,
+      "claim_corroboration_rate": 0.0,
+      "high_impact_support_rate": 0.0,
+      "multi_source_slot_rate": 0.0,
+      "cross_corroborated_slot_rate": 0.0,
+      "round_success_rate": 0.4166666666666667,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.5925925925925926,
+      "dated_fact_rate": 0.3,
+      "fact_count": 10,
+      "source_count": 5,
+      "episode_count": 5,
+      "rounds": 12,
+      "llm_calls": 58,
+      "search_calls": 12,
+      "search_results_rejected": 1,
+      "relevance_accepted": 11,
+      "relevance_uncertain": 1,
+      "relevance_rejected": 10,
+      "support_rounds": 0,
+      "prompt_tokens": 27752,
+      "completion_tokens": 5524,
+      "total_tokens": 33276,
+      "chat_provider_cost_usd": 0.019939199999999997,
+      "elapsed_seconds": 203.06918818200938,
+      "fact_checks": [
+        {
+          "check_id": "crowdstrike_date",
+          "description": "The outage is anchored to July 19, 2024",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "crowdstrike_falcon",
+          "description": "CrowdStrike Falcon is identified as the affected product",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "On July 19, 2024, CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software, triggering catastrophic",
+            "On 19 July 2024, CrowdStrike released a faulty configuration update for its Falcon Sensor software on Microsoft Windows systems."
+          ]
+        },
+        {
+          "check_id": "crowdstrike_windows",
+          "description": "Windows systems are identified as affected",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "“CrowdStrike is actively working with customers impacted by a defect found in a single content update for Windows hosts,” the organization posted on its website early today.",
+            "The outage has been traced back to a cybersecurity company called Crowdstrike which provides anti-cyberattack services to Microsoft, among other companies.",
+            "On 19 July 2024, CrowdStrike released a faulty configuration update for its Falcon Sensor software on Microsoft Windows systems."
+          ]
+        },
+        {
+          "check_id": "crowdstrike_update",
+          "description": "A faulty content/software update is identified as the trigger",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "On July 19, 2024, CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software, triggering catastrophic"
+          ]
+        },
+        {
+          "check_id": "crowdstrike_no_2025_event",
+          "description": "The 2024 outage is not dated to 2025",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        },
+        {
+          "check_id": "crowdstrike_no_2026_event",
+          "description": "The 2024 outage is not dated to 2026",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    },
+    {
+      "case_id": "svb_2023",
+      "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+      "research_id": "run-880522d3",
+      "stop_reason": "coverage_reached",
+      "coverage_ratio": 1.0,
+      "factual_check_pass_rate": 0.8333333333333334,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 1.0,
+      "judged_item_count": 12,
+      "claim_corroboration_rate": 0.0,
+      "high_impact_support_rate": 0.0,
+      "multi_source_slot_rate": 0.0,
+      "cross_corroborated_slot_rate": 0.0,
+      "round_success_rate": 0.4166666666666667,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.47368421052631576,
+      "dated_fact_rate": 0.4166666666666667,
+      "fact_count": 12,
+      "source_count": 7,
+      "episode_count": 10,
+      "rounds": 24,
+      "llm_calls": 98,
+      "search_calls": 24,
+      "search_results_rejected": 31,
+      "relevance_accepted": 18,
+      "relevance_uncertain": 0,
+      "relevance_rejected": 12,
+      "support_rounds": 10,
+      "prompt_tokens": 45412,
+      "completion_tokens": 6873,
+      "total_tokens": 52285,
+      "chat_provider_cost_usd": 0.029161599999999992,
+      "elapsed_seconds": 315.4848027600092,
+      "fact_checks": [
+        {
+          "check_id": "svb_closure_date",
+          "description": "SVB's closure is anchored to March 10, 2023",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "on Friday March 10, 2023, banking regulators closed California-based Silicon Valley Bank (SVB)"
+          ]
+        },
+        {
+          "check_id": "svb_fdic",
+          "description": "The FDIC is identified as an intervening authority",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "svb_bank_run",
+          "description": "Depositor withdrawals or a bank run appear in the mechanism",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "In two days, SVB went from functioning to insolvent when depositors rushed to SVB to withdraw their funds."
+          ]
+        },
+        {
+          "check_id": "svb_rates_bonds",
+          "description": "Interest rates and securities losses appear in the explanation",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "The bank’s heavy investment in long-term securities made it highly vulnerable to rising interest rates, leading to substantial unrealized losses."
+          ]
+        },
+        {
+          "check_id": "svb_no_2022_closure",
+          "description": "SVB's closure is not dated to 2022",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        },
+        {
+          "check_id": "svb_no_2024_closure",
+          "description": "SVB's closure is not dated to 2024",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    },
+    {
+      "case_id": "turkiye_quake_2023",
+      "topic": "2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)",
+      "research_id": "run-29743e46",
+      "stop_reason": "no_improvement",
+      "coverage_ratio": 0.3,
+      "factual_check_pass_rate": 0.5,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 1.0,
+      "judged_item_count": 5,
+      "claim_corroboration_rate": 0.0,
+      "high_impact_support_rate": 0.0,
+      "multi_source_slot_rate": 0.0,
+      "cross_corroborated_slot_rate": 0.0,
+      "round_success_rate": 0.21428571428571427,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.6363636363636364,
+      "dated_fact_rate": 0.2,
+      "fact_count": 5,
+      "source_count": 3,
+      "episode_count": 3,
+      "rounds": 14,
+      "llm_calls": 38,
+      "search_calls": 14,
+      "search_results_rejected": 42,
+      "relevance_accepted": 6,
+      "relevance_uncertain": 0,
+      "relevance_rejected": 2,
+      "support_rounds": 0,
+      "prompt_tokens": 15622,
+      "completion_tokens": 3088,
+      "total_tokens": 18710,
+      "chat_provider_cost_usd": 0.0111896,
+      "elapsed_seconds": 174.38880971600884,
+      "fact_checks": [
+        {
+          "check_id": "turkiye_quake_date",
+          "description": "The main earthquake is anchored to February 6, 2023",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "turkiye_quake_magnitude",
+          "description": "The mainshock magnitude is identified as Mw 7.8",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "On February 6, 2023, a magnitude 7.8 earthquake occurred in southern Turkey near the northern border of Syria.",
+            "The magnitude-7.8 quake struck on the East Anatolian Fault."
+          ]
+        },
+        {
+          "check_id": "turkiye_quake_affected_countries",
+          "description": "Türkiye and Syria are identified as affected countries",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "On February 6, 2023, a magnitude 7.8 earthquake occurred in southern Turkey near the northern border of Syria."
+          ]
+        },
+        {
+          "check_id": "turkiye_quake_death_toll",
+          "description": "The death toll is reported at the tens-of-thousands scale",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "turkiye_quake_rescue_aid",
+          "description": "Rescue or international aid intervention is identified",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "turkiye_quake_no_wrong_year",
+          "description": "The February 6 earthquake is not dated to another year",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    }
+  ]
+}

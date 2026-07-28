@@ -1,0 +1,92 @@
+{
+  "case_id": "crowdstrike_2024",
+  "topic": "CrowdStrike global IT outage on July 19, 2024",
+  "research_id": "run-4ef6d6f3",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 1.0,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 24,
+  "claim_corroboration_rate": 0.20833333333333334,
+  "high_impact_support_rate": 0.8333333333333334,
+  "multi_source_slot_rate": 0.3333333333333333,
+  "cross_corroborated_slot_rate": 0.20833333333333334,
+  "round_success_rate": 0.8571428571428571,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.16666666666666666,
+  "dated_fact_rate": 0.25,
+  "fact_count": 24,
+  "source_count": 14,
+  "episode_count": 20,
+  "rounds": 21,
+  "llm_calls": 87,
+  "search_calls": 21,
+  "search_results_rejected": 8,
+  "relevance_accepted": 29,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 16,
+  "support_rounds": 5,
+  "prompt_tokens": 39840,
+  "completion_tokens": 6648,
+  "total_tokens": 46488,
+  "chat_provider_cost_usd": 0.026572799999999994,
+  "elapsed_seconds": 301.08201583099435,
+  "fact_checks": [
+    {
+      "check_id": "crowdstrike_date",
+      "description": "The outage is anchored to July 19, 2024",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On July 19, 2024, a global IT outage was triggered by a faulty update from CrowdStrike, a leading cybersecurity firm.",
+        "July 19, 2024, 05:27 UTC: CrowdStrike identified the issue and reverted the changes, but by then, many systems had already been affected."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_falcon",
+      "description": "CrowdStrike Falcon is identified as the affected product",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On July 19, 2024, a flawed update to CrowdStrike’s Falcon sensor, a cybersecurity tool widely used to protect devices like computer workstations and servers, resulted in a global IT outage."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_windows",
+      "description": "Windows systems are identified as affected",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "The\n\nwidespread outage that occurred on Friday 19 July as a result of a CrowdStrike configuration push that put Windows machines into a boot loop may well have been the largest digital systems availability incident that the world has ever seen.",
+        "Outages were experienced worldwide, reflecting the wide use of Microsoft Windows and CrowdStrike software by global corporations in numerous business sectors.",
+        "The global outage of specific Microsoft-enabled systems and servers was isolated to a faulty software update released by CrowdStrike",
+        "Crowdstrike Update - July 23rd\nEarlier today, Crowdstrike released an update to the EDR agent to aid in the resolution of the ongoing issues impacting Windows OS-based systems.",
+        "The update affected Windows systems, leading to widespread disruptions across multiple sectors, including airlines, healthcare, banking, and public services."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_update",
+      "description": "A faulty content/software update is identified as the trigger",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On July 19, 2024, a global IT outage was triggered by a faulty update from CrowdStrike, a leading cybersecurity firm."
+      ]
+    },
+    {
+      "check_id": "crowdstrike_no_2025_event",
+      "description": "The 2024 outage is not dated to 2025",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "crowdstrike_no_2026_event",
+      "description": "The 2024 outage is not dated to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

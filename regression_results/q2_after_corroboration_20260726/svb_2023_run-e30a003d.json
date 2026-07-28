@@ -1,0 +1,1713 @@
+{
+  "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+  "research_id": "run-e30a003d",
+  "stop_reason": "coverage_reached",
+  "stop_detail": "coverage 100% >= target 100%; critical claim support 1/11 targeted follow-up(s), 6 gap(s) found",
+  "coverage_ratio": 1.0,
+  "gap_status": [
+    {
+      "slot_id": "who.primary_actor",
+      "dimension": "WHO",
+      "question": "Which person, organization, or system is the central subject of the event, excluding later responders, buyers, and merely affected parties?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "ac1b1b56-7103-411f-b03b-5e2557f234a7",
+        "5fc0d06d-2f0f-4a79-8046-b2c92bc2eda7"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "dimension": "WHO",
+      "question": "Who is affected, targeted, or impacted?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "56b214f9-16f0-4e67-8fcd-86172dbb2463"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "dimension": "WHO",
+      "question": "Which organizations, subsidiaries, or partners are involved?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "fc890dec-6f1e-4ff2-8661-61e10904c110"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "who.regulators",
+      "dimension": "WHO",
+      "question": "Which regulators, investigators, or authorities are involved?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "what.core_event",
+      "dimension": "WHAT",
+      "question": "What exactly happened?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "f007f864-8e44-4961-a2ac-2974c320f66f",
+        "f0dab1e4-029f-466f-bf93-f454d4cba2d3"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.scale",
+      "dimension": "WHAT",
+      "question": "What is the scale, size, or material impact of the event?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "44864f57-a0f1-4355-affe-f50a9cd5a049"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.products",
+      "dimension": "WHAT",
+      "question": "Which products, services, or assets are involved?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.event_time",
+      "dimension": "WHEN",
+      "question": "When did the key event occur?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "3dbb225e-8241-4d7f-84d8-022ca62acb01"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "dimension": "WHEN",
+      "question": "When was the event discovered or disclosed?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "dimension": "WHEN",
+      "question": "When did an official intervention or response occur?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "dimension": "WHERE",
+      "question": "Where is the primary legal or operational jurisdiction?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "dimension": "WHERE",
+      "question": "Where did money, assets, or activity move?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.event_location",
+      "dimension": "WHERE",
+      "question": "Where did the event happen or become visible?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "cd086534-086b-4350-9817-40ffba4e57fb"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "why.motivation",
+      "dimension": "WHY",
+      "question": "Why did the actor behave this way or pursue this action?",
+      "filled": false,
+      "applicability": "not_applicable",
+      "confidence": 0.95,
+      "supporting_episode_ids": [],
+      "notes": "not applicable: The collapse was due to financial and operational failures, not actor motivation or intentional behavior."
+    },
+    {
+      "slot_id": "why.trigger",
+      "dimension": "WHY",
+      "question": "What immediate trigger and underlying conditions caused or catalyzed the event?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "ab47e6b6-a33b-4e4d-9749-abb6b408e385"
+      ],
+      "notes": "2 active fact(s)"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "dimension": "HOW",
+      "question": "What causal mechanism made the event happen, or how was it executed?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "acfed18b-a755-4d5c-ae99-d702c8cc9a23"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "how.sequence",
+      "dimension": "HOW",
+      "question": "How did the activity unfold step by step?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "c5e75afa-6c7c-4d08-b8c8-7e76123fe0f2"
+      ],
+      "notes": "5 active fact(s)"
+    }
+  ],
+  "slot_applicability": [
+    {
+      "slot_id": "who.primary_actor",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.regulators",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Regulators and authorities such as the FDIC and possibly the Federal Reserve were involved in the closure and resolution of the bank."
+    },
+    {
+      "slot_id": "what.core_event",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.scale",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.products",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "The bank's financial products, deposits, and assets are relevant to understanding the collapse and resolution."
+    },
+    {
+      "slot_id": "when.event_time",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "The timing of the collapse and public disclosure is meaningful for the event timeline."
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "The timing of the FDIC's intervention and closure is a key part of the event."
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "The bank operated primarily in the United States, so jurisdiction is relevant."
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "status": "optional",
+      "confidence": 0.8,
+      "reason": "There was movement of deposits and assets during the resolution process, making this relevant."
+    },
+    {
+      "slot_id": "where.event_location",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "why.motivation",
+      "status": "not_applicable",
+      "confidence": 0.95,
+      "reason": "The collapse was due to financial and operational failures, not actor motivation or intentional behavior."
+    },
+    {
+      "slot_id": "why.trigger",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.sequence",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    }
+  ],
+  "relevance_audit": [
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+      "structured_claim": "Silicon Valley Bank (SVB) | failed | after a bank run on March 10, 2023",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that Silicon Valley Bank failed after a bank run on March 10, 2023, directly answering the question about what exactly happened in the context of the SVB collapse and FDIC closure."
+    },
+    {
+      "slot_id": "who.primary_actor",
+      "document_id": "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+      "source_url": "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+      "quote": "RESEARCH STARTER\nCollapse of Silicon Valley Bank\nThe collapse of Silicon Valley Bank (SVB) in March 2023 marked the second-largest bank failure in U.S. history, trailing only Washington Mutual's collapse in 2008.",
+      "structured_claim": "Silicon Valley Bank (SVB) | is the central subject of the event | collapse in March 2023",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that the collapse of Silicon Valley Bank in March 2023 is the event, making SVB the central subject and primary actor of the event."
+    },
+    {
+      "slot_id": "who.primary_actor",
+      "document_id": "https://experts.illinois.edu/en/publications/lessons-from-silicon-valley-bank-and-the-2023-banking-crisis",
+      "source_url": "https://experts.illinois.edu/en/publications/lessons-from-silicon-valley-bank-and-the-2023-banking-crisis",
+      "quote": "@article{3221f3563c874741b3f9c9a956548580,\ntitle = \"LESSONS FROM SILICON VALLEY BANK AND THE 2023 BANKING CRISIS\",\nabstract = \"The sudden collapse of Silicon Valley Bank (“SVB”) in March 2023 marked the second-largest bank failure in U.S. history and sent shockwaves through the financial and tech sectors.",
+      "structured_claim": "Silicon Valley Bank (SVB) | is the central subject of the event | collapse in March 2023",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that Silicon Valley Bank (SVB) collapsed in March 2023 and identifies it as the central subject of the event, directly answering the question about the primary actor."
+    },
+    {
+      "slot_id": "when.event_time",
+      "document_id": "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+      "source_url": "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+      "quote": "RESEARCH STARTER\nCollapse of Silicon Valley Bank\nThe collapse of Silicon Valley Bank (SVB) in March 2023 marked the second-largest bank failure in U.S. history, trailing only Washington Mutual's collapse in 2008.",
+      "structured_claim": "The collapse of Silicon Valley Bank (SVB) | occur | March 2023",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that the collapse of Silicon Valley Bank occurred in March 2023, directly answering the question about the event time."
+    },
+    {
+      "slot_id": "what.scale",
+      "document_id": "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html",
+      "source_url": "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html",
+      "quote": "The collapse of SVB, a key player in the tech and venture capital community, leaves companies and wealthy individuals largely unsure of what will happen to their money.",
+      "structured_claim": "The collapse of SVB | impact | companies and wealthy individuals largely unsure of what will happen to their money",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote directly addresses the impact of the SVB collapse on companies and wealthy individuals, indicating uncertainty about their money, which relates to the scale and material impact of the event."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://www.law.uw.edu/news-events/news/2023/svb-collapse",
+      "source_url": "https://www.law.uw.edu/news-events/news/2023/svb-collapse",
+      "quote": "UW School of Law\nThe Silicon Valley Bank Collapse Explained\nSilicon Valley Bank\nThrough its nearly four decades of existence, Silicon Valley Bank served numerous tech startups and became the largest bank by deposits in Silicon Valley.",
+      "structured_claim": "Silicon Valley Bank | served | numerous tech startups",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote explicitly states that Silicon Valley Bank served numerous tech startups, indicating these startups were affected parties."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://www.law.uw.edu/news-events/news/2023/svb-collapse",
+      "source_url": "https://www.law.uw.edu/news-events/news/2023/svb-collapse",
+      "quote": "Many of its companies were tech startups, so there's a concentration of money from just one sector.",
+      "structured_claim": "tech startups | impacted by | Silicon Valley Bank collapse",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.8,
+      "reason": "The quote indicates that many companies impacted by the collapse were tech startups, directly answering who was affected."
+    },
+    {
+      "slot_id": "how.mechanism",
+      "document_id": "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+      "source_url": "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+      "quote": "seal\nBreadcrumb\nHomeResourcesResolutionsBank FailuresFailed Bank List\nBank Failures\nFailed Bank Information for Silicon Valley Bank, Santa Clara, CA\n_Share This:_\nShare on Facebook\nShare on X\nFollow the FDIC on LinkedIn\nShare through email\nPrint\nOn Friday, March 10, 2023, Silicon Valley Bank, Santa Clara, CA was closed by the California Department of Financial Protection & Innovation and the Federal Deposit Insurance Corporation (FDIC) was named Receiver.",
+      "structured_claim": "Silicon Valley Bank | was closed by | the California Department of Financial Protection & Innovation",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote explicitly states that Silicon Valley Bank was closed by the California Department of Financial Protection & Innovation and the FDIC was named receiver, directly describing the mechanism of the event's execution."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "In the week before the collapse, Moody's Investors Service reportedly informed SVB Financial, the bank's holding company, that it was facing a potential double-downgrade of its credit rating because of its unrealized losses.",
+      "structured_claim": "SVB Financial | is | the bank's holding company",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly identifies SVB Financial as the bank's holding company, directly answering which related organization is involved."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "On March 8, 2023, SVB announced it had sold over $21 billion worth of its investments, borrowed $15 billion, and would hold an emergency sale of its stock to raise $2.25 billion, including $500 million to General Atlantic.",
+      "structured_claim": "General Atlantic | received | $500 million in emergency stock sale",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote mentions General Atlantic receiving emergency stock sale proceeds but General Atlantic is not a subsidiary, partner, or directly involved organization responsible for the collapse; it is a recipient of funds, not a central actor."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "On March 26, 2023, the FDIC announced that First Citizens BancShares will acquire the commercial banking business of SVB.",
+      "structured_claim": "First Citizens BancShares | will acquire | the commercial banking business of SVB",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote clearly states First Citizens BancShares will acquire SVB's commercial banking business, identifying it as a related organization involved in the event."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "The FDIC received about $500 million-worth of equity appreciation rights linked to First Citizens' shares.",
+      "structured_claim": "FDIC | received | about $500 million-worth of equity appreciation rights linked to First Citizens' shares",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The FDIC receiving equity appreciation rights is a financial detail about the FDIC, which is a regulator/receiver, not a related organization, subsidiary, or partner of SVB involved in the collapse."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+      "structured_claim": "Silicon Valley Bank (SVB) | failed | after a bank run on March 10, 2023",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that SVB failed after a bank run on March 10, 2023, directly addressing the sequence of events."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "By early 2023, the Fed placed SVB in a \"horizontal review\" of its risk management procedures.",
+      "structured_claim": "the Fed | placed SVB in | a \"horizontal review\" of its risk management procedures by early 2023",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote indicates that by early 2023, the Fed placed SVB under a horizontal review, which is a step in the sequence leading to the collapse."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "In the week before the collapse, Moody's Investors Service reportedly informed SVB Financial, the bank's holding company, that it was facing a potential double-downgrade of its credit rating because of its unrealized losses.",
+      "structured_claim": "Moody's Investors Service | informed SVB Financial about | a potential double-downgrade of its credit rating because of its unrealized losses in the week before the collapse",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote describes Moody's informing SVB about a potential double-downgrade in the week before collapse, a relevant step in the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "On March 8, 2023, SVB announced it had sold over $21 billion worth of its investments, borrowed $15 billion, and would hold an emergency sale of its stock to raise $2.25 billion, including $500 million to General Atlantic.",
+      "structured_claim": "SVB | announced on March 8, 2023 | it had sold over $21 billion worth of its investments, borrowed $15 billion, and would hold an emergency sale of its stock to raise $2.25 billion",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote details SVB's announcement on March 8 about selling investments, borrowing, and emergency stock sale, clearly part of the unfolding sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "JPMorgan Chase and Bank of America turned down opportunities to acquire the bank.",
+      "structured_claim": "JPMorgan Chase and Bank of America | did | turn down opportunities to acquire the bank",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote about JPMorgan Chase and Bank of America turning down acquisition opportunities does not describe how the collapse unfolded step by step."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "Despite the steps taken by the bank, Moody's downgraded SVB on March 8.",
+      "structured_claim": "Moody's | downgraded SVB | on March 8 despite the steps taken by the bank",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote states Moody's downgraded SVB on March 8 despite bank actions, indicating a step in the sequence."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "On March 26, 2023, the FDIC announced that First Citizens BancShares will acquire the commercial banking business of SVB.",
+      "structured_claim": "First Citizens BancShares | will acquire | the commercial banking business of SVB as announced by the FDIC on March 26, 2023",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The announcement on March 26 about First Citizens acquiring SVB's commercial banking business is after the collapse and FDIC closure, not part of the collapse sequence itself."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "source_url": "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+      "quote": "As part of the deal, First Citizens will buy around $119 billion in deposits and $72 billion of SVB's loans discounted by $16.5 billion, while around $90 billion of SVB's securities will continue to remain in receivership.",
+      "structured_claim": "First Citizens | will buy | around $119 billion in deposits and $72 billion of SVB's loans discounted by $16.5 billion",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "Details of the acquisition deal by First Citizens are post-collapse resolution steps, not part of the collapse sequence."
+    },
+    {
+      "slot_id": "where.event_location",
+      "document_id": "https://www.slvfed.bank/blog/post/silicon-valley-bank-collapse",
+      "source_url": "https://www.slvfed.bank/blog/post/silicon-valley-bank-collapse",
+      "quote": "On March 10, 2023, the FDIC took control of deposits held at Silicon Valley Bank in Santa Clara, California, amid a series of unique circumstances that led to its collapse.",
+      "structured_claim": "FDIC | took control of deposits held at | Silicon Valley Bank in Santa Clara, California",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states the FDIC took control of deposits at Silicon Valley Bank in Santa Clara, California, directly answering where the event happened or became visible."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://www.researchgate.net/publication/395397781_The_collapse_of_Silicon_Valley_Bank_in_2023_Journal_of_Applied_Case_Research_Volume_21_pp_23-36",
+      "source_url": "https://www.researchgate.net/publication/395397781_The_collapse_of_Silicon_Valley_Bank_in_2023_Journal_of_Applied_Case_Research_Volume_21_pp_23-36",
+      "quote": "The sudden collapse of Silicon Valley Bank has caused chaos for depositors and venture capital firms, SVB investors suffered over $160 billion",
+      "structured_claim": "The sudden collapse of Silicon Valley Bank | caused | chaos for depositors and venture capital firms",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote describes the consequences of the collapse, not the immediate trigger or underlying conditions that caused or catalyzed the event."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf",
+      "source_url": "https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf",
+      "quote": "SVB’s business model contributed to concentrations in its customer base and in uninsured deposits.",
+      "structured_claim": "SVB's business model | contributed to | concentrations in its customer base and in uninsured deposits",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote directly links SVB's business model to concentrations in customer base and uninsured deposits, which are relevant underlying conditions contributing to the collapse trigger."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf",
+      "source_url": "https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf",
+      "quote": "However, the SVB DST did not shift its attention to the rising interest rates and SVB’s unrealized losses on investment securities and did not sufficiently assess the extent of the potential effect to the bank’s capital and liquidity.",
+      "structured_claim": "SVB DST | did not shift attention to | the rising interest rates and SVB’s unrealized losses on investment securities",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.85,
+      "reason": "The quote explicitly states that SVB's decision-making team failed to address rising interest rates and unrealized losses, which are immediate triggers and underlying conditions causing the event."
+    },
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://www.wyrick.com/news-insights/the-federal-reserve-and-fdics-reports-on-the-silicon-valley-bank-and-signature-bank-failures-lessons-to-be-learned",
+      "source_url": "https://www.wyrick.com/news-insights/the-federal-reserve-and-fdics-reports-on-the-silicon-valley-bank-and-signature-bank-failures-lessons-to-be-learned",
+      "quote": "In its report,1 the Federal Reserve analyzes the shortcomings, both in its own supervision and of bank management, that led to the failure on March 10, 2023, of Silicon Valley Bank (“SVB”).",
+      "structured_claim": "Silicon Valley Bank (SVB) | FAILED | after a bank run on March 10, 2023",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that Silicon Valley Bank failed on March 10, 2023, directly answering what happened in the core event."
+    },
+    {
+      "slot_id": "how.mechanism",
+      "document_id": "https://democrats-financialservices.house.gov/uploadedfiles/svb_failure_fact_sheet_03.23.pdf",
+      "source_url": "https://democrats-financialservices.house.gov/uploadedfiles/svb_failure_fact_sheet_03.23.pdf",
+      "quote": "Silicon Valley Bank (SVB) Failure On Friday, March 10, 2023, Silicon Valley Bank (SVB) was closed by the California Department of Financial Protection and Innovation (DFPI), and the FDIC was named as receiver.",
+      "structured_claim": "Silicon Valley Bank | WAS_CLOSED_BY | the California Department of Financial Protection & Innovation",
+      "purpose": "support",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote states who closed Silicon Valley Bank but does not explain the causal mechanism or how the collapse happened."
+    },
+    {
+      "slot_id": "how.mechanism",
+      "document_id": "https://www.consumerfinanceinsights.com/2023/03/17/two-major-bank-failures-require-government-regulators-to-step-in",
+      "source_url": "https://www.consumerfinanceinsights.com/2023/03/17/two-major-bank-failures-require-government-regulators-to-step-in",
+      "quote": "Specifically, the California Department of Financial Protection and Innovation (DFPI) closed Silicon Valley Bank (SVB).",
+      "structured_claim": "Silicon Valley Bank | WAS_CLOSED_BY | the California Department of Financial Protection & Innovation",
+      "purpose": "support",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote states who closed Silicon Valley Bank but does not explain the causal mechanism or how the collapse happened."
+    },
+    {
+      "slot_id": "how.mechanism",
+      "document_id": "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html",
+      "source_url": "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html",
+      "quote": "According to press releases from regulators, the California Department of Financial Protection and Innovation closed SVB and named the FDIC as the receiver.",
+      "structured_claim": "Silicon Valley Bank | WAS_CLOSED_BY | the California Department of Financial Protection & Innovation",
+      "purpose": "support",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote describes who closed Silicon Valley Bank but does not explain the causal mechanism or how the collapse happened."
+    }
+  ],
+  "claim_match_audit": [
+    {
+      "incoming_fact": "@article{3221f3563c874741b3f9c9a956548580,\ntitle = \"LESSONS FROM SILICON VALLEY BANK AND THE 2023 BANKING CRISIS\",\nabstract = \"The sudden collapse of Silicon Valley Bank (“SVB”) in March 2023 marked the second-largest bank failure in U.S. history and sent shockwaves through the financial and tech sectors.",
+      "candidate_edge_uuid": "ea6c24e5-b28b-4384-be5b-6f51ab4dbbed",
+      "candidate_fact": "RESEARCH STARTER\nCollapse of Silicon Valley Bank\nThe collapse of Silicon Valley Bank (SVB) in March 2023 marked the second-largest bank failure in U.S. history, trailing only Washington Mutual's collapse in 2008.",
+      "match_method": "exact",
+      "similarity": null,
+      "prefilter_passed": true,
+      "prefilter_reason": "no explicit date or magnitude conflict",
+      "candidate_entails_incoming": null,
+      "incoming_entails_candidate": null,
+      "entailment_reason": "exact structured match; semantic entailment not required",
+      "accepted": true
+    },
+    {
+      "incoming_fact": "In its report,1 the Federal Reserve analyzes the shortcomings, both in its own supervision and of bank management, that led to the failure on March 10, 2023, of Silicon Valley Bank (“SVB”).",
+      "candidate_edge_uuid": "da515015-1141-4071-9448-1b1a3984405f",
+      "candidate_fact": "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+      "match_method": "exact",
+      "similarity": null,
+      "prefilter_passed": true,
+      "prefilter_reason": "no explicit date or magnitude conflict",
+      "candidate_entails_incoming": null,
+      "incoming_entails_candidate": null,
+      "entailment_reason": "exact structured match; semantic entailment not required",
+      "accepted": true
+    }
+  ],
+  "evidence_pack": {
+    "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+    "coverage_ratio": 1.0,
+    "items": [
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "RESEARCH STARTER\nCollapse of Silicon Valley Bank\nThe collapse of Silicon Valley Bank (SVB) in March 2023 marked the second-largest bank failure in U.S. history, trailing only Washington Mutual's collapse in 2008.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ac1b1b56-7103-411f-b03b-5e2557f234a7",
+          "5fc0d06d-2f0f-4a79-8046-b2c92bc2eda7"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+          "https://experts.illinois.edu/en/publications/lessons-from-silicon-valley-bank-and-the-2023-banking-crisis"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states that the collapse of Silicon Valley Bank in March 2023 is the event, making SVB the central subject and primary actor of the event.",
+        "caveats": []
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Many of its companies were tech startups, so there's a concentration of money from just one sector.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "56b214f9-16f0-4e67-8fcd-86172dbb2463"
+        ],
+        "source_urls": [
+          "https://www.law.uw.edu/news-events/news/2023/svb-collapse"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.8,
+        "relevance_reason": "The quote indicates that many companies impacted by the collapse were tech startups, directly answering who was affected.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "UW School of Law\nThe Silicon Valley Bank Collapse Explained\nSilicon Valley Bank\nThrough its nearly four decades of existence, Silicon Valley Bank served numerous tech startups and became the largest bank by deposits in Silicon Valley.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "56b214f9-16f0-4e67-8fcd-86172dbb2463"
+        ],
+        "source_urls": [
+          "https://www.law.uw.edu/news-events/news/2023/svb-collapse"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote explicitly states that Silicon Valley Bank served numerous tech startups, indicating these startups were affected parties.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "In the week before the collapse, Moody's Investors Service reportedly informed SVB Financial, the bank's holding company, that it was facing a potential double-downgrade of its credit rating because of its unrealized losses.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fc890dec-6f1e-4ff2-8661-61e10904c110"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly identifies SVB Financial as the bank's holding company, directly answering which related organization is involved.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "On March 26, 2023, the FDIC announced that First Citizens BancShares will acquire the commercial banking business of SVB.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fc890dec-6f1e-4ff2-8661-61e10904c110"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote clearly states First Citizens BancShares will acquire SVB's commercial banking business, identifying it as a related organization involved in the event.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f007f864-8e44-4961-a2ac-2974c320f66f",
+          "f0dab1e4-029f-466f-bf93-f454d4cba2d3"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+          "https://www.wyrick.com/news-insights/the-federal-reserve-and-fdics-reports-on-the-silicon-valley-bank-and-signature-bank-failures-lessons-to-be-learned"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states that Silicon Valley Bank failed after a bank run on March 10, 2023, directly answering the question about what exactly happened in the context of the SVB collapse and FDIC closure.",
+        "caveats": []
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "The collapse of SVB, a key player in the tech and venture capital community, leaves companies and wealthy individuals largely unsure of what will happen to their money.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "44864f57-a0f1-4355-affe-f50a9cd5a049"
+        ],
+        "source_urls": [
+          "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote directly addresses the impact of the SVB collapse on companies and wealthy individuals, indicating uncertainty about their money, which relates to the scale and material impact of the event.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "when.event_time",
+        "conclusion": "RESEARCH STARTER\nCollapse of Silicon Valley Bank\nThe collapse of Silicon Valley Bank (SVB) in March 2023 marked the second-largest bank failure in U.S. history, trailing only Washington Mutual's collapse in 2008.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "3dbb225e-8241-4d7f-84d8-022ca62acb01"
+        ],
+        "source_urls": [
+          "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states that the collapse of Silicon Valley Bank occurred in March 2023, directly answering the question about the event time.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required"
+        ]
+      },
+      {
+        "slot_id": "where.event_location",
+        "conclusion": "On March 10, 2023, the FDIC took control of deposits held at Silicon Valley Bank in Santa Clara, California, amid a series of unique circumstances that led to its collapse.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "cd086534-086b-4350-9817-40ffba4e57fb"
+        ],
+        "source_urls": [
+          "https://www.slvfed.bank/blog/post/silicon-valley-bank-collapse"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states the FDIC took control of deposits at Silicon Valley Bank in Santa Clara, California, directly answering where the event happened or became visible.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "However, the SVB DST did not shift its attention to the rising interest rates and SVB’s unrealized losses on investment securities and did not sufficiently assess the extent of the potential effect to the bank’s capital and liquidity.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ab47e6b6-a33b-4e4d-9749-abb6b408e385"
+        ],
+        "source_urls": [
+          "https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.85,
+        "relevance_reason": "The quote explicitly states that SVB's decision-making team failed to address rising interest rates and unrealized losses, which are immediate triggers and underlying conditions causing the event.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "SVB’s business model contributed to concentrations in its customer base and in uninsured deposits.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ab47e6b6-a33b-4e4d-9749-abb6b408e385"
+        ],
+        "source_urls": [
+          "https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote directly links SVB's business model to concentrations in customer base and uninsured deposits, which are relevant underlying conditions contributing to the collapse trigger.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "seal\nBreadcrumb\nHomeResourcesResolutionsBank FailuresFailed Bank List\nBank Failures\nFailed Bank Information for Silicon Valley Bank, Santa Clara, CA\n_Share This:_\nShare on Facebook\nShare on X\nFollow the FDIC on LinkedIn\nShare through email\nPrint\nOn Friday, March 10, 2023, Silicon Valley Bank, Santa Clara, CA was closed by the California Department of Financial Protection & Innovation and the Federal Deposit Insurance Corporation (FDIC) was named Receiver.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "acfed18b-a755-4d5c-ae99-d702c8cc9a23"
+        ],
+        "source_urls": [
+          "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote explicitly states that Silicon Valley Bank was closed by the California Department of Financial Protection & Innovation and the FDIC was named receiver, directly describing the mechanism of the event's execution.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "By early 2023, the Fed placed SVB in a \"horizontal review\" of its risk management procedures.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c5e75afa-6c7c-4d08-b8c8-7e76123fe0f2"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote indicates that by early 2023, the Fed placed SVB under a horizontal review, which is a step in the sequence leading to the collapse.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "Despite the steps taken by the bank, Moody's downgraded SVB on March 8.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c5e75afa-6c7c-4d08-b8c8-7e76123fe0f2"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote states Moody's downgraded SVB on March 8 despite bank actions, indicating a step in the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "In the week before the collapse, Moody's Investors Service reportedly informed SVB Financial, the bank's holding company, that it was facing a potential double-downgrade of its credit rating because of its unrealized losses.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c5e75afa-6c7c-4d08-b8c8-7e76123fe0f2"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote describes Moody's informing SVB about a potential double-downgrade in the week before collapse, a relevant step in the sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "On March 8, 2023, SVB announced it had sold over $21 billion worth of its investments, borrowed $15 billion, and would hold an emergency sale of its stock to raise $2.25 billion, including $500 million to General Atlantic.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c5e75afa-6c7c-4d08-b8c8-7e76123fe0f2"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote details SVB's announcement on March 8 about selling investments, borrowing, and emergency stock sale, clearly part of the unfolding sequence.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "c5e75afa-6c7c-4d08-b8c8-7e76123fe0f2"
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states that SVB failed after a bank run on March 10, 2023, directly addressing the sequence of events.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      }
+    ],
+    "unresolved_conflicts": [],
+    "provenance": [
+      "3dbb225e-8241-4d7f-84d8-022ca62acb01",
+      "44864f57-a0f1-4355-affe-f50a9cd5a049",
+      "56b214f9-16f0-4e67-8fcd-86172dbb2463",
+      "5fc0d06d-2f0f-4a79-8046-b2c92bc2eda7",
+      "ab47e6b6-a33b-4e4d-9749-abb6b408e385",
+      "ac1b1b56-7103-411f-b03b-5e2557f234a7",
+      "acfed18b-a755-4d5c-ae99-d702c8cc9a23",
+      "c5e75afa-6c7c-4d08-b8c8-7e76123fe0f2",
+      "cd086534-086b-4350-9817-40ffba4e57fb",
+      "f007f864-8e44-4961-a2ac-2974c320f66f",
+      "f0dab1e4-029f-466f-bf93-f454d4cba2d3",
+      "fc890dec-6f1e-4ff2-8661-61e10904c110"
+    ],
+    "slot_applicability": [
+      {
+        "slot_id": "who.primary_actor",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.regulators",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Regulators and authorities such as the FDIC and possibly the Federal Reserve were involved in the closure and resolution of the bank."
+      },
+      {
+        "slot_id": "what.core_event",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.scale",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.products",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "The bank's financial products, deposits, and assets are relevant to understanding the collapse and resolution."
+      },
+      {
+        "slot_id": "when.event_time",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "The timing of the collapse and public disclosure is meaningful for the event timeline."
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "The timing of the FDIC's intervention and closure is a key part of the event."
+      },
+      {
+        "slot_id": "where.jurisdiction",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "The bank operated primarily in the United States, so jurisdiction is relevant."
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "status": "optional",
+        "confidence": 0.8,
+        "reason": "There was movement of deposits and assets during the resolution process, making this relevant."
+      },
+      {
+        "slot_id": "where.event_location",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "why.motivation",
+        "status": "not_applicable",
+        "confidence": 0.95,
+        "reason": "The collapse was due to financial and operational failures, not actor motivation or intentional behavior."
+      },
+      {
+        "slot_id": "why.trigger",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.mechanism",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.sequence",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      }
+    ]
+  },
+  "report": "# 调查报告：Silicon Valley Bank collapse and FDIC closure in March 2023\n\n> **覆盖率** 10/10 必填槽位（100%）　**选填槽** 0/6（不计入覆盖率）　**事实** 17 条　**结论级双源支持** 2/17　**来源 episode** 12 个\n\n> 本报告仅消费图谱证据包。每条结论都标注了来源 episode；无证据的槽位如实标记为未查到，不做推断补全。\n\n## WHO\n\n**Primary Actor**\n  - RESEARCH STARTER\nCollapse of Silicon Valley Bank\nThe collapse of Silicon Valley Bank (SVB) in March 2023 marked the second-largest bank failure in U.S. history, trailing only Washington Mutual's collapse in 2008. `ac1b1b56` `5fc0d06d`\n  来源：[Collapse of Silicon Valley Bank | History | Research Starters - EBSCO](https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank)、[LESSONS FROM SILICON VALLEY BANK AND THE 2023 BANKING CRISIS - Illinois Experts](https://experts.illinois.edu/en/publications/lessons-from-silicon-valley-bank-and-the-2023-banking-crisis)\n\n**Affected Parties**\n  - Many of its companies were tech startups, so there's a concentration of money from just one sector. `56b214f9`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - UW School of Law\nThe Silicon Valley Bank Collapse Explained\nSilicon Valley Bank\nThrough its nearly four decades of existence, Silicon Valley Bank served numerous tech startups and became the largest bank by deposits in Silicon Valley. `56b214f9`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[The Silicon Valley Bank Collapse Explained - UW School of Law](https://www.law.uw.edu/news-events/news/2023/svb-collapse)\n\n**Related Organizations**\n  - In the week before the collapse, Moody's Investors Service reportedly informed SVB Financial, the bank's holding company, that it was facing a potential double-downgrade of its credit rating because of its unrealized losses. `fc890dec`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - On March 26, 2023, the FDIC announced that First Citizens BancShares will acquire the commercial banking business of SVB. `fc890dec`\n    ⚠️ single source; no claim-level corroboration\n  来源：[Collapse of Silicon Valley Bank - Wikipedia](https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank)\n\n**Regulators** — ⚠️ 未查到相关证据\n\n## WHAT\n\n**Core Event**\n  - | This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis. `f007f864` `f0dab1e4`\n  来源：[Collapse of Silicon Valley Bank - Wikipedia](https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank)、[The Federal Reserve and FDIC’s Reports on the Silicon Valley Bank and Signature Bank Failures – Lessons to be Learned | WyrickRobbins](https://www.wyrick.com/news-insights/the-federal-reserve-and-fdics-reports-on-the-silicon-valley-bank-and-signature-bank-failures-lessons-to-be-learned)\n\n**Scale**\n  - The collapse of SVB, a key player in the tech and venture capital community, leaves companies and wealthy individuals largely unsure of what will happen to their money. `44864f57`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[Silicon Valley Bank is shut down by regulators in biggest bank failure ...](https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html)\n\n**Products** — ⚠️ 未查到相关证据\n\n## WHEN\n\n**Event Time**\n  - RESEARCH STARTER\nCollapse of Silicon Valley Bank\nThe collapse of Silicon Valley Bank (SVB) in March 2023 marked the second-largest bank failure in U.S. history, trailing only Washington Mutual's collapse in 2008. `3dbb225e`\n    ⚠️ claim has 1 independent source(s); 2 required；single source; no claim-level corroboration\n  来源：[Collapse of Silicon Valley Bank | History | Research Starters - EBSCO](https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank)\n\n**Discovery Time** — ⚠️ 未查到相关证据\n\n**Intervention Time** — ⚠️ 未查到相关证据\n\n## WHERE\n\n**Jurisdiction** — ⚠️ 未查到相关证据\n\n**Asset Flow** — ⚠️ 未查到相关证据\n\n**Event Location**\n  - On March 10, 2023, the FDIC took control of deposits held at Silicon Valley Bank in Santa Clara, California, amid a series of unique circumstances that led to its collapse. `cd086534`\n    ⚠️ single source; no claim-level corroboration\n  来源：[Silicon Valley Bank Collapse | San Luis Valley Federal Bank](https://www.slvfed.bank/blog/post/silicon-valley-bank-collapse)\n\n## WHY\n\n**Motivation** — ⏭️ 不适用：The collapse was due to financial and operational failures, not actor motivation or intentional behavior.\n\n**Trigger**\n  - However, the SVB DST did not shift its attention to the rising interest rates and SVB’s unrealized losses on investment securities and did not sufficiently assess the extent of the potential effect to the bank’s capital and liquidity. `ab47e6b6`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - SVB’s business model contributed to concentrations in its customer base and in uninsured deposits. `ab47e6b6`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[Material Loss Review of Silicon Valley Bank - Office of Inspector General](https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf)\n\n## HOW\n\n**Mechanism**\n  - seal\nBreadcrumb\nHomeResourcesResolutionsBank FailuresFailed Bank List\nBank Failures\nFailed Bank Information for Silicon Valley Bank, Santa Clara, CA\n_Share This:_\nShare on Facebook\nShare on X\nFollow the FDIC on LinkedIn\nShare through email\nPrint\nOn Friday, March 10, 2023, Silicon Valley Bank, Santa Clara, CA was closed by the California Department of Financial Protection & Innovation and the Federal Deposit Insurance Corporation (FDIC) was named Receiver. `acfed18b`\n    ⚠️ claim has 1 independent source(s); 2 required；single source; no claim-level corroboration\n  来源：[Failed Bank Information for Silicon Valley Bank, Santa Clara, CA - FDIC](https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html)\n\n**Sequence**\n  - By early 2023, the Fed placed SVB in a \"horizontal review\" of its risk management procedures. `c5e75afa`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Despite the steps taken by the bank, Moody's downgraded SVB on March 8. `c5e75afa`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - In the week before the collapse, Moody's Investors Service reportedly informed SVB Financial, the bank's holding company, that it was facing a potential double-downgrade of its credit rating because of its unrealized losses. `c5e75afa`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - On March 8, 2023, SVB announced it had sold over $21 billion worth of its investments, borrowed $15 billion, and would hold an emergency sale of its stock to raise $2.25 billion, including $500 million to General Atlantic. `c5e75afa`\n    ⚠️ single source; no claim-level corroboration\n  - | This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis. `c5e75afa`\n    ⚠️ single source; no claim-level corroboration\n  来源：[Collapse of Silicon Valley Bank - Wikipedia](https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank)\n\n---\n*由证据包生成。冲突 0 处未消解。无明确日期的事实不带 valid_at（§3.12）。*",
+  "rounds": [
+    {
+      "round_number": 1,
+      "slot_id": "what.core_event",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure detailed timeline official report",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank",
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "da515015-1141-4071-9448-1b1a3984405f"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 2,
+      "slot_id": "who.primary_actor",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 central subject",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+        "https://experts.illinois.edu/en/publications/lessons-from-silicon-valley-bank-and-the-2023-banking-crisis"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+        "https://experts.illinois.edu/en/publications/lessons-from-silicon-valley-bank-and-the-2023-banking-crisis"
+      ],
+      "contributing_source_identities": [
+        "ebsco.com",
+        "illinois.edu"
+      ],
+      "target_edge_uuids": [
+        "ea6c24e5-b28b-4384-be5b-6f51ab4dbbed"
+      ],
+      "corroborated_edge_uuids": [
+        "ea6c24e5-b28b-4384-be5b-6f51ab4dbbed"
+      ],
+      "claim_match_audit": [
+        {
+          "incoming_fact": "@article{3221f3563c874741b3f9c9a956548580,\ntitle = \"LESSONS FROM SILICON VALLEY BANK AND THE 2023 BANKING CRISIS\",\nabstract = \"The sudden collapse of Silicon Valley Bank (“SVB”) in March 2023 marked the second-largest bank failure in U.S. history and sent shockwaves through the financial and tech sectors.",
+          "candidate_edge_uuid": "ea6c24e5-b28b-4384-be5b-6f51ab4dbbed",
+          "candidate_fact": "RESEARCH STARTER\nCollapse of Silicon Valley Bank\nThe collapse of Silicon Valley Bank (SVB) in March 2023 marked the second-largest bank failure in U.S. history, trailing only Washington Mutual's collapse in 2008.",
+          "match_method": "exact",
+          "similarity": null,
+          "prefilter_passed": true,
+          "prefilter_reason": "no explicit date or magnitude conflict",
+          "candidate_entails_incoming": null,
+          "incoming_entails_candidate": null,
+          "entailment_reason": "exact structured match; semantic entailment not required",
+          "accepted": true
+        }
+      ],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 3,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse FDIC closure date March 2023",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+        "https://uk.practicallaw.thomsonreuters.com/w-038-8246?transitionType=Default&contextData=%28sc.Default%29"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank"
+      ],
+      "contributing_source_identities": [
+        "ebsco.com"
+      ],
+      "target_edge_uuids": [
+        "d93a835d-b1ac-454e-a9ef-7cc7632441a4"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 4,
+      "slot_id": "what.scale",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure impact scale size material",
+      "documents_seen": [
+        "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html",
+        "https://www.researchgate.net/publication/395397781_The_collapse_of_Silicon_Valley_Bank_in_2023_Journal_of_Applied_Case_Research_Volume_21_pp_23-36",
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html"
+      ],
+      "contributing_source_identities": [
+        "cnbc.com"
+      ],
+      "target_edge_uuids": [
+        "b1de67b7-3ef4-43c8-83a8-126e46d47475"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.4
+    },
+    {
+      "round_number": 5,
+      "slot_id": "who.affected_parties",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 \"FDIC closure\" affected customers impacted businesses startups investors",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+        "https://www.law.uw.edu/news-events/news/2023/svb-collapse"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.law.uw.edu/news-events/news/2023/svb-collapse"
+      ],
+      "contributing_source_identities": [
+        "uw.edu"
+      ],
+      "target_edge_uuids": [
+        "dbddc051-667e-4a37-9d26-9e959133717e",
+        "b47de3ae-4b83-452b-a844-6f0956b62162"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.5
+    },
+    {
+      "round_number": 6,
+      "slot_id": "how.mechanism",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 causal mechanism proximate trigger FDIC closure detailed analysis",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+        "https://www.texasbankers.com/fdic-releases-analysis-of-2023-bank-failures",
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html"
+      ],
+      "contributing_source_identities": [
+        "fdic.gov"
+      ],
+      "target_edge_uuids": [
+        "47e60ea5-4432-4a18-b919-9b4795435c24"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.6
+    },
+    {
+      "round_number": 7,
+      "slot_id": "who.related_organizations",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" \"FDIC\" March 2023 collapse closure organizations subsidiaries partners",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "d40d45c9-2a00-415b-b34c-5ed215616949",
+        "cf24395d-d27b-436f-8d36-bdb99ec43b75"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 8,
+      "slot_id": "how.sequence",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse timeline March 2023 \"FDIC closure\" step by step events",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+      ],
+      "succeeded": true,
+      "facts_written": 5,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+      ],
+      "contributing_source_identities": [
+        "wikipedia.org"
+      ],
+      "target_edge_uuids": [
+        "d0979caa-8910-4ba8-9a14-47b1cb7daae1",
+        "706bfdf3-8438-4d6b-9ea9-2dfce8f25495",
+        "b7e0aa1c-43b6-41ac-8657-fa42a2b25107",
+        "dda7700f-2ea0-4d60-bb6d-04b5527cf426",
+        "6dde064d-80da-4b53-ac2c-1d0ceaa1444e"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.8
+    },
+    {
+      "round_number": 9,
+      "slot_id": "where.event_location",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse location March 2023 \"FDIC closure\" site",
+      "documents_seen": [
+        "https://www.slvfed.bank/blog/post/silicon-valley-bank-collapse"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.slvfed.bank/blog/post/silicon-valley-bank-collapse"
+      ],
+      "contributing_source_identities": [
+        "slvfed.bank"
+      ],
+      "target_edge_uuids": [
+        "6561898e-848a-4f1a-bd82-826a43a58f69"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.9
+    },
+    {
+      "round_number": 10,
+      "slot_id": "why.trigger",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 immediate trigger underlying cause \"FDIC\" closure proximate cause \"interest rate hikes\" \"bank run\" \"bond portfolio losses\" \"venture capital slowdown\" \"liquidity crisis\" official reports analysis",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank",
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+        "https://www.researchgate.net/publication/395397781_The_collapse_of_Silicon_Valley_Bank_in_2023_Journal_of_Applied_Case_Research_Volume_21_pp_23-36"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.9
+    },
+    {
+      "round_number": 11,
+      "slot_id": "why.trigger",
+      "purpose": "coverage",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure proximate trigger \"interest rate hikes\" \"bank run\" \"bond portfolio losses\" \"venture capital slowdown\" \"liquidity crisis\" \"asset-liability mismatch\" \"risk management failures\" official investigation report analysis",
+      "documents_seen": [
+        "https://addi.ehu.es/bitstream/handle/10810/73639/TFG_OihaneLeyunPrieto.pdf?sequence=4&isAllowed=y",
+        "https://www.law.uw.edu/news-events/news/2023/svb-collapse",
+        "https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://oig.federalreserve.gov/reports/board-material-loss-review-silicon-valley-bank-sep2023.pdf"
+      ],
+      "contributing_source_identities": [
+        "federalreserve.gov"
+      ],
+      "target_edge_uuids": [
+        "e04894fd-38cb-464c-9127-a38a97f87d7c",
+        "6e45404f-1d47-4a76-90f0-d86899b279be"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 12,
+      "slot_id": "what.core_event",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" failure bank run March 10 2023 FDIC investigation report",
+      "documents_seen": [
+        "https://www.wyrick.com/news-insights/the-federal-reserve-and-fdics-reports-on-the-silicon-valley-bank-and-signature-bank-failures-lessons-to-be-learned"
+      ],
+      "succeeded": true,
+      "facts_written": 0,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://www.wyrick.com/news-insights/the-federal-reserve-and-fdics-reports-on-the-silicon-valley-bank-and-signature-bank-failures-lessons-to-be-learned"
+      ],
+      "contributing_source_identities": [
+        "wyrick.com"
+      ],
+      "target_edge_uuids": [
+        "da515015-1141-4071-9448-1b1a3984405f"
+      ],
+      "corroborated_edge_uuids": [
+        "da515015-1141-4071-9448-1b1a3984405f"
+      ],
+      "claim_match_audit": [
+        {
+          "incoming_fact": "In its report,1 the Federal Reserve analyzes the shortcomings, both in its own supervision and of bank management, that led to the failure on March 10, 2023, of Silicon Valley Bank (“SVB”).",
+          "candidate_edge_uuid": "da515015-1141-4071-9448-1b1a3984405f",
+          "candidate_fact": "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+          "match_method": "exact",
+          "similarity": null,
+          "prefilter_passed": true,
+          "prefilter_reason": "no explicit date or magnitude conflict",
+          "candidate_entails_incoming": null,
+          "incoming_entails_candidate": null,
+          "entailment_reason": "exact structured match; semantic entailment not required",
+          "accepted": true
+        }
+      ],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 13,
+      "slot_id": "when.event_time",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" collapse date FDIC March 2023 official announcement",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+        "https://www.americanbar.org/groups/business_law/resources/business-law-today/2023-april/collapse-of-silicon-valley-bank",
+        "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "d93a835d-b1ac-454e-a9ef-7cc7632441a4"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 14,
+      "slot_id": "what.scale",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure impact on companies and wealthy individuals uncertainty about funds",
+      "documents_seen": [
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+        "https://www.investopedia.com/what-happened-to-silicon-valley-bank-7368676",
+        "https://alliant.com/news-resources/article-second-largest-bank-failure-in-us-history-silicon-valley-bank-collapses-following-deposit-run"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "b1de67b7-3ef4-43c8-83a8-126e46d47475"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 15,
+      "slot_id": "how.mechanism",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" closure March 2023 California Department of Financial Protection & Innovation role causal mechanism",
+      "documents_seen": [
+        "https://dfpi.ca.gov/press_release/california-dfpi-announces-results-from-review-of-the-supervision-and-closure-of-silicon-valley-bank",
+        "https://democrats-financialservices.house.gov/uploadedfiles/svb_failure_fact_sheet_03.23.pdf",
+        "https://www.consumerfinanceinsights.com/2023/03/17/two-major-bank-failures-require-government-regulators-to-step-in"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "47e60ea5-4432-4a18-b919-9b4795435c24"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 16,
+      "slot_id": "why.trigger",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure root causes \"interest rate increases\" unrealized investment losses \"risk oversight\" \"venture capital funding decline\" \"bank run\" official regulatory findings",
+      "documents_seen": [
+        "https://www.investopedia.com/what-happened-to-silicon-valley-bank-7368676",
+        "https://cacm.acm.org/news/the-fall-of-silicon-valley-bank",
+        "https://www.facebook.com/Investopedia/posts/silicon-valley-bank-failed-in-2023-after-rising-interest-rates-caused-its-invest/1474900107995126"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "6e45404f-1d47-4a76-90f0-d86899b279be"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 17,
+      "slot_id": "why.trigger",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure customer base concentration uninsured deposits impact analysis",
+      "documents_seen": [
+        "https://bankingjournal.aba.com/2026/05/fdic-releases-study-of-2023-bank-failures",
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+        "https://www.texasbankers.com/fdic-releases-analysis-of-2023-bank-failures"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "e04894fd-38cb-464c-9127-a38a97f87d7c"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 18,
+      "slot_id": "when.event_time",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" collapse date FDIC takeover March 2023 official report",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "d93a835d-b1ac-454e-a9ef-7cc7632441a4"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 19,
+      "slot_id": "what.scale",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure impact on companies and wealthy individuals uncertainty about money access",
+      "documents_seen": [
+        "https://www.hollandhart.com/silicon-valley-bank-collapse-navigating-risk-and-implications"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "b1de67b7-3ef4-43c8-83a8-126e46d47475"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 20,
+      "slot_id": "how.mechanism",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" closure March 2023 California Department of Financial Protection & Innovation reasons and process",
+      "documents_seen": [
+        "https://www.cnbc.com/amp/2023/03/10/silicon-valley-bank-is-shut-down-by-regulators-fdic-to-protect-insured-deposits.html",
+        "https://www.dandodiary.com/2023/03/articles/uncategorized/what-does-the-failure-of-silicon-valley-bank-mean",
+        "https://www.law.uw.edu/news-events/news/2023/svb-collapse"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "47e60ea5-4432-4a18-b919-9b4795435c24"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 21,
+      "slot_id": "why.trigger",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure failure to address rising interest rates unrealized losses on securities \"risk management\" \"asset-liability mismatch\" official investigation report",
+      "documents_seen": [
+        "https://addi.ehu.es/bitstream/handle/10810/73639/TFG_OihaneLeyunPrieto.pdf?sequence=4&isAllowed=y",
+        "https://www.fdic.gov/resources/resolutions/bank-failures/failed-bank-list/silicon-valley.html",
+        "https://en.wikipedia.org/wiki/Collapse_of_Silicon_Valley_Bank"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "6e45404f-1d47-4a76-90f0-d86899b279be"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 22,
+      "slot_id": "why.trigger",
+      "purpose": "support",
+      "query": "\"Silicon Valley Bank\" collapse March 2023 FDIC closure uninsured deposits customer concentration business model risk analysis",
+      "documents_seen": [
+        "https://www.ebsco.com/research-starters/history/collapse-silicon-valley-bank"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "e04894fd-38cb-464c-9127-a38a97f87d7c"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    }
+  ],
+  "fact_count": 17,
+  "source_count": 9,
+  "dated_fact_count": 8,
+  "usage": {
+    "llm_calls": 90,
+    "search_calls": 22,
+    "search_results_rejected": 5,
+    "prompt_tokens": 44741,
+    "completion_tokens": 7127,
+    "total_tokens": 51868,
+    "chat_provider_cost_usd": 0.029299599999999995,
+    "provider_cost_reported": true,
+    "extraction_rows": 58,
+    "grounding_rejections": 30,
+    "relevance_accepted": 19,
+    "relevance_uncertain": 0,
+    "relevance_rejected": 9,
+    "support_rows_rejected": 3,
+    "not_applicable_slots": 1,
+    "elapsed_seconds": 283.2714658220066
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "case_id": "ftx_2022",
+  "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+  "research_id": "run-341ee5c3",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 0.8333333333333334,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 25,
+  "claim_corroboration_rate": 0.16,
+  "high_impact_support_rate": 0.6666666666666666,
+  "multi_source_slot_rate": 0.23529411764705882,
+  "cross_corroborated_slot_rate": 0.16,
+  "round_success_rate": 0.7916666666666666,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.05660377358490566,
+  "dated_fact_rate": 0.32,
+  "fact_count": 25,
+  "source_count": 12,
+  "episode_count": 21,
+  "rounds": 24,
+  "llm_calls": 100,
+  "search_calls": 24,
+  "search_results_rejected": 16,
+  "relevance_accepted": 29,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 21,
+  "support_rounds": 6,
+  "prompt_tokens": 46321,
+  "completion_tokens": 7287,
+  "total_tokens": 53608,
+  "chat_provider_cost_usd": 0.03018760000000001,
+  "elapsed_seconds": 311.61283587804064,
+  "fact_checks": [
+    {
+      "check_id": "ftx_bankruptcy_2022",
+      "description": "FTX bankruptcy is anchored to 2022",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On November 2, 2022, CoinDesk published a piece stating that a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT. This triggered a competing cryptocurrency exchange, Binance, to sell all its shares of FTT. FTT’s value dropped significantly, and FTX began to search for new investments from venture capitalists. They also asked Binance for help. Their competitor agreed to buy FTX on November 8, 2022, but backed out of the deal on November 9. On November 11, Alameda Research and FTX declared bankruptcy, and Bankman-Fried stepped down as CEO of FTX.",
+        "On November 11, 2022, cryptocurrency exchange FTX Trading Ltd., incorporated in Antigua and Barbuda and headquartered in The Bahamas, also called FTX.com, filed a petition for relief under Chapter 11 of the Bankruptcy Code in the Bankruptcy Court for the District of Delaware (Case No. 22-11068 JTD)",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022.",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022."
+      ]
+    },
+    {
+      "check_id": "ftx_sbf",
+      "description": "Sam Bankman-Fried is identified",
+      "passed": false,
+      "should_exist": true,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_alameda",
+      "description": "Alameda Research is connected to the event",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT).",
+        "On November 2, 2022, CoinDesk published a piece stating that a trading company called Alameda Research, also owned by Bankman-Fried, held a disproportionately large amount of FTX’s cryptocurrency token, or asset, called FTT. This triggered a competing cryptocurrency exchange, Binance, to sell all its shares of FTT. FTT’s value dropped significantly, and FTX began to search for new investments from venture capitalists. They also asked Binance for help. Their competitor agreed to buy FTX on November 8, 2022, but backed out of the deal on November 9. On November 11, Alameda Research and FTX declared bankruptcy, and Bankman-Fried stepped down as CEO of FTX.",
+        "Alameda Research, another company owned by Bankman-Fried, held a large amount of FTX's cryptocurrency token, FTT",
+        "a trading company called Alameda Research, also owned by Bankman-Fried",
+        "On 2 November 2022, CoinDesk published an article stating that Alameda Research, a trading firm affiliated with FTX and owned by FTX chief executive Sam Bankman-Fried, held a significant amount of FTX's exchange token, FTT."
+      ]
+    },
+    {
+      "check_id": "ftx_bahamas",
+      "description": "The Bahamas appears as FTX's operating jurisdiction",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On November 11, 2022, cryptocurrency exchange FTX Trading Ltd., incorporated in Antigua and Barbuda and headquartered in The Bahamas, also called FTX.com, filed a petition for relief under Chapter 11 of the Bankruptcy Code in the Bankruptcy Court for the District of Delaware (Case No. 22-11068 JTD)",
+        "The bankruptcy of FTX, a Bahamas-based cryptocurrency exchange, began in November 2022."
+      ]
+    },
+    {
+      "check_id": "ftx_no_2023_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2023",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_no_2026_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

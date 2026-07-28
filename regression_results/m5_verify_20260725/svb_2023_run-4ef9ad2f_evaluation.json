@@ -1,0 +1,92 @@
+{
+  "case_id": "svb_2023",
+  "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+  "research_id": "run-4ef9ad2f",
+  "stop_reason": "coverage_reached",
+  "coverage_ratio": 1.0,
+  "factual_check_pass_rate": 1.0,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 27,
+  "claim_corroboration_rate": 0.2222222222222222,
+  "high_impact_support_rate": 0.8571428571428571,
+  "multi_source_slot_rate": 0.3125,
+  "cross_corroborated_slot_rate": 0.2222222222222222,
+  "round_success_rate": 0.8571428571428571,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.17857142857142858,
+  "dated_fact_rate": 0.5185185185185185,
+  "fact_count": 27,
+  "source_count": 9,
+  "episode_count": 22,
+  "rounds": 21,
+  "llm_calls": 82,
+  "search_calls": 21,
+  "search_results_rejected": 6,
+  "relevance_accepted": 33,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 13,
+  "support_rounds": 5,
+  "prompt_tokens": 38717,
+  "completion_tokens": 8039,
+  "total_tokens": 46756,
+  "chat_provider_cost_usd": 0.028349199999999998,
+  "elapsed_seconds": 324.6069352120103,
+  "fact_checks": [
+    {
+      "check_id": "svb_closure_date",
+      "description": "SVB's closure is anchored to March 10, 2023",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "On Friday, March 10, 2023, Silicon Valley Bank, Santa Clara, CA was closed by the California Department of Financial Protection & Innovation and the Federal Deposit Insurance Corporation (FDIC) was named Receiver.",
+        "On Friday, March 10, 2023, Silicon Valley Bank, Santa Clara, CA was closed by the California Department of Financial Protection & Innovation and the Federal Deposit Insurance Corporation (FDIC) was named Receiver.",
+        "On March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis."
+      ]
+    },
+    {
+      "check_id": "svb_fdic",
+      "description": "The FDIC is identified as an intervening authority",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "Press Release, FDIC,Joint Statement by the Department of the Treasury, Federal Reserve, and FDIC, Fed. Deposit\nIns. Corp. (Mar. 12, 2023)",
+        "Prior to establishing the SVB bridge bank, the FDIC briefly established a Depository Institution National Bank\n(DINB) with the expectation of liquidating the bank through a deposit payoff. See Press Release, FDIC, FDIC Creates a\nDeposit Insurance National Bank of Santa Clara to Protect Insured Depositors of Silicon Valley Bank, Santa Clara,\nCalifornia, Fed. Deposit Ins. Corp. (Mar. 10, 2023)"
+      ]
+    },
+    {
+      "check_id": "svb_bank_run",
+      "description": "Depositor withdrawals or a bank run appear in the mechanism",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "SVB faced a bank run as depositors rushed to withdraw their funds amid rising inflation and deteriorating financial conditions in the tech sector, where many of its clients operated.",
+        "SVB had heavily invested deposits into long-term treasury bonds, which lost value as the Federal Reserve raised interest rates. Consequently, the bank was unable to meet withdrawal demands, leading to significant losses when it had to sell these bonds at unfavorable prices.",
+        "SVB had heavily invested deposits into long-term treasury bonds, which lost value as the Federal Reserve raised interest rates. Consequently, the bank was unable to meet withdrawal demands, leading to significant losses when it had to sell these bonds at unfavorable prices."
+      ]
+    },
+    {
+      "check_id": "svb_rates_bonds",
+      "description": "Interest rates and securities losses appear in the explanation",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "SVB had heavily invested deposits into long-term treasury bonds, which lost value as the Federal Reserve raised interest rates. Consequently, the bank was unable to meet withdrawal demands, leading to significant losses when it had to sell these bonds at unfavorable prices."
+      ]
+    },
+    {
+      "check_id": "svb_no_2022_closure",
+      "description": "SVB's closure is not dated to 2022",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "svb_no_2024_closure",
+      "description": "SVB's closure is not dated to 2024",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

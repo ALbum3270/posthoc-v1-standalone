@@ -1,0 +1,92 @@
+{
+  "case_id": "ftx_2022",
+  "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+  "research_id": "run-31f2d38f",
+  "stop_reason": "all_slots_exhausted",
+  "coverage_ratio": 0.9,
+  "factual_check_pass_rate": 1.0,
+  "citation_coverage": 1.0,
+  "model_judged_slot_relevance": 1.0,
+  "judged_item_count": 14,
+  "claim_corroboration_rate": 0.07142857142857142,
+  "high_impact_support_rate": 0.16666666666666666,
+  "multi_source_slot_rate": 0.1111111111111111,
+  "cross_corroborated_slot_rate": 0.07142857142857142,
+  "round_success_rate": 0.6,
+  "duplicate_query_count": 0,
+  "grounding_rejection_rate": 0.5116279069767442,
+  "dated_fact_rate": 0.2857142857142857,
+  "fact_count": 14,
+  "source_count": 7,
+  "episode_count": 10,
+  "rounds": 15,
+  "llm_calls": 62,
+  "search_calls": 15,
+  "search_results_rejected": 15,
+  "relevance_accepted": 15,
+  "relevance_uncertain": 0,
+  "relevance_rejected": 6,
+  "support_rounds": 0,
+  "prompt_tokens": 30404,
+  "completion_tokens": 5185,
+  "total_tokens": 35589,
+  "chat_provider_cost_usd": 0.020457600000000003,
+  "elapsed_seconds": 224.97995163997984,
+  "fact_checks": [
+    {
+      "check_id": "ftx_bankruptcy_2022",
+      "description": "FTX bankruptcy is anchored to 2022",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "4 of 4\nFull Article\nThe FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange, owned by Sam Bankman-Fried, beginning in November 2022.",
+        "4 of 4\nFull Article\nThe FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange, owned by Sam Bankman-Fried, beginning in November 2022."
+      ]
+    },
+    {
+      "check_id": "ftx_sbf",
+      "description": "Sam Bankman-Fried is identified",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "4 of 4\nFull Article\nThe FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange, owned by Sam Bankman-Fried, beginning in November 2022."
+      ]
+    },
+    {
+      "check_id": "ftx_alameda",
+      "description": "Alameda Research is connected to the event",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT).",
+        "When did FTX collapse (2022 timeline)\nNovember 2, 2022: CoinDesk investigation exposes Alameda Research's balance sheet dependency on FTT tokens valued at $3.66 billion, revealing dangerous financial entanglement between the trading firm, the exchange, and the price of FTT.",
+        "Because FTT cannot be easily exchanged for cash, the report stoked fears about the capital reserves at Alameda Research and thus FTX.",
+        "Major concerns about FTX started when news outlet CoinDesk published an article that found a significant portion of Alameda Research's assets consisted of FTT, a token created by FTX that allows users of the exchange to access discounted trading fees."
+      ]
+    },
+    {
+      "check_id": "ftx_bahamas",
+      "description": "The Bahamas appears as FTX's operating jurisdiction",
+      "passed": true,
+      "should_exist": true,
+      "matching_facts": [
+        "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas.",
+        "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas."
+      ]
+    },
+    {
+      "check_id": "ftx_no_2023_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2023",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    },
+    {
+      "check_id": "ftx_no_2026_bankruptcy",
+      "description": "The report does not date FTX's bankruptcy to 2026",
+      "passed": true,
+      "should_exist": false,
+      "matching_facts": []
+    }
+  ]
+}

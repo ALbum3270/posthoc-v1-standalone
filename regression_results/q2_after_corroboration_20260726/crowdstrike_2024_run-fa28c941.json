@@ -1,0 +1,1717 @@
+{
+  "topic": "CrowdStrike global IT outage on July 19, 2024",
+  "research_id": "run-fa28c941",
+  "stop_reason": "coverage_reached",
+  "stop_detail": "coverage 100% >= target 100%; critical claim support 1/8 targeted follow-up(s), 5 gap(s) found",
+  "coverage_ratio": 1.0,
+  "gap_status": [
+    {
+      "slot_id": "who.primary_actor",
+      "dimension": "WHO",
+      "question": "Which person, organization, or system is the central subject of the event, excluding later responders, buyers, and merely affected parties?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "0a734ada-bed4-434a-8d7d-4eb3d6d6066b",
+        "e3ee3caa-d113-4840-a0b3-559c47b32328"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "dimension": "WHO",
+      "question": "Who is affected, targeted, or impacted?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "fc5a84f4-b2e8-49e6-b771-2a624bbc774a"
+      ],
+      "notes": "5 active fact(s)"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "dimension": "WHO",
+      "question": "Which organizations, subsidiaries, or partners are involved?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "ad7786cd-0be3-4a7c-8bcc-d98ec56b865c"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "who.regulators",
+      "dimension": "WHO",
+      "question": "Which regulators, investigators, or authorities are involved?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "what.core_event",
+      "dimension": "WHAT",
+      "question": "What exactly happened?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "087b95c3-5ebc-4a73-9ffe-9c74d480df50"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.scale",
+      "dimension": "WHAT",
+      "question": "What is the scale, size, or material impact of the event?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "f25c126a-104b-45fb-a7da-f67b65c0ec43"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "what.products",
+      "dimension": "WHAT",
+      "question": "Which products, services, or assets are involved?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.event_time",
+      "dimension": "WHEN",
+      "question": "When did the key event occur?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "d8855cdf-8ddc-4da7-ae47-fe10f2705677"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "dimension": "WHEN",
+      "question": "When was the event discovered or disclosed?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "dimension": "WHEN",
+      "question": "When did an official intervention or response occur?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "dimension": "WHERE",
+      "question": "Where is the primary legal or operational jurisdiction?",
+      "filled": false,
+      "applicability": "optional",
+      "confidence": 0.0,
+      "supporting_episode_ids": [],
+      "notes": "no active facts in graph"
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "dimension": "WHERE",
+      "question": "Where did money, assets, or activity move?",
+      "filled": false,
+      "applicability": "not_applicable",
+      "confidence": 1.0,
+      "supporting_episode_ids": [],
+      "notes": "not applicable: An accidental IT outage normally has no asset or money flow involved."
+    },
+    {
+      "slot_id": "where.event_location",
+      "dimension": "WHERE",
+      "question": "Where did the event happen or become visible?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "4cb3f25a-2e07-45be-9f24-bde2cb763bc6"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "why.motivation",
+      "dimension": "WHY",
+      "question": "Why did the actor behave this way or pursue this action?",
+      "filled": false,
+      "applicability": "not_applicable",
+      "confidence": 1.0,
+      "supporting_episode_ids": [],
+      "notes": "not applicable: An accidental IT outage typically has no actor motivation behind it."
+    },
+    {
+      "slot_id": "why.trigger",
+      "dimension": "WHY",
+      "question": "What immediate trigger and underlying conditions caused or catalyzed the event?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "05338f2e-abd5-4b49-87c5-2f7234161512",
+        "e0889428-c529-4c6c-8d00-e1c8c730873e"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "dimension": "HOW",
+      "question": "What causal mechanism made the event happen, or how was it executed?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "21757b0a-85a5-46f6-8eb6-1b187eb04224"
+      ],
+      "notes": "1 active fact(s)"
+    },
+    {
+      "slot_id": "how.sequence",
+      "dimension": "HOW",
+      "question": "How did the activity unfold step by step?",
+      "filled": true,
+      "applicability": "required",
+      "confidence": 0.8,
+      "supporting_episode_ids": [
+        "33314517-19ae-46ea-a85d-9d75e60e3290"
+      ],
+      "notes": "2 active fact(s)"
+    }
+  ],
+  "slot_applicability": [
+    {
+      "slot_id": "who.primary_actor",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "who.regulators",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Regulators or authorities may be involved in investigating or responding to the outage, but this is not guaranteed."
+    },
+    {
+      "slot_id": "what.core_event",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.scale",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "what.products",
+      "status": "optional",
+      "confidence": 0.95,
+      "reason": "The outage likely affected specific CrowdStrike products or services, so identifying them is meaningful."
+    },
+    {
+      "slot_id": "when.event_time",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "when.discovery_time",
+      "status": "optional",
+      "confidence": 0.95,
+      "reason": "The discovery or disclosure time of the outage is relevant and typically known."
+    },
+    {
+      "slot_id": "when.intervention_time",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "Official interventions or responses may have occurred and are relevant to the event timeline."
+    },
+    {
+      "slot_id": "where.jurisdiction",
+      "status": "optional",
+      "confidence": 0.9,
+      "reason": "The primary legal or operational jurisdiction is meaningful for understanding regulatory or operational context."
+    },
+    {
+      "slot_id": "where.asset_flow",
+      "status": "not_applicable",
+      "confidence": 1.0,
+      "reason": "An accidental IT outage normally has no asset or money flow involved."
+    },
+    {
+      "slot_id": "where.event_location",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "why.motivation",
+      "status": "not_applicable",
+      "confidence": 1.0,
+      "reason": "An accidental IT outage typically has no actor motivation behind it."
+    },
+    {
+      "slot_id": "why.trigger",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.mechanism",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    },
+    {
+      "slot_id": "how.sequence",
+      "status": "required",
+      "confidence": 1.0,
+      "reason": "core ontology slot"
+    }
+  ],
+  "relevance_audit": [
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "Melayu\nNederlands\nPortuguês\nРусский \"Глобальный сбой в работе Windows (2024) – Russian\")\nСаха тыла \"Windows эмискэ үлэтин тохтотуута (2024) – Yakut\")\nසිංහල\nСрпски / srpski\nతెలుగు\nไทย\nTürkçe\nУкраїнська\nTiếng Việt\n吴语\n中文\nEdit links\nArticle\nTalk\nRead\nView history\nTools\nActions\nRead\nView history\nGeneral\nWhat links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons\nWikidata item\nAppearance\nFrom Wikipedia, the free encyclopedia\nGlobal computer systems outage\n2024 CrowdStrike-related IT outages\n| Multiple blue screens of death caused by a faulty software update on baggage carousels at LaGuardia Airport, New York City |\n| Date | 19 July 2024; 2 years ago (2024-07-19) |\n| Location | Worldwide |\n| Type | IT outage, computer crash |\n| Cause |",
+      "structured_claim": "Multiple blue screens of death | were caused by | a faulty software update on baggage carousels at LaGuardia Airport, New York City",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "The quote is mostly navigation and metadata text from a Wikipedia page and does not directly describe what exactly happened in the CrowdStrike global IT outage. The mention of blue screens of death caused by a faulty software update on baggage carousels at LaGuardia Airport is unrelated to CrowdStrike and the global IT outage event on July 19, 2024."
+    },
+    {
+      "slot_id": "who.primary_actor",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "Melayu\nNederlands\nPortuguês\nРусский \"Глобальный сбой в работе Windows (2024) – Russian\")\nСаха тыла \"Windows эмискэ үлэтин тохтотуута (2024) – Yakut\")\nසිංහල\nСрпски / srpski\nతెలుగు\nไทย\nTürkçe\nУкраїнська\nTiếng Việt\n吴语\n中文\nEdit links\nArticle\nTalk\nRead\nView history\nTools\nActions\nRead\nView history\nGeneral\nWhat links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons\nWikidata item\nAppearance\nFrom Wikipedia, the free encyclopedia\nGlobal computer systems outage\n2024 CrowdStrike-related IT outages\n| Multiple blue screens of death caused by a faulty software update on baggage carousels at LaGuardia Airport, New York City |\n| Date | 19 July 2024; 2 years ago (2024-07-19) |\n| Location | Worldwide |\n| Type | IT outage, computer crash |\n| Cause |",
+      "structured_claim": "2024 CrowdStrike-related IT outages | is the central subject of the event | global computer systems outage caused by a faulty software update",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "The quote is mostly navigation and metadata text from a Wikipedia page and does not explicitly identify the central subject (primary actor) of the CrowdStrike global IT outage event. It mentions a global computer systems outage and a faulty software update but does not clearly state CrowdStrike as the primary actor or responsible entity."
+    },
+    {
+      "slot_id": "who.primary_actor",
+      "document_id": "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+      "source_url": "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+      "quote": "CrowdStrike released technical details that provide:\n+ A technical summary of the outage and the impact.\n+ Information on how the update to the CrowdStrike Falcon sensor configuration file, Channel File 291, caused the logic error that led to the outage.",
+      "structured_claim": "CrowdStrike | is the central subject of the event | the widespread IT outage caused by an update to the CrowdStrike Falcon sensor configuration file",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly identifies CrowdStrike as the entity responsible for the update that caused the outage, making it the central subject of the event."
+    },
+    {
+      "slot_id": "who.primary_actor",
+      "document_id": "https://www.researchgate.net/publication/393170974_CrowdStrike_Causes_Global_Microsoft_Outage_A_Case_Study",
+      "source_url": "https://www.researchgate.net/publication/393170974_CrowdStrike_Causes_Global_Microsoft_Outage_A_Case_Study",
+      "quote": "On July 19, 2024, CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software, triggering catastrophic",
+      "structured_claim": "CrowdStrike | is the central subject of the event | the widespread IT outage caused by an update to the CrowdStrike Falcon sensor configuration file",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that CrowdStrike deployed a faulty update causing the widespread IT outage, making CrowdStrike the central subject and responsible actor of the event."
+    },
+    {
+      "slot_id": "when.event_time",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "Melayu\nNederlands\nPortuguês\nРусский \"Глобальный сбой в работе Windows (2024) – Russian\")\nСаха тыла \"Windows эмискэ үлэтин тохтотуута (2024) – Yakut\")\nසිංහල\nСрпски / srpski\nతెలుగు\nไทย\nTürkçe\nУкраїнська\nTiếng Việt\n吴语\n中文\nEdit links\nArticle\nTalk\nRead\nView history\nTools\nActions\nRead\nView history\nGeneral\nWhat links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons\nWikidata item\nAppearance\nFrom Wikipedia, the free encyclopedia\nGlobal computer systems outage\n2024 CrowdStrike-related IT outages\n| Multiple blue screens of death caused by a faulty software update on baggage carousels at LaGuardia Airport, New York City |\n| Date | 19 July 2024; 2 years ago (2024-07-19) |\n| Location | Worldwide |\n| Type | IT outage, computer crash |\n| Cause |",
+      "structured_claim": "Global computer systems outage | occurred on | 19 July 2024",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "The quote is mostly navigation and unrelated text, with only a brief mention of '19 July 2024' in a table about a global computer systems outage, but it does not explicitly link the date to the CrowdStrike global IT outage event or clearly state the event occurred on that date."
+    },
+    {
+      "slot_id": "what.scale",
+      "document_id": "https://www.congress.gov/crs_external_products/IN/PDF/IN12392/IN12392.2.pdf",
+      "source_url": "https://www.congress.gov/crs_external_products/IN/PDF/IN12392/IN12392.2.pdf",
+      "quote": "Microsoft estimates that this event affected 8.5 million systems, which is less than 1% of total Windows machines.",
+      "structured_claim": "Microsoft estimates | affected | 8.5 million systems",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly states the estimated number of affected systems, providing a clear measure of the event's scale."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "source_url": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "quote": "Faulty CrowdStrike update causes major global IT outage, taking out banks, airlines and businesses globally\nCrowdStrike says a fix is on the way and global outage is ‘not a cyberattack’\nBusinesses across the world are reporting IT outages, including Windows “blue screen of death” errors on their computers, in what has already become one of the most widespread IT disruptions in recent years.",
+      "structured_claim": "Faulty CrowdStrike update | causes outage affecting | banks, airlines and businesses globally",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that banks, airlines, and businesses globally are affected by the CrowdStrike outage, directly answering who is impacted."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "source_url": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "quote": "The outage — linked to a software update from popular cybersecurity firm CrowdStrike — has affected computers running Microsoft Windows at organizations across various sectors, including airlines, banks, retailers, brokerage houses, media companies and railway networks.",
+      "structured_claim": "The outage | has affected | computers running Microsoft Windows at organizations across various sectors, including airlines, banks, retailers, brokerage houses, media companies and railway networks",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote clearly lists affected parties across various sectors including airlines, banks, retailers, brokerage houses, media companies, and railway networks, directly answering the question."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "source_url": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "quote": "The travel sector seems to be one of the hardest hit, based on online chatter.",
+      "structured_claim": "The travel sector | is | one of the hardest hit",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.8,
+      "reason": "The quote identifies the travel sector as one of the hardest hit, indicating impact on that sector, which answers the question about affected parties."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "source_url": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "quote": "He added that the firm was rolling out a fix and that Mac and Linux hosts were not affected.",
+      "structured_claim": "Mac and Linux hosts | are not affected by | the CrowdStrike update outage",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 1.0,
+      "reason": "The quote states Mac and Linux hosts were not affected, which does not answer who was affected but rather who was not."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "source_url": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "quote": "Many companies’ employees have reported being unable to start their computers due to the issue.",
+      "structured_claim": "Many companies’ employees | have reported | being unable to start their computers due to the issue",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote indicates employees of many companies were impacted by being unable to start their computers, directly answering who was affected."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "source_url": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "quote": "U.K. news broadcaster Sky News faced trouble broadcasting live this morning due to the outage, the firm’s executive chairman David Rhodes tweeted.",
+      "structured_claim": "U.K. news broadcaster Sky News | faced | trouble broadcasting live",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote states that Sky News faced trouble broadcasting live due to the outage, identifying an affected party."
+    },
+    {
+      "slot_id": "who.affected_parties",
+      "document_id": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "source_url": "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally",
+      "quote": "The outage came shortly after Microsoft confirmed service problems with its Microsoft 365 apps late on Thursday, which affected several airlines including Delta and United.",
+      "structured_claim": "Several airlines including Delta and United | were affected by | Microsoft 365 apps service problems",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "The quote attributes the Microsoft 365 apps service problems affecting airlines to Microsoft issues, not directly to the CrowdStrike outage, so it does not directly answer who was affected by the CrowdStrike event."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "At the time of the incident, CrowdStrike said it had more than 24,000 customers, including nearly 60% of Fortune 500 companies and more than half of the Fortune 1000.",
+      "structured_claim": "CrowdStrike | has customers including | nearly 60% of Fortune 500 companies and more than half of the Fortune 1000",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "The quote mentions CrowdStrike's customers but does not identify any organizations, subsidiaries, or partners involved in the outage event itself."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "Microsoft also recommended restoring a backup from before 18 July to fix the issue.",
+      "structured_claim": "Microsoft | recommended | restoring a backup from before 18 July to fix the issue",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "Microsoft is mentioned as recommending a fix, but it is not described as involved as an organization, subsidiary, or partner in the outage event."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "In the US, UPS and FedEx were affected.",
+      "structured_claim": "UPS and FedEx | were affected by | the outage in the US",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "UPS and FedEx are described as affected parties, not as organizations involved in causing or managing the outage."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "Sim racing service iRacing was also affected by the outage in America.",
+      "structured_claim": "iRacing | was affected by | the outage in America",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "iRacing is mentioned as affected by the outage, not as an involved organization, subsidiary, or partner."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "Various Korean online games, like Black Desert Online, Ragnarok Online, and Ragnarok Origin, shut down.",
+      "structured_claim": "Korean online games like Black Desert Online, Ragnarok Online, and Ragnarok Origin | shut down due to | the outage",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "The Korean online games are described as shutting down due to the outage, but they are not involved organizations or partners in the event."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "source_url": "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+      "quote": "Amazon Web Services, eBay, Google Cloud, Instagram, and Plenty of Fish were also affected.",
+      "structured_claim": "Amazon Web Services, eBay, Google Cloud, Instagram, and Plenty of Fish | were affected by | the outage",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "These companies are described as affected by the outage, not as involved organizations, subsidiaries, or partners."
+    },
+    {
+      "slot_id": "who.related_organizations",
+      "document_id": "https://www.accrete.ai/blog/understanding-the-crowdstrike-outage-of-july-19th-2024-and-how-ai-improves-it-resiliency",
+      "source_url": "https://www.accrete.ai/blog/understanding-the-crowdstrike-outage-of-july-19th-2024-and-how-ai-improves-it-resiliency",
+      "quote": "Understanding the Crowdstrike Outage of July 19th, 2024, and How AI Improves IT Resiliency\nOverview of the Incident\nOn July 19, 2024, a global IT outage was triggered by a faulty update from CrowdStrike, a leading cybersecurity firm.",
+      "structured_claim": "CrowdStrike | is a | leading cybersecurity firm",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly identifies CrowdStrike as the organization involved in the global IT outage on July 19, 2024, directly answering the question about involved organizations."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis",
+      "source_url": "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis",
+      "quote": "According to CrowdStrike and other sources, the timeline of events was as follows:\nJuly 19, 2024, 04:09 UTC: CrowdStrike released a sensor configuration update, Channel File 291, to Windows systems as part of their ongoing operations.",
+      "structured_claim": "CrowdStrike | released | a sensor configuration update, Channel File 291, to Windows systems",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly describes the first step in the sequence: CrowdStrike releasing a sensor configuration update (Channel File 291) to Windows systems on July 19, 2024, at 04:09 UTC, making CrowdStrike the primary actor and the update the initiating event."
+    },
+    {
+      "slot_id": "how.sequence",
+      "document_id": "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis",
+      "source_url": "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis",
+      "quote": "July 19, 2024, 05:27 UTC: CrowdStrike identified the issue and reverted the changes, but by then, many systems had already been affected.",
+      "structured_claim": "CrowdStrike | identified the issue and reverted the changes | at 05:27 UTC on July 19, 2024",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly describes the next step in the sequence: CrowdStrike identifying the issue and reverting the changes at 05:27 UTC on July 19, 2024, with CrowdStrike as the primary actor performing intentional corrective action."
+    },
+    {
+      "slot_id": "where.event_location",
+      "document_id": "https://www.cnbc.com/amp/2024/07/19/latest-live-updates-on-a-major-it-outage-spreading-worldwide.html",
+      "source_url": "https://www.cnbc.com/amp/2024/07/19/latest-live-updates-on-a-major-it-outage-spreading-worldwide.html",
+      "quote": "— Kif Leswing\nFri, Jul 19 2024 5:04 PM EDT\nAmazon warehouses and internal software disrupted by outage\nPeter Endig | AFP | Getty Images\nSome Amazon warehouses in the U.S. were grappling with disruptions set off by the global IT outage.",
+      "structured_claim": "Some Amazon warehouses in the U.S. | were grappling with | disruptions set off by the global IT outage",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 0.9,
+      "reason": "The quote explicitly states that some Amazon warehouses in the U.S. were grappling with disruptions caused by the global IT outage, directly answering where the event became visible."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://www.linkedin.com/pulse/crowdstrike-releases-root-cause-analysis-rca-report-mleac",
+      "source_url": "https://www.linkedin.com/pulse/crowdstrike-releases-root-cause-analysis-rca-report-mleac",
+      "quote": "The root cause analysis highlighted several factors contributing to the Falcon EDR sensor crash. These included a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test.",
+      "structured_claim": "the Falcon EDR sensor crash | was triggered by | a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly explains the immediate trigger and underlying conditions causing the Falcon EDR sensor crash, which is the event in question."
+    },
+    {
+      "slot_id": "when.event_time",
+      "document_id": "https://www.ibm.com/think/news/recent-crowdstrike-outage-what-you-should-know",
+      "source_url": "https://www.ibm.com/think/news/recent-crowdstrike-outage-what-you-should-know",
+      "quote": "Security Cloud\nCrowdStrike outage: What you should know\nPublished 23 July 2024\nBlue and Pink neon lights\nBy Josh Nadeau\nOn Friday, July 19, 2024, nearly 8.5 million Microsoft devices were affected by a faulty system update, causing a major outage of businesses and services worldwide.",
+      "structured_claim": "CrowdStrike outage | occurred on | Friday, July 19, 2024",
+      "purpose": "initial",
+      "status": "rejected",
+      "confidence": 0.9,
+      "reason": "The quote describes a major outage on July 19, 2024, but it attributes the event to Microsoft devices and a faulty system update, not CrowdStrike. Therefore, it does not directly answer when the CrowdStrike outage occurred."
+    },
+    {
+      "slot_id": "what.core_event",
+      "document_id": "https://www.cisecurity.org/insights/case-study/monitoring-and-support-during-the-crowdstrike-falcon-outage",
+      "source_url": "https://www.cisecurity.org/insights/case-study/monitoring-and-support-during-the-crowdstrike-falcon-outage",
+      "quote": "CIS - Center for Internet Security®\nCIS Portal LoginCIS Hardened Images®SupportCIS WorkBench Sign In\nAlert Level: guarded\nHomeInsightsCase StudiesMonitoring and Support During the CrowdStrike Falcon Outage\nMonitoring and Support During the CrowdStrike Falcon Outage\nOn July 19, 2024, a flawed update to CrowdStrike’s Falcon sensor, a cybersecurity tool widely used to protect devices like computer workstations and servers, resulted in a global IT outage.",
+      "structured_claim": "a flawed update to CrowdStrike’s Falcon sensor | resulted in | a global IT outage",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states that a flawed update to CrowdStrike’s Falcon sensor caused a global IT outage on July 19, 2024, directly answering the question about what exactly happened."
+    },
+    {
+      "slot_id": "when.event_time",
+      "document_id": "https://cloudsecurityalliance.org/blog/2025/07/03/what-we-can-learn-from-the-2024-crowdstrike-outage",
+      "source_url": "https://cloudsecurityalliance.org/blog/2025/07/03/what-we-can-learn-from-the-2024-crowdstrike-outage",
+      "quote": "The CrowdStrike outage in July 2024 exposed how much the world depends on centralized security solutions.",
+      "structured_claim": "The CrowdStrike outage | occurred | July 2024",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states the CrowdStrike outage occurred in July 2024, directly answering the question about the event time."
+    },
+    {
+      "slot_id": "how.mechanism",
+      "document_id": "https://www.blackfog.com/the-crowdstrike-incident-a-global-it-meltdown",
+      "source_url": "https://www.blackfog.com/the-crowdstrike-incident-a-global-it-meltdown",
+      "quote": "Crowdstrike Outage in Numbers\nThe outage was caused by a defect in a Falcon content update for Windows hosts. Specifically, the update was related to Channel File 291, which controls how Falcon evaluates named pipe execution on Windows systems.",
+      "structured_claim": "The outage | was caused by | a defect in a Falcon content update for Windows hosts related to Channel File 291",
+      "purpose": "initial",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote explicitly states the causal mechanism of the outage as a defect in a Falcon content update related to Channel File 291, directly answering the question about how the event happened."
+    },
+    {
+      "slot_id": "why.trigger",
+      "document_id": "https://www.securityweek.com/crowdstrike-releases-root-cause-analysis-of-falcon-sensor-bsod-crash/amp",
+      "source_url": "https://www.securityweek.com/crowdstrike-releases-root-cause-analysis-of-falcon-sensor-bsod-crash/amp",
+      "quote": "The new CrowdStrike root cause analysis documents a combination of factors that caused the Falcon EDR sensor crash — a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test — and a vow to work with Microsoft on secure and reliable access to the Windows kernel.",
+      "structured_claim": "the Falcon EDR sensor crash | WAS_TRIGGERED_BY | a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test",
+      "purpose": "support",
+      "status": "accepted",
+      "confidence": 1.0,
+      "reason": "The quote directly explains the immediate trigger and underlying conditions causing the Falcon EDR sensor crash, which is the event in question."
+    }
+  ],
+  "claim_match_audit": [
+    {
+      "incoming_fact": "On July 19, 2024, CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software, triggering catastrophic",
+      "candidate_edge_uuid": "2ad8f585-25f3-4417-9f8d-220c96342737",
+      "candidate_fact": "CrowdStrike released technical details that provide:\n+ A technical summary of the outage and the impact.\n+ Information on how the update to the CrowdStrike Falcon sensor configuration file, Channel File 291, caused the logic error that led to the outage.",
+      "match_method": "exact",
+      "similarity": null,
+      "prefilter_passed": true,
+      "prefilter_reason": "no explicit date or magnitude conflict",
+      "candidate_entails_incoming": null,
+      "incoming_entails_candidate": null,
+      "entailment_reason": "exact structured match; semantic entailment not required",
+      "accepted": true
+    },
+    {
+      "incoming_fact": "The new CrowdStrike root cause analysis documents a combination of factors that caused the Falcon EDR sensor crash — a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test — and a vow to work with Microsoft on secure and reliable access to the Windows kernel.",
+      "candidate_edge_uuid": "01cfd2ff-d7a2-4269-a284-06fdc91bcfa3",
+      "candidate_fact": "The root cause analysis highlighted several factors contributing to the Falcon EDR sensor crash. These included a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test.",
+      "match_method": "exact",
+      "similarity": null,
+      "prefilter_passed": true,
+      "prefilter_reason": "no explicit date or magnitude conflict",
+      "candidate_entails_incoming": null,
+      "incoming_entails_candidate": null,
+      "entailment_reason": "exact structured match; semantic entailment not required",
+      "accepted": true
+    }
+  ],
+  "evidence_pack": {
+    "topic": "CrowdStrike global IT outage on July 19, 2024",
+    "coverage_ratio": 1.0,
+    "items": [
+      {
+        "slot_id": "who.primary_actor",
+        "conclusion": "CrowdStrike released technical details that provide:\n+ A technical summary of the outage and the impact.\n+ Information on how the update to the CrowdStrike Falcon sensor configuration file, Channel File 291, caused the logic error that led to the outage.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "0a734ada-bed4-434a-8d7d-4eb3d6d6066b",
+          "e3ee3caa-d113-4840-a0b3-559c47b32328"
+        ],
+        "source_urls": [
+          "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+          "https://www.researchgate.net/publication/393170974_CrowdStrike_Causes_Global_Microsoft_Outage_A_Case_Study"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly identifies CrowdStrike as the entity responsible for the update that caused the outage, making it the central subject of the event.",
+        "caveats": [
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Faulty CrowdStrike update causes major global IT outage, taking out banks, airlines and businesses globally\nCrowdStrike says a fix is on the way and global outage is ‘not a cyberattack’\nBusinesses across the world are reporting IT outages, including Windows “blue screen of death” errors on their computers, in what has already become one of the most widespread IT disruptions in recent years.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fc5a84f4-b2e8-49e6-b771-2a624bbc774a"
+        ],
+        "source_urls": [
+          "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states that banks, airlines, and businesses globally are affected by the CrowdStrike outage, directly answering who is impacted.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "Many companies’ employees have reported being unable to start their computers due to the issue.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fc5a84f4-b2e8-49e6-b771-2a624bbc774a"
+        ],
+        "source_urls": [
+          "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote indicates employees of many companies were impacted by being unable to start their computers, directly answering who was affected.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "The outage — linked to a software update from popular cybersecurity firm CrowdStrike — has affected computers running Microsoft Windows at organizations across various sectors, including airlines, banks, retailers, brokerage houses, media companies and railway networks.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fc5a84f4-b2e8-49e6-b771-2a624bbc774a"
+        ],
+        "source_urls": [
+          "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote clearly lists affected parties across various sectors including airlines, banks, retailers, brokerage houses, media companies, and railway networks, directly answering the question.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "The travel sector seems to be one of the hardest hit, based on online chatter.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fc5a84f4-b2e8-49e6-b771-2a624bbc774a"
+        ],
+        "source_urls": [
+          "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.8,
+        "relevance_reason": "The quote identifies the travel sector as one of the hardest hit, indicating impact on that sector, which answers the question about affected parties.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "conclusion": "U.K. news broadcaster Sky News faced trouble broadcasting live this morning due to the outage, the firm’s executive chairman David Rhodes tweeted.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "fc5a84f4-b2e8-49e6-b771-2a624bbc774a"
+        ],
+        "source_urls": [
+          "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote states that Sky News faced trouble broadcasting live due to the outage, identifying an affected party.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "conclusion": "Understanding the Crowdstrike Outage of July 19th, 2024, and How AI Improves IT Resiliency\nOverview of the Incident\nOn July 19, 2024, a global IT outage was triggered by a faulty update from CrowdStrike, a leading cybersecurity firm.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "ad7786cd-0be3-4a7c-8bcc-d98ec56b865c"
+        ],
+        "source_urls": [
+          "https://www.accrete.ai/blog/understanding-the-crowdstrike-outage-of-july-19th-2024-and-how-ai-improves-it-resiliency"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly identifies CrowdStrike as the organization involved in the global IT outage on July 19, 2024, directly answering the question about involved organizations.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "what.core_event",
+        "conclusion": "CIS - Center for Internet Security®\nCIS Portal LoginCIS Hardened Images®SupportCIS WorkBench Sign In\nAlert Level: guarded\nHomeInsightsCase StudiesMonitoring and Support During the CrowdStrike Falcon Outage\nMonitoring and Support During the CrowdStrike Falcon Outage\nOn July 19, 2024, a flawed update to CrowdStrike’s Falcon sensor, a cybersecurity tool widely used to protect devices like computer workstations and servers, resulted in a global IT outage.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "087b95c3-5ebc-4a73-9ffe-9c74d480df50"
+        ],
+        "source_urls": [
+          "https://www.cisecurity.org/insights/case-study/monitoring-and-support-during-the-crowdstrike-falcon-outage"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states that a flawed update to CrowdStrike’s Falcon sensor caused a global IT outage on July 19, 2024, directly answering the question about what exactly happened.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required"
+        ]
+      },
+      {
+        "slot_id": "what.scale",
+        "conclusion": "Microsoft estimates that this event affected 8.5 million systems, which is less than 1% of total Windows machines.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "f25c126a-104b-45fb-a7da-f67b65c0ec43"
+        ],
+        "source_urls": [
+          "https://www.congress.gov/crs_external_products/IN/PDF/IN12392/IN12392.2.pdf"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly states the estimated number of affected systems, providing a clear measure of the event's scale.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "when.event_time",
+        "conclusion": "The CrowdStrike outage in July 2024 exposed how much the world depends on centralized security solutions.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "d8855cdf-8ddc-4da7-ae47-fe10f2705677"
+        ],
+        "source_urls": [
+          "https://cloudsecurityalliance.org/blog/2025/07/03/what-we-can-learn-from-the-2024-crowdstrike-outage"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states the CrowdStrike outage occurred in July 2024, directly answering the question about the event time.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required"
+        ]
+      },
+      {
+        "slot_id": "where.event_location",
+        "conclusion": "— Kif Leswing\nFri, Jul 19 2024 5:04 PM EDT\nAmazon warehouses and internal software disrupted by outage\nPeter Endig | AFP | Getty Images\nSome Amazon warehouses in the U.S. were grappling with disruptions set off by the global IT outage.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "4cb3f25a-2e07-45be-9f24-bde2cb763bc6"
+        ],
+        "source_urls": [
+          "https://www.cnbc.com/amp/2024/07/19/latest-live-updates-on-a-major-it-outage-spreading-worldwide.html"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 0.9,
+        "relevance_reason": "The quote explicitly states that some Amazon warehouses in the U.S. were grappling with disruptions caused by the global IT outage, directly answering where the event became visible.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "why.trigger",
+        "conclusion": "The root cause analysis highlighted several factors contributing to the Falcon EDR sensor crash. These included a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "05338f2e-abd5-4b49-87c5-2f7234161512",
+          "e0889428-c529-4c6c-8d00-e1c8c730873e"
+        ],
+        "source_urls": [
+          "https://www.linkedin.com/pulse/crowdstrike-releases-root-cause-analysis-rca-report-mleac",
+          "https://www.securityweek.com/crowdstrike-releases-root-cause-analysis-of-falcon-sensor-bsod-crash/amp"
+        ],
+        "source_count": 2,
+        "required_source_count": 2,
+        "claim_corroborated": true,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly explains the immediate trigger and underlying conditions causing the Falcon EDR sensor crash, which is the event in question.",
+        "caveats": [
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.mechanism",
+        "conclusion": "Crowdstrike Outage in Numbers\nThe outage was caused by a defect in a Falcon content update for Windows hosts. Specifically, the update was related to Channel File 291, which controls how Falcon evaluates named pipe execution on Windows systems.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "21757b0a-85a5-46f6-8eb6-1b187eb04224"
+        ],
+        "source_urls": [
+          "https://www.blackfog.com/the-crowdstrike-incident-a-global-it-meltdown"
+        ],
+        "source_count": 1,
+        "required_source_count": 2,
+        "claim_corroborated": false,
+        "support_requirement_met": false,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote explicitly states the causal mechanism of the outage as a defect in a Falcon content update related to Channel File 291, directly answering the question about how the event happened.",
+        "caveats": [
+          "single source; no claim-level corroboration",
+          "claim has 1 independent source(s); 2 required",
+          "no verified date: this source did not state one explicitly"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "According to CrowdStrike and other sources, the timeline of events was as follows:\nJuly 19, 2024, 04:09 UTC: CrowdStrike released a sensor configuration update, Channel File 291, to Windows systems as part of their ongoing operations.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "33314517-19ae-46ea-a85d-9d75e60e3290"
+        ],
+        "source_urls": [
+          "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly describes the first step in the sequence: CrowdStrike releasing a sensor configuration update (Channel File 291) to Windows systems on July 19, 2024, at 04:09 UTC, making CrowdStrike the primary actor and the update the initiating event.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      },
+      {
+        "slot_id": "how.sequence",
+        "conclusion": "July 19, 2024, 05:27 UTC: CrowdStrike identified the issue and reverted the changes, but by then, many systems had already been affected.",
+        "confidence": 0.8,
+        "provenance_episode_ids": [
+          "33314517-19ae-46ea-a85d-9d75e60e3290"
+        ],
+        "source_urls": [
+          "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis"
+        ],
+        "source_count": 1,
+        "required_source_count": 1,
+        "claim_corroborated": false,
+        "support_requirement_met": true,
+        "relevance_status": "accepted",
+        "relevance_confidence": 1.0,
+        "relevance_reason": "The quote directly describes the next step in the sequence: CrowdStrike identifying the issue and reverting the changes at 05:27 UTC on July 19, 2024, with CrowdStrike as the primary actor performing intentional corrective action.",
+        "caveats": [
+          "single source; no claim-level corroboration"
+        ]
+      }
+    ],
+    "unresolved_conflicts": [],
+    "provenance": [
+      "05338f2e-abd5-4b49-87c5-2f7234161512",
+      "087b95c3-5ebc-4a73-9ffe-9c74d480df50",
+      "0a734ada-bed4-434a-8d7d-4eb3d6d6066b",
+      "21757b0a-85a5-46f6-8eb6-1b187eb04224",
+      "33314517-19ae-46ea-a85d-9d75e60e3290",
+      "4cb3f25a-2e07-45be-9f24-bde2cb763bc6",
+      "ad7786cd-0be3-4a7c-8bcc-d98ec56b865c",
+      "d8855cdf-8ddc-4da7-ae47-fe10f2705677",
+      "e0889428-c529-4c6c-8d00-e1c8c730873e",
+      "e3ee3caa-d113-4840-a0b3-559c47b32328",
+      "f25c126a-104b-45fb-a7da-f67b65c0ec43",
+      "fc5a84f4-b2e8-49e6-b771-2a624bbc774a"
+    ],
+    "slot_applicability": [
+      {
+        "slot_id": "who.primary_actor",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.affected_parties",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.related_organizations",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "who.regulators",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Regulators or authorities may be involved in investigating or responding to the outage, but this is not guaranteed."
+      },
+      {
+        "slot_id": "what.core_event",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.scale",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "what.products",
+        "status": "optional",
+        "confidence": 0.95,
+        "reason": "The outage likely affected specific CrowdStrike products or services, so identifying them is meaningful."
+      },
+      {
+        "slot_id": "when.event_time",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "when.discovery_time",
+        "status": "optional",
+        "confidence": 0.95,
+        "reason": "The discovery or disclosure time of the outage is relevant and typically known."
+      },
+      {
+        "slot_id": "when.intervention_time",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "Official interventions or responses may have occurred and are relevant to the event timeline."
+      },
+      {
+        "slot_id": "where.jurisdiction",
+        "status": "optional",
+        "confidence": 0.9,
+        "reason": "The primary legal or operational jurisdiction is meaningful for understanding regulatory or operational context."
+      },
+      {
+        "slot_id": "where.asset_flow",
+        "status": "not_applicable",
+        "confidence": 1.0,
+        "reason": "An accidental IT outage normally has no asset or money flow involved."
+      },
+      {
+        "slot_id": "where.event_location",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "why.motivation",
+        "status": "not_applicable",
+        "confidence": 1.0,
+        "reason": "An accidental IT outage typically has no actor motivation behind it."
+      },
+      {
+        "slot_id": "why.trigger",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.mechanism",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      },
+      {
+        "slot_id": "how.sequence",
+        "status": "required",
+        "confidence": 1.0,
+        "reason": "core ontology slot"
+      }
+    ]
+  },
+  "report": "# 调查报告：CrowdStrike global IT outage on July 19, 2024\n\n> **覆盖率** 10/10 必填槽位（100%）　**选填槽** 0/5（不计入覆盖率）　**事实** 15 条　**结论级双源支持** 2/15　**来源 episode** 12 个\n\n> 本报告仅消费图谱证据包。每条结论都标注了来源 episode；无证据的槽位如实标记为未查到，不做推断补全。\n\n## WHO\n\n**Primary Actor**\n  - CrowdStrike released technical details that provide:\n+ A technical summary of the outage and the impact.\n+ Information on how the update to the CrowdStrike Falcon sensor configuration file, Channel File 291, caused the logic error that led to the outage. `0a734ada` `e3ee3caa`\n    ⚠️ no verified date: this source did not state one explicitly\n  来源：[(PDF) CrowdStrike Causes Global Microsoft Outage: A Case Study](https://www.researchgate.net/publication/393170974_CrowdStrike_Causes_Global_Microsoft_Outage_A_Case_Study)、[Widespread IT Outage Due to CrowdStrike Update](https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update)\n\n**Affected Parties**\n  - Faulty CrowdStrike update causes major global IT outage, taking out banks, airlines and businesses globally\nCrowdStrike says a fix is on the way and global outage is ‘not a cyberattack’\nBusinesses across the world are reporting IT outages, including Windows “blue screen of death” errors on their computers, in what has already become one of the most widespread IT disruptions in recent years. `fc5a84f4`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - Many companies’ employees have reported being unable to start their computers due to the issue. `fc5a84f4`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - The outage — linked to a software update from popular cybersecurity firm CrowdStrike — has affected computers running Microsoft Windows at organizations across various sectors, including airlines, banks, retailers, brokerage houses, media companies and railway networks. `fc5a84f4`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - The travel sector seems to be one of the hardest hit, based on online chatter. `fc5a84f4`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  - U.K. news broadcaster Sky News faced trouble broadcasting live this morning due to the outage, the firm’s executive chairman David Rhodes tweeted. `fc5a84f4`\n    ⚠️ no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[Faulty CrowdStrike update causes major global IT outage, taking out banks, airlines and businesses globally | TechCrunch](https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally)\n\n**Related Organizations**\n  - Understanding the Crowdstrike Outage of July 19th, 2024, and How AI Improves IT Resiliency\nOverview of the Incident\nOn July 19, 2024, a global IT outage was triggered by a faulty update from CrowdStrike, a leading cybersecurity firm. `ad7786cd`\n    ⚠️ single source; no claim-level corroboration\n  来源：[Understanding the Crowdstrike Outage of July 19th, 2024 ...](https://www.accrete.ai/blog/understanding-the-crowdstrike-outage-of-july-19th-2024-and-how-ai-improves-it-resiliency)\n\n**Regulators** — ⚠️ 未查到相关证据\n\n## WHAT\n\n**Core Event**\n  - CIS - Center for Internet Security®\nCIS Portal LoginCIS Hardened Images®SupportCIS WorkBench Sign In\nAlert Level: guarded\nHomeInsightsCase StudiesMonitoring and Support During the CrowdStrike Falcon Outage\nMonitoring and Support During the CrowdStrike Falcon Outage\nOn July 19, 2024, a flawed update to CrowdStrike’s Falcon sensor, a cybersecurity tool widely used to protect devices like computer workstations and servers, resulted in a global IT outage. `087b95c3`\n    ⚠️ claim has 1 independent source(s); 2 required；single source; no claim-level corroboration\n  来源：[Monitoring and Support During the CrowdStrike Falcon Outage](https://www.cisecurity.org/insights/case-study/monitoring-and-support-during-the-crowdstrike-falcon-outage)\n\n**Scale**\n  - Microsoft estimates that this event affected 8.5 million systems, which is less than 1% of total Windows machines. `f25c126a`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[The July 19th Global IT Outages](https://www.congress.gov/crs_external_products/IN/PDF/IN12392/IN12392.2.pdf)\n\n**Products** — ⚠️ 未查到相关证据\n\n## WHEN\n\n**Event Time**\n  - The CrowdStrike outage in July 2024 exposed how much the world depends on centralized security solutions. `d8855cdf`\n    ⚠️ claim has 1 independent source(s); 2 required；single source; no claim-level corroboration\n  来源：[What We Can Learn from the 2024 CrowdStrike Outage](https://cloudsecurityalliance.org/blog/2025/07/03/what-we-can-learn-from-the-2024-crowdstrike-outage)\n\n**Discovery Time** — ⚠️ 未查到相关证据\n\n**Intervention Time** — ⚠️ 未查到相关证据\n\n## WHERE\n\n**Jurisdiction** — ⚠️ 未查到相关证据\n\n**Asset Flow** — ⏭️ 不适用：An accidental IT outage normally has no asset or money flow involved.\n\n**Event Location**\n  - — Kif Leswing\nFri, Jul 19 2024 5:04 PM EDT\nAmazon warehouses and internal software disrupted by outage\nPeter Endig | AFP | Getty Images\nSome Amazon warehouses in the U.S. were grappling with disruptions set off by the global IT outage. `4cb3f25a`\n    ⚠️ single source; no claim-level corroboration\n  来源：[Global IT outage live updates: Microsoft-CrowdStrike blackout](https://www.cnbc.com/amp/2024/07/19/latest-live-updates-on-a-major-it-outage-spreading-worldwide.html)\n\n## WHY\n\n**Motivation** — ⏭️ 不适用：An accidental IT outage typically has no actor motivation behind it.\n\n**Trigger**\n  - The root cause analysis highlighted several factors contributing to the Falcon EDR sensor crash. These included a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test. `05338f2e` `e0889428`\n    ⚠️ no verified date: this source did not state one explicitly\n  来源：[CrowdStrike Releases Root Cause Analysis (RCA) Report of Global IT Outage](https://www.linkedin.com/pulse/crowdstrike-releases-root-cause-analysis-rca-report-mleac)、[CrowdStrike Releases Root Cause Analysis of Falcon Sensor BSOD Crash - SecurityWeek](https://www.securityweek.com/crowdstrike-releases-root-cause-analysis-of-falcon-sensor-bsod-crash/amp)\n\n## HOW\n\n**Mechanism**\n  - Crowdstrike Outage in Numbers\nThe outage was caused by a defect in a Falcon content update for Windows hosts. Specifically, the update was related to Channel File 291, which controls how Falcon evaluates named pipe execution on Windows systems. `21757b0a`\n    ⚠️ claim has 1 independent source(s); 2 required；no verified date: this source did not state one explicitly；single source; no claim-level corroboration\n  来源：[The CrowdStrike Incident: A Global IT Meltdown](https://www.blackfog.com/the-crowdstrike-incident-a-global-it-meltdown)\n\n**Sequence**\n  - According to CrowdStrike and other sources, the timeline of events was as follows:\nJuly 19, 2024, 04:09 UTC: CrowdStrike released a sensor configuration update, Channel File 291, to Windows systems as part of their ongoing operations. `33314517`\n    ⚠️ single source; no claim-level corroboration\n  - July 19, 2024, 05:27 UTC: CrowdStrike identified the issue and reverted the changes, but by then, many systems had already been affected. `33314517`\n    ⚠️ single source; no claim-level corroboration\n  来源：[CrowdStrike Outage Timeline, Analysis, & Impact | Bitsight](https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis)\n\n---\n*由证据包生成。冲突 0 处未消解。无明确日期的事实不带 valid_at（§3.12）。*",
+  "rounds": [
+    {
+      "round_number": 1,
+      "slot_id": "what.core_event",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 official statement incident report",
+      "documents_seen": [
+        "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+        "https://www.accrete.ai/blog/understanding-the-crowdstrike-outage-of-july-19th-2024-and-how-ai-improves-it-resiliency",
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.0
+    },
+    {
+      "round_number": 2,
+      "slot_id": "who.primary_actor",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 central subject",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+        "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+        "https://www.researchgate.net/publication/393170974_CrowdStrike_Causes_Global_Microsoft_Outage_A_Case_Study"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+        "https://www.researchgate.net/publication/393170974_CrowdStrike_Causes_Global_Microsoft_Outage_A_Case_Study"
+      ],
+      "contributing_source_identities": [
+        "cisa.gov",
+        "researchgate.net"
+      ],
+      "target_edge_uuids": [
+        "2ad8f585-25f3-4417-9f8d-220c96342737"
+      ],
+      "corroborated_edge_uuids": [
+        "2ad8f585-25f3-4417-9f8d-220c96342737"
+      ],
+      "claim_match_audit": [
+        {
+          "incoming_fact": "On July 19, 2024, CrowdStrike, a leading cybersecurity firm, deployed a faulty update for its Falcon Sensor software, triggering catastrophic",
+          "candidate_edge_uuid": "2ad8f585-25f3-4417-9f8d-220c96342737",
+          "candidate_fact": "CrowdStrike released technical details that provide:\n+ A technical summary of the outage and the impact.\n+ Information on how the update to the CrowdStrike Falcon sensor configuration file, Channel File 291, caused the logic error that led to the outage.",
+          "match_method": "exact",
+          "similarity": null,
+          "prefilter_passed": true,
+          "prefilter_reason": "no explicit date or magnitude conflict",
+          "candidate_entails_incoming": null,
+          "incoming_entails_candidate": null,
+          "entailment_reason": "exact structured match; semantic entailment not required",
+          "accepted": true
+        }
+      ],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 3,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19, 2024",
+      "documents_seen": [
+        "https://www.accrete.ai/blog/understanding-the-crowdstrike-outage-of-july-19th-2024-and-how-ai-improves-it-resiliency",
+        "https://www.congress.gov/crs-product/IN12392",
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.1
+    },
+    {
+      "round_number": 4,
+      "slot_id": "what.scale",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 impact scale size material",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+        "https://coverlink.com/cyber-liability-insurance/cyber-case-study-crowdstrike-outage",
+        "https://www.congress.gov/crs_external_products/IN/PDF/IN12392/IN12392.2.pdf"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.congress.gov/crs_external_products/IN/PDF/IN12392/IN12392.2.pdf"
+      ],
+      "contributing_source_identities": [
+        "congress.gov"
+      ],
+      "target_edge_uuids": [
+        "c9c08224-82a0-4603-861a-0b5610eea825"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.2
+    },
+    {
+      "round_number": 5,
+      "slot_id": "who.affected_parties",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 affected targeted impacted organizations companies sectors",
+      "documents_seen": [
+        "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally"
+      ],
+      "succeeded": true,
+      "facts_written": 5,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://techcrunch.com/2024/07/19/faulty-crowdstrike-update-causes-major-global-it-outage-taking-out-banks-airlines-and-businesses-globally"
+      ],
+      "contributing_source_identities": [
+        "techcrunch.com"
+      ],
+      "target_edge_uuids": [
+        "da5ad639-7dc0-4525-a07f-e95edad7c8b4",
+        "34e80fc3-afaa-4c03-9553-6ce83666374c",
+        "8f6707b3-24bb-44f6-ba9d-cf06cfacc450",
+        "65e4b150-f00b-4bc3-99a5-1d2e929eebad",
+        "9e2a9a53-27b2-4a21-a179-69b634e253c1"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 6,
+      "slot_id": "how.mechanism",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 cause mechanism proximate trigger execution detailed report",
+      "documents_seen": [
+        "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+        "https://www.usenix.org/publications/loginonline/consequences-compliance-crowdstrike-outage-19-july-2024",
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.3
+    },
+    {
+      "round_number": 7,
+      "slot_id": "who.related_organizations",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 organizations subsidiaries partners involved",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+        "https://www.accrete.ai/blog/understanding-the-crowdstrike-outage-of-july-19th-2024-and-how-ai-improves-it-resiliency"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.accrete.ai/blog/understanding-the-crowdstrike-outage-of-july-19th-2024-and-how-ai-improves-it-resiliency"
+      ],
+      "contributing_source_identities": [
+        "accrete.ai"
+      ],
+      "target_edge_uuids": [
+        "b334d6bb-e003-49c9-8ffb-bd807874adf5"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.4
+    },
+    {
+      "round_number": 8,
+      "slot_id": "how.sequence",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 timeline step by step",
+      "documents_seen": [
+        "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis"
+      ],
+      "succeeded": true,
+      "facts_written": 2,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis"
+      ],
+      "contributing_source_identities": [
+        "bitsight.com"
+      ],
+      "target_edge_uuids": [
+        "59c2f69a-197f-4f62-a3fc-99ec67b601de",
+        "089e683a-ea37-4ed6-a0aa-3f34bf513c69"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.5
+    },
+    {
+      "round_number": 9,
+      "slot_id": "where.event_location",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 locations affected",
+      "documents_seen": [
+        "https://www.cnbc.com/amp/2024/07/19/latest-live-updates-on-a-major-it-outage-spreading-worldwide.html"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.cnbc.com/amp/2024/07/19/latest-live-updates-on-a-major-it-outage-spreading-worldwide.html"
+      ],
+      "contributing_source_identities": [
+        "cnbc.com"
+      ],
+      "target_edge_uuids": [
+        "9c8c6a4d-6e0f-4c4f-992c-9694a58791f8"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.6
+    },
+    {
+      "round_number": 10,
+      "slot_id": "why.trigger",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 immediate trigger root cause analysis incident report cybersecurity vulnerability system failure",
+      "documents_seen": [
+        "https://www.linkedin.com/pulse/crowdstrike-releases-root-cause-analysis-rca-report-mleac",
+        "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis",
+        "https://www.researchgate.net/publication/393170974_CrowdStrike_Causes_Global_Microsoft_Outage_A_Case_Study"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.linkedin.com/pulse/crowdstrike-releases-root-cause-analysis-rca-report-mleac"
+      ],
+      "contributing_source_identities": [
+        "linkedin.com"
+      ],
+      "target_edge_uuids": [
+        "01cfd2ff-d7a2-4269-a284-06fdc91bcfa3"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 11,
+      "slot_id": "what.core_event",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" cybersecurity incident July 19 2024 root cause analysis detailed timeline",
+      "documents_seen": [
+        "https://www.bitsight.com/blog/crowdstrike-outage-timeline-and-analysis",
+        "https://www.serianu.com/downloads/Crowdstrike%20Falcon%20Failure%20RCA%20-%20Executive%20Summary%20-%208-13-2024.pdf",
+        "https://www.informationweek.com/cyber-resilience/crowdstrike-releases-root-cause-analysis-to-dissect-global-it-outage"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 12,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" timeline July 19, 2024 official statement",
+      "documents_seen": [
+        "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+        "https://www.ibm.com/think/news/recent-crowdstrike-outage-what-you-should-know",
+        "https://www.reuters.com/technology/crowdstrike-says-actively-working-with-customers-impacted-by-outage-2024-07-19"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 13,
+      "slot_id": "how.mechanism",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 \"root cause analysis\" \"incident response\" \"system failure\" \"cyberattack\" \"technical malfunction\" \"post-incident report\"",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/CrowdStrike",
+        "https://www.youtube.com/watch?v=okwL2NQi_G4",
+        "https://www.crowdstrike.com/en-us"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.7
+    },
+    {
+      "round_number": 14,
+      "slot_id": "what.core_event",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" global IT outage July 19 2024 technical failure investigation cybersecurity impact report",
+      "documents_seen": [
+        "https://www.quorumcyber.com/insights/reflections-on-the-crowdstrike-global-it-outage",
+        "https://www.cisecurity.org/insights/case-study/monitoring-and-support-during-the-crowdstrike-falcon-outage",
+        "https://www.umgc.edu/blog/crowdstrike"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.cisecurity.org/insights/case-study/monitoring-and-support-during-the-crowdstrike-falcon-outage"
+      ],
+      "contributing_source_identities": [
+        "cisecurity.org"
+      ],
+      "target_edge_uuids": [
+        "432d82bd-47c8-4d37-bf6c-1b698df4cb91"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.8
+    },
+    {
+      "round_number": 15,
+      "slot_id": "when.event_time",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" \"July 19, 2024\" incident time official report",
+      "documents_seen": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC12404578",
+        "https://www.cisecurity.org/insights/case-study/monitoring-and-support-during-the-crowdstrike-falcon-outage",
+        "https://cloudsecurityalliance.org/blog/2025/07/03/what-we-can-learn-from-the-2024-crowdstrike-outage"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://cloudsecurityalliance.org/blog/2025/07/03/what-we-can-learn-from-the-2024-crowdstrike-outage"
+      ],
+      "contributing_source_identities": [
+        "cloudsecurityalliance.org"
+      ],
+      "target_edge_uuids": [
+        "8bb5ad40-1509-4e5b-b47e-a602426f2f81"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 0.9
+    },
+    {
+      "round_number": 16,
+      "slot_id": "how.mechanism",
+      "purpose": "coverage",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 \"cause analysis\" \"trigger event\" \"system misconfiguration\" \"software bug\" \"third-party service failure\" \"incident timeline\" \"forensic investigation\"",
+      "documents_seen": [
+        "https://www.blackfog.com/the-crowdstrike-incident-a-global-it-meltdown",
+        "https://www.quorumcyber.com/insights/reflections-on-the-crowdstrike-global-it-outage"
+      ],
+      "succeeded": true,
+      "facts_written": 1,
+      "supports_added": 0,
+      "contributing_sources": [
+        "https://www.blackfog.com/the-crowdstrike-incident-a-global-it-meltdown"
+      ],
+      "contributing_source_identities": [
+        "blackfog.com"
+      ],
+      "target_edge_uuids": [
+        "d01cf0f5-dcdc-43c8-949c-ebd41f2be7c0"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 17,
+      "slot_id": "what.core_event",
+      "purpose": "support",
+      "query": "\"CrowdStrike\" \"Falcon sensor\" update failure \"global IT outage\" July 19 2024 detailed incident analysis",
+      "documents_seen": [
+        "https://www.linkedin.com/pulse/crowdstrike-falcon-incident-deep-dive-july-2024-global-igor-kirisyuk-jdqoe",
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+        "https://www.researchgate.net/publication/393170974_CrowdStrike_Causes_Global_Microsoft_Outage_A_Case_Study"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "432d82bd-47c8-4d37-bf6c-1b698df4cb91"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 18,
+      "slot_id": "when.event_time",
+      "purpose": "support",
+      "query": "\"CrowdStrike\" \"IT outage\" July 2024 incident date independent report",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+        "https://www.cisa.gov/news-events/alerts/2024/07/19/widespread-it-outage-due-crowdstrike-update",
+        "https://www.scribd.com/document/754140021/Crowdstrike-Incident-report-1721474679"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "8bb5ad40-1509-4e5b-b47e-a602426f2f81"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 19,
+      "slot_id": "what.scale",
+      "purpose": "support",
+      "query": "Microsoft estimate \"CrowdStrike global IT outage\" July 19 2024 affected systems 8.5 million",
+      "documents_seen": [],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "c9c08224-82a0-4603-861a-0b5610eea825"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 20,
+      "slot_id": "how.mechanism",
+      "purpose": "support",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 19 2024 \"Falcon content update defect\" \"Channel File 291\" \"Windows hosts\" \"root cause\"",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+        "https://crosscheck.cloud/blogs/crowdstrike-outage-qa-lessons",
+        "https://www.facebook.com/groups/494596534740263/posts/1530656681134238"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "d01cf0f5-dcdc-43c8-949c-ebd41f2be7c0"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 21,
+      "slot_id": "why.trigger",
+      "purpose": "support",
+      "query": "\"CrowdStrike Falcon EDR sensor crash\" \"Content Validator\" \"Content Interpreter\" \"out-of-bounds read\" July 19 2024 root cause analysis",
+      "documents_seen": [
+        "https://www.securityweek.com/crowdstrike-releases-root-cause-analysis-of-falcon-sensor-bsod-crash/amp"
+      ],
+      "succeeded": true,
+      "facts_written": 0,
+      "supports_added": 1,
+      "contributing_sources": [
+        "https://www.securityweek.com/crowdstrike-releases-root-cause-analysis-of-falcon-sensor-bsod-crash/amp"
+      ],
+      "contributing_source_identities": [
+        "securityweek.com"
+      ],
+      "target_edge_uuids": [
+        "01cfd2ff-d7a2-4269-a284-06fdc91bcfa3"
+      ],
+      "corroborated_edge_uuids": [
+        "01cfd2ff-d7a2-4269-a284-06fdc91bcfa3"
+      ],
+      "claim_match_audit": [
+        {
+          "incoming_fact": "The new CrowdStrike root cause analysis documents a combination of factors that caused the Falcon EDR sensor crash — a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test — and a vow to work with Microsoft on secure and reliable access to the Windows kernel.",
+          "candidate_edge_uuid": "01cfd2ff-d7a2-4269-a284-06fdc91bcfa3",
+          "candidate_fact": "The root cause analysis highlighted several factors contributing to the Falcon EDR sensor crash. These included a mismatch between inputs validated by a Content Validator and those provided to a Content Interpreter, an out-of-bounds read issue in the Content Interpreter, and the absence of a specific test.",
+          "match_method": "exact",
+          "similarity": null,
+          "prefilter_passed": true,
+          "prefilter_reason": "no explicit date or magnitude conflict",
+          "candidate_entails_incoming": null,
+          "incoming_entails_candidate": null,
+          "entailment_reason": "exact structured match; semantic entailment not required",
+          "accepted": true
+        }
+      ],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 22,
+      "slot_id": "what.core_event",
+      "purpose": "support",
+      "query": "\"CrowdStrike\" \"Falcon sensor\" flawed update \"global IT outage\" July 19 2024 independent investigation report",
+      "documents_seen": [
+        "https://www.usenix.org/publications/loginonline/consequences-compliance-crowdstrike-outage-19-july-2024",
+        "https://community.isc2.org/t5/Industry-News/ALL-THINGS-CrowdStrike-July-2024-Incident/m-p/72327"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "432d82bd-47c8-4d37-bf6c-1b698df4cb91"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 23,
+      "slot_id": "when.event_time",
+      "purpose": "support",
+      "query": "\"CrowdStrike\" \"global IT outage\" July 2024 independent news report",
+      "documents_seen": [
+        "https://www.nytimes.com/2024/07/19/business/what-is-crowdstrike.html",
+        "https://www.youtube.com/user/crowdstrike",
+        "https://finance.yahoo.com/quote/CRWD"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "8bb5ad40-1509-4e5b-b47e-a602426f2f81"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    },
+    {
+      "round_number": 24,
+      "slot_id": "what.scale",
+      "purpose": "support",
+      "query": "Microsoft estimate CrowdStrike global IT outage July 19 2024 affected systems 8.5 million",
+      "documents_seen": [
+        "https://en.wikipedia.org/wiki/2024_CrowdStrike-related_IT_outages",
+        "https://www.reuters.com/technology/microsoft-says-about-85-million-its-devices-affected-by-crowdstrike-related-2024-07-20",
+        "https://www.ibm.com/think/news/recent-crowdstrike-outage-what-you-should-know"
+      ],
+      "succeeded": false,
+      "facts_written": 0,
+      "supports_added": 0,
+      "contributing_sources": [],
+      "contributing_source_identities": [],
+      "target_edge_uuids": [
+        "c9c08224-82a0-4603-861a-0b5610eea825"
+      ],
+      "corroborated_edge_uuids": [],
+      "claim_match_audit": [],
+      "coverage_after": 1.0
+    }
+  ],
+  "fact_count": 15,
+  "source_count": 12,
+  "dated_fact_count": 6,
+  "usage": {
+    "llm_calls": 101,
+    "search_calls": 24,
+    "search_results_rejected": 6,
+    "prompt_tokens": 48343,
+    "completion_tokens": 7794,
+    "total_tokens": 56137,
+    "chat_provider_cost_usd": 0.0318076,
+    "provider_cost_reported": true,
+    "extraction_rows": 70,
+    "grounding_rejections": 41,
+    "relevance_accepted": 17,
+    "relevance_uncertain": 0,
+    "relevance_rejected": 12,
+    "support_rows_rejected": 0,
+    "not_applicable_slots": 2,
+    "elapsed_seconds": 320.2577014429844
+  }
+}

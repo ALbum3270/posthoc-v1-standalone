@@ -1,0 +1,371 @@
+{
+  "cases": [
+    {
+      "case_id": "ftx_2022",
+      "topic": "FTX cryptocurrency exchange collapse and bankruptcy in 2022",
+      "research_id": "run-31f2d38f",
+      "stop_reason": "all_slots_exhausted",
+      "coverage_ratio": 0.9,
+      "factual_check_pass_rate": 1.0,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 1.0,
+      "judged_item_count": 14,
+      "claim_corroboration_rate": 0.07142857142857142,
+      "high_impact_support_rate": 0.16666666666666666,
+      "multi_source_slot_rate": 0.1111111111111111,
+      "cross_corroborated_slot_rate": 0.07142857142857142,
+      "round_success_rate": 0.6,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.5116279069767442,
+      "dated_fact_rate": 0.2857142857142857,
+      "fact_count": 14,
+      "source_count": 7,
+      "episode_count": 10,
+      "rounds": 15,
+      "llm_calls": 62,
+      "search_calls": 15,
+      "search_results_rejected": 15,
+      "relevance_accepted": 15,
+      "relevance_uncertain": 0,
+      "relevance_rejected": 6,
+      "support_rounds": 0,
+      "prompt_tokens": 30404,
+      "completion_tokens": 5185,
+      "total_tokens": 35589,
+      "chat_provider_cost_usd": 0.020457600000000003,
+      "elapsed_seconds": 224.97995163997984,
+      "fact_checks": [
+        {
+          "check_id": "ftx_bankruptcy_2022",
+          "description": "FTX bankruptcy is anchored to 2022",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "4 of 4\nFull Article\nThe FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange, owned by Sam Bankman-Fried, beginning in November 2022.",
+            "4 of 4\nFull Article\nThe FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange, owned by Sam Bankman-Fried, beginning in November 2022."
+          ]
+        },
+        {
+          "check_id": "ftx_sbf",
+          "description": "Sam Bankman-Fried is identified",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "4 of 4\nFull Article\nThe FTX bankruptcy refers to the collapse of the FTX cryptocurrency exchange, owned by Sam Bankman-Fried, beginning in November 2022."
+          ]
+        },
+        {
+          "check_id": "ftx_alameda",
+          "description": "Alameda Research is connected to the event",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "In November 2022 CoinDesk also raised concerns stating that FTX's partner firm Alameda Research held a significant portion of its assets in FTX's native token (FTT).",
+            "When did FTX collapse (2022 timeline)\nNovember 2, 2022: CoinDesk investigation exposes Alameda Research's balance sheet dependency on FTT tokens valued at $3.66 billion, revealing dangerous financial entanglement between the trading firm, the exchange, and the price of FTT.",
+            "Because FTT cannot be easily exchanged for cash, the report stoked fears about the capital reserves at Alameda Research and thus FTX.",
+            "Major concerns about FTX started when news outlet CoinDesk published an article that found a significant portion of Alameda Research's assets consisted of FTT, a token created by FTX that allows users of the exchange to access discounted trading fees."
+          ]
+        },
+        {
+          "check_id": "ftx_bahamas",
+          "description": "The Bahamas appears as FTX's operating jurisdiction",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas.",
+            "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas."
+          ]
+        },
+        {
+          "check_id": "ftx_no_2023_bankruptcy",
+          "description": "The report does not date FTX's bankruptcy to 2023",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        },
+        {
+          "check_id": "ftx_no_2026_bankruptcy",
+          "description": "The report does not date FTX's bankruptcy to 2026",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    },
+    {
+      "case_id": "crowdstrike_2024",
+      "topic": "CrowdStrike global IT outage on July 19, 2024",
+      "research_id": "run-fa28c941",
+      "stop_reason": "coverage_reached",
+      "coverage_ratio": 1.0,
+      "factual_check_pass_rate": 0.8333333333333334,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 1.0,
+      "judged_item_count": 15,
+      "claim_corroboration_rate": 0.13333333333333333,
+      "high_impact_support_rate": 0.3333333333333333,
+      "multi_source_slot_rate": 0.2,
+      "cross_corroborated_slot_rate": 0.13333333333333333,
+      "round_success_rate": 0.4583333333333333,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.5857142857142857,
+      "dated_fact_rate": 0.4,
+      "fact_count": 15,
+      "source_count": 12,
+      "episode_count": 12,
+      "rounds": 24,
+      "llm_calls": 101,
+      "search_calls": 24,
+      "search_results_rejected": 6,
+      "relevance_accepted": 17,
+      "relevance_uncertain": 0,
+      "relevance_rejected": 12,
+      "support_rounds": 8,
+      "prompt_tokens": 48343,
+      "completion_tokens": 7794,
+      "total_tokens": 56137,
+      "chat_provider_cost_usd": 0.0318076,
+      "elapsed_seconds": 320.2577014429844,
+      "fact_checks": [
+        {
+          "check_id": "crowdstrike_date",
+          "description": "The outage is anchored to July 19, 2024",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "crowdstrike_falcon",
+          "description": "CrowdStrike Falcon is identified as the affected product",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "CrowdStrike released technical details that provide:\n+ A technical summary of the outage and the impact.\n+ Information on how the update to the CrowdStrike Falcon sensor configuration file, Channel File 291, caused the logic error that led to the outage.",
+            "CIS - Center for Internet Security®\nCIS Portal LoginCIS Hardened Images®SupportCIS WorkBench Sign In\nAlert Level: guarded\nHomeInsightsCase StudiesMonitoring and Support During the CrowdStrike Falcon Outage\nMonitoring and Support During the CrowdStrike Falcon Outage\nOn July 19, 2024, a flawed update to CrowdStrike’s Falcon sensor, a cybersecurity tool widely used to protect devices like computer workstations and servers, resulted in a global IT outage.",
+            "Crowdstrike Outage in Numbers\nThe outage was caused by a defect in a Falcon content update for Windows hosts. Specifically, the update was related to Channel File 291, which controls how Falcon evaluates named pipe execution on Windows systems."
+          ]
+        },
+        {
+          "check_id": "crowdstrike_windows",
+          "description": "Windows systems are identified as affected",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Faulty CrowdStrike update causes major global IT outage, taking out banks, airlines and businesses globally\nCrowdStrike says a fix is on the way and global outage is ‘not a cyberattack’\nBusinesses across the world are reporting IT outages, including Windows “blue screen of death” errors on their computers, in what has already become one of the most widespread IT disruptions in recent years.",
+            "The outage — linked to a software update from popular cybersecurity firm CrowdStrike — has affected computers running Microsoft Windows at organizations across various sectors, including airlines, banks, retailers, brokerage houses, media companies and railway networks.",
+            "Microsoft estimates that this event affected 8.5 million systems, which is less than 1% of total Windows machines.",
+            "Crowdstrike Outage in Numbers\nThe outage was caused by a defect in a Falcon content update for Windows hosts. Specifically, the update was related to Channel File 291, which controls how Falcon evaluates named pipe execution on Windows systems.",
+            "According to CrowdStrike and other sources, the timeline of events was as follows:\nJuly 19, 2024, 04:09 UTC: CrowdStrike released a sensor configuration update, Channel File 291, to Windows systems as part of their ongoing operations."
+          ]
+        },
+        {
+          "check_id": "crowdstrike_update",
+          "description": "A faulty content/software update is identified as the trigger",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Crowdstrike Outage in Numbers\nThe outage was caused by a defect in a Falcon content update for Windows hosts. Specifically, the update was related to Channel File 291, which controls how Falcon evaluates named pipe execution on Windows systems."
+          ]
+        },
+        {
+          "check_id": "crowdstrike_no_2025_event",
+          "description": "The 2024 outage is not dated to 2025",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        },
+        {
+          "check_id": "crowdstrike_no_2026_event",
+          "description": "The 2024 outage is not dated to 2026",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    },
+    {
+      "case_id": "svb_2023",
+      "topic": "Silicon Valley Bank collapse and FDIC closure in March 2023",
+      "research_id": "run-e30a003d",
+      "stop_reason": "coverage_reached",
+      "coverage_ratio": 1.0,
+      "factual_check_pass_rate": 0.5,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 1.0,
+      "judged_item_count": 17,
+      "claim_corroboration_rate": 0.11764705882352941,
+      "high_impact_support_rate": 0.2857142857142857,
+      "multi_source_slot_rate": 0.2,
+      "cross_corroborated_slot_rate": 0.11764705882352941,
+      "round_success_rate": 0.5,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.5172413793103449,
+      "dated_fact_rate": 0.47058823529411764,
+      "fact_count": 17,
+      "source_count": 9,
+      "episode_count": 12,
+      "rounds": 22,
+      "llm_calls": 90,
+      "search_calls": 22,
+      "search_results_rejected": 5,
+      "relevance_accepted": 19,
+      "relevance_uncertain": 0,
+      "relevance_rejected": 9,
+      "support_rounds": 11,
+      "prompt_tokens": 44741,
+      "completion_tokens": 7127,
+      "total_tokens": 51868,
+      "chat_provider_cost_usd": 0.029299599999999995,
+      "elapsed_seconds": 283.2714658220066,
+      "fact_checks": [
+        {
+          "check_id": "svb_closure_date",
+          "description": "SVB's closure is anchored to March 10, 2023",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "svb_fdic",
+          "description": "The FDIC is identified as an intervening authority",
+          "passed": false,
+          "should_exist": true,
+          "matching_facts": []
+        },
+        {
+          "check_id": "svb_bank_run",
+          "description": "Depositor withdrawals or a bank run appear in the mechanism",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis."
+          ]
+        },
+        {
+          "check_id": "svb_rates_bonds",
+          "description": "Interest rates and securities losses appear in the explanation",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "However, the SVB DST did not shift its attention to the rising interest rates and SVB’s unrealized losses on investment securities and did not sufficiently assess the extent of the potential effect to the bank’s capital and liquidity."
+          ]
+        },
+        {
+          "check_id": "svb_no_2022_closure",
+          "description": "SVB's closure is not dated to 2022",
+          "passed": false,
+          "should_exist": false,
+          "matching_facts": [
+            "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis.",
+            "| This article is part of a series about the |\n| 2023 United States banking crisis |\n| Press camera outside a Signature Bank branch in New York on March 13, 2023 |\n| Background Economic Growth, Regulatory Relief and Consumer Protection Act 2021–2023 inflation surge 2020–2022 cryptocurrency bubble + Bankruptcy of FTX |\n| Events Winding down of Silvergate Bank Collapse of Silicon Valley Bank Collapse of Signature Bank Collapse of First Republic Bank |\n| Related groups Federal Reserve Board of Governors Federal Deposit Insurance Corporation United States Department of the Treasury |\n| Effects Bank Term Funding Program Acquisition of Credit Suisse by UBS |\n| v t e |\nOn March 10, 2023, Silicon Valley Bank (SVB) failed after a bank run, marking the third-largest bank failure in United States history and the largest since the 2008 financial crisis."
+          ]
+        },
+        {
+          "check_id": "svb_no_2024_closure",
+          "description": "SVB's closure is not dated to 2024",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    },
+    {
+      "case_id": "turkiye_quake_2023",
+      "topic": "2023 Türkiye–Syria earthquakes on February 6, 2023 (Mw 7.8 mainshock)",
+      "research_id": "run-c2a15205",
+      "stop_reason": "all_slots_exhausted",
+      "coverage_ratio": 0.8,
+      "factual_check_pass_rate": 1.0,
+      "citation_coverage": 1.0,
+      "model_judged_slot_relevance": 0.8461538461538461,
+      "judged_item_count": 13,
+      "claim_corroboration_rate": 0.0,
+      "high_impact_support_rate": 0.0,
+      "multi_source_slot_rate": 0.0,
+      "cross_corroborated_slot_rate": 0.0,
+      "round_success_rate": 0.4444444444444444,
+      "duplicate_query_count": 0,
+      "grounding_rejection_rate": 0.3142857142857143,
+      "dated_fact_rate": 0.23076923076923078,
+      "fact_count": 13,
+      "source_count": 5,
+      "episode_count": 8,
+      "rounds": 18,
+      "llm_calls": 47,
+      "search_calls": 18,
+      "search_results_rejected": 58,
+      "relevance_accepted": 13,
+      "relevance_uncertain": 0,
+      "relevance_rejected": 9,
+      "support_rounds": 0,
+      "prompt_tokens": 22439,
+      "completion_tokens": 4764,
+      "total_tokens": 27203,
+      "chat_provider_cost_usd": 0.016598,
+      "elapsed_seconds": 214.31360270199366,
+      "fact_checks": [
+        {
+          "check_id": "turkiye_quake_date",
+          "description": "The main earthquake is anchored to February 6, 2023",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye."
+          ]
+        },
+        {
+          "check_id": "turkiye_quake_magnitude",
+          "description": "The mainshock magnitude is identified as Mw 7.8",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north.",
+            "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye.",
+            "Faults Ruptured in the Two Earthquakes\nThe Mw 7.8 earthquake of 2023 ruptured the southwestern part of the East Anatolian Fault (left side of Figure 1), and evidently triggered the occurrence of the Mw 7.5 earthquake on the Surgu Fault System nine hours later."
+          ]
+        },
+        {
+          "check_id": "turkiye_quake_affected_countries",
+          "description": "Türkiye and Syria are identified as affected countries",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "The two major 6 February earthquakes (together referred to as the Kahramanmaraş earthquake sequence) occurred on separate faults branching off the 600-kilometer-long (380-mile-long) East Anatolian Fault, which runs through eastern Türkiye and south into Syria, separating the Anatolian and Arabian tectonic plates.",
+            "The earthquakes and underlying vulnerabilities resulted in the deaths of at least 56,000 people in Turkey and Syria.",
+            "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye. Just 9 hours later, a magnitude 7.5 earthquake hit 90 kilometers (60 miles) to the north.",
+            "An Eye on the Mediterranean\nCover of the September 2023 issue of Eos\nThe 2023 Türkiye-Syria Earthquakes Shifted Stress in the Crust\nA Common Language for Reporting Earthquake Intensities\nHow Hail Hazards Are Changing Around the Mediterranean\nProtecting the Mountain Water Towers of Spain’s Sierra Nevada\nBeyond the Wine-Dark Sea\nIn the early hours of 6 February 2023, a magnitude 7.8 earthquake struck southern Türkiye.",
+            "links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons\nWikiquote\nWikidata item\nAppearance\nCoordinates: 37°09′58″N 37°01′55″E﻿ / ﻿37.166°N 37.032°E﻿ / 37.166; 37.032\nFrom Wikipedia, the free encyclopedia\nMajor earthquakes in the Turkey–Syria border region\n2023 Turkey–Syria earthquakes\n| Clockwise from top: Collapsed buildings in Hatay Province; a view of the wreckage from Aleppo, Syria; Chinese Blue Sky Rescue\") [zh] and Iranian search and rescue teams in Adıyaman; an assistance of USAID in İncirlik Air Base; and a tent city in Kahramanmaraş |\n| 2023 Turkey–Syria earthquakes is located in Turkey M7.8 M7.8 M7.7 M7.7 Kahramanmaraş Kahramanmaraş Antakya Antakya Gaziantep Gaziantep |\n| UTC time | 2023-02-06 01:17:35 |\n| | 2023-02-06"
+          ]
+        },
+        {
+          "check_id": "turkiye_quake_death_toll",
+          "description": "The death toll is reported at the tens-of-thousands scale",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "The earthquakes and underlying vulnerabilities resulted in the deaths of at least 56,000 people in Turkey and Syria."
+          ]
+        },
+        {
+          "check_id": "turkiye_quake_rescue_aid",
+          "description": "Rescue or international aid intervention is identified",
+          "passed": true,
+          "should_exist": true,
+          "matching_facts": [
+            "Partnership with Turkish government\n[edit]\nFollowing the 2016 Turkish coup d'état attempt, the Turkish Red Crescent backed the Turkish government, sending a letter to hundreds of international aid organizations and NGOs, including to organizations of the United Nations and Red Crescents in 191 total countries.",
+            "Turkish Red Crescent\n| Türk Kızılay |\n| Logo of the Turkish Red Crescent |\n| Formation | 1868; 158 years ago (1868) |\n| Founded at | Ottoman Empire (1868) re-established in Ankara, Turkey (1935) |\n| Type | Humanitarian Aid |\n| Legal status | Active; auxiliary role to the Turkish government and public authorities in emergency and humanitarian operations |\n| Purpose | Disaster relief; emergency medical aid; refugee support; blood donation; healthcare; social services; international humanitarian aid |\n| Headquarters | Ankara, Turkey |\n| Members | International Federation of Red Cross and Red Crescent Societies (IFRC) |\n| Official language | Turkish |\n| President | Fatma Meriç Yılmaz |\n| Staff | 6,423 (headquarters & branch employees, 2023) |\n| Volunteers | 327,114 (2023) |\n| Website | www.kizilay.org.tr |\nThe Turkish Red Crescent (Turkish: Türk Kızılay) is the Turkish affiliate of the",
+            "Turkish Red Crescent\n| Türk Kızılay |\n| Logo of the Turkish Red Crescent |\n| Formation | 1868; 158 years ago (1868) |\n| Founded at | Ottoman Empire (1868) re-established in Ankara, Turkey (1935) |\n| Type | Humanitarian Aid |\n| Legal status | Active; auxiliary role to the Turkish government and public authorities in emergency and humanitarian operations |\n| Purpose | Disaster relief; emergency medical aid; refugee support; blood donation; healthcare; social services; international humanitarian aid |\n| Headquarters | Ankara, Turkey |\n| Members | International Federation of Red Cross and Red Crescent Societies (IFRC) |\n| Official language | Turkish |\n| President | Fatma Meriç Yılmaz |\n| Staff | 6,423 (headquarters & branch employees, 2023) |\n| Volunteers | 327,114 (2023) |\n| Website | www.kizilay.org.tr |\nThe Turkish Red Crescent (Turkish: Türk Kızılay) is the Turkish affiliate of the\n\nInternational Red Crescent and the first worldwide adopter of the crescent symbol for humanitarian aid.",
+            "links here\nRelated changes\nUpload file\nPermanent link\nPage information\nCite this page\nGet shortened URL\nSwitch to legacy parser\nPrint/export\nDownload as PDF\nPrintable version\nIn other projects\nWikimedia Commons\nWikiquote\nWikidata item\nAppearance\nCoordinates: 37°09′58″N 37°01′55″E﻿ / ﻿37.166°N 37.032°E﻿ / 37.166; 37.032\nFrom Wikipedia, the free encyclopedia\nMajor earthquakes in the Turkey–Syria border region\n2023 Turkey–Syria earthquakes\n| Clockwise from top: Collapsed buildings in Hatay Province; a view of the wreckage from Aleppo, Syria; Chinese Blue Sky Rescue\") [zh] and Iranian search and rescue teams in Adıyaman; an assistance of USAID in İncirlik Air Base; and a tent city in Kahramanmaraş |\n| 2023 Turkey–Syria earthquakes is located in Turkey M7.8 M7.8 M7.7 M7.7 Kahramanmaraş Kahramanmaraş Antakya Antakya Gaziantep Gaziantep |\n| UTC time | 2023-02-06 01:17:35 |\n| | 2023-02-06"
+          ]
+        },
+        {
+          "check_id": "turkiye_quake_no_wrong_year",
+          "description": "The February 6 earthquake is not dated to another year",
+          "passed": true,
+          "should_exist": false,
+          "matching_facts": []
+        }
+      ]
+    }
+  ]
+}
