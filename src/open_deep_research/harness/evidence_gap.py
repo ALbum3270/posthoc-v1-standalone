@@ -24,6 +24,7 @@ from open_deep_research.harness.attribution import (
     AttributionResult,
     AttributionSettings,
     AttributionStatus,
+    AttributionStopReason,
     CandidateSource,
     ClaimAttribution,
     attribute_claims,
@@ -58,6 +59,7 @@ from open_deep_research.harness.verify import (
     VerificationSettings,
     VerifiedSourceRelation,
     build_claim_verification,
+    build_verification_prompt,
     verify_attributions,
 )
 
@@ -117,11 +119,11 @@ class CachedCandidateHint(BaseModel):
 
 
 class GapSearchQuery(BaseModel):
-    """One target-bound web query admitted by the single plan."""
+    """One ordered web query that may route evidence for several claims."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    claim_id: str
+    claim_ids: tuple[str, ...] = Field(min_length=1)
     item_id: str
     query: str
 
@@ -191,6 +193,30 @@ class VerificationMergeAudit(BaseModel):
     protected_completed_relations: tuple[ProtectedCompletedRelation, ...] = ()
 
 
+class VerificationReserveAudit(BaseModel):
+    """Pre-search admission reserve for later full-source verification."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    method: str = "planned_claim_groups_against_largest_cached_source"
+    reference_source_url: str | None = None
+    reference_source_chars: int = Field(default=0, ge=0)
+    cached_hint_batch_count: int = Field(default=0, ge=0)
+    web_read_slots: int = Field(default=0, ge=0)
+    planned_query_count: int = Field(default=0, ge=0)
+    planned_query_claim_count: int = Field(default=0, ge=0)
+    estimated_tokens: int = Field(default=0, ge=0)
+    estimated_cost_usd: float = Field(default=0.0, ge=0.0)
+    reserved_tokens: int = Field(default=0, ge=0)
+    reserved_cost_usd: float = Field(default=0.0, ge=0.0)
+    limitations: tuple[str, ...] = (
+        "future source length is unknown before network reads",
+        "web reserve uses the largest source already present in cache",
+        "later reattribution can create relations outside planned query groups",
+        "admission estimates do not predict model output tokens exactly",
+    )
+
+
 class EvidenceGapResult(BaseModel):
     """Audit of one non-iterative gap pass plus code-owned final registries."""
 
@@ -209,6 +235,7 @@ class EvidenceGapResult(BaseModel):
     acquisitions: tuple[GapSourceAcquisition, ...] = ()
     added_source_urls: tuple[str, ...] = ()
     added_note_ids: tuple[str, ...] = ()
+    verification_reserve: VerificationReserveAudit | None = None
     usage: tuple[EvidenceGapCallUsage, ...] = ()
     stop_reason: EvidenceGapStopReason
     stop_detail: str
@@ -220,6 +247,12 @@ class EvidenceGapResult(BaseModel):
         "model_screening_can_misidentify_common_ownership",
         "syndicated_or_republished_content_can_be_missed",
         "final_counts_still_use_publisher_domain_proxy",
+    )
+    query_planning_method: str = "model_selected_ordered_merged_queries"
+    query_merge_precision_status: str = "pending_observation"
+    query_merge_precision_limitations: tuple[str, ...] = (
+        "no in-repository A/B currently measures merged-query precision",
+        "a broader merged query may trade per-claim precision for coverage",
     )
     verification_merge: VerificationMergeAudit | None = None
     final_attribution: AttributionResult = Field(exclude=True)
@@ -252,6 +285,7 @@ class _Envelope(BaseModel):
 class _RawCachedHint(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    claim_id: str
     note_id: str
     source_id: str
     independent_from_existing_publishers: bool
@@ -262,17 +296,17 @@ class _RawCachedHint(BaseModel):
 class _RawSearchQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    claim_ids: tuple[str, ...] = Field(min_length=1)
     item_id: str
     query: str
 
-
-class _RawClaimPlan(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    claim_id: str
-    cached_candidates: tuple[_RawCachedHint, ...] = ()
-    needs_web_search: bool
-    queries: tuple[_RawSearchQuery, ...] = ()
+    @field_validator("query")
+    @classmethod
+    def _query_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("query must not be blank")
+        return normalized
 
 
 class _RawRead(BaseModel):
@@ -315,18 +349,26 @@ domains owned by the same organization, aggregators, and republished or
 syndicated copies are not independent publishers. Do not use domain spelling
 alone to manufacture a second publisher.
 
+You have a hard budget of at most {max_queries} web search queries. This is an
+upper bound, not a target: returning fewer or zero queries is legal. Select
+and order only the highest-value queries. Put the highest-priority query
+first. One query may name several claim_ids when the same focused search can
+plausibly find pages relevant to every named claim. Reusing one query for
+several claims is encouraged when their information need genuinely overlaps,
+but do not make a query vague merely to cover more claims. A target claim
+does not need its own output entry.
+
 Return:
-{{"claims":[{{"claim_id":"claim-0001","cached_candidates":[{{\
+{{"cached_candidates":[{{"claim_id":"claim-0001",\
 "note_id":"note-000001","source_id":"source-id",\
 "independent_from_existing_publishers":true,\
 "publisher_identity":"publishing organization",\
 "independence_rationale":"brief reason"}}],\
-"needs_web_search":true,\
-"queries":[{{"item_id":"existing-checklist-item","query":"targeted query"}}]}}]}}
+"queries":[{{"claim_ids":["claim-0001","claim-0002"],\
+"item_id":"existing-checklist-item","query":"one focused query"}}]}}
 
-Every target claim_id must appear exactly once. Zero cached candidates and
-zero queries are legal. Search may seek support, contradiction, absence of
-support, or insufficient information; do not optimize only for agreement.
+Search may seek support, contradiction, absence of support, or insufficient
+information; do not optimize only for agreement.
 
 Checklist item IDs:
 {item_ids}
@@ -410,6 +452,8 @@ class _BudgetTracker:
         self.estimate_input_tokens = estimate_input_tokens
         self.estimate_cost_usd = estimate_cost_usd
         self.usage: list[EvidenceGapCallUsage] = []
+        self.verification_reserved_tokens = 0
+        self.verification_reserved_cost_usd = 0.0
 
     @property
     def tokens_used(self) -> int:
@@ -442,15 +486,62 @@ class _BudgetTracker:
             cost = max(0.0, float(method(prompt)))
         return tokens, cost
 
-    async def call(self, client: Any, prompt: str, *, stage: str) -> Any:
+    def reserve_verification(
+        self,
+        *,
+        tokens: int,
+        cost_usd: float,
+    ) -> tuple[int, float]:
+        """Protect an estimated verification envelope from earlier stages."""
+
+        remaining_tokens = max(0, self.budget.max_tokens - self.tokens_used)
+        remaining_cost = max(0.0, self.budget.max_cost_usd - self.cost_used)
+        self.verification_reserved_tokens = min(
+            max(0, int(tokens)),
+            remaining_tokens,
+        )
+        self.verification_reserved_cost_usd = min(
+            max(0.0, float(cost_usd)),
+            remaining_cost,
+        )
+        return (
+            self.verification_reserved_tokens,
+            self.verification_reserved_cost_usd,
+        )
+
+    async def call(
+        self,
+        client: Any,
+        prompt: str,
+        *,
+        stage: str,
+        allow_verification_reserve: bool = False,
+    ) -> Any:
         estimated_tokens, estimated_cost = self._estimate(client, prompt)
-        if self.tokens_used + estimated_tokens > self.budget.max_tokens:
-            raise _GapBudgetExhausted(
-                "estimated input exceeds remaining gap token budget"
+        token_limit = self.budget.max_tokens
+        cost_limit = self.budget.max_cost_usd
+        if not allow_verification_reserve:
+            token_limit -= self.verification_reserved_tokens
+            cost_limit -= self.verification_reserved_cost_usd
+        if self.tokens_used + estimated_tokens > token_limit:
+            detail = (
+                " while preserving the verification reserve"
+                if self.verification_reserved_tokens
+                and not allow_verification_reserve
+                else ""
             )
-        if self.cost_used + estimated_cost > self.budget.max_cost_usd:
             raise _GapBudgetExhausted(
-                "estimated call exceeds remaining gap cost budget"
+                "estimated input exceeds remaining gap token budget" + detail
+            )
+        if self.cost_used + estimated_cost > cost_limit:
+            detail = (
+                " while preserving the verification reserve"
+                if self.verification_reserved_cost_usd
+                and not allow_verification_reserve
+                else ""
+            )
+            raise _GapBudgetExhausted(
+                "estimated call exceeds remaining gap cost budget" + detail
             )
         response = client.generate(prompt)
         if inspect.isawaitable(response):
@@ -471,13 +562,26 @@ class _BudgetTracker:
 
 
 class _TrackedClient:
-    def __init__(self, client: Any, tracker: _BudgetTracker, stage: str) -> None:
+    def __init__(
+        self,
+        client: Any,
+        tracker: _BudgetTracker,
+        stage: str,
+        *,
+        allow_verification_reserve: bool = False,
+    ) -> None:
         self.client = client
         self.tracker = tracker
         self.stage = stage
+        self.allow_verification_reserve = allow_verification_reserve
 
     async def generate(self, prompt: str) -> Any:
-        return await self.tracker.call(self.client, prompt, stage=self.stage)
+        return await self.tracker.call(
+            self.client,
+            prompt,
+            stage=self.stage,
+            allow_verification_reserve=self.allow_verification_reserve,
+        )
 
 
 def _best_effort_usage(response: Any) -> tuple[int, float]:
@@ -560,8 +664,9 @@ def build_evidence_gap_plan_prompt(
     targets: Sequence[ClaimVerification],
     notes: Sequence[ResearchNote],
     checklist: ResearchChecklist,
+    max_queries: int,
 ) -> str:
-    """Expose all cached note summaries before allowing new web search."""
+    """Expose cache and a hard query budget before allowing web search."""
 
     used_pairs = {
         (target.claim.claim_id, note_id)
@@ -586,6 +691,7 @@ def build_evidence_gap_plan_prompt(
         for note in notes
     ]
     return _PLAN_PROMPT.format(
+        max_queries=max_queries,
         item_ids=json.dumps(
             [item.item_id for item in checklist.items],
             ensure_ascii=False,
@@ -609,7 +715,7 @@ def build_evidence_gap_read_prompt(
 
     candidates = [
         {
-            "query_claim_id": record.query.claim_id,
+            "query_claim_ids": list(record.query.claim_ids),
             "allowed_item_id": record.query.item_id,
             "title": result.title,
             "url": result.url,
@@ -656,6 +762,129 @@ def build_evidence_gap_note_prompt(
     )
 
 
+def _estimate_verification_group(
+    *,
+    claims: Sequence[AtomicClaim],
+    url: str,
+    source_text: str,
+    batch_size: int,
+    tracker: _BudgetTracker,
+    verification_model: VerificationModelClient,
+) -> tuple[int, int, float]:
+    batch_count = 0
+    tokens = 0
+    cost = 0.0
+    for start in range(0, len(claims), batch_size):
+        prompt = build_verification_prompt(
+            url=url,
+            source_text=source_text,
+            claims=claims[start : start + batch_size],
+        )
+        estimated_tokens, estimated_cost = tracker._estimate(
+            verification_model,
+            prompt,
+        )
+        batch_count += 1
+        tokens += estimated_tokens
+        cost += estimated_cost
+    return batch_count, tokens, cost
+
+
+def _reserve_verification_budget(
+    *,
+    tracker: _BudgetTracker,
+    queries: Sequence[GapSearchQuery],
+    hints: Sequence[CachedCandidateHint],
+    targets: Sequence[ClaimVerification],
+    notes: Sequence[ResearchNote],
+    source_cache: Mapping[str, str],
+    max_reads: int,
+    verification_model: VerificationModelClient,
+    verification_settings: VerificationSettings,
+) -> VerificationReserveAudit:
+    """Reserve a pre-search estimate without pretending future sizes are known."""
+
+    claim_by_id = {target.claim.claim_id: target.claim for target in targets}
+    note_by_id = {str(note.note_id): note for note in notes}
+    hint_claims_by_url: dict[str, dict[str, AtomicClaim]] = {}
+    for hint in hints:
+        note = note_by_id[hint.note_id]
+        hint_claims_by_url.setdefault(note.url, {})[hint.claim_id] = (
+            claim_by_id[hint.claim_id]
+        )
+
+    cached_batch_count = 0
+    estimated_tokens = 0
+    estimated_cost = 0.0
+    for url in sorted(hint_claims_by_url):
+        source_text = source_cache.get(url)
+        if source_text is None:
+            continue
+        claims = tuple(hint_claims_by_url[url].values())
+        batches, tokens, cost = _estimate_verification_group(
+            claims=claims,
+            url=url,
+            source_text=source_text,
+            batch_size=verification_settings.batch_size,
+            tracker=tracker,
+            verification_model=verification_model,
+        )
+        cached_batch_count += batches
+        estimated_tokens += tokens
+        estimated_cost += cost
+
+    reference_url: str | None = None
+    reference_text = ""
+    if source_cache:
+        reference_url, reference_text = max(
+            sorted(source_cache.items()),
+            key=lambda item: len(item[1]),
+        )
+
+    web_read_slots = max_reads if queries else 0
+    if reference_url is not None and web_read_slots:
+        per_query_estimates: list[tuple[int, float]] = []
+        for query in queries:
+            claims = tuple(claim_by_id[claim_id] for claim_id in query.claim_ids)
+            _, tokens, cost = _estimate_verification_group(
+                claims=claims,
+                url=reference_url,
+                source_text=reference_text,
+                batch_size=verification_settings.batch_size,
+                tracker=tracker,
+                verification_model=verification_model,
+            )
+            per_query_estimates.append((tokens, cost))
+        if per_query_estimates:
+            largest_tokens = max(tokens for tokens, _ in per_query_estimates)
+            largest_cost = max(cost for _, cost in per_query_estimates)
+            estimated_tokens += largest_tokens * web_read_slots
+            estimated_cost += largest_cost * web_read_slots
+
+    reserved_tokens, reserved_cost = tracker.reserve_verification(
+        tokens=estimated_tokens,
+        cost_usd=estimated_cost,
+    )
+    return VerificationReserveAudit(
+        reference_source_url=reference_url,
+        reference_source_chars=len(reference_text),
+        cached_hint_batch_count=cached_batch_count,
+        web_read_slots=web_read_slots,
+        planned_query_count=len(queries),
+        planned_query_claim_count=len(
+            {
+                claim_id
+                for query in queries
+                for claim_id in query.claim_ids
+            }
+        ),
+        estimated_tokens=estimated_tokens,
+        estimated_cost_usd=estimated_cost,
+        reserved_tokens=reserved_tokens,
+        reserved_cost_usd=reserved_cost,
+    )
+
+
 def _parse_plan(
     content: Any,
     *,
@@ -674,125 +903,171 @@ def _parse_plan(
     rejected: list[dict[str, Any]] = []
     accepted_hints: list[CachedCandidateHint] = []
     accepted_queries: list[GapSearchQuery] = []
-    raw_claims = content.get("claims") if isinstance(content, Mapping) else None
-    if not isinstance(raw_claims, (list, tuple)):
+    if not isinstance(content, Mapping):
         return (), (), (
-            {"stage": "plan", "error": "claims must be an array", "raw": content},
+            {
+                "stage": "plan",
+                "error": "plan must be a JSON object",
+                "raw": content,
+            },
         )
-
-    seen_claims: set[str] = set()
+    raw_hints = content.get("cached_candidates")
+    raw_queries = content.get("queries")
+    if not isinstance(raw_hints, (list, tuple)):
+        rejected.append(
+            {
+                "stage": "plan",
+                "error": "cached_candidates must be an array",
+                "raw": raw_hints,
+            }
+        )
+        raw_hints = ()
+    if not isinstance(raw_queries, (list, tuple)):
+        rejected.append(
+            {
+                "stage": "plan",
+                "error": "queries must be an array",
+                "raw": raw_queries,
+            }
+        )
+        raw_queries = ()
     identities_by_claim: dict[str, set[str]] = {
         claim_id: set() for claim_id in target_by_id
     }
-    for index, raw in enumerate(raw_claims):
+    seen_hint_relations: set[tuple[str, str, str]] = set()
+    for index, raw in enumerate(raw_hints):
         try:
-            plan = _RawClaimPlan.model_validate(raw)
+            hint = _RawCachedHint.model_validate(raw)
         except (TypeError, ValidationError, ValueError) as exc:
             rejected.append(
-                {"stage": "plan", "index": index, "error": str(exc), "raw": raw}
-            )
-            continue
-        if plan.claim_id not in target_by_id or plan.claim_id in seen_claims:
-            rejected.append(
                 {
-                    "stage": "plan",
+                    "stage": "cached_candidate",
                     "index": index,
-                    "error": "unknown or duplicate target claim_id",
+                    "error": str(exc),
                     "raw": raw,
                 }
             )
             continue
-        seen_claims.add(plan.claim_id)
-        target = target_by_id[plan.claim_id]
-        existing_publishers = set(target.publisher_domain_proxies)
-        for hint in plan.cached_candidates:
-            note = note_by_id.get(hint.note_id)
-            identity = hint.publisher_identity.strip().casefold()
-            error: str | None = None
-            if note is None:
-                error = "unknown note_id"
-            elif note.source_id != hint.source_id:
-                error = "note_id/source_id mismatch"
-            elif not hint.independent_from_existing_publishers:
-                error = "model did not judge publisher independent"
-            elif _publisher_proxy(note.url, note.publisher) in existing_publishers:
-                error = "publisher domain proxy already supports this claim"
-            elif any(
-                _identity_matches_proxy(hint.publisher_identity, proxy)
-                for proxy in existing_publishers
-            ):
-                error = "publisher identity matches an existing domain label"
-            elif not identity or identity in identities_by_claim[plan.claim_id]:
-                error = "publisher identity is blank or repeated for this claim"
-            if error is not None:
-                rejected.append(
-                    {
-                        "stage": "cached_candidate",
-                        "claim_id": plan.claim_id,
-                        "error": error,
-                        "raw": hint.model_dump(mode="json"),
-                    }
-                )
-                continue
-            identities_by_claim[plan.claim_id].add(identity)
-            accepted_hints.append(
-                CachedCandidateHint(
-                    claim_id=plan.claim_id,
-                    note_id=hint.note_id,
-                    source_id=hint.source_id,
-                    publisher_identity=hint.publisher_identity.strip(),
-                    independence_rationale=(
-                        hint.independence_rationale.strip()
-                    ),
-                )
-            )
-        if not plan.needs_web_search and plan.queries:
+        if hint.claim_id not in target_by_id:
             rejected.append(
                 {
-                    "stage": "plan",
-                    "claim_id": plan.claim_id,
-                    "error": "queries supplied while needs_web_search was false",
+                    "stage": "cached_candidate",
+                    "index": index,
+                    "claim_id": hint.claim_id,
+                    "error": "unknown target claim_id",
+                    "raw": raw,
                 }
             )
             continue
-        if not plan.needs_web_search:
-            continue
-        for query in plan.queries:
-            if len(accepted_queries) >= max_queries:
-                rejected.append(
-                    {
-                        "stage": "search_query",
-                        "claim_id": plan.claim_id,
-                        "error": "gap search query cap reached",
-                        "raw": query.model_dump(mode="json"),
-                    }
-                )
-                continue
-            if query.item_id not in item_ids:
-                rejected.append(
-                    {
-                        "stage": "search_query",
-                        "claim_id": plan.claim_id,
-                        "error": "unknown checklist item_id",
-                        "raw": query.model_dump(mode="json"),
-                    }
-                )
-                continue
-            accepted_queries.append(
-                GapSearchQuery(
-                    claim_id=plan.claim_id,
-                    item_id=query.item_id,
-                    query=query.query.strip(),
-                )
+        relation_identity = (hint.claim_id, hint.note_id, hint.source_id)
+        if relation_identity in seen_hint_relations:
+            rejected.append(
+                {
+                    "stage": "cached_candidate",
+                    "index": index,
+                    "claim_id": hint.claim_id,
+                    "error": "duplicate cached candidate relation",
+                    "raw": raw,
+                }
             )
+            continue
+        seen_hint_relations.add(relation_identity)
+        target = target_by_id[hint.claim_id]
+        existing_publishers = set(target.publisher_domain_proxies)
+        note = note_by_id.get(hint.note_id)
+        identity = hint.publisher_identity.strip().casefold()
+        error: str | None = None
+        if note is None:
+            error = "unknown note_id"
+        elif note.source_id != hint.source_id:
+            error = "note_id/source_id mismatch"
+        elif not hint.independent_from_existing_publishers:
+            error = "model did not judge publisher independent"
+        elif _publisher_proxy(note.url, note.publisher) in existing_publishers:
+            error = "publisher domain proxy already supports this claim"
+        elif any(
+            _identity_matches_proxy(hint.publisher_identity, proxy)
+            for proxy in existing_publishers
+        ):
+            error = "publisher identity matches an existing domain label"
+        elif (
+            not identity
+            or identity in identities_by_claim[hint.claim_id]
+        ):
+            error = "publisher identity is blank or repeated for this claim"
+        if error is not None:
+            rejected.append(
+                {
+                    "stage": "cached_candidate",
+                    "claim_id": hint.claim_id,
+                    "error": error,
+                    "raw": hint.model_dump(mode="json"),
+                }
+            )
+            continue
+        identities_by_claim[hint.claim_id].add(identity)
+        accepted_hints.append(
+            CachedCandidateHint(
+                claim_id=hint.claim_id,
+                note_id=hint.note_id,
+                source_id=hint.source_id,
+                publisher_identity=hint.publisher_identity.strip(),
+                independence_rationale=hint.independence_rationale.strip(),
+            )
+        )
 
-    for missing in sorted(set(target_by_id) - seen_claims):
-        rejected.append(
-            {
-                "stage": "plan",
-                "claim_id": missing,
-                "error": "target claim omitted from cache review",
-            }
+    for index, raw in enumerate(raw_queries):
+        try:
+            query = _RawSearchQuery.model_validate(raw)
+        except (TypeError, ValidationError, ValueError) as exc:
+            rejected.append(
+                {
+                    "stage": "search_query",
+                    "index": index,
+                    "error": str(exc),
+                    "raw": raw,
+                }
+            )
+            continue
+        claim_ids = tuple(dict.fromkeys(query.claim_ids))
+        if any(claim_id not in target_by_id for claim_id in claim_ids):
+            rejected.append(
+                {
+                    "stage": "search_query",
+                    "index": index,
+                    "error": "query must name known target claim_ids",
+                    "raw": query.model_dump(mode="json"),
+                }
+            )
+            continue
+        if len(accepted_queries) >= max_queries:
+            rejected.append(
+                {
+                    "stage": "search_query",
+                    "index": index,
+                    "claim_ids": list(claim_ids),
+                    "error": "gap search query cap reached",
+                    "raw": query.model_dump(mode="json"),
+                }
+            )
+            continue
+        if query.item_id not in item_ids:
+            rejected.append(
+                {
+                    "stage": "search_query",
+                    "index": index,
+                    "claim_ids": list(claim_ids),
+                    "error": "unknown checklist item_id",
+                    "raw": query.model_dump(mode="json"),
+                }
+            )
+            continue
+        accepted_queries.append(
+            GapSearchQuery(
+                claim_ids=claim_ids,
+                item_id=query.item_id,
+                query=query.query,
+            )
         )
     return (
         tuple(accepted_hints),
@@ -818,8 +1093,9 @@ def _parse_reads(
     allowed: dict[str, set[tuple[str, str]]] = {}
     for record in searches:
         for result in record.results:
-            allowed.setdefault(result.url, set()).add(
-                (record.query.claim_id, record.query.item_id)
+            allowed.setdefault(result.url, set()).update(
+                (claim_id, record.query.item_id)
+                for claim_id in record.query.claim_ids
             )
     accepted: list[GapReadSelection] = []
     rejected: list[dict[str, Any]] = []
@@ -1251,9 +1527,13 @@ async def run_evidence_gap_round(
     added_source_urls: list[str] = []
     added_note_ids: list[str] = []
     hints: tuple[CachedCandidateHint, ...] = ()
+    verification_reserve: VerificationReserveAudit | None = None
     stop_reason = EvidenceGapStopReason.COMPLETED
     stop_detail = "single evidence-gap pass completed"
     verification_merge = _unchanged_merge_audit(initial_verification)
+    active_verification_settings = (
+        verification_settings or VerificationSettings()
+    )
 
     try:
         plan_response = await tracker.call(
@@ -1262,6 +1542,7 @@ async def run_evidence_gap_round(
                 targets=targets,
                 notes=ledger.notes,
                 checklist=checklist,
+                max_queries=budget.max_search_queries,
             ),
             stage="cache_review_and_search_plan",
         )
@@ -1274,6 +1555,17 @@ async def run_evidence_gap_round(
             max_queries=budget.max_search_queries,
         )
         rejected.extend(plan_rejected)
+        verification_reserve = _reserve_verification_budget(
+            tracker=tracker,
+            queries=queries,
+            hints=hints,
+            targets=targets,
+            notes=ledger.notes,
+            source_cache=ledger.source_cache,
+            max_reads=budget.max_reads,
+            verification_model=verification_model,
+            verification_settings=active_verification_settings,
+        )
         ledger.record_evidence_gap(
             event="cache_review",
             result_summary=json.dumps(
@@ -1282,6 +1574,12 @@ async def run_evidence_gap_round(
                     "accepted_cached_candidates": len(hints),
                     "search_queries": len(queries),
                     "rejected_entries": len(plan_rejected),
+                    "verification_reserved_tokens": (
+                        verification_reserve.reserved_tokens
+                    ),
+                    "verification_reserved_cost_usd": (
+                        verification_reserve.reserved_cost_usd
+                    ),
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -1307,24 +1605,35 @@ async def run_evidence_gap_round(
                 )
 
         if any(record.results for record in searches) and budget.max_reads:
-            read_response = await tracker.call(
-                gap_model,
-                build_evidence_gap_read_prompt(
+            try:
+                read_response = await tracker.call(
+                    gap_model,
+                    build_evidence_gap_read_prompt(
+                        targets=targets,
+                        searches=searches,
+                        max_reads=budget.max_reads,
+                    ),
+                    stage="read_selection",
+                )
+            except _GapBudgetExhausted as exc:
+                stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
+                stop_detail = str(exc)
+                rejected.append(
+                    {
+                        "stage": "read_selection",
+                        "error": str(exc),
+                    }
+                )
+            else:
+                selections, read_rejected = _parse_reads(
+                    _decode_response(read_response),
                     targets=targets,
                     searches=searches,
+                    cached_hints=hints,
+                    checklist=checklist,
                     max_reads=budget.max_reads,
-                ),
-                stage="read_selection",
-            )
-            selections, read_rejected = _parse_reads(
-                _decode_response(read_response),
-                targets=targets,
-                searches=searches,
-                cached_hints=hints,
-                checklist=checklist,
-                max_reads=budget.max_reads,
-            )
-            rejected.extend(read_rejected)
+                )
+                rejected.extend(read_rejected)
 
         target_claim_by_id = {
             target.claim.claim_id: target.claim for target in targets
@@ -1398,8 +1707,28 @@ async def run_evidence_gap_round(
                     stage="note_extraction",
                 )
                 note_content = _decode_response(note_response)
-            except _GapBudgetExhausted:
-                raise
+            except _GapBudgetExhausted as exc:
+                stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
+                stop_detail = str(exc)
+                acquisitions.append(
+                    GapSourceAcquisition(
+                        url=selection.url,
+                        claim_ids=selection.claim_ids,
+                        publisher_identity=selection.publisher_identity,
+                        cache_hit=cache_hit,
+                        source_chars=len(source_text),
+                        outcome="note_extraction_not_run_budget",
+                        error=str(exc),
+                    )
+                )
+                rejected.append(
+                    {
+                        "stage": "note_extraction",
+                        "url": selection.url,
+                        "error": str(exc),
+                    }
+                )
+                break
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
                 acquisitions.append(
@@ -1492,17 +1821,40 @@ async def run_evidence_gap_round(
             )
 
         target_claims = [target.claim for target in targets]
-        refreshed = await attribute_claims(
-            target_claims,
-            blocks=blocks,
-            notes=ledger.notes,
-            model_client=_TrackedClient(
-                attribution_model,
-                tracker,
-                "reattribution",
-            ),
-            settings=attribution_settings,
-        )
+        if added_note_ids:
+            try:
+                refreshed = await attribute_claims(
+                    target_claims,
+                    blocks=blocks,
+                    notes=ledger.notes,
+                    model_client=_TrackedClient(
+                        attribution_model,
+                        tracker,
+                        "reattribution",
+                    ),
+                    settings=attribution_settings,
+                )
+            except _GapBudgetExhausted as exc:
+                stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
+                stop_detail = str(exc)
+                rejected.append(
+                    {
+                        "stage": "reattribution",
+                        "error": str(exc),
+                    }
+                )
+                refreshed = AttributionResult(
+                    attributions=(),
+                    stop_reason=AttributionStopReason.COMPLETED,
+                )
+        else:
+            # The plan's mechanically validated hints already represent every
+            # cache-only addition. Re-running attribution without new notes
+            # would spend the verification reserve without adding new input.
+            refreshed = AttributionResult(
+                attributions=(),
+                stop_reason=AttributionStopReason.COMPLETED,
+            )
         merged_attribution = _merge_attributions(
             initial_attribution,
             refreshed,
@@ -1545,8 +1897,9 @@ async def run_evidence_gap_round(
                     verification_model,
                     tracker,
                     "reverification",
+                    allow_verification_reserve=True,
                 ),
-                settings=verification_settings,
+                settings=active_verification_settings,
                 budget=VerificationBudget(
                     max_tokens=remaining_token_budget,
                     max_cost_usd=remaining_cost_budget,
@@ -1563,6 +1916,17 @@ async def run_evidence_gap_round(
             )
         else:
             refreshed_verification = VerificationResult(claims=())
+        if any(
+            relation.status
+            is VerificationRecordStatus.VERIFICATION_NOT_RUN_BUDGET
+            for claim_result in refreshed_verification.claims
+            for relation in claim_result.relations
+        ):
+            stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
+            stop_detail = (
+                "verification admission exceeded the remaining reserved "
+                "gap budget"
+            )
         final_verification, verification_merge = _merge_verifications(
             initial_verification,
             refreshed_verification,
@@ -1628,6 +1992,7 @@ async def run_evidence_gap_round(
         acquisitions=tuple(acquisitions),
         added_source_urls=tuple(added_source_urls),
         added_note_ids=tuple(added_note_ids),
+        verification_reserve=verification_reserve,
         usage=tuple(tracker.usage),
         stop_reason=stop_reason,
         stop_detail=stop_detail,

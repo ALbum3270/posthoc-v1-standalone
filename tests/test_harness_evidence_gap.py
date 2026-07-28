@@ -61,11 +61,12 @@ def _claim(
     report: str,
     *,
     citation_requirement: CitationRequirement = CitationRequirement.EXTERNAL,
+    claim_id: str = "claim-0001",
+    text: str = "The event occurred.",
 ) -> AtomicClaim:
-    text = "The event occurred."
     start = report.index(text)
     return AtomicClaim(
-        claim_id="claim-0001",
+        claim_id=claim_id,
         block_id=parse_markdown_blocks(report)[1].block_id,
         selected_text=text,
         claim_text=text,
@@ -184,6 +185,18 @@ class NoNetwork:
         raise AssertionError("network should not be used")
 
 
+class EmptySearchNetwork:
+    def __init__(self):
+        self.queries = []
+
+    async def search(self, query, **kwargs):
+        self.queries.append(query)
+        return {"results": []}
+
+    async def extract(self, urls, **kwargs):
+        raise AssertionError("no empty search result should be read")
+
+
 def _estimate_tokens(client, prompt):
     return 1
 
@@ -232,6 +245,105 @@ def test_non_external_gap_state_is_not_an_eligible_target() -> None:
     assert result.final_verification == initial_verification
 
 
+def test_planner_uses_one_ordered_query_for_multiple_claims_within_hard_cap():
+    report = "# Report\n\nThe event occurred. A later review confirmed it."
+    first_claim = _claim(report)
+    second_claim = _claim(
+        report,
+        claim_id="claim-0002",
+        text="A later review confirmed it.",
+    )
+    first_attribution, first_verification = _initial(
+        first_claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    second_attribution, second_verification = _initial(
+        second_claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    initial_attribution = AttributionResult(
+        attributions=(
+            first_attribution.attributions[0],
+            second_attribution.attributions[0],
+        ),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+    initial_verification = VerificationResult(
+        claims=(
+            first_verification.claims[0],
+            second_verification.claims[0],
+        )
+    )
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    # Model priority order deliberately differs from claim ID
+                    # order. Code must preserve it rather than sort/truncate
+                    # per claim.
+                    "claim_ids": [
+                        second_claim.claim_id,
+                        first_claim.claim_id,
+                    ],
+                    "item_id": "what-1",
+                    "query": "one focused account covering both events",
+                },
+                {
+                    "claim_ids": [first_claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "lower-priority overflow query",
+                },
+            ],
+        }
+    )
+    network = EmptySearchNetwork()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert network.queries == ["one focused account covering both events"]
+    assert len(result.searches) == 1
+    assert result.searches[0].query.claim_ids == (
+        second_claim.claim_id,
+        first_claim.claim_id,
+    )
+    assert any(
+        entry.get("error") == "gap search query cap reached"
+        for entry in result.rejected_entries
+    )
+    prompt = gap_model.prompts[0]
+    assert "hard budget of at most 1 web search queries" in prompt
+    assert "upper bound, not a target" in prompt
+    assert "A target claim\ndoes not need its own output entry" in prompt
+    assert result.verification_reserve is not None
+    assert result.verification_reserve.planned_query_count == 1
+    assert result.verification_reserve.planned_query_claim_count == 2
+
+
 def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
     report = "# Report\n\nThe event occurred."
     claim = _claim(report)
@@ -253,22 +365,17 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
     )
     gap_model = ScriptedModel(
         {
-            "claims": [
+            "cached_candidates": [
                 {
                     "claim_id": claim.claim_id,
-                    "cached_candidates": [
-                        {
-                            "note_id": second.note_id,
-                            "source_id": second.source_id,
-                            "independent_from_existing_publishers": True,
-                            "publisher_identity": "second",
-                            "independence_rationale": "different publisher",
-                        }
-                    ],
-                    "needs_web_search": False,
-                    "queries": [],
+                    "note_id": second.note_id,
+                    "source_id": second.source_id,
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "second",
+                    "independence_rationale": "different publisher",
                 }
-            ]
+            ],
+            "queries": [],
         }
     )
     attribution_model = ScriptedModel(
@@ -342,6 +449,13 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
     assert result.verification_merge.final_completed_relation_count == 2
     assert result.verification_merge.preserved_initial_completed_relation_count == 1
     assert result.verification_merge.completed_relation_count_non_decreasing is True
+    assert result.verification_reserve is not None
+    assert result.verification_reserve.cached_hint_batch_count == 1
+    assert result.verification_reserve.reserved_tokens == 1
+    assert [call.stage for call in result.usage] == [
+        "cache_review_and_search_plan",
+        "reverification",
+    ]
     assert result.claim_registry_unchanged is True
     assert ledger.source_cache.keys() == {
         "https://first.example/article",
@@ -371,22 +485,17 @@ def test_budget_failure_for_new_relation_preserves_completed_initial_verdict():
     )
     gap_model = ScriptedModel(
         {
-            "claims": [
+            "cached_candidates": [
                 {
                     "claim_id": claim.claim_id,
-                    "cached_candidates": [
-                        {
-                            "note_id": second.note_id,
-                            "source_id": second.source_id,
-                            "independent_from_existing_publishers": True,
-                            "publisher_identity": "second",
-                            "independence_rationale": "different publisher",
-                        }
-                    ],
-                    "needs_web_search": False,
-                    "queries": [],
+                    "note_id": second.note_id,
+                    "source_id": second.source_id,
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "second",
+                    "independence_rationale": "different publisher",
                 }
-            ]
+            ],
+            "queries": [],
         }
     )
     attribution_model = ScriptedModel(
@@ -408,6 +517,9 @@ def test_budget_failure_for_new_relation_preserves_completed_initial_verdict():
     )
     verifier = ScriptedModel()
 
+    def reserve_exceeds_remaining(client, prompt):
+        return 6 if client is verifier else 1
+
     result = asyncio.run(
         run_evidence_gap_round(
             canonical_draft=report,
@@ -428,7 +540,7 @@ def test_budget_failure_for_new_relation_preserves_completed_initial_verdict():
                 max_reads=0,
             ),
             required_independent_sources={claim.claim_id: 2},
-            estimate_input_tokens=_estimate_tokens,
+            estimate_input_tokens=reserve_exceeds_remaining,
             estimate_cost_usd=_estimate_cost,
         )
     )
@@ -534,6 +646,80 @@ class SearchAndReadNetwork:
         }
 
 
+def test_search_and_read_admission_cannot_consume_verification_reserve():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    initial_note = _note(
+        ledger,
+        "https://initial.example/article",
+        "The event occurred.",
+    )
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=_candidate(initial_note),
+        state=ClaimEvidenceState.SUPPORTED_BELOW_REQUIREMENT,
+    )
+    new_url = "https://new.example/article"
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "a second independent account",
+                }
+            ],
+        }
+    )
+    verifier = ScriptedModel()
+    network = SearchAndReadNetwork(new_url)
+
+    def stage_sensitive_estimate(client, prompt):
+        return 6 if client is verifier else 5
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=verifier,
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=15,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=stage_sensitive_estimate,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.verification_reserve is not None
+    assert result.verification_reserve.estimated_tokens == 6
+    assert result.verification_reserve.reserved_tokens == 6
+    assert result.stop_reason == EvidenceGapStopReason.BUDGET_EXHAUSTED
+    assert "preserving the verification reserve" in result.stop_detail
+    assert network.search_calls == 1
+    assert network.extract_calls == 0
+    assert [call.stage for call in result.usage] == [
+        "cache_review_and_search_plan"
+    ]
+    assert any(
+        entry.get("stage") == "read_selection"
+        and "preserving the verification reserve" in entry.get("error", "")
+        for entry in result.rejected_entries
+    )
+
+
 def test_new_source_and_notes_enter_gap_history_without_collection_rounds():
     report = "# Report\n\nThe event occurred."
     claim = _claim(report)
@@ -546,19 +732,14 @@ def test_new_source_and_notes_enter_gap_history_without_collection_rounds():
     new_url = "https://new.example/article"
     gap_model = ScriptedModel(
         {
-            "claims": [
+            "cached_candidates": [],
+            "queries": [
                 {
-                    "claim_id": claim.claim_id,
-                    "cached_candidates": [],
-                    "needs_web_search": True,
-                    "queries": [
-                        {
-                            "item_id": "what-1",
-                            "query": "independent account of the event",
-                        }
-                    ],
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "independent account of the event",
                 }
-            ]
+            ],
         },
         {
             "reads": [
@@ -717,16 +898,14 @@ def test_same_brand_on_another_domain_is_rejected_before_read():
     other_domain = "https://bbc.co.uk/other"
     gap_model = ScriptedModel(
         {
-            "claims": [
+            "cached_candidates": [],
+            "queries": [
                 {
-                    "claim_id": claim.claim_id,
-                    "cached_candidates": [],
-                    "needs_web_search": True,
-                    "queries": [
-                        {"item_id": "what-1", "query": "another account"}
-                    ],
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "another account",
                 }
-            ]
+            ],
         },
         {
             "reads": [
