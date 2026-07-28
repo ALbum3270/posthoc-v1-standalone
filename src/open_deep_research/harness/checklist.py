@@ -107,6 +107,7 @@ class ChecklistAuditSink(Protocol):
         from_status: str | None = None,
         to_status: str | None = None,
         settlement_evidence: Mapping[str, Any] | None = None,
+        exhaustion_attempts: Mapping[str, Any] | None = None,
     ) -> Any:
         """Record one accepted or rejected membership/status request."""
 
@@ -200,6 +201,7 @@ class ResearchChecklist(BaseModel):
         reason: str,
         ledger: ChecklistAuditSink,
         settlement_evidence: Mapping[str, Any] | None = None,
+        exhaustion_attempts: Mapping[str, Any] | None = None,
     ) -> ResearchChecklist:
         """Return a copy with one audited status update."""
 
@@ -219,6 +221,8 @@ class ResearchChecklist(BaseModel):
         }
         if settlement_evidence is not None:
             audit_fields["settlement_evidence"] = settlement_evidence
+        if exhaustion_attempts is not None:
+            audit_fields["exhaustion_attempts"] = exhaustion_attempts
         ledger.record_checklist_change(
             **audit_fields,
         )

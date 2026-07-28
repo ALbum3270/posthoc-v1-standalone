@@ -34,6 +34,68 @@ class SettlementEvidence(BaseModel):
         return self
 
 
+class DismissedCandidateSnapshot(BaseModel):
+    """One candidate the model explicitly declined before exhaustion."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    url: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class ExhaustionAttemptSnapshot(BaseModel):
+    """Item-attributed collection history frozen at an exhaustion judgement.
+
+    This is procedural evidence that collection was actually attempted.  It
+    does not judge whether the attempts were sufficient or the sources useful.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    search_attempts: int = Field(default=0, ge=0)
+    search_successes: int = Field(default=0, ge=0)
+    search_errors: int = Field(default=0, ge=0)
+    read_attempts: int = Field(default=0, ge=0)
+    read_successes: int = Field(default=0, ge=0)
+    read_errors: int = Field(default=0, ge=0)
+    reanalyze_attempts: int = Field(default=0, ge=0)
+    reanalyze_successes: int = Field(default=0, ge=0)
+    reanalyze_errors: int = Field(default=0, ge=0)
+    surfaced_candidate_urls: tuple[str, ...] = ()
+    read_urls: tuple[str, ...] = ()
+    dismissed_candidates: tuple[DismissedCandidateSnapshot, ...] = ()
+    pending_unread_urls: tuple[str, ...] = ()
+    note_count: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _attempt_outcomes_are_consistent(self) -> ExhaustionAttemptSnapshot:
+        for action in ("search", "read", "reanalyze"):
+            attempts = getattr(self, f"{action}_attempts")
+            successes = getattr(self, f"{action}_successes")
+            errors = getattr(self, f"{action}_errors")
+            if attempts != successes + errors:
+                raise ValueError(
+                    f"{action}_attempts must equal successes plus errors"
+                )
+        return self
+
+    @property
+    def qualifying_attempts(self) -> int:
+        """Return real acquisition attempts, independent of their outcome."""
+
+        return (
+            self.search_attempts
+            + self.read_attempts
+            + self.reanalyze_attempts
+        )
+
+    @property
+    def has_qualifying_attempt(self) -> bool:
+        """Return whether the mechanical exhaustion precondition is met."""
+
+        return self.qualifying_attempts > 0
+
+
 class RoundRecord(BaseModel):
     """One research-loop action and its measured usage."""
 
@@ -41,6 +103,10 @@ class RoundRecord(BaseModel):
 
     round_number: int = Field(ge=1)
     action: str = Field(min_length=1)
+    item_id: str | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     query: str | None = None
     url: str | None = None
     result_summary: str = ""
@@ -60,6 +126,10 @@ class ChecklistChangeRecord(BaseModel):
     from_status: str | None = None
     to_status: str | None = None
     settlement_evidence: SettlementEvidence | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
+    exhaustion_attempts: ExhaustionAttemptSnapshot | None = Field(
         default=None,
         exclude_if=lambda value: value is None,
     )
@@ -123,6 +193,7 @@ class ResearchLedger(BaseModel):
         *,
         round_number: int,
         action: str,
+        item_id: str | None = None,
         query: str | None = None,
         url: str | None = None,
         result_summary: str = "",
@@ -134,6 +205,7 @@ class ResearchLedger(BaseModel):
         record = RoundRecord(
             round_number=round_number,
             action=action,
+            item_id=item_id,
             query=query,
             url=url,
             result_summary=result_summary,
@@ -192,6 +264,9 @@ class ResearchLedger(BaseModel):
         from_status: str | None = None,
         to_status: str | None = None,
         settlement_evidence: SettlementEvidence | dict[str, Any] | None = None,
+        exhaustion_attempts: (
+            ExhaustionAttemptSnapshot | dict[str, Any] | None
+        ) = None,
     ) -> ChecklistChangeRecord:
         """Append and return one checklist audit record."""
 
@@ -203,6 +278,7 @@ class ResearchLedger(BaseModel):
             from_status=from_status,
             to_status=to_status,
             settlement_evidence=settlement_evidence,
+            exhaustion_attempts=exhaustion_attempts,
         )
         self.checklist_history.append(record)
         return record
@@ -268,6 +344,112 @@ class ResearchLedger(BaseModel):
         """Count items settled without strict or repaired located evidence."""
 
         return len(self.settled_without_located_evidence_item_ids)
+
+    @property
+    def rejected_exhausted_without_collection_attempt_item_ids(
+        self,
+    ) -> tuple[str, ...]:
+        """Return zero-attempt exhaustion judgements rejected by the loop."""
+
+        return self._exhaustion_item_ids(accepted=False, has_attempt=False)
+
+    @property
+    def rejected_exhausted_without_collection_attempt(self) -> int:
+        """Count zero-attempt exhaustion judgements rejected by the loop."""
+
+        return len(
+            self.rejected_exhausted_without_collection_attempt_item_ids
+        )
+
+    @property
+    def accepted_exhausted_without_collection_attempt_item_ids(
+        self,
+    ) -> tuple[str, ...]:
+        """Return accepted exhausted records with a recorded zero snapshot."""
+
+        return self._exhaustion_item_ids(accepted=True, has_attempt=False)
+
+    @property
+    def accepted_exhausted_without_collection_attempt(self) -> int:
+        """Count accepted exhausted records whose snapshot proves no attempt."""
+
+        return len(
+            self.accepted_exhausted_without_collection_attempt_item_ids
+        )
+
+    @property
+    def accepted_exhausted_attempt_unknown_legacy_item_ids(
+        self,
+    ) -> tuple[str, ...]:
+        """Return legacy accepted exhaustions lacking a frozen attempt snapshot."""
+
+        item_ids: list[str] = []
+        seen: set[str] = set()
+        for record in self.checklist_history:
+            if (
+                not record.accepted
+                or record.to_status != "exhausted_not_found"
+                or record.exhaustion_attempts is not None
+                or record.item_id in seen
+            ):
+                continue
+            seen.add(record.item_id)
+            item_ids.append(record.item_id)
+        return tuple(item_ids)
+
+    @property
+    def accepted_exhausted_attempt_unknown_legacy(self) -> int:
+        """Count legacy accepted exhaustions whose attempt history is unknown."""
+
+        return len(self.accepted_exhausted_attempt_unknown_legacy_item_ids)
+
+    @property
+    def exhausted_with_unread_candidates_item_ids(self) -> tuple[str, ...]:
+        """Return accepted exhaustions whose frozen snapshot retained unread URLs."""
+
+        item_ids: list[str] = []
+        seen: set[str] = set()
+        for record in self.checklist_history:
+            snapshot = record.exhaustion_attempts
+            if (
+                not record.accepted
+                or record.to_status != "exhausted_not_found"
+                or snapshot is None
+                or not snapshot.pending_unread_urls
+                or record.item_id in seen
+            ):
+                continue
+            seen.add(record.item_id)
+            item_ids.append(record.item_id)
+        return tuple(item_ids)
+
+    @property
+    def exhausted_with_unread_candidates(self) -> int:
+        """Count accepted exhaustion judgements made with unread candidates."""
+
+        return len(self.exhausted_with_unread_candidates_item_ids)
+
+    def _exhaustion_item_ids(
+        self,
+        *,
+        accepted: bool,
+        has_attempt: bool,
+    ) -> tuple[str, ...]:
+        item_ids: list[str] = []
+        seen: set[str] = set()
+        for record in self.checklist_history:
+            snapshot = record.exhaustion_attempts
+            if (
+                record.accepted is not accepted
+                or record.to_status != "exhausted_not_found"
+                or snapshot is None
+                or snapshot.has_qualifying_attempt is not has_attempt
+                or record.item_id in seen
+            ):
+                continue
+            seen.add(record.item_id)
+            item_ids.append(record.item_id)
+        return tuple(item_ids)
 
     @property
     def total_tokens(self) -> int:

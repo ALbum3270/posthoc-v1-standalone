@@ -156,6 +156,13 @@ def test_terminal_completion_and_model_stop_are_distinct_outcomes():
             ),
             envelope(
                 {
+                    "action": "search",
+                    "item_id": "how-1",
+                    "query": "a bounded neutral query",
+                }
+            ),
+            envelope(
+                {
                     "action": "mark_exhausted",
                     "item_id": "how-1",
                     "reason": "Reasonable searches found nothing",
@@ -706,6 +713,13 @@ def test_cross_seed_is_grounded_like_any_note_and_survives_later_exhaustion():
         ),
         envelope(
             {
+                "action": "search",
+                "item_id": "how-1",
+                "query": "a bounded neutral query",
+            }
+        ),
+        envelope(
+            {
                 "status_updates": [
                     {
                         "item_id": "how-1",
@@ -1092,14 +1106,23 @@ def test_batch_status_updates_audit_settle_evidence_and_keep_success_honest():
     )
 
     result, _, _, client = run_loop(
-        [decision],
+        [
+            envelope(
+                {
+                    "action": "search",
+                    "item_id": "where-1",
+                    "query": "a bounded location query",
+                }
+            ),
+            decision,
+        ],
         active_checklist=active,
         active_ledger=ledger,
     )
 
     assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
     assert result.is_success is True
-    assert client.search_calls == []
+    assert len(client.search_calls) == 1
     assert ledger.settled_without_located_evidence == 1
     assert ledger.settled_without_located_evidence_item_ids == ("how-1",)
     assert "settled_without_located_evidence=1 (how-1)" in result.stop_detail
@@ -1113,9 +1136,164 @@ def test_batch_status_updates_audit_settle_evidence_and_keep_success_honest():
     assert settled["what-1"].repaired_locatable_notes == 0
     assert settled["what-1"].publisher_count == 2
     assert settled["how-1"].located_notes == 0
-    round_audit = json.loads(ledger.rounds[0].result_summary)
+    round_audit = json.loads(ledger.rounds[1].result_summary)
     assert round_audit["action_skipped"] is True
     assert len(round_audit["status_updates"]) == 3
+
+
+def test_zero_attempt_exhaustion_is_rejected_per_item_and_stop_stays_honest():
+    decision = envelope(
+        {
+            "status_updates": [
+                {
+                    "item_id": "what-1",
+                    "status": "settled",
+                    "reason": "The model judges this item complete.",
+                },
+                {
+                    "item_id": "how-1",
+                    "status": "exhausted_not_found",
+                    "reason": "No candidates found or read.",
+                },
+            ],
+            "action": {"action": "stop"},
+        }
+    )
+
+    result, model, _, client = run_loop([decision])
+
+    assert client.search_calls == []
+    assert result.stop_reason is StopReason.MODEL_STOP_WITH_OPEN_ITEMS
+    assert result.is_success is False
+    assert result.checklist.get("what-1").status is ChecklistStatus.SETTLED
+    assert result.checklist.get("how-1").status is ChecklistStatus.UNEXPLORED
+    assert result.open_item_ids == ("how-1",)
+    assert (
+        result.ledger.rejected_exhausted_without_collection_attempt_item_ids
+        == ("how-1",)
+    )
+    assert "rejected_exhausted_without_collection_attempt=1 (how-1)" in (
+        result.stop_detail
+    )
+
+    audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert len(audit["status_updates"]) == 1
+    rejected = audit["rejected_status_updates"]
+    assert len(rejected) == 1
+    assert rejected[0]["rejection_reason"] == "no_prior_collection_attempt"
+    assert rejected[0]["reason"] == "No candidates found or read."
+    assert rejected[0]["exhaustion_attempts"]["search_attempts"] == 0
+    assert rejected[0]["exhaustion_attempts"]["note_count"] == 0
+    state = decision_state(model.prompts[0])
+    assert state["acquisition_attempts"]["how-1"]["attempt_status"] == (
+        "not_attempted"
+    )
+    assert "not_attempted" in model.prompts[0]
+    assert "attempted_no_result" in model.prompts[0]
+
+
+def test_pending_rejected_search_is_not_an_attempt_and_exhaustion_snapshot_keeps_pending():
+    decisions = [
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "first bounded query",
+            }
+        ),
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "rejected while pending",
+            }
+        ),
+        envelope(
+            {
+                "status_updates": [
+                    {
+                        "item_id": "what-1",
+                        "status": "exhausted_not_found",
+                        "reason": "The model ends the bounded search.",
+                    }
+                ],
+                "action": {"action": "stop"},
+            }
+        ),
+    ]
+
+    result, _, _, client = run_loop(decisions)
+
+    assert len(client.search_calls) == 1
+    assert result.checklist.get("what-1").status is (
+        ChecklistStatus.EXHAUSTED_NOT_FOUND
+    )
+    record = next(
+        record
+        for record in result.ledger.checklist_history
+        if record.item_id == "what-1" and record.accepted
+    )
+    snapshot = record.exhaustion_attempts
+    assert snapshot.search_attempts == 1
+    assert snapshot.search_successes == 1
+    assert snapshot.search_errors == 0
+    assert snapshot.pending_unread_urls == ("https://example.com/source",)
+    assert result.ledger.exhausted_with_unread_candidates_item_ids == (
+        "what-1",
+    )
+    assert "exhausted_with_unread_candidates=1 (what-1)" in (
+        result.stop_detail
+    )
+    audit = json.loads(result.ledger.rounds[2].result_summary)
+    assert audit["status_updates"][0][
+        "exhausted_with_unread_candidates"
+    ] is True
+
+
+def test_zero_result_and_tool_error_searches_both_qualify_as_real_attempts():
+    class OutcomeTavily(FakeTavily):
+        def __init__(self, *, fail):
+            super().__init__()
+            self.fail = fail
+
+        async def search(self, query, **kwargs):
+            self.search_calls.append((query, kwargs))
+            if self.fail:
+                raise RuntimeError("provider unavailable")
+            return {"results": []}
+
+    for fail in (False, True):
+        decisions = [
+            envelope(
+                {
+                    "action": "search",
+                    "item_id": "what-1",
+                    "query": "a bounded query",
+                }
+            ),
+            envelope(
+                {
+                    "status_updates": [
+                        {
+                            "item_id": "what-1",
+                            "status": "exhausted_not_found",
+                            "reason": "The bounded attempt is complete.",
+                        }
+                    ],
+                    "action": {"action": "stop"},
+                }
+            ),
+        ]
+        result, _, _, _ = run_loop(
+            decisions,
+            active_checklist=checklist(second=False),
+            tavily=OutcomeTavily(fail=fail),
+        )
+        assert result.is_success is True
+        snapshot = result.ledger.checklist_history[-1].exhaustion_attempts
+        assert snapshot.search_attempts == 1
+        assert snapshot.search_successes == (0 if fail else 1)
+        assert snapshot.search_errors == (1 if fail else 0)
 
 
 def test_batch_status_updates_and_collection_action_run_in_the_same_round():

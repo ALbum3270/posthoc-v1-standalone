@@ -334,6 +334,30 @@ async def run_harness(
     settled_without_located_evidence_item_ids = (
         ledger.settled_without_located_evidence_item_ids
     )
+    rejected_exhausted_without_collection_attempt = (
+        ledger.rejected_exhausted_without_collection_attempt
+    )
+    rejected_exhausted_without_collection_attempt_item_ids = (
+        ledger.rejected_exhausted_without_collection_attempt_item_ids
+    )
+    accepted_exhausted_without_collection_attempt = (
+        ledger.accepted_exhausted_without_collection_attempt
+    )
+    accepted_exhausted_without_collection_attempt_item_ids = (
+        ledger.accepted_exhausted_without_collection_attempt_item_ids
+    )
+    accepted_exhausted_attempt_unknown_legacy = (
+        ledger.accepted_exhausted_attempt_unknown_legacy
+    )
+    accepted_exhausted_attempt_unknown_legacy_item_ids = (
+        ledger.accepted_exhausted_attempt_unknown_legacy_item_ids
+    )
+    exhausted_with_unread_candidates = (
+        ledger.exhausted_with_unread_candidates
+    )
+    exhausted_with_unread_candidates_item_ids = (
+        ledger.exhausted_with_unread_candidates_item_ids
+    )
     assembled = assemble_notes(loop_result.checklist, ledger.notes)
     report = await write_report(assembled, model_client=write_model)
     claim_decomposition = await decompose_claims(
@@ -502,6 +526,28 @@ async def run_harness(
         settled_without_located_evidence_item_ids=(
             settled_without_located_evidence_item_ids
         ),
+        rejected_exhausted_without_collection_attempt=(
+            rejected_exhausted_without_collection_attempt
+        ),
+        rejected_exhausted_without_collection_attempt_item_ids=(
+            rejected_exhausted_without_collection_attempt_item_ids
+        ),
+        accepted_exhausted_without_collection_attempt=(
+            accepted_exhausted_without_collection_attempt
+        ),
+        accepted_exhausted_without_collection_attempt_item_ids=(
+            accepted_exhausted_without_collection_attempt_item_ids
+        ),
+        accepted_exhausted_attempt_unknown_legacy=(
+            accepted_exhausted_attempt_unknown_legacy
+        ),
+        accepted_exhausted_attempt_unknown_legacy_item_ids=(
+            accepted_exhausted_attempt_unknown_legacy_item_ids
+        ),
+        exhausted_with_unread_candidates=exhausted_with_unread_candidates,
+        exhausted_with_unread_candidates_item_ids=(
+            exhausted_with_unread_candidates_item_ids
+        ),
         registry_coverage=claim_decomposition.registry_coverage,
         checklist_coverage=checklist_report_reconciliation.summary,
         domain_proxy_concentration=domain_proxy_concentration,
@@ -583,6 +629,30 @@ async def run_harness(
             ),
             "settled_without_located_evidence_item_ids": list(
                 settled_without_located_evidence_item_ids
+            ),
+            "rejected_exhausted_without_collection_attempt": (
+                rejected_exhausted_without_collection_attempt
+            ),
+            "rejected_exhausted_without_collection_attempt_item_ids": list(
+                rejected_exhausted_without_collection_attempt_item_ids
+            ),
+            "accepted_exhausted_without_collection_attempt": (
+                accepted_exhausted_without_collection_attempt
+            ),
+            "accepted_exhausted_without_collection_attempt_item_ids": list(
+                accepted_exhausted_without_collection_attempt_item_ids
+            ),
+            "accepted_exhausted_attempt_unknown_legacy": (
+                accepted_exhausted_attempt_unknown_legacy
+            ),
+            "accepted_exhausted_attempt_unknown_legacy_item_ids": list(
+                accepted_exhausted_attempt_unknown_legacy_item_ids
+            ),
+            "exhausted_with_unread_candidates": (
+                exhausted_with_unread_candidates
+            ),
+            "exhausted_with_unread_candidates_item_ids": list(
+                exhausted_with_unread_candidates_item_ids
             ),
             "writing_reserve": {
                 "tokens": active_budget.writing_token_reserve,

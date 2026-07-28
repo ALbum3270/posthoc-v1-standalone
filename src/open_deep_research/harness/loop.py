@@ -24,7 +24,11 @@ from open_deep_research.harness.checklist import (
     ResearchChecklist,
 )
 from open_deep_research.harness.jsonio import loads_lenient
-from open_deep_research.harness.ledger import ResearchLedger, SettlementEvidence
+from open_deep_research.harness.ledger import (
+    ExhaustionAttemptSnapshot,
+    ResearchLedger,
+    SettlementEvidence,
+)
 from open_deep_research.harness.notes import (
     NoteLocationStatus,
     QuoteFailureReason,
@@ -444,6 +448,12 @@ update its own reason. status_updates accepts terminal judgements only:
 "settled" or "exhausted_not_found". Never put "unexplored" or "has_material"
 in status_updates; the system maintains those non-terminal states.
 
+"not_attempted" and "attempted_no_result" are different. Use
+"exhausted_not_found" only after at least one real search, read, or reanalyze
+attempt attributed to that item. A zero-result search or a tool error is still
+an attempt; an action rejected before the tool runs is not. Code enforces this
+mechanically and rejects only the ineligible status entry.
+
 The optional action is one of:
 {{"action":"search","item_id":"...","query":"..."}}
 {{"action":"read","item_id":"...","url":"..."}}
@@ -714,6 +724,64 @@ def _candidate_work_state(
     return state
 
 
+def _new_acquisition_attempt_state(
+    item_ids: Sequence[str],
+) -> dict[str, dict[str, int]]:
+    return {
+        item_id: {
+            "search_attempts": 0,
+            "search_successes": 0,
+            "search_errors": 0,
+            "read_attempts": 0,
+            "read_successes": 0,
+            "read_errors": 0,
+            "reanalyze_attempts": 0,
+            "reanalyze_successes": 0,
+            "reanalyze_errors": 0,
+        }
+        for item_id in item_ids
+    }
+
+
+def _record_acquisition_attempt(
+    attempts: dict[str, dict[str, int]],
+    *,
+    item_id: str,
+    action: Literal["search", "read", "reanalyze"],
+    succeeded: bool,
+) -> None:
+    state = attempts[item_id]
+    state[f"{action}_attempts"] += 1
+    state[f"{action}_{'successes' if succeeded else 'errors'}"] += 1
+
+
+def _acquisition_attempt_state(
+    attempts: Mapping[str, Mapping[str, int]],
+) -> dict[str, dict[str, Any]]:
+    """Expose attempts, not semantic source-quality judgements."""
+
+    return {
+        item_id: {
+            **dict(values),
+            "qualifying_attempts": (
+                values["search_attempts"]
+                + values["read_attempts"]
+                + values["reanalyze_attempts"]
+            ),
+            "attempt_status": (
+                "attempted"
+                if (
+                    values["search_attempts"]
+                    + values["read_attempts"]
+                    + values["reanalyze_attempts"]
+                )
+                else "not_attempted"
+            ),
+        }
+        for item_id, values in attempts.items()
+    }
+
+
 def _note_summary(note: ResearchNote) -> dict[str, Any]:
     return {
         "note_id": note.note_id,
@@ -977,9 +1045,13 @@ def _build_decision_prompt(
     candidates: Mapping[str, dict[str, Any]] | None = None,
     inspected_note_page: Mapping[str, Any] | None = None,
     recalled_notes: Sequence[Mapping[str, Any]] = (),
+    acquisition_attempts: Mapping[str, Mapping[str, int]] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     sources, injection_audit = _source_injection(ledger, settings, recalled_urls)
 
+    attempt_state = acquisition_attempts or _new_acquisition_attempt_state(
+        [item.item_id for item in checklist.items]
+    )
     state: dict[str, Any] = {
         "topic": checklist.topic,
         "checklist": _checklist_state(
@@ -996,6 +1068,7 @@ def _build_decision_prompt(
             candidates or {},
             [item.item_id for item in checklist.items],
         ),
+        "acquisition_attempts": _acquisition_attempt_state(attempt_state),
         "note_index": _compact_note_index(checklist, notes),
         "quote_quality": quote_quality_metrics(notes),
     }
@@ -1026,6 +1099,7 @@ def build_decision_prompt(
     candidates: Mapping[str, dict[str, Any]] | None = None,
     inspected_note_page: Mapping[str, Any] | None = None,
     recalled_notes: Sequence[Mapping[str, Any]] = (),
+    acquisition_attempts: Mapping[str, Mapping[str, int]] | None = None,
 ) -> str:
     """Build a decision prompt holding only the sources the model recalled."""
 
@@ -1043,6 +1117,7 @@ def build_decision_prompt(
         candidates=candidates,
         inspected_note_page=inspected_note_page,
         recalled_notes=recalled_notes,
+        acquisition_attempts=acquisition_attempts,
     )
     return prompt
 
@@ -1471,15 +1546,80 @@ def _settlement_evidence(
     )
 
 
+def _exhaustion_attempt_snapshot(
+    *,
+    ledger: ResearchLedger,
+    item_id: str,
+    acquisition_attempts: Mapping[str, Mapping[str, int]],
+    candidates: Mapping[str, dict[str, Any]],
+) -> ExhaustionAttemptSnapshot:
+    """Freeze only the information state visible at terminal judgement time."""
+
+    attempts = acquisition_attempts[item_id]
+    candidate_work = _candidate_work_state(candidates, (item_id,))[item_id]
+    surfaced_urls = tuple(
+        url
+        for url, candidate in candidates.items()
+        if item_id in candidate.get("_item_work", {})
+    )
+    return ExhaustionAttemptSnapshot(
+        **dict(attempts),
+        surfaced_candidate_urls=surfaced_urls,
+        read_urls=tuple(candidate_work["read_urls"]),
+        dismissed_candidates=tuple(candidate_work["dismissed_candidates"]),
+        pending_unread_urls=tuple(candidate_work["pending_unread_urls"]),
+        note_count=sum(note.item_id == item_id for note in ledger.notes),
+    )
+
+
+def _collection_integrity_signals(ledger: ResearchLedger) -> list[str]:
+    """Return compact immutable collection warnings for stop details."""
+
+    signals: list[str] = []
+    rejected = ledger.rejected_exhausted_without_collection_attempt_item_ids
+    if rejected:
+        signals.append(
+            "rejected_exhausted_without_collection_attempt="
+            f"{len(rejected)} ({', '.join(rejected)})"
+        )
+    accepted = ledger.accepted_exhausted_without_collection_attempt_item_ids
+    if accepted:
+        signals.append(
+            "accepted_exhausted_without_collection_attempt="
+            f"{len(accepted)} ({', '.join(accepted)})"
+        )
+    unknown = ledger.accepted_exhausted_attempt_unknown_legacy_item_ids
+    if unknown:
+        signals.append(
+            "accepted_exhausted_attempt_unknown_legacy="
+            f"{len(unknown)} ({', '.join(unknown)})"
+        )
+    unread = ledger.exhausted_with_unread_candidates_item_ids
+    if unread:
+        signals.append(
+            "exhausted_with_unread_candidates="
+            f"{len(unread)} ({', '.join(unread)})"
+        )
+    return signals
+
+
+def _with_collection_integrity_signals(
+    detail: str,
+    ledger: ResearchLedger,
+) -> str:
+    signals = _collection_integrity_signals(ledger)
+    return f"{detail}; {'; '.join(signals)}" if signals else detail
+
+
 def _terminal_stop_detail(ledger: ResearchLedger) -> str:
     item_ids = ledger.settled_without_located_evidence_item_ids
-    if not item_ids:
-        return "all checklist items reached a terminal state"
-    return (
-        "all checklist items reached a terminal state; "
-        f"settled_without_located_evidence={len(item_ids)} "
-        f"({', '.join(item_ids)})"
-    )
+    detail = "all checklist items reached a terminal state"
+    if item_ids:
+        detail += (
+            "; settled_without_located_evidence="
+            f"{len(item_ids)} ({', '.join(item_ids)})"
+        )
+    return _with_collection_integrity_signals(detail, ledger)
 
 
 def _audit_summary(payload: Mapping[str, Any]) -> str:
@@ -1532,11 +1672,18 @@ def _apply_status_updates(
     *,
     updates: Sequence[StatusUpdate],
     ledger: ResearchLedger,
-) -> tuple[ResearchChecklist, list[dict[str, Any]]]:
+    acquisition_attempts: Mapping[str, Mapping[str, int]],
+    candidates: Mapping[str, dict[str, Any]],
+) -> tuple[
+    ResearchChecklist,
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
     """Apply independently reasoned model judgements with settle-time evidence."""
 
     current = checklist
     audit: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
     for update in updates:
         if update.status == "settled":
             evidence = _settlement_evidence(ledger, update.item_id)
@@ -1556,20 +1703,59 @@ def _apply_status_updates(
                 }
             )
         else:
+            snapshot = _exhaustion_attempt_snapshot(
+                ledger=ledger,
+                item_id=update.item_id,
+                acquisition_attempts=acquisition_attempts,
+                candidates=candidates,
+            )
+            snapshot_payload = snapshot.model_dump(mode="json")
+            if not snapshot.has_qualifying_attempt:
+                error = (
+                    "exhausted_not_found requires a prior real search, read, "
+                    "or reanalyze attempt attributed to this item"
+                )
+                ledger.record_checklist_change(
+                    event="status_change",
+                    item_id=update.item_id,
+                    accepted=False,
+                    reason=update.reason,
+                    from_status=current.get(update.item_id).status.value,
+                    to_status=ChecklistStatus.EXHAUSTED_NOT_FOUND.value,
+                    exhaustion_attempts=snapshot_payload,
+                )
+                rejected.append(
+                    {
+                        "item_id": update.item_id,
+                        "status": update.status,
+                        "reason": update.reason,
+                        "error": error,
+                        "rejection_reason": (
+                            "no_prior_collection_attempt"
+                        ),
+                        "exhaustion_attempts": snapshot_payload,
+                    }
+                )
+                continue
             current = current.set_status(
                 update.item_id,
                 ChecklistStatus.EXHAUSTED_NOT_FOUND,
                 reason=update.reason,
                 ledger=ledger,
+                exhaustion_attempts=snapshot_payload,
             )
             audit.append(
                 {
                     "item_id": update.item_id,
                     "status": update.status,
                     "reason": update.reason,
+                    "exhaustion_attempts": snapshot_payload,
+                    "exhausted_with_unread_candidates": bool(
+                        snapshot.pending_unread_urls
+                    ),
                 }
             )
-    return current, audit
+    return current, audit, rejected
 
 
 def _note_location_counts(notes: Sequence[ResearchNote]) -> dict[str, int]:
@@ -1816,6 +2002,9 @@ async def run_research_loop(
     inspected_note_page: dict[str, Any] | None = None
     recalled_note_details: list[dict[str, Any]] = []
     candidates: dict[str, dict[str, Any]] = {}
+    acquisition_attempts = _new_acquisition_attempt_state(
+        [item.item_id for item in current.items]
+    )
     while True:
         budget_before_decision = _budget_state(
             limits,
@@ -1837,6 +2026,7 @@ async def run_research_loop(
             candidates=candidates,
             inspected_note_page=inspected_note_page,
             recalled_notes=recalled_note_details,
+            acquisition_attempts=acquisition_attempts,
         )
         rounds_executed += 1
         response: Any = None
@@ -1942,11 +2132,16 @@ async def run_research_loop(
             else:
                 action_name = "status_updates"
 
-            current, status_audit = _apply_status_updates(
+            current, status_audit, rejected_exhaustions = (
+                _apply_status_updates(
                 current,
                 updates=turn.status_updates,
                 ledger=ledger,
+                acquisition_attempts=acquisition_attempts,
+                candidates=candidates,
+                )
             )
+            rejected_status_updates.extend(rejected_exhaustions)
             if status_audit:
                 summary["status_updates"] = status_audit
 
@@ -1979,6 +2174,12 @@ async def run_research_loop(
                             tavily_client=tavily_client,
                             max_results=max_search_results,
                         )
+                        _record_acquisition_attempt(
+                            acquisition_attempts,
+                            item_id=action.item_id,
+                            action="search",
+                            succeeded=True,
+                        )
                         newly_pending = _remember_candidates(
                             candidates,
                             results,
@@ -1994,6 +2195,12 @@ async def run_research_loop(
                             "new_pending_unread_urls": newly_pending,
                         }
                     except Exception as exc:  # noqa: BLE001 - tool failure is one turn
+                        _record_acquisition_attempt(
+                            acquisition_attempts,
+                            item_id=action.item_id,
+                            action="search",
+                            succeeded=False,
+                        )
                         summary = {
                             "error": f"search failed: {exc}",
                             "result_count": 0,
@@ -2007,6 +2214,12 @@ async def run_research_loop(
                 source_text = ledger.get_source(action.url)
                 cache_hit = source_text is not None
                 if cache_hit:
+                    _record_acquisition_attempt(
+                        acquisition_attempts,
+                        item_id=action.item_id,
+                        action="read",
+                        succeeded=True,
+                    )
                     _mark_candidate_read(
                         candidates,
                         item_id=action.item_id,
@@ -2030,7 +2243,19 @@ async def run_research_loop(
                             tavily_client=tavily_client,
                         )
                         ledger.cache_source(action.url, source_text)
+                        _record_acquisition_attempt(
+                            acquisition_attempts,
+                            item_id=action.item_id,
+                            action="read",
+                            succeeded=True,
+                        )
                     except Exception as exc:  # noqa: BLE001 - tool failure is one turn
+                        _record_acquisition_attempt(
+                            acquisition_attempts,
+                            item_id=action.item_id,
+                            action="read",
+                            succeeded=False,
+                        )
                         summary = {
                             "cache_hit": False,
                             "error": f"read failed: {exc}",
@@ -2140,6 +2365,12 @@ async def run_research_loop(
                         "reanalyze_reason": action.reason,
                         **note_summary,
                     }
+                    _record_acquisition_attempt(
+                        acquisition_attempts,
+                        item_id=action.item_id,
+                        action="reanalyze",
+                        succeeded=not bool(note_summary["note_output_error"]),
+                    )
                     if note_summary["active_item_notes"]:
                         collection_failures[action.item_id] = 0
                     else:
@@ -2239,6 +2470,9 @@ async def run_research_loop(
             )
         summary["decision_context"] = context_audit
         summary["budget_before_decision"] = budget_before_decision
+        summary["acquisition_attempts"] = _acquisition_attempt_state(
+            acquisition_attempts
+        )
 
         if stop_reason is None and current.is_complete:
             stop_reason = StopReason.ALL_ITEMS_TERMINAL
@@ -2257,6 +2491,11 @@ async def run_research_loop(
                 summary["budget_limit"] = limit
 
         if stop_reason is not None:
+            if stop_reason is not StopReason.ALL_ITEMS_TERMINAL:
+                stop_detail = _with_collection_integrity_signals(
+                    stop_detail,
+                    ledger,
+                )
             summary["stop_reason"] = stop_reason.value
             summary["stop_detail"] = stop_detail
             summary["open_item_ids"] = list(_open_item_ids(current))
@@ -2264,6 +2503,11 @@ async def run_research_loop(
         ledger.record_round(
             round_number=rounds_executed,
             action=action_name,
+            item_id=(
+                turn.action.item_id
+                if turn is not None and isinstance(turn.action, _ItemAction)
+                else None
+            ),
             query=query,
             url=url,
             result_summary=_audit_summary(summary),

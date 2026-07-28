@@ -105,7 +105,9 @@ from open_deep_research.harness.disagreement import (
 )
 from open_deep_research.harness.ledger import (
     ChecklistChangeRecord,
+    DismissedCandidateSnapshot,
     EvidenceGapLedgerRecord,
+    ExhaustionAttemptSnapshot,
     ResearchLedger,
     RoundRecord,
     SettlementEvidence,
@@ -242,6 +244,7 @@ __all__ = [
     "DomainProxyConcentrationAudit",
     "DomainProxyDistribution",
     "DismissCandidatesAction",
+    "DismissedCandidateSnapshot",
     "DisagreementBudget",
     "DisagreementCallUsage",
     "DisagreementResult",
@@ -256,6 +259,7 @@ __all__ = [
     "EvidenceGapLedgerRecord",
     "EvidenceGapResult",
     "EvidenceGapStopReason",
+    "ExhaustionAttemptSnapshot",
     "EvaluativeClaimAssessment",
     "EvaluativeDiagnosticBatch",
     "EvaluativeDiagnosticResult",

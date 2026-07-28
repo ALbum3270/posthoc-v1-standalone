@@ -413,6 +413,14 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         },
         "settled_without_located_evidence": 1,
         "settled_without_located_evidence_item_ids": ["what-1"],
+        "rejected_exhausted_without_collection_attempt": 0,
+        "rejected_exhausted_without_collection_attempt_item_ids": [],
+        "accepted_exhausted_without_collection_attempt": 0,
+        "accepted_exhausted_without_collection_attempt_item_ids": [],
+        "accepted_exhausted_attempt_unknown_legacy": 0,
+        "accepted_exhausted_attempt_unknown_legacy_item_ids": [],
+        "exhausted_with_unread_candidates": 0,
+        "exhausted_with_unread_candidates_item_ids": [],
         "writing_reserve": {"cost_usd": 0.0, "tokens": 0},
     }
     assert audit["usage"] == {

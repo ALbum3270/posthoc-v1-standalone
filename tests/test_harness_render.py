@@ -402,12 +402,30 @@ def test_conflict_and_unverified_reasons_are_visible_at_claim_anchors() -> None:
         verification,
         settled_without_located_evidence=1,
         settled_without_located_evidence_item_ids=("where-01",),
+        rejected_exhausted_without_collection_attempt=1,
+        rejected_exhausted_without_collection_attempt_item_ids=("how-01",),
+        accepted_exhausted_attempt_unknown_legacy=1,
+        accepted_exhausted_attempt_unknown_legacy_item_ids=("when-01",),
+        exhausted_with_unread_candidates=1,
+        exhausted_with_unread_candidates_item_ids=("what-01",),
     )
 
     assert "〔来源冲突：支持[^1]；反驳[^2]〕" in rendered.markdown
     assert "〔未核验：预算耗尽〕" in rendered.markdown
     assert (
         "settled_without_located_evidence=1 (where-01)"
+        in rendered.evidence_summary_line
+    )
+    assert (
+        "拒绝无采集尝试的查遍未找到声明 1 (how-01)"
+        in rendered.evidence_summary_line
+    )
+    assert (
+        "历史查遍未找到声明缺少尝试快照 1 (when-01)"
+        in rendered.evidence_summary_line
+    )
+    assert (
+        "仍有未读候选时判为查遍未找到 1 (what-01)"
         in rendered.evidence_summary_line
     )
     assert rendered.summary.conflicting == 1

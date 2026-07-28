@@ -146,6 +146,14 @@ class EvidenceSummary(BaseModel):
     unverified: int = Field(ge=0)
     settled_without_located_evidence: int = Field(ge=0)
     settled_without_located_evidence_item_ids: tuple[str, ...] = ()
+    rejected_exhausted_without_collection_attempt: int = Field(ge=0)
+    rejected_exhausted_without_collection_attempt_item_ids: tuple[str, ...] = ()
+    accepted_exhausted_without_collection_attempt: int = Field(ge=0)
+    accepted_exhausted_without_collection_attempt_item_ids: tuple[str, ...] = ()
+    accepted_exhausted_attempt_unknown_legacy: int = Field(ge=0)
+    accepted_exhausted_attempt_unknown_legacy_item_ids: tuple[str, ...] = ()
+    exhausted_with_unread_candidates: int = Field(ge=0)
+    exhausted_with_unread_candidates_item_ids: tuple[str, ...] = ()
     registry_coverage: ClaimRegistryCoverage | None = None
 
     @model_validator(mode="after")
@@ -479,6 +487,14 @@ def _summary(
     *,
     settled_without_located_evidence: int,
     settled_without_located_evidence_item_ids: Sequence[str],
+    rejected_exhausted_without_collection_attempt: int,
+    rejected_exhausted_without_collection_attempt_item_ids: Sequence[str],
+    accepted_exhausted_without_collection_attempt: int,
+    accepted_exhausted_without_collection_attempt_item_ids: Sequence[str],
+    accepted_exhausted_attempt_unknown_legacy: int,
+    accepted_exhausted_attempt_unknown_legacy_item_ids: Sequence[str],
+    exhausted_with_unread_candidates: int,
+    exhausted_with_unread_candidates_item_ids: Sequence[str],
     registry_coverage: ClaimRegistryCoverage | None,
 ) -> EvidenceSummary:
     external = [
@@ -550,6 +566,28 @@ def _summary(
         settled_without_located_evidence_item_ids=tuple(
             settled_without_located_evidence_item_ids
         ),
+        rejected_exhausted_without_collection_attempt=(
+            rejected_exhausted_without_collection_attempt
+        ),
+        rejected_exhausted_without_collection_attempt_item_ids=tuple(
+            rejected_exhausted_without_collection_attempt_item_ids
+        ),
+        accepted_exhausted_without_collection_attempt=(
+            accepted_exhausted_without_collection_attempt
+        ),
+        accepted_exhausted_without_collection_attempt_item_ids=tuple(
+            accepted_exhausted_without_collection_attempt_item_ids
+        ),
+        accepted_exhausted_attempt_unknown_legacy=(
+            accepted_exhausted_attempt_unknown_legacy
+        ),
+        accepted_exhausted_attempt_unknown_legacy_item_ids=tuple(
+            accepted_exhausted_attempt_unknown_legacy_item_ids
+        ),
+        exhausted_with_unread_candidates=exhausted_with_unread_candidates,
+        exhausted_with_unread_candidates_item_ids=tuple(
+            exhausted_with_unread_candidates_item_ids
+        ),
         registry_coverage=registry_coverage,
     )
 
@@ -566,6 +604,42 @@ def _summary_line(
     )
     if item_ids:
         collection += f" ({item_ids})"
+    rejected_ids = ", ".join(
+        summary.rejected_exhausted_without_collection_attempt_item_ids
+    )
+    if summary.rejected_exhausted_without_collection_attempt:
+        collection += (
+            "；拒绝无采集尝试的查遍未找到声明 "
+            f"{summary.rejected_exhausted_without_collection_attempt}"
+            f" ({rejected_ids})"
+        )
+    accepted_ids = ", ".join(
+        summary.accepted_exhausted_without_collection_attempt_item_ids
+    )
+    if summary.accepted_exhausted_without_collection_attempt:
+        collection += (
+            "；采集期接受的零尝试查遍未找到声明 "
+            f"{summary.accepted_exhausted_without_collection_attempt}"
+            f" ({accepted_ids})"
+        )
+    unknown_ids = ", ".join(
+        summary.accepted_exhausted_attempt_unknown_legacy_item_ids
+    )
+    if summary.accepted_exhausted_attempt_unknown_legacy:
+        collection += (
+            "；历史查遍未找到声明缺少尝试快照 "
+            f"{summary.accepted_exhausted_attempt_unknown_legacy}"
+            f" ({unknown_ids})"
+        )
+    unread_ids = ", ".join(
+        summary.exhausted_with_unread_candidates_item_ids
+    )
+    if summary.exhausted_with_unread_candidates:
+        collection += (
+            "；仍有未读候选时判为查遍未找到 "
+            f"{summary.exhausted_with_unread_candidates}"
+            f" ({unread_ids})"
+        )
     coverage = summary.registry_coverage
     if coverage is None:
         coverage_prefix = ""
@@ -699,6 +773,14 @@ def render_verified_report(
     *,
     settled_without_located_evidence: int = 0,
     settled_without_located_evidence_item_ids: Sequence[str] = (),
+    rejected_exhausted_without_collection_attempt: int = 0,
+    rejected_exhausted_without_collection_attempt_item_ids: Sequence[str] = (),
+    accepted_exhausted_without_collection_attempt: int = 0,
+    accepted_exhausted_without_collection_attempt_item_ids: Sequence[str] = (),
+    accepted_exhausted_attempt_unknown_legacy: int = 0,
+    accepted_exhausted_attempt_unknown_legacy_item_ids: Sequence[str] = (),
+    exhausted_with_unread_candidates: int = 0,
+    exhausted_with_unread_candidates_item_ids: Sequence[str] = (),
     registry_coverage: ClaimRegistryCoverage | None = None,
     checklist_coverage: ChecklistCoverageSummary | None = None,
     domain_proxy_concentration: DomainProxyConcentrationAudit | None = None,
@@ -716,6 +798,26 @@ def render_verified_report(
         raise ValueError(
             "settled_without_located_evidence must be non-negative"
         )
+    for label, count in (
+        (
+            "rejected_exhausted_without_collection_attempt",
+            rejected_exhausted_without_collection_attempt,
+        ),
+        (
+            "accepted_exhausted_without_collection_attempt",
+            accepted_exhausted_without_collection_attempt,
+        ),
+        (
+            "accepted_exhausted_attempt_unknown_legacy",
+            accepted_exhausted_attempt_unknown_legacy,
+        ),
+        (
+            "exhausted_with_unread_candidates",
+            exhausted_with_unread_candidates,
+        ),
+    ):
+        if count < 0:
+            raise ValueError(f"{label} must be non-negative")
     for label, filename in (
         ("report_filename", report_filename),
         ("sources_filename", sources_filename),
@@ -901,6 +1003,28 @@ def render_verified_report(
         settled_without_located_evidence=settled_without_located_evidence,
         settled_without_located_evidence_item_ids=(
             settled_without_located_evidence_item_ids
+        ),
+        rejected_exhausted_without_collection_attempt=(
+            rejected_exhausted_without_collection_attempt
+        ),
+        rejected_exhausted_without_collection_attempt_item_ids=(
+            rejected_exhausted_without_collection_attempt_item_ids
+        ),
+        accepted_exhausted_without_collection_attempt=(
+            accepted_exhausted_without_collection_attempt
+        ),
+        accepted_exhausted_without_collection_attempt_item_ids=(
+            accepted_exhausted_without_collection_attempt_item_ids
+        ),
+        accepted_exhausted_attempt_unknown_legacy=(
+            accepted_exhausted_attempt_unknown_legacy
+        ),
+        accepted_exhausted_attempt_unknown_legacy_item_ids=(
+            accepted_exhausted_attempt_unknown_legacy_item_ids
+        ),
+        exhausted_with_unread_candidates=exhausted_with_unread_candidates,
+        exhausted_with_unread_candidates_item_ids=(
+            exhausted_with_unread_candidates_item_ids
         ),
         registry_coverage=registry_coverage,
     )

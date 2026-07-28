@@ -8,6 +8,7 @@ from open_deep_research.harness.checklist import (
     ResearchChecklist,
 )
 from open_deep_research.harness.ledger import (
+    ExhaustionAttemptSnapshot,
     ResearchLedger,
     SettlementEvidence,
 )
@@ -143,3 +144,94 @@ def test_gap_notes_do_not_rewrite_settle_time_evidence_snapshot():
     assert ledger.settled_without_located_evidence == 1
     assert ledger.evidence_gap_history[0].event == "source_acquired"
     assert ledger.rounds == []
+
+
+def test_exhaustion_attempt_snapshots_are_frozen_and_gap_notes_cannot_wash_them():
+    ledger = ResearchLedger()
+    snapshot = ExhaustionAttemptSnapshot(
+        search_attempts=1,
+        search_successes=1,
+        surfaced_candidate_urls=("https://candidate.example/source",),
+        pending_unread_urls=("https://candidate.example/source",),
+    )
+    ledger.record_checklist_change(
+        event="status_change",
+        item_id="what-1",
+        accepted=True,
+        reason="The model judged the bounded attempt exhausted.",
+        from_status="unexplored",
+        to_status="exhausted_not_found",
+        exhaustion_attempts=snapshot,
+    )
+
+    later_text = "Evidence acquired only after the draft."
+    later_url = "https://later.example/source"
+    ledger.cache_source(later_url, later_text)
+    note = ledger.add_note(
+        create_note(
+            item_id="what-1",
+            finding="Later evidence exists.",
+            quote=later_text,
+            url=later_url,
+            source_text=later_text,
+        )
+    )
+    ledger.record_evidence_gap(
+        event="source_acquired",
+        url=later_url,
+        note_ids=(note.note_id,),
+    )
+
+    frozen = ledger.checklist_history[0].exhaustion_attempts
+    assert frozen == snapshot
+    assert frozen.note_count == 0
+    assert frozen.pending_unread_urls == (
+        "https://candidate.example/source",
+    )
+    assert ledger.accepted_exhausted_without_collection_attempt == 0
+    assert ledger.accepted_exhausted_attempt_unknown_legacy == 0
+
+
+def test_exhaustion_compatibility_distinguishes_proven_zero_from_legacy_unknown():
+    ledger = ResearchLedger.model_validate(
+        {
+            "checklist_history": [
+                {
+                    "event": "status_change",
+                    "item_id": "legacy-item",
+                    "accepted": True,
+                    "reason": "Old audit has no snapshot.",
+                    "from_status": "unexplored",
+                    "to_status": "exhausted_not_found",
+                },
+                {
+                    "event": "status_change",
+                    "item_id": "accepted-zero",
+                    "accepted": True,
+                    "reason": "Recorded zero attempt.",
+                    "from_status": "unexplored",
+                    "to_status": "exhausted_not_found",
+                    "exhaustion_attempts": {},
+                },
+                {
+                    "event": "status_change",
+                    "item_id": "rejected-zero",
+                    "accepted": False,
+                    "reason": "The model requested exhaustion.",
+                    "from_status": "unexplored",
+                    "to_status": "exhausted_not_found",
+                    "exhaustion_attempts": {},
+                },
+            ]
+        }
+    )
+
+    assert ledger.accepted_exhausted_attempt_unknown_legacy_item_ids == (
+        "legacy-item",
+    )
+    assert ledger.accepted_exhausted_without_collection_attempt_item_ids == (
+        "accepted-zero",
+    )
+    assert ledger.rejected_exhausted_without_collection_attempt_item_ids == (
+        "rejected-zero",
+    )
