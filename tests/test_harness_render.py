@@ -8,6 +8,7 @@ from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
     ClaimNormalizationStatus,
+    ClaimRegistryCoverage,
     SourceResolution,
 )
 from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
@@ -270,3 +271,28 @@ def test_renderer_removes_legacy_model_footnotes_and_is_byte_deterministic() -> 
     assert _DEFINITION.findall(first.markdown) == []
     assert "[^11]" not in first.markdown
     assert "[^13]" not in first.markdown
+
+
+def test_summary_discloses_when_claim_registry_does_not_cover_the_report() -> None:
+    coverage = ClaimRegistryCoverage(
+        evaluated_blocks=3,
+        total_blocks=27,
+        unassessed_blocks=24,
+        unassessed_block_ids=tuple(
+            f"block-{index:04d}" for index in range(4, 28)
+        ),
+        is_complete=False,
+    )
+
+    rendered = render_verified_report(
+        "# Report\n\nUnassessed narrative.",
+        VerificationResult(claims=()),
+        registry_coverage=coverage,
+    )
+
+    assert "正文块评估 3/27" in rendered.evidence_summary_line
+    assert "未评估块 24" in rendered.evidence_summary_line
+    assert "以下断言统计仅覆盖已评估块" in rendered.evidence_summary_line
+    assert "已识别外部可核验断言 0" in rendered.evidence_summary_line
+    assert "已识别断言中未核验 0" in rendered.evidence_summary_line
+    assert rendered.summary.registry_coverage == coverage

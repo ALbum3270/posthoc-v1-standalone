@@ -7,7 +7,7 @@ import json
 import re
 from collections.abc import Awaitable, Mapping, Sequence
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import (
     BaseModel,
@@ -222,6 +222,53 @@ class ClaimStageUsage(BaseModel):
     cost_usd: float = Field(default=0.0, ge=0.0)
 
 
+class ClaimDecompositionSettings(BaseModel):
+    """Mechanical capacity limits shared by the three claim stages."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    batch_size: int = Field(default=8, ge=1)
+
+
+class ClaimBatchRecord(BaseModel):
+    """One auditable model batch and the exact inputs it failed to cover."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    stage: Literal["selection", "decontextualization", "extraction"]
+    batch_number: int = Field(ge=1)
+    input_ids: tuple[str, ...]
+    output_ids: tuple[str, ...] = ()
+    failed_input_ids: tuple[str, ...] = ()
+    outcome: Literal["completed", "partial", "failed"]
+    error: str | None = None
+    usage: ClaimStageUsage = ClaimStageUsage()
+
+
+class ClaimRegistryCoverage(BaseModel):
+    """Mechanical report-block coverage of the claim registry."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    evaluated_blocks: int = Field(ge=0)
+    total_blocks: int = Field(ge=0)
+    unassessed_blocks: int = Field(ge=0)
+    unassessed_block_ids: tuple[str, ...] = ()
+    is_complete: bool
+
+    @model_validator(mode="after")
+    def _counts_are_consistent(self) -> ClaimRegistryCoverage:
+        if self.evaluated_blocks + self.unassessed_blocks != self.total_blocks:
+            raise ValueError("block coverage counts must sum to total_blocks")
+        if self.unassessed_blocks != len(self.unassessed_block_ids):
+            raise ValueError(
+                "unassessed_blocks must match unassessed_block_ids"
+            )
+        if self.is_complete != (self.unassessed_blocks == 0):
+            raise ValueError("is_complete must reflect unassessed_blocks")
+        return self
+
+
 class ClaimDecompositionResult(BaseModel):
     """All blocks, dispositions, claims, diagnostics, and measured usage."""
 
@@ -230,6 +277,8 @@ class ClaimDecompositionResult(BaseModel):
     blocks: tuple[MarkdownBlock, ...]
     selections: tuple[BlockSelection, ...]
     claims: tuple[AtomicClaim, ...]
+    registry_coverage: ClaimRegistryCoverage
+    batches: tuple[ClaimBatchRecord, ...] = ()
     diagnostics: tuple[str, ...] = ()
     selection_usage: ClaimStageUsage
     decontextualization_usage: ClaimStageUsage
@@ -772,6 +821,59 @@ def _claim_seed(
     return tuple(claims)
 
 
+def _chunks(
+    values: Sequence[Any],
+    size: int,
+) -> tuple[tuple[Any, ...], ...]:
+    return tuple(
+        tuple(values[start : start + size])
+        for start in range(0, len(values), size)
+    )
+
+
+def _sum_usage(
+    usages: Sequence[ClaimStageUsage],
+) -> ClaimStageUsage:
+    return ClaimStageUsage(
+        token_count=sum(usage.token_count for usage in usages),
+        cost_usd=sum(usage.cost_usd for usage in usages),
+    )
+
+
+def _batch_outcome(
+    input_ids: Sequence[str],
+    failed_input_ids: Sequence[str],
+) -> Literal["completed", "partial", "failed"]:
+    if not failed_input_ids:
+        return "completed"
+    if len(failed_input_ids) == len(input_ids):
+        return "failed"
+    return "partial"
+
+
+def _registry_coverage(
+    blocks: Sequence[MarkdownBlock],
+    selections: Sequence[BlockSelection],
+) -> ClaimRegistryCoverage:
+    disposition_by_id = {
+        selection.block_id: selection.disposition
+        for selection in selections
+    }
+    unassessed = tuple(
+        block.block_id
+        for block in blocks
+        if disposition_by_id.get(block.block_id)
+        in {None, BlockDisposition.SELECTION_FAILED}
+    )
+    return ClaimRegistryCoverage(
+        evaluated_blocks=len(blocks) - len(unassessed),
+        total_blocks=len(blocks),
+        unassessed_blocks=len(unassessed),
+        unassessed_block_ids=unassessed,
+        is_complete=not unassessed,
+    )
+
+
 def _locate_context_spans(
     report: str,
     proposals: Sequence[ContextSpanProposal],
@@ -836,23 +938,73 @@ async def decompose_claims(
     report: str,
     *,
     model_client: ClaimModelClient,
+    settings: ClaimDecompositionSettings | None = None,
 ) -> ClaimDecompositionResult:
-    """Run selection, decontextualization, then exact-anchor extraction."""
+    """Run three capacity-bounded stages without dropping an input silently."""
 
     if not isinstance(report, str):
         raise TypeError("report must be text")
     if not report.strip():
         raise ValueError("report must not be blank")
 
+    active_settings = settings or ClaimDecompositionSettings()
     blocks = parse_markdown_blocks(report)
-    selection_content, selection_usage = await _call_model(
-        model_client,
-        build_selection_prompt(blocks),
-    )
-    selections, selection_diagnostics = _selection_for_every_block(
-        blocks,
-        selection_content,
-    )
+    diagnostics: list[str] = []
+    batch_records: list[ClaimBatchRecord] = []
+    selection_usages: list[ClaimStageUsage] = []
+    ordered_selections: list[BlockSelection] = []
+    for batch_number, block_batch in enumerate(
+        _chunks(blocks, active_settings.batch_size),
+        start=1,
+    ):
+        input_ids = tuple(block.block_id for block in block_batch)
+        call_error: str | None = None
+        try:
+            selection_content, batch_usage = await _call_model(
+                model_client,
+                build_selection_prompt(block_batch),
+            )
+        except Exception as exc:
+            selection_content = None
+            batch_usage = ClaimStageUsage()
+            call_error = f"{type(exc).__name__}: {exc}"
+            diagnostics.append(
+                f"selection_batch_error[{batch_number}] "
+                f"block_ids={','.join(input_ids)}: {call_error}"
+            )
+        batch_selections, batch_diagnostics = _selection_for_every_block(
+            block_batch,
+            selection_content,
+        )
+        diagnostics.extend(batch_diagnostics)
+        failed_ids = tuple(
+            selection.block_id
+            for selection in batch_selections
+            if selection.disposition == BlockDisposition.SELECTION_FAILED
+        )
+        output_ids = tuple(
+            selection.block_id
+            for selection in batch_selections
+            if selection.disposition != BlockDisposition.SELECTION_FAILED
+        )
+        ordered_selections.extend(batch_selections)
+        selection_usages.append(batch_usage)
+        batch_records.append(
+            ClaimBatchRecord(
+                stage="selection",
+                batch_number=batch_number,
+                input_ids=input_ids,
+                output_ids=output_ids,
+                failed_input_ids=failed_ids,
+                outcome=_batch_outcome(input_ids, failed_ids),
+                error=call_error,
+                usage=batch_usage,
+            )
+        )
+
+    selections = tuple(ordered_selections)
+    selection_usage = _sum_usage(selection_usages)
+    registry_coverage = _registry_coverage(blocks, selections)
     seed_claims = _claim_seed(selections)
     zero_usage = ClaimStageUsage()
     if not seed_claims:
@@ -860,54 +1012,13 @@ async def decompose_claims(
             blocks=blocks,
             selections=selections,
             claims=(),
-            diagnostics=selection_diagnostics,
+            registry_coverage=registry_coverage,
+            batches=tuple(batch_records),
+            diagnostics=tuple(diagnostics),
             selection_usage=selection_usage,
             decontextualization_usage=zero_usage,
             extraction_usage=zero_usage,
         )
-
-    decontext_content, decontext_usage = await _call_model(
-        model_client,
-        build_decontextualization_prompt(report, seed_claims),
-    )
-    diagnostics = list(selection_diagnostics)
-    decontext_by_id: dict[str, _DecontextualizedClaim] = {}
-    duplicate_decontext_ids: set[str] = set()
-    invalid_decontext_ids: set[str] = set()
-    raw_decontext = (
-        decontext_content.get("claims")
-        if isinstance(decontext_content, Mapping)
-        else None
-    )
-    if not isinstance(raw_decontext, (list, tuple)):
-        diagnostics.append("decontextualization_payload_invalid")
-        raw_decontext = ()
-    for index, raw_claim in enumerate(raw_decontext):
-        raw_claim_id = (
-            raw_claim.get("claim_id")
-            if isinstance(raw_claim, Mapping)
-            else None
-        )
-        try:
-            decontext = _DecontextualizedClaim.model_validate(raw_claim)
-        except (TypeError, ValidationError, ValueError) as exc:
-            diagnostics.append(
-                f"decontextualization_entry_invalid[{index}]: {exc}"
-            )
-            if isinstance(raw_claim_id, str):
-                invalid_decontext_ids.add(raw_claim_id)
-            continue
-        if decontext.claim_id in decontext_by_id:
-            duplicate_decontext_ids.add(decontext.claim_id)
-            decontext_by_id.pop(decontext.claim_id, None)
-            diagnostics.append(
-                f"decontextualization_duplicate_claim: "
-                f"{decontext.claim_id}"
-            )
-            continue
-        if decontext.claim_id in duplicate_decontext_ids:
-            continue
-        decontext_by_id[decontext.claim_id] = decontext
 
     valid_decontext: dict[
         str,
@@ -918,48 +1029,133 @@ async def decompose_claims(
         ],
     ] = {}
     failures: dict[str, AtomicClaim] = {}
-    expected_ids = {str(claim["claim_id"]) for claim in seed_claims}
-    for unknown_id in set(decontext_by_id) - expected_ids:
-        diagnostics.append(f"decontextualization_unknown_claim: {unknown_id}")
-    for claim in seed_claims:
-        claim_id = str(claim["claim_id"])
-        decontext = decontext_by_id.get(claim_id)
-        if decontext is None:
-            failure_reason = (
-                "decontextualization_duplicate"
-                if claim_id in duplicate_decontext_ids
-                else (
-                    "decontextualization_invalid"
-                    if claim_id in invalid_decontext_ids
-                    else "decontextualization_missing"
-                )
+    decontext_usages: list[ClaimStageUsage] = []
+    for batch_number, claim_batch in enumerate(
+        _chunks(seed_claims, active_settings.batch_size),
+        start=1,
+    ):
+        input_ids = tuple(str(claim["claim_id"]) for claim in claim_batch)
+        expected_ids = set(input_ids)
+        call_error: str | None = None
+        try:
+            decontext_content, batch_usage = await _call_model(
+                model_client,
+                build_decontextualization_prompt(report, claim_batch),
             )
-            diagnostics.append(f"{failure_reason}: {claim_id}")
-            failures[claim_id] = _normalization_failure(
-                claim=claim,
-                claim_text=None,
-                reason=failure_reason,
+        except Exception as exc:
+            decontext_content = None
+            batch_usage = ClaimStageUsage()
+            call_error = f"{type(exc).__name__}: {exc}"
+            diagnostics.append(
+                f"decontextualization_batch_error[{batch_number}] "
+                f"claim_ids={','.join(input_ids)}: {call_error}"
             )
-            continue
-        valid_spans, context_error = _locate_context_spans(
-            report,
-            decontext.context_spans,
+        decontext_usages.append(batch_usage)
+        decontext_by_id: dict[str, _DecontextualizedClaim] = {}
+        duplicate_ids: set[str] = set()
+        invalid_ids: set[str] = set()
+        raw_decontext = (
+            decontext_content.get("claims")
+            if isinstance(decontext_content, Mapping)
+            else None
         )
-        if context_error is not None:
-            diagnostics.append(f"{context_error}: {claim_id}")
-            failures[claim_id] = _normalization_failure(
-                claim=claim,
-                claim_text=decontext.claim_text,
-                context_span_proposals=decontext.context_spans,
-                reason=context_error,
+        if not isinstance(raw_decontext, (list, tuple)):
+            diagnostics.append("decontextualization_payload_invalid")
+            raw_decontext = ()
+        for index, raw_claim in enumerate(raw_decontext):
+            raw_claim_id = (
+                raw_claim.get("claim_id")
+                if isinstance(raw_claim, Mapping)
+                else None
             )
-            continue
-        valid_decontext[claim_id] = (
-            decontext.claim_text,
-            valid_spans,
-            decontext.context_spans,
+            try:
+                decontext = _DecontextualizedClaim.model_validate(raw_claim)
+            except (TypeError, ValidationError, ValueError) as exc:
+                diagnostics.append(
+                    f"decontextualization_entry_invalid[{index}]: {exc}"
+                )
+                if isinstance(raw_claim_id, str):
+                    invalid_ids.add(raw_claim_id)
+                continue
+            if decontext.claim_id not in expected_ids:
+                diagnostics.append(
+                    f"decontextualization_unknown_claim: "
+                    f"{decontext.claim_id}"
+                )
+                continue
+            if decontext.claim_id in decontext_by_id:
+                duplicate_ids.add(decontext.claim_id)
+                decontext_by_id.pop(decontext.claim_id, None)
+                diagnostics.append(
+                    f"decontextualization_duplicate_claim: "
+                    f"{decontext.claim_id}"
+                )
+                continue
+            if decontext.claim_id in duplicate_ids:
+                continue
+            decontext_by_id[decontext.claim_id] = decontext
+
+        failed_ids: list[str] = []
+        output_ids: list[str] = []
+        for claim in claim_batch:
+            claim_id = str(claim["claim_id"])
+            decontext = decontext_by_id.get(claim_id)
+            if decontext is None:
+                failure_reason = (
+                    "decontextualization_duplicate"
+                    if claim_id in duplicate_ids
+                    else (
+                        "decontextualization_invalid"
+                        if claim_id in invalid_ids
+                        else "decontextualization_missing"
+                    )
+                )
+                diagnostics.append(f"{failure_reason}: {claim_id}")
+                failures[claim_id] = _normalization_failure(
+                    claim=claim,
+                    claim_text=None,
+                    reason=failure_reason,
+                )
+                failed_ids.append(claim_id)
+                continue
+            valid_spans, context_error = _locate_context_spans(
+                report,
+                decontext.context_spans,
+            )
+            if context_error is not None:
+                diagnostics.append(f"{context_error}: {claim_id}")
+                failures[claim_id] = _normalization_failure(
+                    claim=claim,
+                    claim_text=decontext.claim_text,
+                    context_span_proposals=decontext.context_spans,
+                    reason=context_error,
+                )
+                failed_ids.append(claim_id)
+                continue
+            valid_decontext[claim_id] = (
+                decontext.claim_text,
+                valid_spans,
+                decontext.context_spans,
+            )
+            output_ids.append(claim_id)
+        batch_records.append(
+            ClaimBatchRecord(
+                stage="decontextualization",
+                batch_number=batch_number,
+                input_ids=input_ids,
+                output_ids=tuple(output_ids),
+                failed_input_ids=tuple(failed_ids),
+                outcome=_batch_outcome(input_ids, failed_ids),
+                error=call_error,
+                usage=batch_usage,
+            )
         )
 
+    decontext_usage = _sum_usage(decontext_usages)
+    extraction_usages: list[ClaimStageUsage] = []
+    extraction_by_id: dict[str, _ExtractedAnchor] = {}
+    duplicate_extraction_ids: set[str] = set()
+    invalid_extraction_ids: set[str] = set()
     if valid_decontext:
         extraction_input = [
             {
@@ -969,54 +1165,98 @@ async def decompose_claims(
             for claim in seed_claims
             if str(claim["claim_id"]) in valid_decontext
         ]
-        extraction_content, extraction_usage = await _call_model(
-            model_client,
-            build_extraction_prompt(report, extraction_input),
-        )
-        extraction_by_id: dict[str, _ExtractedAnchor] = {}
-        duplicate_extraction_ids: set[str] = set()
-        invalid_extraction_ids: set[str] = set()
-        raw_extraction = (
-            extraction_content.get("claims")
-            if isinstance(extraction_content, Mapping)
-            else None
-        )
-        if not isinstance(raw_extraction, (list, tuple)):
-            diagnostics.append("extraction_payload_invalid")
-            raw_extraction = ()
-        for index, raw_claim in enumerate(raw_extraction):
-            raw_claim_id = (
-                raw_claim.get("claim_id")
-                if isinstance(raw_claim, Mapping)
-                else None
+        for batch_number, extraction_batch in enumerate(
+            _chunks(extraction_input, active_settings.batch_size),
+            start=1,
+        ):
+            input_ids = tuple(
+                str(claim["claim_id"]) for claim in extraction_batch
             )
             try:
-                extraction = _ExtractedAnchor.model_validate(raw_claim)
-            except (TypeError, ValidationError, ValueError) as exc:
-                diagnostics.append(
-                    f"extraction_entry_invalid[{index}]: {exc}"
+                extraction_content, batch_usage = await _call_model(
+                    model_client,
+                    build_extraction_prompt(report, extraction_batch),
                 )
-                if isinstance(raw_claim_id, str):
-                    invalid_extraction_ids.add(raw_claim_id)
-                continue
-            if extraction.claim_id in extraction_by_id:
-                duplicate_extraction_ids.add(extraction.claim_id)
-                extraction_by_id.pop(extraction.claim_id, None)
+                call_error = None
+            except Exception as exc:
+                extraction_content = None
+                batch_usage = ClaimStageUsage()
+                call_error = f"{type(exc).__name__}: {exc}"
                 diagnostics.append(
-                    f"extraction_duplicate_claim: {extraction.claim_id}"
+                    f"extraction_batch_error[{batch_number}] "
+                    f"claim_ids={','.join(input_ids)}: {call_error}"
                 )
-                continue
-            if extraction.claim_id in duplicate_extraction_ids:
-                continue
-            extraction_by_id[extraction.claim_id] = extraction
-        requested_extraction_ids = set(valid_decontext)
-        for unknown_id in set(extraction_by_id) - requested_extraction_ids:
-            diagnostics.append(f"extraction_unknown_claim: {unknown_id}")
-    else:
-        extraction_usage = zero_usage
-        extraction_by_id = {}
-        duplicate_extraction_ids = set()
-        invalid_extraction_ids = set()
+            extraction_usages.append(batch_usage)
+            expected_ids = set(input_ids)
+            batch_by_id: dict[str, _ExtractedAnchor] = {}
+            batch_duplicate_ids: set[str] = set()
+            batch_invalid_ids: set[str] = set()
+            raw_extraction = (
+                extraction_content.get("claims")
+                if isinstance(extraction_content, Mapping)
+                else None
+            )
+            if not isinstance(raw_extraction, (list, tuple)):
+                diagnostics.append("extraction_payload_invalid")
+                raw_extraction = ()
+            for index, raw_claim in enumerate(raw_extraction):
+                raw_claim_id = (
+                    raw_claim.get("claim_id")
+                    if isinstance(raw_claim, Mapping)
+                    else None
+                )
+                try:
+                    extraction = _ExtractedAnchor.model_validate(raw_claim)
+                except (TypeError, ValidationError, ValueError) as exc:
+                    diagnostics.append(
+                        f"extraction_entry_invalid[{index}]: {exc}"
+                    )
+                    if isinstance(raw_claim_id, str):
+                        batch_invalid_ids.add(raw_claim_id)
+                    continue
+                if extraction.claim_id not in expected_ids:
+                    diagnostics.append(
+                        f"extraction_unknown_claim: {extraction.claim_id}"
+                    )
+                    continue
+                if extraction.claim_id in batch_by_id:
+                    batch_duplicate_ids.add(extraction.claim_id)
+                    batch_by_id.pop(extraction.claim_id, None)
+                    diagnostics.append(
+                        f"extraction_duplicate_claim: "
+                        f"{extraction.claim_id}"
+                    )
+                    continue
+                if extraction.claim_id in batch_duplicate_ids:
+                    continue
+                batch_by_id[extraction.claim_id] = extraction
+
+            failed_ids = tuple(
+                claim_id
+                for claim_id in input_ids
+                if claim_id not in batch_by_id
+            )
+            batch_records.append(
+                ClaimBatchRecord(
+                    stage="extraction",
+                    batch_number=batch_number,
+                    input_ids=input_ids,
+                    output_ids=tuple(
+                        claim_id
+                        for claim_id in input_ids
+                        if claim_id in batch_by_id
+                    ),
+                    failed_input_ids=failed_ids,
+                    outcome=_batch_outcome(input_ids, failed_ids),
+                    error=call_error,
+                    usage=batch_usage,
+                )
+            )
+            extraction_by_id.update(batch_by_id)
+            duplicate_extraction_ids.update(batch_duplicate_ids)
+            invalid_extraction_ids.update(batch_invalid_ids)
+
+    extraction_usage = _sum_usage(extraction_usages)
 
     block_by_id = {block.block_id: block for block in blocks}
     claims: list[AtomicClaim] = []
@@ -1109,6 +1349,8 @@ async def decompose_claims(
         blocks=blocks,
         selections=selections,
         claims=tuple(claims),
+        registry_coverage=registry_coverage,
+        batches=tuple(batch_records),
         diagnostics=tuple(diagnostics),
         selection_usage=selection_usage,
         decontextualization_usage=decontext_usage,

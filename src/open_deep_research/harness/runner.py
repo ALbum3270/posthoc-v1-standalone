@@ -26,6 +26,7 @@ from open_deep_research.harness.checklist import (
 from open_deep_research.harness.claims import (
     CitationRequirement,
     ClaimDecompositionResult,
+    ClaimDecompositionSettings,
     ClaimModelClient,
     decompose_claims,
 )
@@ -156,6 +157,7 @@ async def run_harness(
     tavily_client: TavilyClient,
     budget: LoopBudget | None = None,
     loop_settings: LoopSettings | None = None,
+    claim_settings: ClaimDecompositionSettings | None = None,
     attribution_settings: AttributionSettings | None = None,
     verification_settings: VerificationSettings | None = None,
     verification_budget: VerificationBudget | None = None,
@@ -192,6 +194,7 @@ async def run_harness(
     claim_decomposition = await decompose_claims(
         report.canonical_draft,
         model_client=claim_model,
+        settings=claim_settings,
     )
     if claim_decomposition.claims:
         attribution = await attribute_claims(
@@ -230,6 +233,7 @@ async def run_harness(
         settled_without_located_evidence_item_ids=(
             ledger.settled_without_located_evidence_item_ids
         ),
+        registry_coverage=claim_decomposition.registry_coverage,
     )
 
     collection_usage = UsageRecord(

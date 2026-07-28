@@ -315,6 +315,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     final_markdown = result.report_path.read_text(encoding="utf-8")
     assert final_markdown == result.rendered_report.markdown
     assert final_markdown.startswith("> 证据摘要：")
+    assert "正文块评估 2/2" in final_markdown.splitlines()[0]
     assert (
         "The model wrote this report.〔未找到候选来源〕"
         in final_markdown
@@ -372,6 +373,15 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["posthoc_evidence"]["verification"]["claims"][0][
         "state"
     ] == "no_candidate_source"
+    assert audit["posthoc_evidence"]["claim_decomposition"][
+        "registry_coverage"
+    ] == {
+        "evaluated_blocks": 2,
+        "is_complete": True,
+        "total_blocks": 2,
+        "unassessed_block_ids": [],
+        "unassessed_blocks": 0,
+    }
     assert result.verification.claims[0].state == (
         ClaimEvidenceState.NO_CANDIDATE_SOURCE
     )

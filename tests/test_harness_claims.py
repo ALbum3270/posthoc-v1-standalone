@@ -6,6 +6,7 @@ import json
 from open_deep_research.harness.claims import (
     BlockDisposition,
     CitationRequirement,
+    ClaimDecompositionSettings,
     ClaimNormalizationStatus,
     MarkdownBlockKind,
     SourceResolution,
@@ -300,6 +301,181 @@ def test_selection_omission_is_retained_as_failed_disposition() -> None:
     assert result.selections[1].block_id == blocks[1].block_id
     assert result.claims == ()
     assert any("selection omitted this block" in item for item in result.diagnostics)
+
+
+def test_selection_batches_preserve_order_and_expose_incomplete_coverage() -> None:
+    report = "\n\n".join(f"Paragraph {index}." for index in range(1, 11))
+    blocks = parse_markdown_blocks(report)
+
+    def dispositions(batch):
+        return [
+            {
+                "block_id": block.block_id,
+                "disposition": "no_verifiable_claims",
+                "rationale": "evaluated",
+                "assertions": [],
+            }
+            for block in batch
+        ]
+
+    model = ScriptedClaimModel(
+        {"blocks": dispositions(blocks[:4])},
+        {"blocks": dispositions(blocks[4:7])},
+        {"blocks": dispositions(blocks[8:])},
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            settings=ClaimDecompositionSettings(batch_size=4),
+        )
+    )
+
+    assert [selection.block_id for selection in result.selections] == [
+        block.block_id for block in blocks
+    ]
+    assert result.registry_coverage.model_dump() == {
+        "evaluated_blocks": 9,
+        "total_blocks": 10,
+        "unassessed_blocks": 1,
+        "unassessed_block_ids": (blocks[7].block_id,),
+        "is_complete": False,
+    }
+    selection_batches = [
+        batch for batch in result.batches if batch.stage == "selection"
+    ]
+    assert [batch.batch_number for batch in selection_batches] == [1, 2, 3]
+    assert selection_batches[1].outcome == "partial"
+    assert selection_batches[1].input_ids == tuple(
+        block.block_id for block in blocks[4:8]
+    )
+    assert selection_batches[1].failed_input_ids == (blocks[7].block_id,)
+    assert blocks[0].block_id in model.prompts[0]
+    assert blocks[4].block_id not in model.prompts[0]
+    assert blocks[4].block_id in model.prompts[1]
+    assert blocks[8].block_id in model.prompts[2]
+    assert result.selection_usage.token_count == 30
+
+
+def test_selection_batch_call_failure_names_every_affected_block() -> None:
+    report = "\n\n".join(f"Paragraph {index}." for index in range(1, 6))
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "disposition": "no_verifiable_claims",
+                    "rationale": "evaluated",
+                    "assertions": [],
+                }
+                for block in blocks[:4]
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            settings=ClaimDecompositionSettings(batch_size=4),
+        )
+    )
+
+    failed_batch = result.batches[1]
+    assert failed_batch.stage == "selection"
+    assert failed_batch.batch_number == 2
+    assert failed_batch.input_ids == (blocks[4].block_id,)
+    assert failed_batch.failed_input_ids == (blocks[4].block_id,)
+    assert failed_batch.outcome == "failed"
+    assert failed_batch.error is not None
+    assert any(
+        "selection_batch_error[2]" in diagnostic
+        and blocks[4].block_id in diagnostic
+        for diagnostic in result.diagnostics
+    )
+    assert result.registry_coverage.unassessed_block_ids == (
+        blocks[4].block_id,
+    )
+
+
+def test_decontextualization_and_extraction_batch_every_selected_claim() -> None:
+    anchors = [f"Fact number {index}." for index in range(1, 6)]
+    report = " ".join(anchors)
+    blocks = parse_markdown_blocks(report)
+    assertions = [
+        {
+            "selected_text": anchor,
+            "citation_requirement": "external",
+        }
+        for anchor in anchors
+    ]
+    decontext_batches = [
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    "claim_text": anchors[index - 1],
+                    "context_spans": [],
+                }
+                for index in indexes
+            ]
+        }
+        for indexes in ((1, 2), (3, 4), (5,))
+    ]
+    extraction_batches = [
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    "anchor_text": anchors[index - 1],
+                }
+                for index in indexes
+            ]
+        }
+        for indexes in ((1, 2), (3, 4), (5,))
+    ]
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "disposition": "claims_selected",
+                    "rationale": "five assertions",
+                    "assertions": assertions,
+                }
+            ]
+        },
+        *decontext_batches,
+        *extraction_batches,
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            settings=ClaimDecompositionSettings(batch_size=2),
+        )
+    )
+
+    assert len(result.claims) == 5
+    assert all(
+        claim.normalization_status == ClaimNormalizationStatus.LOCATED
+        for claim in result.claims
+    )
+    assert [batch.input_ids for batch in result.batches] == [
+        (blocks[0].block_id,),
+        ("claim-0001", "claim-0002"),
+        ("claim-0003", "claim-0004"),
+        ("claim-0005",),
+        ("claim-0001", "claim-0002"),
+        ("claim-0003", "claim-0004"),
+        ("claim-0005",),
+    ]
+    assert all(batch.outcome == "completed" for batch in result.batches)
+    assert result.registry_coverage.is_complete is True
+    assert result.total_tokens == 70
 
 
 def test_malformed_selection_entry_does_not_discard_valid_sibling() -> None:

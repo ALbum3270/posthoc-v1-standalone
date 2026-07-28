@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from open_deep_research.harness.claims import (
     CitationRequirement,
     ClaimNormalizationStatus,
+    ClaimRegistryCoverage,
 )
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
@@ -82,6 +83,7 @@ class EvidenceSummary(BaseModel):
     unverified: int = Field(ge=0)
     settled_without_located_evidence: int = Field(ge=0)
     settled_without_located_evidence_item_ids: tuple[str, ...] = ()
+    registry_coverage: ClaimRegistryCoverage | None = None
 
 
 class RenderedReport(BaseModel):
@@ -236,6 +238,7 @@ def _summary(
     *,
     settled_without_located_evidence: int,
     settled_without_located_evidence_item_ids: Sequence[str],
+    registry_coverage: ClaimRegistryCoverage | None,
 ) -> EvidenceSummary:
     external = [
         verification
@@ -275,6 +278,7 @@ def _summary(
         settled_without_located_evidence_item_ids=tuple(
             settled_without_located_evidence_item_ids
         ),
+        registry_coverage=registry_coverage,
     )
 
 
@@ -286,16 +290,38 @@ def _summary_line(summary: EvidenceSummary) -> str:
     )
     if item_ids:
         collection += f" ({item_ids})"
+    coverage = summary.registry_coverage
+    if coverage is None:
+        coverage_prefix = ""
+        claim_scope = ""
+        unverified_scope = ""
+    elif coverage.is_complete:
+        coverage_prefix = (
+            f"正文块评估 {coverage.evaluated_blocks}/"
+            f"{coverage.total_blocks}；"
+        )
+        claim_scope = ""
+        unverified_scope = ""
+    else:
+        coverage_prefix = (
+            f"正文块评估 {coverage.evaluated_blocks}/"
+            f"{coverage.total_blocks}；"
+            f"未评估块 {coverage.unassessed_blocks}；"
+            "以下断言统计仅覆盖已评估块："
+        )
+        claim_scope = "已识别"
+        unverified_scope = "已识别断言中"
     return (
         "> 证据摘要："
-        f"外部可核验断言 {summary.external_claims}；"
+        f"{coverage_prefix}"
+        f"{claim_scope}外部可核验断言 {summary.external_claims}；"
         f"充分支持 {summary.corroborated}；"
         f"来源不足 {summary.source_shortfall}；"
         f"来源冲突 {summary.conflicting}；"
         f"所检来源反驳 {summary.refuted}；"
         f"所检来源未支持 {summary.inspected_not_supporting}；"
         f"未找到候选来源 {summary.no_candidate}；"
-        f"未核验 {summary.unverified}。"
+        f"{unverified_scope}未核验 {summary.unverified}。"
         f"采集信号：{collection}。"
     )
 
@@ -329,6 +355,7 @@ def render_verified_report(
     *,
     settled_without_located_evidence: int = 0,
     settled_without_located_evidence_item_ids: Sequence[str] = (),
+    registry_coverage: ClaimRegistryCoverage | None = None,
 ) -> RenderedReport:
     """Insert code-owned evidence markers without rewriting narrative text."""
 
@@ -471,6 +498,7 @@ def render_verified_report(
         settled_without_located_evidence_item_ids=(
             settled_without_located_evidence_item_ids
         ),
+        registry_coverage=registry_coverage,
     )
     summary_line = _summary_line(summary)
     footnotes = tuple(
