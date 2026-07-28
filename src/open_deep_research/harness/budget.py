@@ -109,6 +109,68 @@ class RunCostAdmissionDenied(RuntimeError):
     """Raised before a model call that cannot fit the run allowance."""
 
 
+class RunCostCapReached(RunCostAdmissionDenied):
+    """A run that stopped at its cost cap before it could produce a bundle.
+
+    Carries the diagnosis rather than only the message. A bare admission
+    failure tells an operator that something ran out of money but not which
+    ceiling bound, what had already been paid for, or how far the run got --
+    which is exactly what they need in order to decide whether to raise the
+    ceiling or fix something first.
+
+    This is deliberately not degraded into an empty result. Several downstream
+    registries (block coverage, checklist coverage) require explicit counts,
+    and synthesising zeros for them would make the audit claim it assessed
+    everything it never looked at.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        stage: str,
+        audit: RunCostBudgetAudit,
+        completed_stages: tuple[str, ...] = (),
+    ) -> None:
+        super().__init__(message)
+        self.stage = stage
+        self.audit = audit
+        self.completed_stages = completed_stages
+
+    def report(self) -> str:
+        """Render the operator-facing diagnosis of where the money went."""
+
+        lines = [
+            f"run stopped at its cost cap during stage {self.stage!r}",
+            (
+                f"  spent ${self.audit.observed_total_cost_usd:.4f} of "
+                f"${self.audit.max_cost_usd:.4f}"
+                if self.audit.max_cost_usd is not None
+                else f"  spent ${self.audit.observed_total_cost_usd:.4f}"
+            ),
+        ]
+        if self.audit.verification_reserve_usd:
+            lines.append(
+                f"  verification reserve held back: "
+                f"${self.audit.verification_reserve_usd:.4f}"
+            )
+        for stage, cost in sorted(
+            self.audit.stage_cost_usd.items(), key=lambda item: -item[1]
+        ):
+            lines.append(f"  {stage}: ${cost:.4f}")
+        if self.completed_stages:
+            lines.append(
+                "  stages that had already been paid for: "
+                + ", ".join(self.completed_stages)
+            )
+        lines.append(
+            "  no artifact bundle was written: the remaining stages populate "
+            "coverage registries that cannot be filled with zeros without "
+            "claiming work that never happened"
+        )
+        return "\n".join(lines)
+
+
 def _usage_cost(response: Any, model_client: Any) -> float:
     raw: Any
     if isinstance(response, Mapping):
@@ -224,7 +286,20 @@ class RunCostController:
             )
         )
         if not admitted:
-            raise RunCostAdmissionDenied(reason)
+            # Raise the diagnosing subclass so that whatever catches this --
+            # including a bare top-level handler -- has the boundary, the
+            # per-stage spend, and how far the run got, rather than one line
+            # saying money ran out.
+            raise RunCostCapReached(
+                reason,
+                stage=stage,
+                audit=self.audit(),
+                completed_stages=tuple(
+                    name
+                    for name, cost in sorted(self._stage_cost.items())
+                    if cost > 0.0
+                ),
+            )
         return call_number, estimate
 
     def _complete(self, call_number: int, stage: str, cost_usd: float) -> None:

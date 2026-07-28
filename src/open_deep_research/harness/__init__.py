@@ -29,6 +29,7 @@ from open_deep_research.harness.checklist import (
 )
 from open_deep_research.harness.budget import (
     RunCostAdmissionDenied,
+    RunCostCapReached,
     RunCostAdmissionRecord,
     RunCostBudget,
     RunCostBudgetAudit,
@@ -327,6 +328,7 @@ __all__ = [
     "ResearchLedger",
     "ResearchNote",
     "RunCostAdmissionDenied",
+    "RunCostCapReached",
     "RunCostAdmissionRecord",
     "RunCostBudget",
     "RunCostBudgetAudit",

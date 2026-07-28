@@ -225,3 +225,61 @@ def test_the_cap_admits_that_it_is_not_a_runaway_only_guard():
 def test_completion_status_has_a_value_for_work_that_never_began():
     assert CompletionStatus.NOT_STARTED.value == "not_started"
     assert CompletionStatus.COMPLETE.value == "complete"
+
+
+def test_hitting_the_cap_reports_where_the_money_went_not_a_bare_failure():
+    """A cap hit is an expected outcome and must arrive with its diagnosis.
+
+    The first deliberate cap-hit run died with an unhandled admission error and
+    wrote nothing at all -- no report, no audit, and therefore none of the stop
+    diagnostic that exists precisely for this case. The failure has to carry
+    the boundary and the per-stage spend or the next decision has nothing to
+    stand on.
+    """
+
+    from open_deep_research.harness.budget import (
+        RunCostAdmissionDenied,
+        RunCostCapReached,
+    )
+
+    class Model:
+        last_usage = {"token_count": 0, "cost_usd": 0.0}
+
+        async def generate(self, prompt: str) -> dict:  # pragma: no cover
+            raise AssertionError("the denied call must never be issued")
+
+        def estimate_cost_usd(self, prompt: str) -> float:
+            return 0.05
+
+    controller = RunCostController(RunCostBudget(max_cost_usd=0.12))
+    controller.record_external_usage("collection", 0.12)
+    client = controller.wrap(Model(), stage="decomposition_attribution")
+
+    import asyncio
+
+    with pytest.raises(RunCostCapReached) as caught:
+        asyncio.run(client.generate("attribute this"))
+
+    error = caught.value
+    # Still an admission denial, so existing handlers keep working.
+    assert isinstance(error, RunCostAdmissionDenied)
+    assert error.stage == "decomposition_attribution"
+    assert error.completed_stages == ("collection",)
+    report = error.report()
+    assert "spent $0.1200 of $0.1200" in report
+    assert "collection: $0.1200" in report
+    assert "no artifact bundle was written" in report
+
+
+def test_the_cap_diagnosis_refuses_to_invent_empty_coverage():
+    """Degrading to zeroed registries would claim work that never happened."""
+
+    from open_deep_research.harness.budget import RunCostCapReached
+
+    controller = RunCostController(RunCostBudget(max_cost_usd=0.2))
+    controller.record_external_usage("collection", 0.2)
+    error = RunCostCapReached(
+        "denied", stage="claims", audit=controller.audit()
+    )
+
+    assert "cannot be filled with zeros" in error.report()

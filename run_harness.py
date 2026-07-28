@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import math
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
@@ -16,7 +17,10 @@ from openai import AsyncOpenAI
 from tavily import AsyncTavilyClient
 
 from open_deep_research.harness.loop import LoopBudget, LoopSettings
-from open_deep_research.harness.budget import RunCostBudget
+from open_deep_research.harness.budget import (
+    RunCostBudget,
+    RunCostCapReached,
+)
 from open_deep_research.harness.disagreement import (
     DisagreementBudget,
     PosthocRetrievalBudget,
@@ -509,7 +513,14 @@ def main() -> int:
 
     args = build_parser().parse_args()
     load_dotenv(Path(__file__).resolve().parent / ".env")
-    result = asyncio.run(_run(args))
+    try:
+        result = asyncio.run(_run(args))
+    except RunCostCapReached as error:
+        # A cap hit is an expected outcome, not a crash. Print where the money
+        # went instead of a traceback, so the next decision -- raise the cap,
+        # or fix whatever was burning it -- has something to stand on.
+        print(error.report(), file=sys.stderr)
+        return 2
     print(result.report_path)
     print(result.sources_path)
     print(result.audit_path)
