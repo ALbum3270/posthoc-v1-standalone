@@ -19,6 +19,11 @@ from pydantic import (
 )
 
 from open_deep_research.harness.jsonio import loads_lenient
+from open_deep_research.harness.notes import (
+    NoteLocationStatus,
+    QuoteFailureReason,
+    locate_verification_quote,
+)
 
 
 class MarkdownBlockKind(str, Enum):
@@ -180,6 +185,7 @@ class AtomicClaim(BaseModel):
     selected_text: str
     claim_text: str | None
     anchor_text: str | None
+    anchor_text_proposal: str | None = None
     start_char: int | None = Field(default=None, ge=0)
     end_char: int | None = Field(default=None, ge=0)
     context_spans: tuple[ContextSpan, ...] = ()
@@ -283,6 +289,27 @@ class ClaimDecompositionResult(BaseModel):
     selection_usage: ClaimStageUsage
     decontextualization_usage: ClaimStageUsage
     extraction_usage: ClaimStageUsage
+    anchor_proposal_count: int = Field(default=0, ge=0)
+    anchor_copied_from_selection_count: int = Field(default=0, ge=0)
+    anchor_copied_from_selection_rate: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+    )
+
+    @model_validator(mode="after")
+    def _anchor_copy_metrics_are_consistent(self) -> ClaimDecompositionResult:
+        if self.anchor_copied_from_selection_count > self.anchor_proposal_count:
+            raise ValueError("copied anchors cannot exceed anchor proposals")
+        expected = (
+            self.anchor_copied_from_selection_count
+            / self.anchor_proposal_count
+            if self.anchor_proposal_count
+            else 0.0
+        )
+        if abs(self.anchor_copied_from_selection_rate - expected) > 1e-12:
+            raise ValueError("anchor copy rate must match its audited counts")
+        return self
 
     @property
     def total_tokens(self) -> int:
@@ -877,19 +904,43 @@ def _registry_coverage(
 def _locate_context_spans(
     report: str,
     proposals: Sequence[ContextSpanProposal],
+    blocks: Sequence[MarkdownBlock],
 ) -> tuple[tuple[ContextSpan, ...], str | None]:
     spans: list[ContextSpan] = []
     for proposal in proposals:
         occurrences = _unique_occurrences(report, proposal.text)
-        if not occurrences:
-            return (), "context_span_not_verbatim"
-        if len(occurrences) != 1:
+        if len(occurrences) > 1:
             return (), "context_span_not_unique"
-        start = occurrences[0]
-        end = start + len(proposal.text)
+        if occurrences:
+            start = occurrences[0]
+            end = start + len(proposal.text)
+            source_text = proposal.text
+        else:
+            repaired = locate_verification_quote(report, proposal.text)
+            if (
+                repaired.location_status
+                != NoteLocationStatus.REPAIRED_LOCATABLE
+                or repaired.span is None
+                or repaired.source_quote is None
+            ):
+                reason = (
+                    "context_span_not_unique"
+                    if repaired.failure_reason
+                    == QuoteFailureReason.AMBIGUOUS_FORMAT_MATCH
+                    else "context_span_not_verbatim"
+                )
+                return (), reason
+            start = repaired.span.start_char
+            end = repaired.span.end_char
+            source_text = repaired.source_quote
+            if not any(
+                block.start_char <= start and end <= block.end_char
+                for block in blocks
+            ):
+                return (), "context_span_repair_crosses_markdown_unit"
         spans.append(
             ContextSpan(
-                text=proposal.text,
+                text=source_text,
                 start_char=start,
                 end_char=end,
             )
@@ -914,6 +965,7 @@ def _normalization_failure(
     claim_text: str | None,
     context_spans: Sequence[ContextSpan] = (),
     context_span_proposals: Sequence[ContextSpanProposal] = (),
+    anchor_text_proposal: str | None = None,
     anchor_text: str | None = None,
     reason: str,
 ) -> AtomicClaim:
@@ -922,6 +974,7 @@ def _normalization_failure(
         block_id=str(claim["block_id"]),
         selected_text=str(claim["selected_text"]),
         claim_text=claim_text,
+        anchor_text_proposal=anchor_text_proposal,
         anchor_text=anchor_text,
         context_spans=tuple(context_spans),
         context_span_proposals=tuple(context_span_proposals),
@@ -1121,6 +1174,7 @@ async def decompose_claims(
             valid_spans, context_error = _locate_context_spans(
                 report,
                 decontext.context_spans,
+                blocks,
             )
             if context_error is not None:
                 diagnostics.append(f"{context_error}: {claim_id}")
@@ -1296,14 +1350,34 @@ async def decompose_claims(
         reason: str | None = None
         anchor_start: int | None = None
         anchor_end: int | None = None
-        if not occurrences:
-            reason = "anchor_not_found"
-        elif len(occurrences) != 1:
+        anchor_text = extraction.anchor_text
+        if len(occurrences) > 1:
             reason = "anchor_not_unique"
-        else:
+        elif occurrences:
             anchor_start = occurrences[0]
             anchor_end = anchor_start + len(extraction.anchor_text)
-            if report[anchor_start:anchor_end] != extraction.anchor_text:
+            if report[anchor_start:anchor_end] != anchor_text:
+                raise AssertionError("code-owned anchor bounds must round-trip")
+        else:
+            repaired = locate_verification_quote(report, extraction.anchor_text)
+            if (
+                repaired.location_status
+                == NoteLocationStatus.REPAIRED_LOCATABLE
+                and repaired.span is not None
+                and repaired.source_quote is not None
+            ):
+                anchor_start = repaired.span.start_char
+                anchor_end = repaired.span.end_char
+                anchor_text = repaired.source_quote
+            else:
+                reason = (
+                    "anchor_not_unique"
+                    if repaired.failure_reason
+                    == QuoteFailureReason.AMBIGUOUS_FORMAT_MATCH
+                    else "anchor_not_found"
+                )
+        if reason is None and anchor_start is not None and anchor_end is not None:
+            if report[anchor_start:anchor_end] != anchor_text:
                 raise AssertionError("code-owned anchor bounds must round-trip")
             if not (
                 block.start_char <= anchor_start
@@ -1319,7 +1393,8 @@ async def decompose_claims(
                     claim_text=claim_text,
                     context_spans=context_spans,
                     context_span_proposals=context_span_proposals,
-                    anchor_text=extraction.anchor_text,
+                    anchor_text_proposal=extraction.anchor_text,
+                    anchor_text=anchor_text,
                     reason=reason,
                 )
             )
@@ -1332,7 +1407,8 @@ async def decompose_claims(
                 block_id=str(seed["block_id"]),
                 selected_text=str(seed["selected_text"]),
                 claim_text=claim_text,
-                anchor_text=extraction.anchor_text,
+                anchor_text_proposal=extraction.anchor_text,
+                anchor_text=anchor_text,
                 start_char=anchor_start,
                 end_char=anchor_end,
                 context_spans=context_spans,
@@ -1345,6 +1421,21 @@ async def decompose_claims(
             )
         )
 
+    seed_by_id = {
+        str(seed["claim_id"]): seed
+        for seed in seed_claims
+    }
+    anchor_proposal_count = len(extraction_by_id)
+    anchor_copied_from_selection_count = sum(
+        extraction.anchor_text
+        == str(seed_by_id[claim_id]["selected_text"])
+        for claim_id, extraction in extraction_by_id.items()
+    )
+    anchor_copied_from_selection_rate = (
+        anchor_copied_from_selection_count / anchor_proposal_count
+        if anchor_proposal_count
+        else 0.0
+    )
     return ClaimDecompositionResult(
         blocks=blocks,
         selections=selections,
@@ -1355,4 +1446,9 @@ async def decompose_claims(
         selection_usage=selection_usage,
         decontextualization_usage=decontext_usage,
         extraction_usage=extraction_usage,
+        anchor_proposal_count=anchor_proposal_count,
+        anchor_copied_from_selection_count=(
+            anchor_copied_from_selection_count
+        ),
+        anchor_copied_from_selection_rate=anchor_copied_from_selection_rate,
     )

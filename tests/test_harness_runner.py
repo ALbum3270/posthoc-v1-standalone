@@ -228,7 +228,6 @@ class EvidenceAttributionModel:
                                 {
                                     "note_id": "note-000001",
                                     "source_id": source_id_for_url(self.url),
-                                    "resolution": "direct",
                                     "inherited_from_claim_id": None,
                                 }
                             ],
@@ -382,6 +381,9 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "unassessed_block_ids": [],
         "unassessed_blocks": 0,
     }
+    assert audit["posthoc_evidence"]["claim_decomposition"][
+        "anchor_copied_from_selection_rate"
+    ] == 1.0
     assert result.verification.claims[0].state == (
         ClaimEvidenceState.NO_CANDIDATE_SOURCE
     )

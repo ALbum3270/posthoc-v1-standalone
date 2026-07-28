@@ -129,7 +129,6 @@ def test_all_claims_and_compact_registry_are_visible_without_full_notes() -> Non
                         {
                             "note_id": candidate.note_id,
                             "source_id": candidate.source_id,
-                            "resolution": "direct",
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -162,6 +161,8 @@ def test_all_claims_and_compact_registry_are_visible_without_full_notes() -> Non
     assert "MODEL WORDING NOT PRESENT IN THE SOURCE" not in prompt
     assert "Exact source phrase." not in prompt
     assert "https://one.example/page" not in prompt
+    assert '"resolution"' not in prompt
+    assert "repetition is direct matching, not\ninheritance" in prompt
 
     by_claim = _by_claim(result)
     first = by_claim["claim-1"]
@@ -209,7 +210,6 @@ def test_model_requests_full_note_page_then_uses_previous_unit_inheritance() -> 
                         {
                             "note_id": note.note_id,
                             "source_id": note.source_id,
-                            "resolution": "direct",
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -220,7 +220,6 @@ def test_model_requests_full_note_page_then_uses_previous_unit_inheritance() -> 
                         {
                             "note_id": note.note_id,
                             "source_id": note.source_id,
-                            "resolution": "inherited_previous_unit",
                             "inherited_from_claim_id": "claim-1",
                         }
                     ],
@@ -278,13 +277,11 @@ def test_invented_identifiers_are_errors_not_no_candidate_source() -> None:
                         {
                             "note_id": "note-does-not-exist",
                             "source_id": note.source_id,
-                            "resolution": "direct",
                             "inherited_from_claim_id": None,
                         },
                         {
                             "note_id": note.note_id,
                             "source_id": "source-does-not-exist",
-                            "resolution": "direct",
                             "inherited_from_claim_id": None,
                         },
                     ],
@@ -314,7 +311,7 @@ def test_invented_identifiers_are_errors_not_no_candidate_source() -> None:
     assert attribution.claim.source_resolution == SourceResolution.UNRESOLVED
 
 
-def test_inheritance_across_markdown_boundary_is_rejected_and_retained() -> None:
+def test_nonlocal_lineage_keeps_candidate_unresolved_with_audit_error() -> None:
     blocks = (
         _block("block-1", 0, section=("First",)),
         _block("block-2", 1, section=("Second",)),
@@ -342,7 +339,6 @@ def test_inheritance_across_markdown_boundary_is_rejected_and_retained() -> None
                         {
                             "note_id": note.note_id,
                             "source_id": note.source_id,
-                            "resolution": "direct",
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -353,7 +349,6 @@ def test_inheritance_across_markdown_boundary_is_rejected_and_retained() -> None
                         {
                             "note_id": note.note_id,
                             "source_id": note.source_id,
-                            "resolution": "inherited_previous_unit",
                             "inherited_from_claim_id": "claim-1",
                         }
                     ],
@@ -372,9 +367,11 @@ def test_inheritance_across_markdown_boundary_is_rejected_and_retained() -> None
     )
 
     second = _by_claim(result)["claim-2"]
-    assert second.status == AttributionStatus.ATTRIBUTION_ERROR
-    assert second.errors[0].code == "inheritance_boundary_rejected"
-    assert second.candidates == ()
+    assert second.status == AttributionStatus.CANDIDATE_SOURCES_WITH_ERRORS
+    assert second.errors[0].code == "lineage_outside_markdown_boundary"
+    assert len(second.candidates) == 1
+    assert second.candidates[0].resolution == SourceResolution.UNRESOLVED
+    assert second.candidates[0].inherited_from_claim_id == "claim-1"
     assert second.claim.source_resolution == SourceResolution.UNRESOLVED
 
 
@@ -403,7 +400,6 @@ def test_same_unit_inheritance_uses_an_earlier_direct_candidate() -> None:
                         {
                             "note_id": note.note_id,
                             "source_id": note.source_id,
-                            "resolution": "direct",
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -414,7 +410,6 @@ def test_same_unit_inheritance_uses_an_earlier_direct_candidate() -> None:
                         {
                             "note_id": note.note_id,
                             "source_id": note.source_id,
-                            "resolution": "inherited_same_unit",
                             "inherited_from_claim_id": "claim-1",
                         }
                     ],
@@ -473,7 +468,6 @@ def test_inheritance_cannot_chain_beyond_a_direct_origin() -> None:
                     "candidates": [
                         {
                             **relation,
-                            "resolution": "direct",
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -483,7 +477,6 @@ def test_inheritance_cannot_chain_beyond_a_direct_origin() -> None:
                     "candidates": [
                         {
                             **relation,
-                            "resolution": "inherited_previous_unit",
                             "inherited_from_claim_id": "claim-1",
                         }
                     ],
@@ -493,7 +486,6 @@ def test_inheritance_cannot_chain_beyond_a_direct_origin() -> None:
                     "candidates": [
                         {
                             **relation,
-                            "resolution": "inherited_previous_unit",
                             "inherited_from_claim_id": "claim-2",
                         }
                     ],
@@ -515,8 +507,59 @@ def test_inheritance_cannot_chain_beyond_a_direct_origin() -> None:
         AttributionStatus.CANDIDATE_SOURCES
     )
     third = _by_claim(result)["claim-3"]
-    assert third.status == AttributionStatus.ATTRIBUTION_ERROR
+    assert third.status == AttributionStatus.CANDIDATE_SOURCES_WITH_ERRORS
     assert third.errors[0].code == "inheritance_origin_not_direct"
+    assert len(third.candidates) == 1
+    assert third.candidates[0].resolution == SourceResolution.UNRESOLVED
+
+
+def test_repeated_pair_without_origin_is_direct_for_every_claim() -> None:
+    blocks = (_block("block-1", 0),)
+    claims = (
+        _claim("claim-1", "block-1", "First claim."),
+        _claim("claim-2", "block-1", "Second claim."),
+    )
+    ledger = ResearchLedger()
+    note = _ledger_note(
+        ledger,
+        item_id="item-1",
+        finding="Finding.",
+        quote="Exact.",
+        source_text="Exact.",
+        url="https://source.example/page",
+    )
+    repeated = {
+        "note_id": note.note_id,
+        "source_id": note.source_id,
+        "inherited_from_claim_id": None,
+    }
+    model = ScriptedAttributionModel(
+        {
+            "action": "attribute",
+            "claims": [
+                {"claim_id": "claim-1", "candidates": [repeated]},
+                {"claim_id": "claim-2", "candidates": [repeated]},
+            ],
+        }
+    )
+
+    result = asyncio.run(
+        attribute_claims(
+            claims,
+            blocks=blocks,
+            notes=ledger.notes,
+            model_client=model,
+        )
+    )
+
+    assert all(
+        attribution.status == AttributionStatus.CANDIDATE_SOURCES
+        for attribution in result.attributions
+    )
+    assert all(
+        attribution.candidates[0].resolution == SourceResolution.DIRECT
+        for attribution in result.attributions
+    )
 
 
 def test_omitted_claim_is_attribution_error_while_explicit_empty_is_legal() -> None:

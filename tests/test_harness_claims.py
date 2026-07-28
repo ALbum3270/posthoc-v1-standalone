@@ -183,6 +183,7 @@ It expanded the facility in 2022.
     claim = result.claims[0]
     assert claim.claim_text == "The group expanded the facility in 2022."
     assert claim.claim_text not in report
+    assert claim.anchor_text_proposal == "It expanded the facility in 2022."
     assert claim.anchor_text == "It expanded the facility in 2022."
     assert report[claim.start_char : claim.end_char] == claim.anchor_text
     assert claim.context_spans[0].text == "A group opened a facility."
@@ -197,6 +198,9 @@ It expanded the facility in 2022.
     assert claim.normalization_status == ClaimNormalizationStatus.LOCATED
     assert result.total_tokens == 30
     assert result.total_cost_usd == 0.03
+    assert result.anchor_proposal_count == 1
+    assert result.anchor_copied_from_selection_count == 1
+    assert result.anchor_copied_from_selection_rate == 1.0
 
     assert "Do not add facts" in model.prompts[1]
     assert "otherwise make\nthe assertion stronger" in model.prompts[1]
@@ -657,6 +661,213 @@ def test_invalid_context_span_cannot_become_a_located_claim() -> None:
     assert claim.context_span_proposals[0].proposed_end_char == len(
         "A group acted."
     )
+
+
+def test_context_span_uses_conservative_repair_within_one_markdown_unit() -> None:
+    report = "- **Phase 1:** A group acted. It stopped."
+    blocks = parse_markdown_blocks(report)
+    proposed_context = "Phase 1: A group acted."
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "disposition": "claims_selected",
+                    "rationale": "one assertion",
+                    "assertions": [
+                        {
+                            "selected_text": "It stopped.",
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "The group stopped.",
+                    "context_spans": [proposed_context],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "anchor_text": "It stopped.",
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status == ClaimNormalizationStatus.LOCATED
+    assert claim.context_span_proposals[0].text == proposed_context
+    assert claim.context_spans[0].text != proposed_context
+    assert report[
+        claim.context_spans[0].start_char : claim.context_spans[0].end_char
+    ] == claim.context_spans[0].text
+    assert "**" in claim.context_spans[0].text
+
+
+def test_context_repair_cannot_cross_markdown_units() -> None:
+    report = "# Context\n\nA group acted.\n\nIt stopped."
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "disposition": (
+                        "claims_selected" if block is blocks[-1]
+                        else "no_verifiable_claims"
+                    ),
+                    "rationale": "evaluated",
+                    "assertions": (
+                        [
+                            {
+                                "selected_text": "It stopped.",
+                                "citation_requirement": "external",
+                            }
+                        ]
+                        if block is blocks[-1]
+                        else []
+                    ),
+                }
+                for block in blocks
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "The group stopped.",
+                    "context_spans": ["Context: A group acted."],
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    assert len(model.prompts) == 2
+    claim = result.claims[0]
+    assert claim.normalization_status == (
+        ClaimNormalizationStatus.NORMALIZATION_FAILED
+    )
+    assert claim.normalization_failure == (
+        "context_span_repair_crosses_markdown_unit"
+    )
+    assert claim.context_span_proposals[0].text == (
+        "Context: A group acted."
+    )
+
+
+def test_anchor_repair_retains_model_proposal_and_uses_report_text() -> None:
+    report = "The event happened, affecting others."
+    blocks = parse_markdown_blocks(report)
+    proposed_anchor = "The event happened."
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "disposition": "claims_selected",
+                    "rationale": "one assertion",
+                    "assertions": [
+                        {
+                            "selected_text": proposed_anchor,
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": proposed_anchor,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "anchor_text": proposed_anchor,
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status == ClaimNormalizationStatus.LOCATED
+    assert claim.anchor_text_proposal == proposed_anchor
+    assert claim.anchor_text == "The event happened"
+    assert report[claim.start_char : claim.end_char] == claim.anchor_text
+    assert result.anchor_proposal_count == 1
+    assert result.anchor_copied_from_selection_count == 1
+    assert result.anchor_copied_from_selection_rate == 1.0
+
+
+def test_anchor_rewrite_remains_failed_after_conservative_repair() -> None:
+    report = "A person, a visible figure, led the group."
+    blocks = parse_markdown_blocks(report)
+    rewritten = "The person was a visible figure."
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "disposition": "claims_selected",
+                    "rationale": "one assertion",
+                    "assertions": [
+                        {
+                            "selected_text": rewritten,
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": rewritten,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "anchor_text": rewritten,
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status == (
+        ClaimNormalizationStatus.NORMALIZATION_FAILED
+    )
+    assert claim.normalization_failure == "anchor_not_found"
+    assert claim.anchor_text_proposal == rewritten
+    assert claim.anchor_text == rewritten
+    assert claim.start_char is None
+    assert claim.end_char is None
 
 
 def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:

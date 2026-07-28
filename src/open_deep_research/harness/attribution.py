@@ -69,12 +69,13 @@ class CandidateSource(BaseModel):
 
     @model_validator(mode="after")
     def _resolution_matches_origin(self) -> CandidateSource:
-        if self.resolution == SourceResolution.UNRESOLVED:
-            raise ValueError("a candidate source must have a concrete resolution")
         if self.resolution == SourceResolution.DIRECT:
             if self.inherited_from_claim_id is not None:
                 raise ValueError("direct candidates cannot have an origin claim")
-        elif self.inherited_from_claim_id is None:
+        elif (
+            self.resolution != SourceResolution.UNRESOLVED
+            and self.inherited_from_claim_id is None
+        ):
             raise ValueError("inherited candidates require an origin claim")
         return self
 
@@ -191,7 +192,6 @@ class _CandidateProposal(BaseModel):
 
     note_id: str = Field(min_length=1)
     source_id: str = Field(min_length=1)
-    resolution: SourceResolution
     inherited_from_claim_id: str | None = None
 
     @field_validator("note_id", "source_id")
@@ -201,13 +201,6 @@ class _CandidateProposal(BaseModel):
         if not normalized:
             raise ValueError("identifier must not be blank")
         return normalized
-
-    @model_validator(mode="after")
-    def _candidate_resolution_is_concrete(self) -> _CandidateProposal:
-        if self.resolution == SourceResolution.UNRESOLVED:
-            raise ValueError("candidate resolution cannot be unresolved")
-        return self
-
 
 _ATTRIBUTION_PROMPT = """\
 Perform post-hoc candidate attribution for a canonical report draft.
@@ -235,14 +228,19 @@ been selected for you.
 When ready, return:
 {{"action":"attribute","claims":[{{"claim_id":"claim-0001",\
 "candidates":[{{"note_id":"note-000001","source_id":"source-id",\
-"resolution":"direct|inherited_same_unit|inherited_previous_unit",\
 "inherited_from_claim_id":null}}]}}]}}
 
-Use direct when you match the current claim to the candidate itself. Use an
-inherited resolution only when reusing the exact note_id/source_id pair from
-an earlier claim that has a direct candidate. Supply that earlier claim_id.
-Code will reject backward inheritance, inheritance chains, or Markdown unit
-boundary violations.
+When you match the current claim to a candidate itself, set
+inherited_from_claim_id to null. The same note_id/source_id pair may be listed
+this way for any number of claims: repetition is direct matching, not
+inheritance. Do not use inheritance to avoid repeating a pair.
+
+Set inherited_from_claim_id only when your semantic judgement is that the
+current claim borrows that exact candidate pair through a local narrative
+continuation from an earlier claim. Code, not you, derives the structural
+source_resolution from the Markdown units. Invalid, backward, or nonlocal
+lineage remains an unresolved candidate with an audit error; it is never
+silently rewritten as direct.
 
 All claims:
 {claims}
@@ -516,7 +514,7 @@ def _parse_final_attributions(
     }
     for claim in claims:
         claim_id = claim.claim_id
-        seen_relations: set[tuple[str, str, SourceResolution, str | None]] = set()
+        seen_relations: set[tuple[str, str, str | None]] = set()
         for proposal in proposals[claim_id]:
             note = note_by_id.get(proposal.note_id)
             identity_valid = True
@@ -555,7 +553,6 @@ def _parse_final_attributions(
             relation_key = (
                 proposal.note_id,
                 proposal.source_id,
-                proposal.resolution,
                 proposal.inherited_from_claim_id,
             )
             if relation_key in seen_relations:
@@ -580,17 +577,7 @@ def _parse_final_attributions(
     for claim in claims:
         claim_id = claim.claim_id
         for proposal, note in valid_identity[claim_id]:
-            if proposal.resolution != SourceResolution.DIRECT:
-                continue
             if proposal.inherited_from_claim_id is not None:
-                entry_errors[claim_id].append(
-                    _error(
-                        claim_id,
-                        "direct_candidate_has_inheritance_origin",
-                        "direct candidates cannot name inherited_from_claim_id",
-                        proposal.model_dump(mode="json"),
-                    )
-                )
                 continue
             direct_pairs[claim_id].add((proposal.note_id, proposal.source_id))
             accepted[claim_id].append(
@@ -608,9 +595,10 @@ def _parse_final_attributions(
     for claim in claims:
         claim_id = claim.claim_id
         for proposal, note in valid_identity[claim_id]:
-            if proposal.resolution == SourceResolution.DIRECT:
+            if proposal.inherited_from_claim_id is None:
                 continue
             origin_id = proposal.inherited_from_claim_id
+            resolution = SourceResolution.UNRESOLVED
             if origin_id is None or origin_id not in claim_by_id:
                 entry_errors[claim_id].append(
                     _error(
@@ -620,8 +608,7 @@ def _parse_final_attributions(
                         proposal.model_dump(mode="json"),
                     )
                 )
-                continue
-            if claim_order[origin_id] >= claim_order[claim_id]:
+            elif claim_order[origin_id] >= claim_order[claim_id]:
                 entry_errors[claim_id].append(
                     _error(
                         claim_id,
@@ -630,9 +617,10 @@ def _parse_final_attributions(
                         proposal.model_dump(mode="json"),
                     )
                 )
-                continue
-            pair = (proposal.note_id, proposal.source_id)
-            if pair not in direct_pairs[origin_id]:
+            elif (
+                proposal.note_id,
+                proposal.source_id,
+            ) not in direct_pairs[origin_id]:
                 entry_errors[claim_id].append(
                     _error(
                         claim_id,
@@ -641,23 +629,35 @@ def _parse_final_attributions(
                         proposal.model_dump(mode="json"),
                     )
                 )
-                continue
-            origin = claim_by_id[origin_id]
-            if not source_inheritance_allowed(
-                blocks,
-                source_block_id=origin.block_id,
-                target_block_id=claim.block_id,
-                resolution=proposal.resolution,
-            ):
-                entry_errors[claim_id].append(
-                    _error(
-                        claim_id,
-                        "inheritance_boundary_rejected",
-                        "Markdown unit boundary does not allow this inheritance",
-                        proposal.model_dump(mode="json"),
+            else:
+                origin = claim_by_id[origin_id]
+                if source_inheritance_allowed(
+                    blocks,
+                    source_block_id=origin.block_id,
+                    target_block_id=claim.block_id,
+                    resolution=SourceResolution.INHERITED_SAME_UNIT,
+                ):
+                    resolution = SourceResolution.INHERITED_SAME_UNIT
+                elif source_inheritance_allowed(
+                    blocks,
+                    source_block_id=origin.block_id,
+                    target_block_id=claim.block_id,
+                    resolution=SourceResolution.INHERITED_PREVIOUS_UNIT,
+                ):
+                    resolution = SourceResolution.INHERITED_PREVIOUS_UNIT
+                else:
+                    entry_errors[claim_id].append(
+                        _error(
+                            claim_id,
+                            "lineage_outside_markdown_boundary",
+                            (
+                                "candidate retained unresolved because the "
+                                "claimed lineage crosses the mechanical "
+                                "Markdown boundary"
+                            ),
+                            proposal.model_dump(mode="json"),
+                        )
                     )
-                )
-                continue
             accepted[claim_id].append(
                 CandidateSource(
                     note_id=proposal.note_id,
@@ -666,7 +666,7 @@ def _parse_final_attributions(
                     publisher=note.publisher,
                     url=note.url,
                     location_status=note.location_status,
-                    resolution=proposal.resolution,
+                    resolution=resolution,
                     inherited_from_claim_id=origin_id,
                 )
             )
