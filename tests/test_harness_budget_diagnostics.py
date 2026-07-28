@@ -283,3 +283,49 @@ def test_the_cap_diagnosis_refuses_to_invent_empty_coverage():
     )
 
     assert "cannot be filled with zeros" in error.report()
+
+
+def test_a_stage_budget_skipped_before_it_ran_is_still_disclosed():
+    """A pre-check skip removes work without ever refusing a call.
+
+    Gap and disagreement rounds are skipped by checking the remaining
+    allowance, not by the admission layer, so cap_was_binding stays false. If
+    disclosure keyed only off that flag, budget could silently delete a whole
+    planned round and the report would say nothing at all -- the exact
+    "the reader cannot tell" failure this work exists to remove.
+    """
+
+    signal, evidence = judge_budget_decision(
+        cap_was_binding=False,
+        outstanding=OutstandingWork(open_checklist_items=1),
+        recent_rounds=[productive(1)],
+        curtailed_stages=("evidence_gap",),
+    )
+
+    assert signal is not BudgetDecisionSignal.NOT_APPLICABLE
+    assert any("skipped these stages before they ran" in x for x in evidence)
+
+
+def test_curtailment_and_refusal_are_recorded_as_different_facts():
+    from open_deep_research.harness.budget_diagnostics import (
+        CompletionStatus,
+        ResourceStopReason,
+        RunStopDiagnostic,
+    )
+
+    skipped = RunStopDiagnostic(
+        resource_stop_reason=ResourceStopReason.NOT_RESOURCE_LIMITED,
+        completion_status=CompletionStatus.PARTIAL,
+        budget_curtailed_stages=("evidence_gap",),
+    )
+
+    # No call was refused, so the refusal flag stays false ...
+    assert skipped.cap_was_binding is False
+    # ... but budget still removed planned work, and that must be disclosed.
+    assert skipped.work_was_curtailed is True
+
+    untouched = RunStopDiagnostic(
+        resource_stop_reason=ResourceStopReason.NOT_RESOURCE_LIMITED,
+        completion_status=CompletionStatus.COMPLETE,
+    )
+    assert untouched.work_was_curtailed is False

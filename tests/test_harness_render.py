@@ -799,3 +799,43 @@ def test_a_run_that_was_never_cut_off_says_nothing_about_budget() -> None:
     rendered = render_verified_report(draft, verification)
 
     assert "成本上限截断" not in rendered.markdown
+
+
+def test_report_discloses_a_stage_that_budget_skipped_before_it_ran() -> None:
+    """Silently deleting a planned round is the failure this line prevents."""
+
+    from open_deep_research.harness.budget_diagnostics import (
+        BudgetDecisionSignal,
+        CompletionStatus,
+        OutstandingWork,
+        ResourceStopReason,
+        RunStopDiagnostic,
+    )
+
+    draft = "First assertion."
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                _claim(draft, "claim-1", "First assertion."),
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                _support("claim-1"),
+            ),
+        )
+    )
+    diagnostic = RunStopDiagnostic(
+        resource_stop_reason=ResourceStopReason.NOT_RESOURCE_LIMITED,
+        completion_status=CompletionStatus.PARTIAL,
+        cap_was_binding=False,
+        budget_curtailed_stages=("evidence_gap", "disagreement_detection"),
+        outstanding=OutstandingWork(evidence_gap_plan_unexecuted=True),
+        budget_decision_signal=BudgetDecisionSignal.INDETERMINATE,
+    )
+
+    rendered = render_verified_report(
+        draft, verification, stop_diagnostic=diagnostic
+    )
+
+    assert "evidence_gap、disagreement_detection" in rendered.markdown
+    assert "未拒绝任何调用，但计划中的工作没有执行" in rendered.markdown
+    # This was not a cap hit, so it must not be described as one.
+    assert "成本上限截断" not in rendered.markdown

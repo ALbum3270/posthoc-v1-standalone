@@ -186,9 +186,24 @@ class RunStopDiagnostic(BaseModel):
     boundary: StopBoundary | None = None
     blocked_call: BlockedCall | None = None
     cap_was_binding: bool = False
+    budget_curtailed_stages: tuple[str, ...] = ()
+    """Stages a pre-check skipped for lack of budget, without refusing a call.
+
+    These never set ``cap_was_binding``: no admission was denied, because the
+    stage was never attempted. They still mean budget removed planned work, so
+    they are recorded separately rather than folded in -- and disclosure keys
+    off both, since a reader cannot tell from the report which mechanism cut
+    the work if only one of them is reported.
+    """
     blocked_operation_quality: BlockedOperationQuality = (
         BlockedOperationQuality.NOTHING_BLOCKED
     )
+
+    @property
+    def work_was_curtailed(self) -> bool:
+        """Whether budget removed work, by refusal or by pre-check skip."""
+
+        return self.cap_was_binding or bool(self.budget_curtailed_stages)
     stage_cost_usd: dict[str, float] = Field(default_factory=dict)
     observed_total_cost_usd: float = Field(default=0.0, ge=0.0)
     absolute_run_cost_cap_usd: float | None = None
@@ -288,6 +303,7 @@ def judge_budget_decision(
     cap_was_binding: bool,
     outstanding: OutstandingWork,
     recent_rounds: Iterable[RoundProductivity],
+    curtailed_stages: Sequence[str] = (),
 ) -> tuple[BudgetDecisionSignal, tuple[str, ...]]:
     """Decide whether more budget is plausibly worth buying.
 
@@ -300,25 +316,37 @@ def judge_budget_decision(
     rounds = tuple(recent_rounds)
     evidence: list[str] = []
 
-    if not cap_was_binding:
+    if not cap_was_binding and not curtailed_stages:
         return (
             BudgetDecisionSignal.NOT_APPLICABLE,
             ("no ceiling refused a call, so no work was withheld for cost",),
         )
 
+    if curtailed_stages:
+        evidence.append(
+            "budget skipped these stages before they ran: "
+            + ", ".join(curtailed_stages)
+        )
+
     if not outstanding.has_outstanding_work:
         return (
             BudgetDecisionSignal.NOT_APPLICABLE,
-            (
-                "a ceiling was binding but no outstanding work remained, so "
-                "more budget has nothing to buy",
+            tuple(
+                evidence
+                + [
+                    "budget removed work but nothing outstanding remained, so "
+                    "more budget has nothing to buy"
+                ]
             ),
         )
 
     if not rounds:
         return (
             BudgetDecisionSignal.INDETERMINATE,
-            ("no acquisition rounds ran, so productivity is unmeasured",),
+            tuple(
+                evidence
+                + ["no acquisition rounds ran, so productivity is unmeasured"]
+            ),
         )
 
     productive = [item for item in rounds if item.produced_material]
@@ -475,10 +503,21 @@ def build_run_stop_diagnostic(
     else:
         completion = CompletionStatus.PARTIAL
 
+    curtailed_stages = tuple(
+        name
+        for name, curtailed in (
+            ("evidence_gap", evidence_gap_plan_unexecuted),
+            ("disagreement_detection", disagreement_plan_unexecuted),
+            ("posthoc_retrieval", posthoc_retrieval_limited),
+        )
+        if curtailed
+    )
+
     signal, evidence = judge_budget_decision(
         cap_was_binding=cap_was_binding,
         outstanding=outstanding,
         recent_rounds=recent,
+        curtailed_stages=curtailed_stages,
     )
 
     return RunStopDiagnostic(
@@ -487,6 +526,7 @@ def build_run_stop_diagnostic(
         boundary=boundary,
         blocked_call=blocked_call,
         cap_was_binding=cap_was_binding,
+        budget_curtailed_stages=curtailed_stages,
         blocked_operation_quality=classify_blocked_operation(
             recent, cap_was_binding=cap_was_binding
         ),
