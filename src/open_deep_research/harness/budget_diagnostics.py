@@ -187,13 +187,18 @@ class RunStopDiagnostic(BaseModel):
     blocked_call: BlockedCall | None = None
     cap_was_binding: bool = False
     budget_curtailed_stages: tuple[str, ...] = ()
-    """Stages a pre-check skipped for lack of budget, without refusing a call.
+    """Stages that stopped early for budget, whether or not they got started.
 
-    These never set ``cap_was_binding``: no admission was denied, because the
-    stage was never attempted. They still mean budget removed planned work, so
-    they are recorded separately rather than folded in -- and disclosure keys
-    off both, since a reader cannot tell from the report which mechanism cut
-    the work if only one of them is reported.
+    These do not set ``cap_was_binding``: the admission layer refused nothing,
+    because each stage checks its own remaining allowance and stops. Such a
+    stage may still have done real work and spent real money before stopping,
+    so this must not be described as "never started" -- a measured run had both
+    of these stages stop mid-pass after spending, which a "skipped" label would
+    have misreported.
+
+    Recorded separately from ``cap_was_binding`` rather than folded in, because
+    a refused call and a stage that cut itself short leave different work
+    missing. Disclosure keys off both.
     """
     blocked_operation_quality: BlockedOperationQuality = (
         BlockedOperationQuality.NOTHING_BLOCKED
@@ -324,7 +329,7 @@ def judge_budget_decision(
 
     if curtailed_stages:
         evidence.append(
-            "budget skipped these stages before they ran: "
+            "these stages stopped early for budget: "
             + ", ".join(curtailed_stages)
         )
 

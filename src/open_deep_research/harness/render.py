@@ -897,16 +897,17 @@ def _render_cutoff_line(diagnostic: RunStopDiagnostic | None) -> str | None:
         return None
     boundary = diagnostic.boundary
     if not diagnostic.cap_was_binding:
-        # No call was refused; a pre-check skipped whole stages instead. Say
-        # which, because "the cap bound" and "the round never started" leave
-        # the reader with different work missing.
-        skipped = "、".join(diagnostic.budget_curtailed_stages)
+        # No call was refused; each stage checked its own allowance and cut
+        # itself short. It may have spent money and done partial work first,
+        # so this must not be phrased as "never started".
+        curtailed = "、".join(diagnostic.budget_curtailed_stages)
         judgement = _BUDGET_SIGNAL_LABEL.get(
             diagnostic.budget_decision_signal, "无判断"
         )
         return (
-            f"> **预算不足以启动以下阶段，它们被跳过：{skipped}。** "
-            f"未拒绝任何调用，但计划中的工作没有执行。{judgement}。"
+            f"> **以下阶段因预算不足提前停止：{curtailed}。** "
+            f"未拒绝任何调用；这些阶段可能已完成部分工作后停下，"
+            f"计划中的其余部分没有执行。{judgement}。"
             "详见审计 `stop.diagnostic`。"
         )
     where = (

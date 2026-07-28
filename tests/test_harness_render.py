@@ -836,6 +836,9 @@ def test_report_discloses_a_stage_that_budget_skipped_before_it_ran() -> None:
     )
 
     assert "evidence_gap、disagreement_detection" in rendered.markdown
-    assert "未拒绝任何调用，但计划中的工作没有执行" in rendered.markdown
+    assert "因预算不足提前停止" in rendered.markdown
+    # These stages may have spent money before stopping; never call them skipped.
+    assert "可能已完成部分工作后停下" in rendered.markdown
+    assert "被跳过" not in rendered.markdown
     # This was not a cap hit, so it must not be described as one.
     assert "成本上限截断" not in rendered.markdown

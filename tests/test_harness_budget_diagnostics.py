@@ -303,7 +303,7 @@ def test_a_stage_budget_skipped_before_it_ran_is_still_disclosed():
     )
 
     assert signal is not BudgetDecisionSignal.NOT_APPLICABLE
-    assert any("skipped these stages before they ran" in x for x in evidence)
+    assert any("stopped early for budget" in x for x in evidence)
 
 
 def test_curtailment_and_refusal_are_recorded_as_different_facts():
