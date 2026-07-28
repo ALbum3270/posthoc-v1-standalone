@@ -221,7 +221,8 @@ class OneNoteModel:
                     {
                         "item_id": "what-1",
                         "finding": "A finding used after drafting.",
-                        "quote": "ExactSourceEvidence 2026.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     }
                 ],
                 "cross_item_seeds": [],

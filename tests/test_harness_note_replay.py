@@ -97,17 +97,16 @@ def test_replay_reconstructs_historical_targets_and_uses_production_grounding(
                     {
                         "item_id": "active",
                         "finding": "Active finding.",
-                        "quote": "An exact active sentence.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     }
                 ],
                 "cross_item_seeds": [
                     {
                         "item_id": "eligible",
                         "finding": "Cross finding.",
-                        "quote": (
-                            "An exact active sentence. ... "
-                            "A separate exact seed sentence."
-                        ),
+                        "start_segment_id": "S000002",
+                        "end_segment_id": "S000002",
                     }
                 ],
             },
@@ -133,11 +132,11 @@ def test_replay_reconstructs_historical_targets_and_uses_production_grounding(
         "unlocatable": 0,
     }
     assert result["cross"]["location_counts"] == {
-        "strict": 0,
+        "strict": 1,
         "repaired": 0,
-        "unlocatable": 1,
+        "unlocatable": 0,
     }
-    assert result["cross"]["noncontiguous_composite_count"] == 1
+    assert result["cross"]["noncontiguous_composite_count"] == 0
     assert result["combined"]["quote_length_chars"]["count"] == 2
     assert result["per_source"][0]["eligible_cross_item_ids"] == [
         "eligible"

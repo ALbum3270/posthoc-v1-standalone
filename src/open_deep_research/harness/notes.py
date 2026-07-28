@@ -12,6 +12,10 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from open_deep_research.graphrag.validation.grounding import locate_source_quote
+from open_deep_research.harness.source_spans import (
+    SourceSpanRegistry,
+    resolve_source_span,
+)
 
 _ELLIPSIS = re.compile(r"\s*(?:\.{3,}|…)\s*")
 _DIGIT_RUN = re.compile(r"\d+")
@@ -32,6 +36,13 @@ class NoteLocationStatus(str, Enum):
     LOCATABLE = "locatable"
     REPAIRED_LOCATABLE = "repaired_locatable"
     UNLOCATABLE = "unlocatable"
+
+
+class NoteExtractionMode(str, Enum):
+    """How the authoritative quote was acquired."""
+
+    LEGACY_FREE_TEXT = "legacy_free_text"
+    SEGMENT_POINTER = "segment_pointer"
 
 
 class QuoteFailureReason(str, Enum):
@@ -131,7 +142,7 @@ class ResearchNote(BaseModel):
     note_id: str | None = None
     source_id: str = Field(min_length=1)
     finding: str = Field(min_length=1)
-    model_quote: str
+    model_quote: str | None
     source_quote: str | None = None
     url: str = Field(min_length=1)
     publisher: str = Field(min_length=1)
@@ -140,6 +151,12 @@ class ResearchNote(BaseModel):
     repair_method: QuoteRepairMethod | None = None
     failure_reason: QuoteFailureReason | None = None
     located_fragment_count: int = Field(default=0, ge=0)
+    extraction_mode: NoteExtractionMode = NoteExtractionMode.LEGACY_FREE_TEXT
+    start_segment_id: str | None = None
+    end_segment_id: str | None = None
+    span_registry_id: str | None = None
+    source_text_sha256: str | None = None
+    segmentation_version: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -191,6 +208,30 @@ class ResearchNote(BaseModel):
             raise ValueError("unlocatable notes require a failure reason")
         if usable and self.located_fragment_count:
             raise ValueError("located notes cannot retain failed-fragment counts")
+        pointer_fields = (
+            self.start_segment_id,
+            self.end_segment_id,
+            self.span_registry_id,
+            self.source_text_sha256,
+            self.segmentation_version,
+        )
+        if self.extraction_mode is NoteExtractionMode.SEGMENT_POINTER:
+            if any(value is None for value in pointer_fields):
+                raise ValueError(
+                    "segment-pointer notes require complete registry metadata"
+                )
+            if self.model_quote is not None:
+                raise ValueError(
+                    "segment-pointer notes cannot contain a model-authored quote"
+                )
+            if self.location_status is not NoteLocationStatus.LOCATABLE:
+                raise ValueError("segment-pointer notes must be strictly locatable")
+        elif any(value is not None for value in pointer_fields):
+            raise ValueError(
+                "legacy free-text notes cannot contain segment-pointer metadata"
+            )
+        elif self.model_quote is None:
+            raise ValueError("legacy free-text notes require model_quote")
         return self
 
     @property
@@ -449,4 +490,57 @@ def create_note(
         location_status=NoteLocationStatus.UNLOCATABLE,
         failure_reason=failure_reason,
         located_fragment_count=fragment_count,
+    )
+
+
+def create_note_from_segment_range(
+    *,
+    item_id: str,
+    finding: str,
+    start_segment_id: str,
+    end_segment_id: str,
+    url: str,
+    source_text: str,
+    registry: SourceSpanRegistry,
+) -> ResearchNote:
+    """Create evidence by resolving a model-selected authoritative range.
+
+    The model chooses only IDs. Code owns the offsets and copies the quote from
+    cached source text. The shared strict locator remains a defensive invariant
+    for this path; conservative repair is intentionally unnecessary here.
+    """
+
+    normalized_url = url.strip()
+    resolved = resolve_source_span(
+        source_text,
+        registry,
+        start_segment_id=start_segment_id,
+        end_segment_id=end_segment_id,
+    )
+    authoritative_slice = source_text[
+        resolved.start_char : resolved.end_char
+    ]
+    if authoritative_slice != resolved.source_quote:
+        raise AssertionError("pointer quote must equal authoritative source slice")
+    if locate_source_quote(source_text, authoritative_slice) is None:
+        raise AssertionError("pointer quote must pass the shared strict locator")
+    return ResearchNote(
+        item_id=item_id.strip(),
+        source_id=source_id_for_url(normalized_url),
+        finding=finding.strip(),
+        model_quote=None,
+        source_quote=authoritative_slice,
+        url=normalized_url,
+        publisher=_publisher_domain(normalized_url),
+        span=QuoteSpan(
+            start_char=resolved.start_char,
+            end_char=resolved.end_char,
+        ),
+        location_status=NoteLocationStatus.LOCATABLE,
+        extraction_mode=NoteExtractionMode.SEGMENT_POINTER,
+        start_segment_id=resolved.start_segment_id,
+        end_segment_id=resolved.end_segment_id,
+        span_registry_id=registry.registry_id,
+        source_text_sha256=registry.source_text_sha256,
+        segmentation_version=registry.segmentation_version,
     )

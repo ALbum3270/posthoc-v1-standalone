@@ -306,7 +306,8 @@ def test_cached_read_returns_note_ids_without_rerunning_note_model():
                     {
                         "item_id": "how-1",
                         "finding": "The source also answers another item.",
-                        "quote": "A useful exact sentence.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     }
                 ]
             },
@@ -323,7 +324,17 @@ def test_cached_read_returns_note_ids_without_rerunning_note_model():
 
     assert len(client.extract_calls) == 1
     assert len(note_model.prompts) == 1
-    assert all(source in prompt for prompt in note_model.prompts)
+    assert all(
+        all(
+            passage in prompt
+            for passage in (
+                "A useful exact sentence.",
+                "A second exact sentence.",
+                "A private-source-marker that no note quotes.",
+            )
+        )
+        for prompt in note_model.prompts
+    )
     assert (
         'Active item:\n{"item_id": "what-1", "question": "What happened?"}'
         in note_model.prompts[0]
@@ -514,6 +525,10 @@ def test_note_prompt_has_two_bounded_channels_without_changing_active_pass():
     assert "why-1" not in prompt
     assert '"status"' not in prompt
     assert '"priority"' not in prompt
+    assert "Do not copy or generate quote text" in prompt
+    assert "source_text_sha256" in prompt
+    assert "segmentation_version" in prompt
+    assert "<S000001>A useful exact sentence." in prompt
     assert all(
         term not in prompt.casefold()
         for term in ("receivership", "regulators", "asset_flow")
@@ -538,14 +553,15 @@ def test_note_channels_parse_entries_independently_and_cross_does_not_reset_fail
                 "active_notes": [
                     {
                         "item_id": "what-1",
-                        "finding": "Missing quote makes only this entry bad.",
+                        "finding": "Missing pointer makes only this entry bad.",
                     }
                 ],
                 "cross_item_seeds": [
                     {
                         "item_id": "how-1",
                         "finding": "A valid cross-item seed.",
-                        "quote": source,
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     }
                 ],
             }
@@ -571,7 +587,7 @@ def test_note_channels_parse_entries_independently_and_cross_does_not_reset_fail
     assert audit["cross_item_seed_errors"] == []
 
 
-def test_note_audit_splits_quote_location_counts_by_output_channel():
+def test_note_audit_splits_pointer_location_counts_by_output_channel():
     source = "Exact active sentence.\n\nＡlpha—Beta 2024"
     decisions = [
         envelope(
@@ -590,19 +606,22 @@ def test_note_audit_splits_quote_location_counts_by_output_channel():
                     {
                         "item_id": "what-1",
                         "finding": "A strict active note.",
-                        "quote": "Exact active sentence.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     },
                     {
                         "item_id": "what-1",
-                        "finding": "An unlocatable active note.",
-                        "quote": "Absent active wording.",
+                        "finding": "An invalid active pointer.",
+                        "start_segment_id": "S999999",
+                        "end_segment_id": "S999999",
                     },
                 ],
                 "cross_item_seeds": [
                     {
                         "item_id": "how-1",
-                        "finding": "A repaired cross-item seed.",
-                        "quote": "alpha beta 2024.",
+                        "finding": "A strict cross-item seed.",
+                        "start_segment_id": "S000002",
+                        "end_segment_id": "S000002",
                     }
                 ],
             }
@@ -616,16 +635,23 @@ def test_note_audit_splits_quote_location_counts_by_output_channel():
     )
 
     audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert audit["note_extraction_mode"] == "segment_pointer"
+    assert audit["source_span_registry"]["source_text_sha256"]
+    assert audit["source_span_registry"]["segmentation_version"]
     assert audit["active_note_location_counts"] == {
         "strict_locatable": 1,
         "repaired_locatable": 0,
-        "unlocatable": 1,
-    }
-    assert audit["cross_item_seed_location_counts"] == {
-        "strict_locatable": 0,
-        "repaired_locatable": 1,
         "unlocatable": 0,
     }
+    assert audit["cross_item_seed_location_counts"] == {
+        "strict_locatable": 1,
+        "repaired_locatable": 0,
+        "unlocatable": 0,
+    }
+    assert any(
+        "unknown start_segment_id 'S999999'" in error
+        for error in audit["active_note_errors"]
+    )
 
 
 def test_cross_item_seed_capacity_is_per_distinct_open_item_and_audited():
@@ -660,14 +686,16 @@ def test_cross_item_seed_capacity_is_per_distinct_open_item_and_audited():
                     {
                         "item_id": "what-1",
                         "finding": "Active finding.",
-                        "quote": sentences[0],
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     }
                 ],
                 "cross_item_seeds": [
                     {
                         "item_id": item_id,
                         "finding": f"Seed {index}.",
-                        "quote": sentences[index],
+                        "start_segment_id": f"S{index + 1:06d}",
+                        "end_segment_id": f"S{index + 1:06d}",
                     }
                     for index, item_id in enumerate(
                         ("who-1", "when-1", "where-1", "why-1", "how-1"),
@@ -707,8 +735,8 @@ def test_cross_item_seed_capacity_is_per_distinct_open_item_and_audited():
     )
 
 
-def test_cross_seed_is_grounded_like_any_note_and_survives_later_exhaustion():
-    source = "The source does not contain the proposed cross wording."
+def test_cross_seed_is_exactly_sliced_and_survives_later_exhaustion():
+    source = "The source contains exact cross evidence."
     decisions = [
         envelope(
             {
@@ -744,8 +772,9 @@ def test_cross_seed_is_grounded_like_any_note_and_survives_later_exhaustion():
                 "cross_item_seeds": [
                     {
                         "item_id": "how-1",
-                        "finding": "An unlocatable seed remains historical.",
-                        "quote": "Different proposed wording.",
+                        "finding": "An exact seed remains historical.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     }
                 ],
             }
@@ -759,9 +788,9 @@ def test_cross_seed_is_grounded_like_any_note_and_survives_later_exhaustion():
     )
 
     assert len(result.ledger.notes) == 1
-    assert result.ledger.notes[0].location_status is (
-        NoteLocationStatus.UNLOCATABLE
-    )
+    assert result.ledger.notes[0].location_status is NoteLocationStatus.LOCATABLE
+    assert result.ledger.notes[0].source_quote == source
+    assert result.ledger.notes[0].model_quote is None
     assert result.checklist.get("how-1").status is (
         ChecklistStatus.EXHAUSTED_NOT_FOUND
     )
@@ -1045,7 +1074,8 @@ def test_reanalyze_is_the_only_way_to_rerun_notes_for_a_cached_url():
                     {
                         "item_id": "how-1",
                         "finding": "Cross-item evidence.",
-                        "quote": "A useful exact sentence.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     }
                 ]
             }
@@ -1056,7 +1086,8 @@ def test_reanalyze_is_the_only_way_to_rerun_notes_for_a_cached_url():
                     {
                         "item_id": "what-1",
                         "finding": "Active-item evidence.",
-                        "quote": "A useful exact sentence.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
                     }
                 ],
                 "cross_item_seeds": [],
@@ -1391,7 +1422,7 @@ def test_batch_status_updates_and_collection_action_run_in_the_same_round():
     assert first_round["result_count"] == 1
 
 
-def test_composite_quote_is_retained_once_and_its_rate_reaches_next_decision():
+def test_discontinuous_segment_range_is_rejected_without_clamping():
     source = (
         "First continuous passage.\n\n"
         "Intervening text.\n\n"
@@ -1414,10 +1445,8 @@ def test_composite_quote_is_retained_once_and_its_rate_reaches_next_decision():
                     {
                         "item_id": "what-1",
                         "finding": "Two passages support the finding.",
-                        "quote": (
-                            "First continuous passage. ... "
-                            "Second continuous passage."
-                        ),
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000003",
                     }
                 ],
                 "cross_item_seeds": [],
@@ -1432,23 +1461,23 @@ def test_composite_quote_is_retained_once_and_its_rate_reaches_next_decision():
     )
 
     note_prompt = note_model.prompts[0]
-    assert "Each quote must be one continuous passage" in note_prompt
-    assert 'Do not use an ellipsis ("..." or "…")' in note_prompt
-    assert "return two separate notes" in note_prompt
+    assert "select exactly one continuous" in note_prompt
+    assert "It may not cross a heading, paragraph" in note_prompt
+    assert "return two separate\nnotes" in note_prompt
     assert all(
         term not in note_prompt.casefold()
         for term in ("receivership", "regulators", "asset_flow")
     )
 
     assert len(note_model.prompts) == 1
-    assert len(result.ledger.notes) == 1
-    note = result.ledger.notes[0]
-    assert note.location_status.value == "unlocatable"
-    assert note.failure_reason.value == "noncontiguous_composite"
-    assert note.located_fragment_count == 2
+    assert result.ledger.notes == []
+    audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert any(
+        "crosses a Markdown unit boundary" in error
+        for error in audit["active_note_errors"]
+    )
     next_prompt = decision_model.prompts[1]
-    assert '"noncontiguous_composite_count": 1' in next_prompt
-    assert '"noncontiguous_composite_rate": 1.0' in next_prompt
+    assert '"note_count": 0' in next_prompt
 
 
 def test_invalid_status_update_is_rejected_without_losing_valid_parts():

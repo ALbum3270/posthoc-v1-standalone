@@ -1,10 +1,13 @@
 from open_deep_research.harness.notes import (
+    NoteExtractionMode,
     NoteLocationStatus,
     QuoteFailureReason,
     QuoteRepairMethod,
     create_note,
+    create_note_from_segment_range,
     source_evidence,
 )
+from open_deep_research.harness.source_spans import build_source_span_registry
 
 
 def test_locatable_note_uses_exact_source_slice_and_offsets():
@@ -144,3 +147,44 @@ def test_noncontiguous_diagnostic_never_creates_fragment_evidence():
     assert note.span is None
     assert source_evidence(note) is None
     assert "fragments" not in note.model_dump()
+
+
+def test_segment_pointer_note_uses_only_the_authoritative_source_slice():
+    source = "First sentence. Second sentence.\n\nAnother paragraph."
+    registry = build_source_span_registry(source)
+
+    note = create_note_from_segment_range(
+        item_id="what-1",
+        finding="A continuous two-sentence passage supports the finding.",
+        start_segment_id="S000001",
+        end_segment_id="S000002",
+        url="https://example.com/article",
+        source_text=source,
+        registry=registry,
+    )
+
+    assert note.extraction_mode is NoteExtractionMode.SEGMENT_POINTER
+    assert note.model_quote is None
+    assert note.source_quote == "First sentence. Second sentence."
+    assert note.span is not None
+    assert source[note.span.start_char : note.span.end_char] == note.source_quote
+    assert note.start_segment_id == "S000001"
+    assert note.end_segment_id == "S000002"
+    assert note.span_registry_id == registry.registry_id
+    assert note.source_text_sha256 == registry.source_text_sha256
+    assert note.segmentation_version == registry.segmentation_version
+
+
+def test_legacy_free_text_note_remains_explicitly_legacy():
+    note = create_note(
+        item_id="what-1",
+        finding="The historical extraction path remains auditable.",
+        quote="Exact historical quote.",
+        url="https://example.com/legacy",
+        source_text="Exact historical quote.",
+    )
+
+    assert note.extraction_mode is NoteExtractionMode.LEGACY_FREE_TEXT
+    assert note.model_quote == "Exact historical quote."
+    assert note.start_segment_id is None
+    assert note.span_registry_id is None

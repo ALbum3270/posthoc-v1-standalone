@@ -3,7 +3,7 @@
 
 The script reconstructs each successful note-model call from a harness audit:
 the cached cleaned source, active checklist item, terminal-state history, note
-prompt, parser, cross-item capacity, and quote locator all come from the
+prompt, parser, cross-item capacity, and source-span resolver all come from the
 production harness.  It does not run Tavily, the decision loop, or pending
 candidate handling, and it never writes back into ``harness_runs``.
 
@@ -298,7 +298,7 @@ def _channel_metrics(notes: list[ResearchNote]) -> dict[str, Any]:
         ],
         "failure_reason_counts": dict(sorted(failures.items())),
         "quote_length_chars": _length_distribution(
-            [len(note.model_quote) for note in notes]
+            [len(note.source_quote or note.model_quote or "") for note in notes]
         ),
     }
 
@@ -307,7 +307,8 @@ def _note_payload(note: ResearchNote, *, channel: str) -> dict[str, Any]:
     return {
         "channel": channel,
         **note.model_dump(mode="json"),
-        "model_quote_length_chars": len(note.model_quote),
+        "model_quote_length_chars": len(note.model_quote or ""),
+        "source_quote_length_chars": len(note.source_quote or ""),
     }
 
 
@@ -391,7 +392,9 @@ async def replay_cases(
             "pending_state_machine_called": False,
             "production_note_prompt": True,
             "production_note_schema_parser": True,
-            "production_quote_locator_and_repair": True,
+            "production_segment_pointer_resolution": True,
+            "authoritative_source_slicing": True,
+            "legacy_free_text_repair_used": False,
             "cross_item_capacity_from_source_audit": True,
         },
         "usage": {

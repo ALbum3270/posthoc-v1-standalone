@@ -33,7 +33,12 @@ from open_deep_research.harness.notes import (
     NoteLocationStatus,
     QuoteFailureReason,
     ResearchNote,
-    create_note,
+    create_note_from_segment_range,
+)
+from open_deep_research.harness.source_spans import (
+    SourceSpanRegistry,
+    build_source_span_registry,
+    render_segmented_source,
 )
 from open_deep_research.harness.tools import (
     SearchResult,
@@ -373,13 +378,14 @@ class _DecisionParse:
 
 
 class NoteDraft(BaseModel):
-    """A note proposed by the note model for mechanical grounding."""
+    """A finding plus one model-selected continuous source range."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     item_id: str = Field(min_length=1)
     finding: str = Field(min_length=1)
-    quote: str
+    start_segment_id: str = Field(min_length=1)
+    end_segment_id: str = Field(min_length=1)
 
     @field_validator("item_id", "finding")
     @classmethod
@@ -519,25 +525,27 @@ The cross-item limit is a fixed output-capacity bound, not a quality threshold.
 Only item_id values listed under eligible_cross_item_targets may appear in
 cross_item_seeds. Do not put the active item there.
 
-Each quote must be one continuous passage copied verbatim from the source:
-- Do not use an ellipsis ("..." or "…").
-- Do not join text from separate passages or paragraphs.
-- Do not reorder words or clauses.
-- Do not change wording, whitespace, capitalization, or punctuation.
-- If one finding needs two non-contiguous passages, return two separate notes,
-  each with its own continuous verbatim quote.
+Do not copy or generate quote text. For each note, select exactly one continuous
+range from the addressable source below using start_segment_id and
+end_segment_id. Both IDs must exist, be in source order, and belong to the same
+Markdown unit. A range may include consecutive sentences from one paragraph.
+It may not cross a heading, paragraph, list-item, table-row, or code-block
+boundary. If one finding needs two non-contiguous passages, return two separate
+notes, each with its own continuous range. Never return multiple ranges in one
+note.
 
 Purely structural example:
-Source text contains "First statement." and later "Second statement."
-Valid: two notes, one quoting "First statement." and one quoting
-"Second statement."
-Invalid: one note quoting "First statement. ... Second statement."
+Source contains <S000001>First statement. and later
+<S000004>Second statement.
+Valid: two notes, one selecting S000001-S000001 and one selecting
+S000004-S000004.
+Invalid: one note joining S000001 and S000004 as a discontinuous range.
 
 Return JSON only as
 {{"active_notes":[
-  {{"item_id":"...","finding":"...","quote":"exact source text"}}
+  {{"item_id":"...","finding":"...","start_segment_id":"S000001","end_segment_id":"S000002"}}
 ],"cross_item_seeds":[
-  {{"item_id":"...","finding":"...","quote":"exact source text"}}
+  {{"item_id":"...","finding":"...","start_segment_id":"S000010","end_segment_id":"S000010"}}
 ]}}.
 Returning two empty lists is valid when the source answers nothing.
 
@@ -550,8 +558,11 @@ Eligible cross-item targets:
 Source URL:
 {url}
 
-Source text:
-{source_text}
+Source span registry:
+{source_span_registry}
+
+Addressable source text (the <S......> markers are pointers, not source text):
+{segmented_source_text}
 """
 
 
@@ -1202,6 +1213,7 @@ def build_note_prompt(
     url: str,
     source_text: str,
     max_cross_item_seeds: int = 3,
+    source_span_registry: SourceSpanRegistry | None = None,
 ) -> str:
     """Build the isolated, single-source note extraction prompt."""
 
@@ -1216,6 +1228,7 @@ def build_note_prompt(
         for item in checklist.items
         if item.item_id != active_item_id and not item.is_complete
     ]
+    registry = source_span_registry or build_source_span_registry(source_text)
     return NOTE_PROMPT.format(
         active_item=json.dumps(
             {
@@ -1232,7 +1245,17 @@ def build_note_prompt(
             sort_keys=True,
         ),
         url=url,
-        source_text=source_text,
+        source_span_registry=json.dumps(
+            {
+                "registry_id": registry.registry_id,
+                "source_text_sha256": registry.source_text_sha256,
+                "segmentation_version": registry.segmentation_version,
+                "segment_count": len(registry.segments),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
+        segmented_source_text=render_segmented_source(source_text, registry),
     )
 
 
@@ -1861,6 +1884,7 @@ async def _extract_notes(
 ) -> tuple[ResearchChecklist, int, float, dict[str, Any]]:
     """Run one explicit note pass and retain every mechanically checked draft."""
 
+    source_span_registry = build_source_span_registry(source_text)
     note_response: Any = None
     note_call_error: str | None = None
     try:
@@ -1872,6 +1896,7 @@ async def _extract_notes(
                 url=url,
                 source_text=source_text,
                 max_cross_item_seeds=max_cross_item_seeds,
+                source_span_registry=source_span_registry,
             ),
         )
     except Exception as exc:  # noqa: BLE001 - auditable model turn
@@ -1897,12 +1922,14 @@ async def _extract_notes(
     def retain(draft: NoteDraft) -> tuple[ResearchNote | None, str | None]:
         try:
             current.get(draft.item_id)
-            note = create_note(
+            note = create_note_from_segment_range(
                 item_id=draft.item_id,
                 finding=draft.finding,
-                quote=draft.quote,
+                start_segment_id=draft.start_segment_id,
+                end_segment_id=draft.end_segment_id,
                 url=url,
                 source_text=source_text,
+                registry=source_span_registry,
             )
         except Exception as exc:  # noqa: BLE001 - preserve the rest of the batch
             return None, str(exc)
@@ -1972,6 +1999,13 @@ async def _extract_notes(
     active_note_count = len(active_created)
     summary = {
         "source_chars": len(source_text),
+        "note_extraction_mode": "segment_pointer",
+        "source_span_registry": {
+            "registry_id": source_span_registry.registry_id,
+            "source_text_sha256": source_span_registry.source_text_sha256,
+            "segmentation_version": source_span_registry.segmentation_version,
+            "segment_count": len(source_span_registry.segments),
+        },
         "notes_created": len(created),
         "active_item_notes": active_note_count,
         "active_notes_proposed": len(parsed.active_notes),
