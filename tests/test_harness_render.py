@@ -254,6 +254,98 @@ def test_conflict_and_unverified_reasons_are_visible_at_claim_anchors() -> None:
     assert rendered.summary.unverified == 1
 
 
+def test_summary_splits_each_unverified_failure_mode() -> None:
+    draft = "Partial. Unrun. Unlocatable. Normalization."
+    partial_claim = _claim(draft, "claim-partial", "Partial.")
+    unrun_claim = _claim(draft, "claim-unrun", "Unrun.")
+    unlocatable_claim = _claim(
+        draft,
+        "claim-unlocatable",
+        "Unlocatable.",
+    )
+    normalization_claim = AtomicClaim(
+        claim_id="claim-normalization",
+        block_id="block-normalization",
+        selected_text="Normalization.",
+        claim_text="Normalization failed.",
+        anchor_text=None,
+        start_char=None,
+        end_char=None,
+        citation_requirement=CitationRequirement.EXTERNAL,
+        source_resolution=SourceResolution.UNRESOLVED,
+        normalization_status=(
+            ClaimNormalizationStatus.NORMALIZATION_FAILED
+        ),
+        normalization_failure="anchor_not_found",
+    )
+    budget_failure = VerifiedSourceRelation(
+        claim_id=partial_claim.claim_id,
+        source_id="source-pending",
+        url="https://pending.example/article",
+        publisher_domain_proxy="pending.example",
+        candidate_note_ids=("note-pending",),
+        candidate_source_ids=("source-pending",),
+        status=VerificationRecordStatus.VERIFICATION_NOT_RUN_BUDGET,
+        error="estimated call exceeds remaining budget",
+    )
+    unrun_failure = budget_failure.model_copy(
+        update={"claim_id": unrun_claim.claim_id}
+    )
+    unlocatable_relation = VerifiedSourceRelation(
+        claim_id=unlocatable_claim.claim_id,
+        source_id="source-unlocatable",
+        url="https://unlocatable.example/article",
+        publisher_domain_proxy="unlocatable.example",
+        candidate_note_ids=("note-unlocatable",),
+        candidate_source_ids=("source-unlocatable",),
+        status=VerificationRecordStatus.QUOTE_UNLOCATABLE,
+        semantic_verdict=VerificationVerdict.SUPPORTS,
+        model_quote="Model-proposed quote.",
+        location_status=NoteLocationStatus.UNLOCATABLE,
+        quote_failure_reason="quote_not_found",
+        is_formal_supporting_evidence=False,
+    )
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                partial_claim,
+                ClaimEvidenceState.VERIFICATION_INCOMPLETE,
+                _support("claim-partial"),
+                budget_failure,
+            ),
+            _verified(
+                unrun_claim,
+                ClaimEvidenceState.VERIFICATION_NOT_RUN,
+                unrun_failure,
+            ),
+            _verified(
+                unlocatable_claim,
+                ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE,
+                unlocatable_relation,
+            ),
+            _verified(
+                normalization_claim,
+                ClaimEvidenceState.NORMALIZATION_FAILED,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(draft, verification)
+
+    assert rendered.summary.verification_incomplete == 1
+    assert rendered.summary.verification_not_run == 1
+    assert rendered.summary.support_quote_unlocatable == 1
+    assert rendered.summary.claim_normalization_failed == 1
+    assert rendered.summary.attribution_error == 0
+    assert rendered.summary.unverified == 4
+    assert "核验不完整 1" in rendered.evidence_summary_line
+    assert "完全未核验 1" in rendered.evidence_summary_line
+    assert "支持性引文无法定位 1" in rendered.evidence_summary_line
+    assert "claim 定位失败 1" in rendered.evidence_summary_line
+    assert "归因错误 0" in rendered.evidence_summary_line
+    assert "未核验 4" not in rendered.evidence_summary_line
+
+
 def test_renderer_removes_legacy_model_footnotes_and_is_byte_deterministic() -> None:
     fixture = json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
     legacy = fixture["report_markdown"]
@@ -294,5 +386,8 @@ def test_summary_discloses_when_claim_registry_does_not_cover_the_report() -> No
     assert "未评估块 24" in rendered.evidence_summary_line
     assert "以下断言统计仅覆盖已评估块" in rendered.evidence_summary_line
     assert "已识别外部可核验断言 0" in rendered.evidence_summary_line
-    assert "已识别断言中未核验 0" in rendered.evidence_summary_line
+    assert "已识别断言中核验不完整 0" in rendered.evidence_summary_line
+    assert "完全未核验 0" in rendered.evidence_summary_line
+    assert "支持性引文无法定位 0" in rendered.evidence_summary_line
+    assert "claim 定位失败 0" in rendered.evidence_summary_line
     assert rendered.summary.registry_coverage == coverage

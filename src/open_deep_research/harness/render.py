@@ -80,10 +80,30 @@ class EvidenceSummary(BaseModel):
     refuted: int = Field(ge=0)
     inspected_not_supporting: int = Field(ge=0)
     no_candidate: int = Field(ge=0)
+    verification_incomplete: int = Field(ge=0)
+    verification_not_run: int = Field(ge=0)
+    support_quote_unlocatable: int = Field(ge=0)
+    claim_normalization_failed: int = Field(ge=0)
+    attribution_error: int = Field(ge=0)
     unverified: int = Field(ge=0)
     settled_without_located_evidence: int = Field(ge=0)
     settled_without_located_evidence_item_ids: tuple[str, ...] = ()
     registry_coverage: ClaimRegistryCoverage | None = None
+
+    @model_validator(mode="after")
+    def _unverified_total_matches_components(self) -> EvidenceSummary:
+        components = (
+            self.verification_incomplete
+            + self.verification_not_run
+            + self.support_quote_unlocatable
+            + self.claim_normalization_failed
+            + self.attribution_error
+        )
+        if self.unverified != components:
+            raise ValueError(
+                "unverified must equal its reader-facing component counts"
+            )
+        return self
 
 
 class RenderedReport(BaseModel):
@@ -253,6 +273,17 @@ def _summary(
             verification.state in accepted for verification in external
         )
 
+    verification_incomplete = count(
+        ClaimEvidenceState.VERIFICATION_INCOMPLETE
+    )
+    verification_not_run = count(ClaimEvidenceState.VERIFICATION_NOT_RUN)
+    support_quote_unlocatable = count(
+        ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE
+    )
+    claim_normalization_failed = count(
+        ClaimEvidenceState.NORMALIZATION_FAILED
+    )
+    attribution_error = count(ClaimEvidenceState.ATTRIBUTION_ERROR)
     return EvidenceSummary(
         external_claims=len(external),
         corroborated=count(ClaimEvidenceState.CORROBORATED),
@@ -265,12 +296,17 @@ def _summary(
             ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT
         ),
         no_candidate=count(ClaimEvidenceState.NO_CANDIDATE_SOURCE),
-        unverified=count(
-            ClaimEvidenceState.VERIFICATION_INCOMPLETE,
-            ClaimEvidenceState.VERIFICATION_NOT_RUN,
-            ClaimEvidenceState.NORMALIZATION_FAILED,
-            ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE,
-            ClaimEvidenceState.ATTRIBUTION_ERROR,
+        verification_incomplete=verification_incomplete,
+        verification_not_run=verification_not_run,
+        support_quote_unlocatable=support_quote_unlocatable,
+        claim_normalization_failed=claim_normalization_failed,
+        attribution_error=attribution_error,
+        unverified=(
+            verification_incomplete
+            + verification_not_run
+            + support_quote_unlocatable
+            + claim_normalization_failed
+            + attribution_error
         ),
         settled_without_located_evidence=(
             settled_without_located_evidence
@@ -321,7 +357,12 @@ def _summary_line(summary: EvidenceSummary) -> str:
         f"所检来源反驳 {summary.refuted}；"
         f"所检来源未支持 {summary.inspected_not_supporting}；"
         f"未找到候选来源 {summary.no_candidate}；"
-        f"{unverified_scope}未核验 {summary.unverified}。"
+        f"{unverified_scope}核验不完整 "
+        f"{summary.verification_incomplete}；"
+        f"完全未核验 {summary.verification_not_run}；"
+        f"支持性引文无法定位 {summary.support_quote_unlocatable}；"
+        f"claim 定位失败 {summary.claim_normalization_failed}；"
+        f"归因错误 {summary.attribution_error}。"
         f"采集信号：{collection}。"
     )
 

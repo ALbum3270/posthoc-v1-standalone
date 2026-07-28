@@ -31,6 +31,7 @@ from open_deep_research.harness.attribution import (
 from open_deep_research.harness.checklist import ResearchChecklist
 from open_deep_research.harness.claims import (
     AtomicClaim,
+    CitationRequirement,
     MarkdownBlock,
     SourceResolution,
 )
@@ -1215,7 +1216,10 @@ async def run_evidence_gap_round(
     targets = tuple(
         result
         for result in initial_verification.claims
-        if result.state in _TARGET_STATES
+        if (
+            result.claim.citation_requirement == CitationRequirement.EXTERNAL
+            and result.state in _TARGET_STATES
+        )
     )
     initial_states = {
         result.claim.claim_id: result.state

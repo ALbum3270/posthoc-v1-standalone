@@ -19,6 +19,7 @@ from pydantic import (
 
 from open_deep_research.harness.claims import (
     AtomicClaim,
+    CitationRequirement,
     MarkdownBlock,
     SourceResolution,
     source_inheritance_allowed,
@@ -408,6 +409,37 @@ def _failed_attributions(
     )
 
 
+def _non_external_attribution(claim: AtomicClaim) -> ClaimAttribution:
+    """Return the mechanically empty attribution for a non-external claim."""
+
+    return ClaimAttribution(
+        claim=claim.model_copy(
+            update={"source_resolution": SourceResolution.UNRESOLVED}
+        ),
+        status=AttributionStatus.NO_CANDIDATE_SOURCE,
+    )
+
+
+def _merge_attribution_scope(
+    claims: Sequence[AtomicClaim],
+    external_attributions: Sequence[ClaimAttribution],
+) -> tuple[ClaimAttribution, ...]:
+    """Restore original claim order after external-only model attribution."""
+
+    by_claim_id = {
+        attribution.claim.claim_id: attribution
+        for attribution in external_attributions
+    }
+    return tuple(
+        (
+            by_claim_id[claim.claim_id]
+            if claim.citation_requirement == CitationRequirement.EXTERNAL
+            else _non_external_attribution(claim)
+        )
+        for claim in claims
+    )
+
+
 def _parse_final_attributions(
     content: Mapping[str, Any],
     *,
@@ -719,9 +751,20 @@ async def attribute_claims(
     """Let a model page notes and propose mechanically validated candidates."""
 
     active_settings = settings or AttributionSettings()
-    claim_ids = [claim.claim_id for claim in claims]
+    all_claims = tuple(claims)
+    claim_ids = [claim.claim_id for claim in all_claims]
     if len(claim_ids) != len(set(claim_ids)):
         raise ValueError("candidate attribution requires unique claim_id values")
+    external_claims = tuple(
+        claim
+        for claim in all_claims
+        if claim.citation_requirement == CitationRequirement.EXTERNAL
+    )
+    if not external_claims:
+        return AttributionResult(
+            attributions=_merge_attribution_scope(all_claims, ()),
+            stop_reason=AttributionStopReason.COMPLETED,
+        )
     ordered_notes = _ordered_notes(notes)
     inspected_payloads: dict[int, list[dict[str, Any]]] = {}
     inspected_pages: list[InspectedNotePage] = []
@@ -732,7 +775,7 @@ async def attribute_claims(
         content, tokens, cost = await _generate(
             model_client,
             build_attribution_prompt(
-                claims,
+                external_claims,
                 ordered_notes,
                 page_size=active_settings.note_page_size,
                 inspected_page_payloads=inspected_payloads,
@@ -753,12 +796,16 @@ async def attribute_claims(
             )
         )
         if not isinstance(content, Mapping):
+            failed = _failed_attributions(
+                external_claims,
+                code="malformed_attribution_response",
+                detail="model response was not a JSON object",
+                raw=content,
+            )
             return AttributionResult(
-                attributions=_failed_attributions(
-                    claims,
-                    code="malformed_attribution_response",
-                    detail="model response was not a JSON object",
-                    raw=content,
+                attributions=_merge_attribution_scope(
+                    all_claims,
+                    failed,
                 ),
                 inspected_pages=tuple(inspected_pages),
                 usage=tuple(usage),
@@ -802,12 +849,15 @@ async def attribute_claims(
         if content.get("action") == "attribute":
             attributions, diagnostics = _parse_final_attributions(
                 content,
-                claims=claims,
+                claims=external_claims,
                 blocks=blocks,
                 notes=ordered_notes,
             )
             return AttributionResult(
-                attributions=attributions,
+                attributions=_merge_attribution_scope(
+                    all_claims,
+                    attributions,
+                ),
                 inspected_pages=tuple(inspected_pages),
                 usage=tuple(usage),
                 diagnostics=diagnostics,
@@ -819,10 +869,13 @@ async def attribute_claims(
         )
 
     return AttributionResult(
-        attributions=_failed_attributions(
-            claims,
-            code="attribution_round_limit",
-            detail="model did not return a final attribute action",
+        attributions=_merge_attribution_scope(
+            all_claims,
+            _failed_attributions(
+                external_claims,
+                code="attribution_round_limit",
+                detail="model did not return a final attribute action",
+            ),
         ),
         inspected_pages=tuple(inspected_pages),
         usage=tuple(usage),

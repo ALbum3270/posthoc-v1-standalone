@@ -54,7 +54,13 @@ def _block(
     )
 
 
-def _claim(claim_id: str, block_id: str, text: str) -> AtomicClaim:
+def _claim(
+    claim_id: str,
+    block_id: str,
+    text: str,
+    *,
+    citation_requirement: CitationRequirement = CitationRequirement.EXTERNAL,
+) -> AtomicClaim:
     return AtomicClaim(
         claim_id=claim_id,
         block_id=block_id,
@@ -63,7 +69,7 @@ def _claim(claim_id: str, block_id: str, text: str) -> AtomicClaim:
         anchor_text=text,
         start_char=0,
         end_char=len(text),
-        citation_requirement=CitationRequirement.EXTERNAL,
+        citation_requirement=citation_requirement,
         source_resolution=SourceResolution.UNRESOLVED,
         normalization_status=ClaimNormalizationStatus.LOCATED,
     )
@@ -591,4 +597,115 @@ def test_omitted_claim_is_attribution_error_while_explicit_empty_is_legal() -> N
     assert by_claim["claim-2"].status == AttributionStatus.ATTRIBUTION_ERROR
     assert by_claim["claim-2"].errors[0].code == (
         "missing_claim_attribution"
+    )
+
+
+def test_non_external_claims_never_enter_model_attribution_scope() -> None:
+    blocks = (
+        _block("block-1", 0),
+        _block("block-2", 1),
+        _block("block-3", 2),
+    )
+    external = _claim("claim-external", "block-1", "External fact.")
+    internal = _claim(
+        "claim-internal",
+        "block-2",
+        "Internal heading.",
+        citation_requirement=CitationRequirement.INTERNAL,
+    )
+    none = _claim(
+        "claim-none",
+        "block-3",
+        "Non-factual transition.",
+        citation_requirement=CitationRequirement.NONE,
+    )
+    ledger = ResearchLedger()
+    note = _ledger_note(
+        ledger,
+        item_id="item-1",
+        finding="External finding.",
+        quote="Exact.",
+        source_text="Exact.",
+        url="https://source.example/page",
+    )
+    model = ScriptedAttributionModel(
+        {
+            "action": "attribute",
+            "claims": [
+                {
+                    "claim_id": external.claim_id,
+                    "candidates": [
+                        {
+                            "note_id": note.note_id,
+                            "source_id": note.source_id,
+                            "inherited_from_claim_id": None,
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    result = asyncio.run(
+        attribute_claims(
+            (external, internal, none),
+            blocks=blocks,
+            notes=ledger.notes,
+            model_client=model,
+        )
+    )
+
+    assert len(model.prompts) == 1
+    assert external.claim_id in model.prompts[0]
+    assert internal.claim_id not in model.prompts[0]
+    assert none.claim_id not in model.prompts[0]
+    by_claim = _by_claim(result)
+    assert by_claim[external.claim_id].status == (
+        AttributionStatus.CANDIDATE_SOURCES
+    )
+    for claim in (internal, none):
+        attribution = by_claim[claim.claim_id]
+        assert attribution.status == AttributionStatus.NO_CANDIDATE_SOURCE
+        assert attribution.candidates == ()
+        assert attribution.errors == ()
+        assert attribution.claim.source_resolution == (
+            SourceResolution.UNRESOLVED
+        )
+
+
+def test_all_non_external_claims_skip_the_attribution_model() -> None:
+    blocks = (_block("block-1", 0), _block("block-2", 1))
+    claims = (
+        _claim(
+            "claim-internal",
+            "block-1",
+            "Internal heading.",
+            citation_requirement=CitationRequirement.INTERNAL,
+        ),
+        _claim(
+            "claim-none",
+            "block-2",
+            "Non-factual transition.",
+            citation_requirement=CitationRequirement.NONE,
+        ),
+    )
+    model = ScriptedAttributionModel()
+
+    result = asyncio.run(
+        attribute_claims(
+            claims,
+            blocks=blocks,
+            notes=(),
+            model_client=model,
+        )
+    )
+
+    assert model.prompts == []
+    assert result.usage == ()
+    assert result.stop_reason == AttributionStopReason.COMPLETED
+    assert all(
+        attribution.status == AttributionStatus.NO_CANDIDATE_SOURCE
+        and attribution.candidates == ()
+        and attribution.errors == ()
+        for attribution in result.attributions
     )

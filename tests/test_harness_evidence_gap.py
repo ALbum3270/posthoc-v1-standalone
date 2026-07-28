@@ -57,7 +57,11 @@ def _checklist() -> ResearchChecklist:
     )
 
 
-def _claim(report: str) -> AtomicClaim:
+def _claim(
+    report: str,
+    *,
+    citation_requirement: CitationRequirement = CitationRequirement.EXTERNAL,
+) -> AtomicClaim:
     text = "The event occurred."
     start = report.index(text)
     return AtomicClaim(
@@ -68,7 +72,7 @@ def _claim(report: str) -> AtomicClaim:
         anchor_text=text,
         start_char=start,
         end_char=start + len(text),
-        citation_requirement=CitationRequirement.EXTERNAL,
+        citation_requirement=citation_requirement,
         normalization_status=ClaimNormalizationStatus.LOCATED,
     )
 
@@ -186,6 +190,46 @@ def _estimate_tokens(client, prompt):
 
 def _estimate_cost(client, prompt):
     return 0.001
+
+
+def test_non_external_gap_state_is_not_an_eligible_target() -> None:
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(
+        report,
+        citation_requirement=CitationRequirement.INTERNAL,
+    )
+    ledger = ResearchLedger(topic="A neutral topic")
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    gap_model = ScriptedModel()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason == EvidenceGapStopReason.NO_TARGETS
+    assert result.target_claim_ids == ()
+    assert gap_model.prompts == []
+    assert result.final_attribution == initial_attribution
+    assert result.final_verification == initial_verification
 
 
 def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
