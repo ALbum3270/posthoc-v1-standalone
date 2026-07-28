@@ -151,6 +151,13 @@ from open_deep_research.harness.notes import (
     source_id_for_url,
     source_evidence,
 )
+from open_deep_research.harness.note_span_policy import (
+    DEFAULT_NOTE_SPAN_MAX_CHARS,
+    DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+    SourceSpanCapacityError,
+    SourceSpanCapacityReason,
+    enforce_source_span_capacity,
+)
 from open_deep_research.harness.source_spans import (
     SOURCE_SEGMENTATION_VERSION,
     ResolvedSourceSpan,
@@ -254,6 +261,8 @@ __all__ = [
     "ContextSpanProposal",
     "CoverageAssessmentStatus",
     "DecisionTurn",
+    "DEFAULT_NOTE_SPAN_MAX_CHARS",
+    "DEFAULT_NOTE_SPAN_MAX_SEGMENTS",
     "DomainProxyConcentrationAudit",
     "DomainProxyDistribution",
     "DismissCandidatesAction",
@@ -316,6 +325,8 @@ __all__ = [
     "SourceEvidence",
     "SourceSegment",
     "SourceSegmentKind",
+    "SourceSpanCapacityError",
+    "SourceSpanCapacityReason",
     "SourceSpanRegistry",
     "SOURCE_SEGMENTATION_VERSION",
     "ReportDraft",
@@ -371,6 +382,7 @@ __all__ = [
     "decompose_claims",
     "diagnose_underspecified_evaluative_claims",
     "disabled_disagreement_result",
+    "enforce_source_span_capacity",
     "generate_checklist",
     "locate_verification_quote",
     "read",

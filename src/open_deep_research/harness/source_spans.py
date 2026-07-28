@@ -10,7 +10,7 @@ from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SOURCE_SEGMENTATION_VERSION = "markdown-aware-source-segments-v1"
+SOURCE_SEGMENTATION_VERSION = "markdown-aware-source-segments-v2"
 
 # End a sentence only where terminal punctuation is followed by whitespace or
 # the end of its Markdown paragraph. Quotation marks and closing brackets stay
@@ -94,6 +94,7 @@ class ResolvedSourceSpan(BaseModel):
     end_segment_id: str
     start_char: int = Field(ge=0)
     end_char: int = Field(ge=0)
+    segment_count: int = Field(ge=1)
     source_quote: str = Field(min_length=1)
 
 
@@ -105,11 +106,11 @@ def _trimmed_bounds(text: str, start: int, end: int) -> tuple[int, int] | None:
     return (start, end) if end > start else None
 
 
-def _paragraph_sentence_bounds(
+def _natural_language_segment_bounds(
     source_text: str,
     block: _SourceBlock,
 ) -> list[tuple[int, int]]:
-    """Split a paragraph while retaining absolute, exact source offsets."""
+    """Split prose-bearing units while retaining exact absolute offsets."""
 
     bounds: list[tuple[int, int]] = []
     relative_start = 0
@@ -138,8 +139,12 @@ def _block_segment_bounds(
     source_text: str,
     block: _SourceBlock,
 ) -> Sequence[tuple[int, int]]:
-    if block.kind is SourceSegmentKind.PARAGRAPH_SENTENCE:
-        return _paragraph_sentence_bounds(source_text, block)
+    if block.kind in {
+        SourceSegmentKind.PARAGRAPH_SENTENCE,
+        SourceSegmentKind.LIST_ITEM,
+        SourceSegmentKind.TABLE_ROW,
+    }:
+        return _natural_language_segment_bounds(source_text, block)
     trimmed = _trimmed_bounds(source_text, block.start_char, block.end_char)
     return () if trimmed is None else (trimmed,)
 
@@ -386,5 +391,6 @@ def resolve_source_span(
         end_segment_id=end.segment_id,
         start_char=start.start_char,
         end_char=end.end_char,
+        segment_count=len(selected),
         source_quote=source_quote,
     )

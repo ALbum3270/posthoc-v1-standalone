@@ -12,6 +12,11 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from open_deep_research.graphrag.validation.grounding import locate_source_quote
+from open_deep_research.harness.note_span_policy import (
+    DEFAULT_NOTE_SPAN_MAX_CHARS,
+    DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+    enforce_source_span_capacity,
+)
 from open_deep_research.harness.source_spans import (
     SourceSpanRegistry,
     resolve_source_span,
@@ -502,6 +507,8 @@ def create_note_from_segment_range(
     url: str,
     source_text: str,
     registry: SourceSpanRegistry,
+    max_span_segments: int = DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+    max_span_chars: int = DEFAULT_NOTE_SPAN_MAX_CHARS,
 ) -> ResearchNote:
     """Create evidence by resolving a model-selected authoritative range.
 
@@ -516,6 +523,11 @@ def create_note_from_segment_range(
         registry,
         start_segment_id=start_segment_id,
         end_segment_id=end_segment_id,
+    )
+    resolved = enforce_source_span_capacity(
+        resolved,
+        max_segments=max_span_segments,
+        max_chars=max_span_chars,
     )
     authoritative_slice = source_text[
         resolved.start_char : resolved.end_char

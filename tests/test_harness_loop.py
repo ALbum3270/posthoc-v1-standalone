@@ -526,6 +526,11 @@ def test_note_prompt_has_two_bounded_channels_without_changing_active_pass():
     assert '"status"' not in prompt
     assert '"priority"' not in prompt
     assert "Do not copy or generate quote text" in prompt
+    assert "one specific finding" in prompt
+    assert "shortest continuous" in prompt
+    assert "at most 12 segments and\n2000 source characters" in prompt
+    assert "not evidence-quality targets" in prompt
+    assert "do not\nexpand one range to cover a section" in prompt
     assert "source_text_sha256" in prompt
     assert "segmentation_version" in prompt
     assert "<S000001>A useful exact sentence." in prompt
@@ -652,6 +657,100 @@ def test_note_audit_splits_pointer_location_counts_by_output_channel():
         "unknown start_segment_id 'S999999'" in error
         for error in audit["active_note_errors"]
     )
+
+
+def test_oversized_note_ranges_are_rejected_individually_with_full_audit():
+    thirteen_sentences = " ".join(
+        f"Compact sentence {index}." for index in range(13)
+    )
+    long_list_item = "- " + ("x" * 2_001)
+    source = (
+        thirteen_sentences
+        + "\n\n"
+        + long_list_item
+        + "\n\nA valid compact sentence."
+    )
+    decisions = [
+        envelope(
+            {
+                "action": "read",
+                "item_id": "what-1",
+                "url": "https://example.com/source",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+    note_outputs = [
+        envelope(
+            {
+                "active_notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "A section-scale multi-sentence proposal.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000013",
+                    },
+                    {
+                        "item_id": "what-1",
+                        "finding": "A giant single-segment proposal.",
+                        "start_segment_id": "S000014",
+                        "end_segment_id": "S000014",
+                    },
+                    {
+                        "item_id": "what-1",
+                        "finding": "A compact proposal remains valid.",
+                        "start_segment_id": "S000015",
+                        "end_segment_id": "S000015",
+                    },
+                ],
+                "cross_item_seeds": [],
+            }
+        )
+    ]
+
+    result, _, _, _ = run_loop(
+        decisions,
+        notes=note_outputs,
+        tavily=FakeTavily(raw_text=source),
+    )
+
+    assert [note.finding for note in result.ledger.notes] == [
+        "A compact proposal remains valid."
+    ]
+    audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert audit["note_span_capacity"] == {
+        "max_segments": 12,
+        "max_chars": 2000,
+        "provisional_protocol_capacity_not_quality_threshold": True,
+    }
+    assert audit["note_span_rejections"] == [
+        {
+            "channel": "active_notes",
+            "index": 0,
+            "item_id": "what-1",
+            "start_segment_id": "S000001",
+            "end_segment_id": "S000013",
+            "segment_count": 13,
+            "char_count": len(thirteen_sentences),
+            "max_segments": 12,
+            "max_chars": 2000,
+            "failure_reasons": ["span_too_many_segments"],
+        },
+        {
+            "channel": "active_notes",
+            "index": 1,
+            "item_id": "what-1",
+            "start_segment_id": "S000014",
+            "end_segment_id": "S000014",
+            "segment_count": 1,
+            "char_count": len(long_list_item),
+            "max_segments": 12,
+            "max_chars": 2000,
+            "failure_reasons": ["span_too_many_chars"],
+        },
+    ]
+    assert audit["active_notes_proposed"] == 3
+    assert audit["active_notes_created"] == 1
 
 
 def test_cross_item_seed_capacity_is_per_distinct_open_item_and_audited():

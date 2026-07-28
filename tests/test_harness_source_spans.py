@@ -67,6 +67,34 @@ def test_contiguous_sentence_range_in_one_paragraph_returns_exact_source_slice()
     assert source[resolved.start_char : resolved.end_char] == resolved.source_quote
 
 
+def test_v2_splits_prose_inside_one_list_item_but_preserves_its_unit():
+    source = (
+        "- First sentence in one list item. "
+        "Second sentence in the same list item."
+    )
+
+    registry = build_source_span_registry(source)
+
+    assert registry.segmentation_version.endswith("-v2")
+    assert [segment.text for segment in registry.segments] == [
+        "- First sentence in one list item.",
+        "Second sentence in the same list item.",
+    ]
+    assert all(
+        segment.kind is SourceSegmentKind.LIST_ITEM
+        for segment in registry.segments
+    )
+    assert registry.segments[0].unit_id == registry.segments[1].unit_id
+    resolved = resolve_source_span(
+        source,
+        registry,
+        start_segment_id="S000001",
+        end_segment_id="S000002",
+    )
+    assert resolved.source_quote == source
+    assert resolved.segment_count == 2
+
+
 @pytest.mark.parametrize(
     ("start_id", "end_id", "message"),
     [

@@ -35,6 +35,11 @@ from open_deep_research.harness.notes import (
     ResearchNote,
     create_note_from_segment_range,
 )
+from open_deep_research.harness.note_span_policy import (
+    DEFAULT_NOTE_SPAN_MAX_CHARS,
+    DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+    SourceSpanCapacityError,
+)
 from open_deep_research.harness.source_spans import (
     SourceSpanRegistry,
     build_source_span_registry,
@@ -533,6 +538,14 @@ It may not cross a heading, paragraph, list-item, table-row, or code-block
 boundary. If one finding needs two non-contiguous passages, return two separate
 notes, each with its own continuous range. Never return multiple ranges in one
 note.
+
+Each note must state one specific finding and select the shortest continuous
+range sufficient to support that finding. Do not summarize an entire section
+in one note. A range may contain at most {max_span_segments} segments and
+{max_span_chars} source characters. These are fixed protocol-capacity ceilings,
+not evidence-quality targets. If the material is broader, return multiple notes
+with more specific findings and a separate compact range for each; do not
+expand one range to cover a section.
 
 Purely structural example:
 Source contains <S000001>First statement. and later
@@ -1239,6 +1252,8 @@ def build_note_prompt(
             sort_keys=True,
         ),
         max_cross_item_seeds=max_cross_item_seeds,
+        max_span_segments=DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+        max_span_chars=DEFAULT_NOTE_SPAN_MAX_CHARS,
         eligible_cross_item_targets=json.dumps(
             eligible_cross_item_targets,
             ensure_ascii=False,
@@ -1918,8 +1933,15 @@ async def _extract_notes(
     cross_created: list[ResearchNote] = []
     active_errors = list(parsed.active_errors)
     cross_errors = list(parsed.cross_errors)
+    span_rejections: list[dict[str, Any]] = []
 
-    def retain(draft: NoteDraft) -> tuple[ResearchNote | None, str | None]:
+    def retain(
+        draft: NoteDraft,
+    ) -> tuple[
+        ResearchNote | None,
+        str | None,
+        dict[str, object] | None,
+    ]:
         try:
             current.get(draft.item_id)
             note = create_note_from_segment_range(
@@ -1931,11 +1953,13 @@ async def _extract_notes(
                 source_text=source_text,
                 registry=source_span_registry,
             )
+        except SourceSpanCapacityError as exc:
+            return None, str(exc), exc.audit_payload()
         except Exception as exc:  # noqa: BLE001 - preserve the rest of the batch
-            return None, str(exc)
+            return None, str(exc), None
         note = ledger.add_note(note)
         created.append(note)
-        return note, None
+        return note, None, None
 
     for index, draft in enumerate(parsed.active_notes):
         if draft.item_id != active_item_id:
@@ -1944,11 +1968,20 @@ async def _extract_notes(
                 f"{active_item_id!r}, got {draft.item_id!r}"
             )
             continue
-        note, error = retain(draft)
+        note, error, rejection = retain(draft)
         if note is None:
             active_errors.append(
                 f"active_notes[{index}] could not be retained: {error}"
             )
+            if rejection is not None:
+                span_rejections.append(
+                    {
+                        "channel": "active_notes",
+                        "index": index,
+                        "item_id": draft.item_id,
+                        **rejection,
+                    }
+                )
             continue
         active_created.append(note)
 
@@ -1980,9 +2013,18 @@ async def _extract_notes(
             )
             continue
         cross_item_ids.add(draft.item_id)
-        note, error = retain(draft)
+        note, error, rejection = retain(draft)
         if note is None:
             cross_errors.append(f"{prefix} could not be retained: {error}")
+            if rejection is not None:
+                span_rejections.append(
+                    {
+                        "channel": "cross_item_seeds",
+                        "index": index,
+                        "item_id": draft.item_id,
+                        **rejection,
+                    }
+                )
             continue
         cross_created.append(note)
 
@@ -2016,6 +2058,12 @@ async def _extract_notes(
         "cross_item_seed_location_counts": _note_location_counts(cross_created),
         "cross_item_seed_item_ids": [note.item_id for note in cross_created],
         "cross_item_seed_capacity": max_cross_item_seeds,
+        "note_span_capacity": {
+            "max_segments": DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+            "max_chars": DEFAULT_NOTE_SPAN_MAX_CHARS,
+            "provisional_protocol_capacity_not_quality_threshold": True,
+        },
+        "note_span_rejections": span_rejections,
         "note_item_ids": [note.item_id for note in created],
         "note_output_error": parsed.error,
         "active_note_errors": active_errors,

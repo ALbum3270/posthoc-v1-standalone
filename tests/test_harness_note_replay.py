@@ -138,6 +138,14 @@ def test_replay_reconstructs_historical_targets_and_uses_production_grounding(
     }
     assert result["cross"]["noncontiguous_composite_count"] == 0
     assert result["combined"]["quote_length_chars"]["count"] == 2
+    assert result["span_capacity"] == {
+        "limits": {"max_segments": 12, "max_chars": 2000},
+        "rejected_note_count": 0,
+        "failure_reason_counts": {},
+        "rejections": [],
+    }
+    assert result["fixed_invariants"]["oversized_ranges_truncated"] is False
+    assert result["fixed_invariants"]["oversized_ranges_retried"] is False
     assert result["per_source"][0]["eligible_cross_item_ids"] == [
         "eligible"
     ]

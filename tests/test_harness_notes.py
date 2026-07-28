@@ -7,6 +7,7 @@ from open_deep_research.harness.notes import (
     create_note_from_segment_range,
     source_evidence,
 )
+from open_deep_research.harness.note_span_policy import SourceSpanCapacityError
 from open_deep_research.harness.source_spans import build_source_span_registry
 
 
@@ -188,3 +189,58 @@ def test_legacy_free_text_note_remains_explicitly_legacy():
     assert note.model_quote == "Exact historical quote."
     assert note.start_segment_id is None
     assert note.span_registry_id is None
+
+
+def test_segment_pointer_capacity_rejects_whole_range_without_truncation():
+    source = " ".join(f"Sentence {index}." for index in range(13))
+    registry = build_source_span_registry(source)
+
+    try:
+        create_note_from_segment_range(
+            item_id="what-1",
+            finding="An overbroad proposed finding.",
+            start_segment_id="S000001",
+            end_segment_id="S000013",
+            url="https://example.com/article",
+            source_text=source,
+            registry=registry,
+        )
+    except SourceSpanCapacityError as exc:
+        assert exc.audit_payload() == {
+            "start_segment_id": "S000001",
+            "end_segment_id": "S000013",
+            "segment_count": 13,
+            "char_count": len(source),
+            "max_segments": 12,
+            "max_chars": 2000,
+            "failure_reasons": ["span_too_many_segments"],
+        }
+    else:  # pragma: no cover - explicit whole-range rejection contract
+        raise AssertionError("oversized segment range was not rejected")
+
+
+def test_segment_pointer_capacity_records_both_exceeded_limits():
+    source = " ".join(
+        ("x" * 170) + f" sentence {index}." for index in range(13)
+    )
+    registry = build_source_span_registry(source)
+
+    try:
+        create_note_from_segment_range(
+            item_id="what-1",
+            finding="A proposal exceeds both mechanical capacities.",
+            start_segment_id="S000001",
+            end_segment_id="S000013",
+            url="https://example.com/article",
+            source_text=source,
+            registry=registry,
+        )
+    except SourceSpanCapacityError as exc:
+        assert exc.audit_payload()["failure_reasons"] == [
+            "span_too_many_segments",
+            "span_too_many_chars",
+        ]
+        assert exc.segment_count == 13
+        assert exc.char_count == len(source)
+    else:  # pragma: no cover - explicit whole-range rejection contract
+        raise AssertionError("doubly oversized segment range was not rejected")

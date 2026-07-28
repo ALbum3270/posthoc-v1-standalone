@@ -45,6 +45,10 @@ from open_deep_research.harness.loop import (  # noqa: E402
     build_note_prompt,
 )
 from open_deep_research.harness.notes import ResearchNote  # noqa: E402
+from open_deep_research.harness.note_span_policy import (  # noqa: E402
+    DEFAULT_NOTE_SPAN_MAX_CHARS,
+    DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+)
 
 _OPENROUTER_PROXY = "http://127.0.0.1:7890"
 _TERMINAL_STATUSES = {
@@ -324,6 +328,7 @@ async def replay_cases(
     per_source: list[dict[str, Any]] = []
     all_active: list[ResearchNote] = []
     all_cross: list[ResearchNote] = []
+    all_span_rejections: list[dict[str, Any]] = []
     total_tokens = 0
     total_cost = 0.0
 
@@ -350,6 +355,15 @@ async def replay_cases(
         all_cross.extend(cross)
         total_tokens += tokens
         total_cost += cost
+        source_rejections = [
+            {
+                "round_number": case.round_number,
+                "url": case.url,
+                **rejection,
+            }
+            for rejection in summary["note_span_rejections"]
+        ]
+        all_span_rejections.extend(source_rejections)
         per_source.append(
             {
                 "round_number": case.round_number,
@@ -395,6 +409,8 @@ async def replay_cases(
             "production_segment_pointer_resolution": True,
             "authoritative_source_slicing": True,
             "legacy_free_text_repair_used": False,
+            "oversized_ranges_truncated": False,
+            "oversized_ranges_retried": False,
             "cross_item_capacity_from_source_audit": True,
         },
         "usage": {
@@ -404,6 +420,23 @@ async def replay_cases(
         "active": _channel_metrics(all_active),
         "cross": _channel_metrics(all_cross),
         "combined": _channel_metrics(combined),
+        "span_capacity": {
+            "limits": {
+                "max_segments": DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+                "max_chars": DEFAULT_NOTE_SPAN_MAX_CHARS,
+            },
+            "rejected_note_count": len(all_span_rejections),
+            "failure_reason_counts": dict(
+                sorted(
+                    Counter(
+                        reason
+                        for rejection in all_span_rejections
+                        for reason in rejection["failure_reasons"]
+                    ).items()
+                )
+            ),
+            "rejections": all_span_rejections,
+        },
         "per_source": per_source,
     }
 
