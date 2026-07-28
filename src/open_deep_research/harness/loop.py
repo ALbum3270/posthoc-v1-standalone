@@ -458,8 +458,8 @@ extraction for that item. Return an empty list when no other item is directly
 answered.
 
 The cross-item limit is a fixed output-capacity bound, not a quality threshold.
-Do not put the active item in cross_item_seeds, and do not put a terminal item
-there.
+Only item_id values listed under eligible_cross_item_targets may appear in
+cross_item_seeds. Do not put the active item there.
 
 Each quote must be one continuous passage copied verbatim from the source:
 - Do not use an ellipsis ("..." or "…").
@@ -483,11 +483,11 @@ Return JSON only as
 ]}}.
 Returning two empty lists is valid when the source answers nothing.
 
-Active checklist item:
-{active_item_id}
+Active item:
+{active_item}
 
-Checklist:
-{checklist}
+Eligible cross-item targets:
+{eligible_cross_item_targets}
 
 Source URL:
 {url}
@@ -871,21 +871,32 @@ def build_note_prompt(
 ) -> str:
     """Build the isolated, single-source note extraction prompt."""
 
-    checklist.get(active_item_id)
+    active_item = checklist.get(active_item_id)
     if max_cross_item_seeds < 0:
         raise ValueError("max_cross_item_seeds must be non-negative")
-    items = [
+    eligible_cross_item_targets = [
         {
             "item_id": item.item_id,
             "question": item.question,
-            "status": item.status.value,
         }
         for item in checklist.items
+        if item.item_id != active_item_id and not item.is_complete
     ]
     return NOTE_PROMPT.format(
-        active_item_id=active_item_id,
+        active_item=json.dumps(
+            {
+                "item_id": active_item.item_id,
+                "question": active_item.question,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
         max_cross_item_seeds=max_cross_item_seeds,
-        checklist=json.dumps(items, ensure_ascii=False, sort_keys=True),
+        eligible_cross_item_targets=json.dumps(
+            eligible_cross_item_targets,
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
         url=url,
         source_text=source_text,
     )
@@ -1375,6 +1386,23 @@ def _apply_status_updates(
     return current, audit
 
 
+def _note_location_counts(notes: Sequence[ResearchNote]) -> dict[str, int]:
+    """Return stable per-channel quote-location counts for one note pass."""
+
+    return {
+        "strict_locatable": sum(
+            note.location_status is NoteLocationStatus.LOCATABLE for note in notes
+        ),
+        "repaired_locatable": sum(
+            note.location_status is NoteLocationStatus.REPAIRED_LOCATABLE
+            for note in notes
+        ),
+        "unlocatable": sum(
+            note.location_status is NoteLocationStatus.UNLOCATABLE for note in notes
+        ),
+    }
+
+
 async def _extract_notes(
     checklist: ResearchChecklist,
     *,
@@ -1502,8 +1530,10 @@ async def _extract_notes(
         "active_item_notes": active_note_count,
         "active_notes_proposed": len(parsed.active_notes),
         "active_notes_created": len(active_created),
+        "active_note_location_counts": _note_location_counts(active_created),
         "cross_item_seeds_proposed": len(parsed.cross_item_seeds),
         "cross_item_seeds_created": len(cross_created),
+        "cross_item_seed_location_counts": _note_location_counts(cross_created),
         "cross_item_seed_item_ids": [note.item_id for note in cross_created],
         "cross_item_seed_capacity": max_cross_item_seeds,
         "note_item_ids": [note.item_id for note in created],

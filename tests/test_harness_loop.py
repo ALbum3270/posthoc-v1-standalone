@@ -307,7 +307,10 @@ def test_cached_read_returns_note_ids_without_rerunning_note_model():
     assert len(client.extract_calls) == 1
     assert len(note_model.prompts) == 1
     assert all(source in prompt for prompt in note_model.prompts)
-    assert "Active checklist item:\nwhat-1" in note_model.prompts[0]
+    assert (
+        'Active item:\n{"item_id": "what-1", "question": "What happened?"}'
+        in note_model.prompts[0]
+    )
     assert all(
         "private-source-marker" not in prompt
         for prompt in decision_model.prompts
@@ -455,8 +458,19 @@ def test_zero_note_batch_is_valid_audited_and_counts_as_active_item_failure():
 
 
 def test_note_prompt_has_two_bounded_channels_without_changing_active_pass():
+    prompt_checklist = checklist_with_item_ids("what-1", "how-1", "why-1")
+    prompt_checklist = prompt_checklist.model_copy(
+        update={
+            "items": tuple(
+                item.model_copy(update={"status": ChecklistStatus.SETTLED})
+                if item.item_id == "why-1"
+                else item
+                for item in prompt_checklist.items
+            )
+        }
+    )
     prompt = build_note_prompt(
-        checklist(),
+        prompt_checklist,
         active_item_id="what-1",
         url="https://example.com/source",
         source_text="A useful exact sentence.",
@@ -468,6 +482,18 @@ def test_note_prompt_has_two_bounded_channels_without_changing_active_pass():
     assert "at most\n3 different items" in prompt
     assert "not a quality threshold" in prompt
     assert "Every entry's\nitem_id must equal the active item_id" in prompt
+    assert (
+        'Active item:\n{"item_id": "what-1", "question": "Question 0?"}'
+        in prompt
+    )
+    eligible = prompt.split("Eligible cross-item targets:\n", 1)[1].split(
+        "\n\nSource URL:", 1
+    )[0]
+    assert eligible == '[{"item_id": "how-1", "question": "Question 1?"}]'
+    assert "what-1" not in eligible
+    assert "why-1" not in prompt
+    assert '"status"' not in prompt
+    assert '"priority"' not in prompt
     assert all(
         term not in prompt.casefold()
         for term in ("receivership", "regulators", "asset_flow")
@@ -523,6 +549,63 @@ def test_note_channels_parse_entries_independently_and_cross_does_not_reset_fail
     assert audit["cross_item_seed_item_ids"] == ["how-1"]
     assert len(audit["active_note_errors"]) == 1
     assert audit["cross_item_seed_errors"] == []
+
+
+def test_note_audit_splits_quote_location_counts_by_output_channel():
+    source = "Exact active sentence.\n\nＡlpha—Beta 2024"
+    decisions = [
+        envelope(
+            {
+                "action": "read",
+                "item_id": "what-1",
+                "url": "https://example.com/source",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+    note_outputs = [
+        envelope(
+            {
+                "active_notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "A strict active note.",
+                        "quote": "Exact active sentence.",
+                    },
+                    {
+                        "item_id": "what-1",
+                        "finding": "An unlocatable active note.",
+                        "quote": "Absent active wording.",
+                    },
+                ],
+                "cross_item_seeds": [
+                    {
+                        "item_id": "how-1",
+                        "finding": "A repaired cross-item seed.",
+                        "quote": "alpha beta 2024.",
+                    }
+                ],
+            }
+        )
+    ]
+
+    result, _, _, _ = run_loop(
+        decisions,
+        notes=note_outputs,
+        tavily=FakeTavily(raw_text=source),
+    )
+
+    audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert audit["active_note_location_counts"] == {
+        "strict_locatable": 1,
+        "repaired_locatable": 0,
+        "unlocatable": 1,
+    }
+    assert audit["cross_item_seed_location_counts"] == {
+        "strict_locatable": 0,
+        "repaired_locatable": 1,
+        "unlocatable": 0,
+    }
 
 
 def test_cross_item_seed_capacity_is_per_distinct_open_item_and_audited():
@@ -730,7 +813,11 @@ def test_reanalyze_is_the_only_way_to_rerun_notes_for_a_cached_url():
 
     assert len(client.extract_calls) == 1
     assert len(note_model.prompts) == 2
-    assert all("Active checklist item:\nwhat-1" in p for p in note_model.prompts)
+    assert all(
+        'Active item:\n{"item_id": "what-1", "question": "What happened?"}'
+        in prompt
+        for prompt in note_model.prompts
+    )
     assert [note.item_id for note in result.ledger.notes] == ["how-1", "what-1"]
     reanalyze_audit = json.loads(result.ledger.rounds[1].result_summary)
     assert reanalyze_audit["reanalyze_reason"] == (
