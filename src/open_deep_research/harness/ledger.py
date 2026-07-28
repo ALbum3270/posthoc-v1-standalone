@@ -43,6 +43,15 @@ class DismissedCandidateSnapshot(BaseModel):
     reason: str = Field(min_length=1)
 
 
+class UnreadableCandidateSnapshot(BaseModel):
+    """One candidate whose attempted read ended in a mechanical tool error."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    url: str = Field(min_length=1)
+    error: str = Field(min_length=1)
+
+
 class ExhaustionAttemptSnapshot(BaseModel):
     """Item-attributed collection history frozen at an exhaustion judgement.
 
@@ -64,6 +73,7 @@ class ExhaustionAttemptSnapshot(BaseModel):
     surfaced_candidate_urls: tuple[str, ...] = ()
     read_urls: tuple[str, ...] = ()
     dismissed_candidates: tuple[DismissedCandidateSnapshot, ...] = ()
+    unreadable_candidates: tuple[UnreadableCandidateSnapshot, ...] = ()
     pending_unread_urls: tuple[str, ...] = ()
     note_count: int = Field(default=0, ge=0)
 

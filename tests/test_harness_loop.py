@@ -68,6 +68,12 @@ class FakeTavily:
         }
 
 
+class FailingExtractTavily(FakeTavily):
+    async def extract(self, urls, **kwargs):
+        self.extract_calls.append((urls, kwargs))
+        raise ValueError("the candidate URL is not fetchable")
+
+
 def envelope(content, *, tokens=1, cost=0.01):
     return {
         "content": content,
@@ -823,6 +829,8 @@ def test_candidates_pending_rejects_a_second_search_for_the_same_item():
         "read_urls": [],
         "dismissed_count": 0,
         "dismissed_candidates": [],
+        "unreadable_count": 0,
+        "unreadable_candidates": [],
         "pending_unread_count": 1,
         "pending_unread_urls": ["https://example.com/source"],
         "candidates_pending": True,
@@ -856,10 +864,62 @@ def test_candidates_pending_allows_read_and_records_the_resolved_state():
         "read_urls": [url],
         "dismissed_count": 0,
         "dismissed_candidates": [],
+        "unreadable_count": 0,
+        "unreadable_candidates": [],
         "pending_unread_count": 0,
         "pending_unread_urls": [],
         "candidates_pending": False,
     }
+
+
+def test_failed_read_consumes_pending_candidate_and_is_not_called_again():
+    url = "https://example.com/source"
+    decisions = [
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "a neutral query",
+            }
+        ),
+        envelope({"action": "read", "item_id": "what-1", "url": url}),
+        envelope({"action": "read", "item_id": "what-1", "url": url}),
+        envelope({"action": "stop"}),
+    ]
+    client = FailingExtractTavily()
+
+    result, decision_model, _, _ = run_loop(decisions, tavily=client)
+
+    assert len(client.extract_calls) == 1
+    first_failure = json.loads(result.ledger.rounds[1].result_summary)
+    assert first_failure["candidate_marked_unreadable"] is True
+    assert first_failure["candidate_work"]["what-1"] == {
+        "read_count": 0,
+        "read_urls": [],
+        "dismissed_count": 0,
+        "dismissed_candidates": [],
+        "unreadable_count": 1,
+        "unreadable_candidates": [
+            {
+                "url": url,
+                "error": (
+                    "read failed: the candidate URL is not fetchable"
+                ),
+            }
+        ],
+        "pending_unread_count": 0,
+        "pending_unread_urls": [],
+        "candidates_pending": False,
+    }
+    repeated = json.loads(result.ledger.rounds[2].result_summary)
+    assert repeated["action_rejected"] is True
+    assert repeated["rejection_reason"] == "candidate_unreadable"
+    assert (
+        repeated["acquisition_attempts"]["what-1"]["read_attempts"] == 1
+    )
+    assert "Never retry a URL listed as unreadable" in (
+        decision_model.prompts[2]
+    )
 
 
 def test_dismiss_candidates_with_reasons_allows_the_item_to_search_again():
@@ -903,6 +963,8 @@ def test_dismiss_candidates_with_reasons_allows_the_item_to_search_again():
         "read_urls": [],
         "dismissed_count": 1,
         "dismissed_candidates": [{"url": url, "reason": reason}],
+        "unreadable_count": 0,
+        "unreadable_candidates": [],
         "pending_unread_count": 0,
         "pending_unread_urls": [],
         "candidates_pending": False,
@@ -953,6 +1015,8 @@ def test_switching_items_does_not_clear_pending_and_exhaustion_audits_it():
         "read_urls": [],
         "dismissed_count": 0,
         "dismissed_candidates": [],
+        "unreadable_count": 0,
+        "unreadable_candidates": [],
         "pending_unread_count": 1,
         "pending_unread_urls": ["https://example.com/source"],
         "candidates_pending": True,

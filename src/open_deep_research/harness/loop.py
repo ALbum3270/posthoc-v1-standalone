@@ -474,10 +474,13 @@ what produces notes. Prefer reading a promising unread candidate over searching
 again for the same thing.
 
 candidate_work shows, per checklist item, which surfaced URLs remain unread,
-which were read, and which you explicitly dismissed with reasons. If an item
-has pending unread candidates, another search for that same item is rejected.
-Read them or explicitly dismiss them first. Dismissal is not a claim that a
-source is bad; it records your reason for not using that candidate.
+which were read, which failed mechanically and are now unreadable, and which
+you explicitly dismissed with reasons. Never retry a URL listed as unreadable
+for that item; choose another pending URL or search again after pending URLs are
+resolved. If an item has pending unread candidates, another search for that
+same item is rejected. Read them or explicitly dismiss them first. Dismissal is
+not a claim that a source is bad; it records your reason for not using that
+candidate.
 
 read fetches and analyzes a URL only once. Reading a cached URL returns its
 existing note IDs without rerunning note extraction. Use reanalyze, with a
@@ -579,6 +582,11 @@ def _candidate_state(
                 for item_id, work in candidate.get("_item_work", {}).items()
                 if work["pending"]
             ),
+            "unreadable_for_item_ids": sorted(
+                item_id
+                for item_id, work in candidate.get("_item_work", {}).items()
+                if work.get("unreadable_error") is not None
+            ),
         }
         for candidate in recent
     ]
@@ -610,6 +618,7 @@ def _remember_candidates(
                 "pending": pending,
                 "read": existing["read"],
                 "dismiss_reason": None,
+                "unreadable_error": None,
             }
             if pending:
                 newly_pending.append(result.url)
@@ -655,15 +664,68 @@ def _mark_candidate_read(
             "pending": False,
             "read": False,
             "dismiss_reason": None,
+            "unreadable_error": None,
         },
     )
     work["read"] = True
     work["pending"] = False
+    work["unreadable_error"] = None
     # A successful read resolves this URL for every item whose search surfaced
     # it. It does not claim the source was useful for any of those items.
     for linked_work in candidate["_item_work"].values():
         linked_work["read"] = True
         linked_work["pending"] = False
+        linked_work["unreadable_error"] = None
+
+
+def _mark_candidate_unreadable(
+    candidates: dict[str, dict[str, Any]],
+    *,
+    item_id: str,
+    url: str,
+    error: str,
+) -> None:
+    """Consume one failed candidate without inventing a semantic dismissal."""
+
+    candidate = candidates.get(url)
+    if candidate is None:
+        candidate = {
+            "url": url,
+            "title": "",
+            "snippet": "",
+            "score": None,
+            "read": False,
+            "_item_work": {},
+        }
+        candidates[url] = candidate
+    work = candidate["_item_work"].setdefault(
+        item_id,
+        {
+            "pending": False,
+            "read": False,
+            "dismiss_reason": None,
+            "unreadable_error": None,
+        },
+    )
+    work["pending"] = False
+    work["read"] = False
+    work["unreadable_error"] = error
+
+
+def _candidate_unreadable_error(
+    candidates: Mapping[str, dict[str, Any]],
+    *,
+    item_id: str,
+    url: str,
+) -> str | None:
+    candidate = candidates.get(url)
+    if candidate is None:
+        return None
+    work = candidate.get("_item_work", {}).get(item_id)
+    if work is None:
+        return None
+    error = work.get("unreadable_error")
+    return error if isinstance(error, str) and error else None
 
 
 def _dismiss_candidate(
@@ -683,6 +745,7 @@ def _dismiss_candidate(
         return f"URL {url!r} is not pending for item {item_id!r}"
     work["pending"] = False
     work["dismiss_reason"] = reason
+    work["unreadable_error"] = None
     return None
 
 
@@ -697,6 +760,7 @@ def _candidate_work_state(
         read_urls: list[str] = []
         pending_urls: list[str] = []
         dismissed: list[dict[str, str]] = []
+        unreadable: list[dict[str, str]] = []
         for url, candidate in candidates.items():
             work = candidate.get("_item_work", {}).get(item_id)
             if work is None:
@@ -712,11 +776,20 @@ def _candidate_work_state(
                         "reason": work["dismiss_reason"],
                     }
                 )
+            if work.get("unreadable_error") is not None:
+                unreadable.append(
+                    {
+                        "url": url,
+                        "error": work["unreadable_error"],
+                    }
+                )
         state[item_id] = {
             "read_count": len(read_urls),
             "read_urls": read_urls,
             "dismissed_count": len(dismissed),
             "dismissed_candidates": dismissed,
+            "unreadable_count": len(unreadable),
+            "unreadable_candidates": unreadable,
             "pending_unread_count": len(pending_urls),
             "pending_unread_urls": pending_urls,
             "candidates_pending": bool(pending_urls),
@@ -1567,6 +1640,7 @@ def _exhaustion_attempt_snapshot(
         surfaced_candidate_urls=surfaced_urls,
         read_urls=tuple(candidate_work["read_urls"]),
         dismissed_candidates=tuple(candidate_work["dismissed_candidates"]),
+        unreadable_candidates=tuple(candidate_work["unreadable_candidates"]),
         pending_unread_urls=tuple(candidate_work["pending_unread_urls"]),
         note_count=sum(note.item_id == item_id for note in ledger.notes),
     )
@@ -2237,34 +2311,59 @@ async def run_research_loop(
                         collection_failures.get(action.item_id, 0) + 1
                     )
                 else:
-                    try:
-                        source_text = await read(
-                            action.url,
-                            tavily_client=tavily_client,
-                        )
-                        ledger.cache_source(action.url, source_text)
-                        _record_acquisition_attempt(
-                            acquisition_attempts,
-                            item_id=action.item_id,
-                            action="read",
-                            succeeded=True,
-                        )
-                    except Exception as exc:  # noqa: BLE001 - tool failure is one turn
-                        _record_acquisition_attempt(
-                            acquisition_attempts,
-                            item_id=action.item_id,
-                            action="read",
-                            succeeded=False,
-                        )
+                    prior_error = _candidate_unreadable_error(
+                        candidates,
+                        item_id=action.item_id,
+                        url=action.url,
+                    )
+                    if prior_error is not None:
                         summary = {
-                            "cache_hit": False,
-                            "error": f"read failed: {exc}",
+                            "action_rejected": True,
+                            "rejection_reason": "candidate_unreadable",
+                            "previous_read_error": prior_error,
                             "notes_created": 0,
                             "note_model_called": False,
                         }
                         collection_failures[action.item_id] = (
                             collection_failures.get(action.item_id, 0) + 1
                         )
+                    else:
+                        try:
+                            source_text = await read(
+                                action.url,
+                                tavily_client=tavily_client,
+                            )
+                            ledger.cache_source(action.url, source_text)
+                            _record_acquisition_attempt(
+                                acquisition_attempts,
+                                item_id=action.item_id,
+                                action="read",
+                                succeeded=True,
+                            )
+                        except Exception as exc:  # noqa: BLE001 - tool failure is one turn
+                            error = f"read failed: {exc}"
+                            _record_acquisition_attempt(
+                                acquisition_attempts,
+                                item_id=action.item_id,
+                                action="read",
+                                succeeded=False,
+                            )
+                            _mark_candidate_unreadable(
+                                candidates,
+                                item_id=action.item_id,
+                                url=action.url,
+                                error=error,
+                            )
+                            summary = {
+                                "cache_hit": False,
+                                "error": error,
+                                "candidate_marked_unreadable": True,
+                                "notes_created": 0,
+                                "note_model_called": False,
+                            }
+                            collection_failures[action.item_id] = (
+                                collection_failures.get(action.item_id, 0) + 1
+                            )
 
                     if source_text is not None:
                         _mark_candidate_read(

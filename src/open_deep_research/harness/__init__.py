@@ -111,6 +111,7 @@ from open_deep_research.harness.ledger import (
     ResearchLedger,
     RoundRecord,
     SettlementEvidence,
+    UnreadableCandidateSnapshot,
 )
 from open_deep_research.harness.loop import (
     CandidateDismissal,
@@ -306,6 +307,7 @@ __all__ = [
     "SelectedAssertion",
     "SettleAction",
     "SettlementEvidence",
+    "UnreadableCandidateSnapshot",
     "SourceReadError",
     "StopAction",
     "StopReason",

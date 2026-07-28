@@ -52,6 +52,7 @@ logs/
 
 # Harness run artifacts
 harness_runs/
+harness_replays/
 
 # Local development
 .env.local
