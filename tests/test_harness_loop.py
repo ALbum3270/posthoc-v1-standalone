@@ -76,6 +76,10 @@ def envelope(content, *, tokens=1, cost=0.01):
     }
 
 
+def decision_state(prompt):
+    return json.loads(prompt.split("Current collection state:\n", 1)[1])
+
+
 def checklist(*, second=True):
     items = [
         ChecklistItem(
@@ -375,7 +379,10 @@ def test_model_recalled_sources_are_injected_newest_first_and_audited():
     assert '"content": "BBBBBB"' in final_prompt
     assert '"content": "AA"' in final_prompt
     assert "AAAAAA" not in final_prompt
-    assert final_prompt.index(recent_url) < final_prompt.index(older_url)
+    final_state = decision_state(final_prompt)
+    assert [
+        source["url"] for source in final_state["recalled_sources"]
+    ] == [recent_url, older_url]
 
     context_audit = json.loads(
         result.ledger.rounds[-1].result_summary
@@ -766,6 +773,176 @@ def test_search_without_an_active_item_note_is_visible_as_a_failure_next_round()
     assert "Candidate snippet" in next_prompt
     assert '"url": "https://example.com/source"' in next_prompt
     assert '"read": false' in next_prompt
+
+
+def test_candidates_pending_rejects_a_second_search_for_the_same_item():
+    decisions = [
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "first neutral query",
+            }
+        ),
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "second neutral query",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+
+    result, decision_model, _, client = run_loop(decisions)
+
+    assert len(client.search_calls) == 1
+    assert "dismiss_candidates" in decision_model.prompts[1]
+    rejected = json.loads(result.ledger.rounds[1].result_summary)
+    assert rejected["action_rejected"] is True
+    assert rejected["rejection_reason"] == "candidates_pending"
+    assert rejected["pending_unread_urls"] == [
+        "https://example.com/source"
+    ]
+    assert rejected["candidate_work"]["what-1"] == {
+        "read_count": 0,
+        "read_urls": [],
+        "dismissed_count": 0,
+        "dismissed_candidates": [],
+        "pending_unread_count": 1,
+        "pending_unread_urls": ["https://example.com/source"],
+        "candidates_pending": True,
+    }
+
+
+def test_candidates_pending_allows_read_and_records_the_resolved_state():
+    url = "https://example.com/source"
+    decisions = [
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "a neutral query",
+            }
+        ),
+        envelope({"action": "read", "item_id": "what-1", "url": url}),
+        envelope({"action": "stop"}),
+    ]
+    note_outputs = [
+        envelope({"active_notes": [], "cross_item_seeds": []})
+    ]
+
+    result, _, _, client = run_loop(decisions, notes=note_outputs)
+
+    assert len(client.search_calls) == 1
+    assert len(client.extract_calls) == 1
+    read_audit = json.loads(result.ledger.rounds[1].result_summary)
+    assert read_audit["candidate_work"]["what-1"] == {
+        "read_count": 1,
+        "read_urls": [url],
+        "dismissed_count": 0,
+        "dismissed_candidates": [],
+        "pending_unread_count": 0,
+        "pending_unread_urls": [],
+        "candidates_pending": False,
+    }
+
+
+def test_dismiss_candidates_with_reasons_allows_the_item_to_search_again():
+    url = "https://example.com/source"
+    reason = "The snippet does not address the active question."
+    decisions = [
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "first neutral query",
+            }
+        ),
+        envelope(
+            {
+                "action": "dismiss_candidates",
+                "item_id": "what-1",
+                "candidates": [{"url": url, "reason": reason}],
+            }
+        ),
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "second neutral query",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+
+    result, _, _, client = run_loop(decisions)
+
+    assert len(client.search_calls) == 2
+    dismissal = json.loads(result.ledger.rounds[1].result_summary)
+    assert dismissal["dismissed_candidates"] == [
+        {"url": url, "reason": reason}
+    ]
+    assert dismissal["remaining_pending_unread_count"] == 0
+    assert dismissal["candidate_work"]["what-1"] == {
+        "read_count": 0,
+        "read_urls": [],
+        "dismissed_count": 1,
+        "dismissed_candidates": [{"url": url, "reason": reason}],
+        "pending_unread_count": 0,
+        "pending_unread_urls": [],
+        "candidates_pending": False,
+    }
+    second_search = json.loads(result.ledger.rounds[2].result_summary)
+    assert "action_rejected" not in second_search
+
+
+def test_switching_items_does_not_clear_pending_and_exhaustion_audits_it():
+    decisions = [
+        envelope(
+            {
+                "action": "search",
+                "item_id": "what-1",
+                "query": "query for the first item",
+            }
+        ),
+        envelope(
+            {
+                "action": "search",
+                "item_id": "how-1",
+                "query": "query for the second item",
+            }
+        ),
+        envelope(
+            {
+                "action": "mark_exhausted",
+                "item_id": "what-1",
+                "reason": "The model chose to stop work on this item.",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+
+    result, decision_model, _, client = run_loop(decisions)
+
+    assert len(client.search_calls) == 2
+    before_exhaustion = decision_state(decision_model.prompts[2])
+    assert before_exhaustion["candidate_work"]["what-1"][
+        "pending_unread_count"
+    ] == 1
+    assert before_exhaustion["candidate_work"]["how-1"][
+        "pending_unread_count"
+    ] == 1
+    exhausted = json.loads(result.ledger.rounds[2].result_summary)
+    assert exhausted["candidate_work"]["what-1"] == {
+        "read_count": 0,
+        "read_urls": [],
+        "dismissed_count": 0,
+        "dismissed_candidates": [],
+        "pending_unread_count": 1,
+        "pending_unread_urls": ["https://example.com/source"],
+        "candidates_pending": True,
+    }
 
 
 def test_reanalyze_is_the_only_way_to_rerun_notes_for_a_cached_url():

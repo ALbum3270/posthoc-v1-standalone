@@ -173,6 +173,40 @@ class ReanalyzeAction(_ItemAction):
         return normalized
 
 
+class CandidateDismissal(BaseModel):
+    """One explicit, reasoned rejection of a surfaced candidate URL."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    url: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+    @field_validator("url", "reason")
+    @classmethod
+    def _required_text_is_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("candidate url and reason must not be blank")
+        return normalized
+
+
+class DismissCandidatesAction(_ItemAction):
+    """Explicitly reject pending candidates without judging them in code."""
+
+    action: Literal["dismiss_candidates"]
+    candidates: tuple[CandidateDismissal, ...] = Field(
+        min_length=1,
+        max_length=50,
+    )
+
+    @model_validator(mode="after")
+    def _candidate_urls_are_unique(self) -> DismissCandidatesAction:
+        urls = [candidate.url for candidate in self.candidates]
+        if len(urls) != len(set(urls)):
+            raise ValueError("dismiss_candidates must not repeat a URL")
+        return self
+
+
 class RecallAction(_ItemAction):
     """Ask for an already-read source body in the next decision context.
 
@@ -263,6 +297,7 @@ LoopAction = Annotated[
     SearchAction
     | ReadAction
     | ReanalyzeAction
+    | DismissCandidatesAction
     | RecallAction
     | InspectNotesAction
     | RecallNotesAction
@@ -277,6 +312,7 @@ PrimaryAction = Annotated[
     SearchAction
     | ReadAction
     | ReanalyzeAction
+    | DismissCandidatesAction
     | RecallAction
     | InspectNotesAction
     | RecallNotesAction
@@ -401,7 +437,7 @@ Return this JSON shape:
 {{"status_updates":[
   {{"item_id":"...","status":"settled","reason":"..."}},
   {{"item_id":"...","status":"exhausted_not_found","reason":"..."}}
-],"action":{{"action":"search|read|reanalyze|recall|stop", ...}}}}
+],"action":{{"action":"search|read|reanalyze|dismiss_candidates|recall|stop", ...}}}}
 
 status_updates may contain any number of distinct checklist items. Give every
 update its own reason. status_updates accepts terminal judgements only:
@@ -412,6 +448,9 @@ The optional action is one of:
 {{"action":"search","item_id":"...","query":"..."}}
 {{"action":"read","item_id":"...","url":"..."}}
 {{"action":"reanalyze","item_id":"...","url":"...","reason":"..."}}
+{{"action":"dismiss_candidates","item_id":"...","candidates":[
+  {{"url":"...","reason":"..."}}
+]}}
 {{"action":"recall","item_id":"...","url":"..."}}
 {{"action":"inspect_notes","item_id":"...","cursor":null}}
 {{"action":"recall_notes","item_id":"...","note_ids":["note-000001"]}}
@@ -423,6 +462,12 @@ search_candidates holds every url search has surfaced so far, with its snippet
 and whether you already read it. Searching only adds candidates; reading one is
 what produces notes. Prefer reading a promising unread candidate over searching
 again for the same thing.
+
+candidate_work shows, per checklist item, which surfaced URLs remain unread,
+which were read, and which you explicitly dismissed with reasons. If an item
+has pending unread candidates, another search for that same item is rejected.
+Read them or explicitly dismiss them first. Dismissal is not a claim that a
+source is bad; it records your reason for not using that candidate.
 
 read fetches and analyzes a URL only once. Reading a cached URL returns its
 existing note IDs without rerunning note extraction. Use reanalyze, with a
@@ -512,24 +557,161 @@ def _candidate_state(
 
     recent = list(candidates.values())[-_MAX_CANDIDATES_IN_CONTEXT:]
     recent.reverse()
-    return recent
+    return [
+        {
+            "url": candidate["url"],
+            "title": candidate["title"],
+            "snippet": candidate["snippet"],
+            "score": candidate["score"],
+            "read": candidate["read"],
+            "pending_for_item_ids": sorted(
+                item_id
+                for item_id, work in candidate.get("_item_work", {}).items()
+                if work["pending"]
+            ),
+        }
+        for candidate in recent
+    ]
 
 
 def _remember_candidates(
     candidates: dict[str, dict[str, Any]],
     results: Sequence[SearchResult],
-) -> None:
+    *,
+    item_id: str,
+) -> list[str]:
+    newly_pending: list[str] = []
     for result in results:
         existing = candidates.get(result.url)
-        if existing is not None:
-            continue
-        candidates[result.url] = {
-            "url": result.url,
-            "title": result.title,
-            "snippet": result.snippet[:_CANDIDATE_SNIPPET_CHARS],
-            "score": result.score,
+        if existing is None:
+            existing = {
+                "url": result.url,
+                "title": result.title,
+                "snippet": result.snippet[:_CANDIDATE_SNIPPET_CHARS],
+                "score": result.score,
+                "read": False,
+                "_item_work": {},
+            }
+            candidates[result.url] = existing
+        work = existing["_item_work"].get(item_id)
+        if work is None:
+            pending = not existing["read"]
+            existing["_item_work"][item_id] = {
+                "pending": pending,
+                "read": existing["read"],
+                "dismiss_reason": None,
+            }
+            if pending:
+                newly_pending.append(result.url)
+    return newly_pending
+
+
+def _pending_candidate_urls(
+    candidates: Mapping[str, dict[str, Any]],
+    item_id: str,
+) -> list[str]:
+    return [
+        url
+        for url, candidate in candidates.items()
+        if (
+            item_id in candidate.get("_item_work", {})
+            and candidate["_item_work"][item_id]["pending"]
+            and not candidate["read"]
+        )
+    ]
+
+
+def _mark_candidate_read(
+    candidates: dict[str, dict[str, Any]],
+    *,
+    item_id: str,
+    url: str,
+) -> None:
+    candidate = candidates.get(url)
+    if candidate is None:
+        candidate = {
+            "url": url,
+            "title": "",
+            "snippet": "",
+            "score": None,
             "read": False,
+            "_item_work": {},
         }
+        candidates[url] = candidate
+    candidate["read"] = True
+    work = candidate["_item_work"].setdefault(
+        item_id,
+        {
+            "pending": False,
+            "read": False,
+            "dismiss_reason": None,
+        },
+    )
+    work["read"] = True
+    work["pending"] = False
+    # A successful read resolves this URL for every item whose search surfaced
+    # it. It does not claim the source was useful for any of those items.
+    for linked_work in candidate["_item_work"].values():
+        linked_work["read"] = True
+        linked_work["pending"] = False
+
+
+def _dismiss_candidate(
+    candidates: dict[str, dict[str, Any]],
+    *,
+    item_id: str,
+    url: str,
+    reason: str,
+) -> str | None:
+    candidate = candidates.get(url)
+    if candidate is None:
+        return f"URL {url!r} was not surfaced by search"
+    work = candidate["_item_work"].get(item_id)
+    if work is None:
+        return f"URL {url!r} was not surfaced for item {item_id!r}"
+    if not work["pending"] or candidate["read"]:
+        return f"URL {url!r} is not pending for item {item_id!r}"
+    work["pending"] = False
+    work["dismiss_reason"] = reason
+    return None
+
+
+def _candidate_work_state(
+    candidates: Mapping[str, dict[str, Any]],
+    item_ids: Sequence[str],
+) -> dict[str, dict[str, Any]]:
+    """Expose mechanical candidate dispositions without ranking source quality."""
+
+    state: dict[str, dict[str, Any]] = {}
+    for item_id in item_ids:
+        read_urls: list[str] = []
+        pending_urls: list[str] = []
+        dismissed: list[dict[str, str]] = []
+        for url, candidate in candidates.items():
+            work = candidate.get("_item_work", {}).get(item_id)
+            if work is None:
+                continue
+            if work["read"]:
+                read_urls.append(url)
+            if work["pending"] and not candidate["read"]:
+                pending_urls.append(url)
+            if work["dismiss_reason"] is not None:
+                dismissed.append(
+                    {
+                        "url": url,
+                        "reason": work["dismiss_reason"],
+                    }
+                )
+        state[item_id] = {
+            "read_count": len(read_urls),
+            "read_urls": read_urls,
+            "dismissed_count": len(dismissed),
+            "dismissed_candidates": dismissed,
+            "pending_unread_count": len(pending_urls),
+            "pending_unread_urls": pending_urls,
+            "candidates_pending": bool(pending_urls),
+        }
+    return state
 
 
 def _note_summary(note: ResearchNote) -> dict[str, Any]:
@@ -810,6 +992,10 @@ def _build_decision_prompt(
             cost_used_usd=cost_used_usd,
         ),
         "search_candidates": _candidate_state(candidates or {}),
+        "candidate_work": _candidate_work_state(
+            candidates or {},
+            [item.item_id for item in checklist.items],
+        ),
         "note_index": _compact_note_index(checklist, notes),
         "quote_quality": quote_quality_metrics(notes),
     }
@@ -1694,6 +1880,13 @@ async def run_research_loop(
         stop_reason: StopReason | None = None
         stop_detail = ""
         status_audit: list[dict[str, Any]] = []
+        candidate_audit_item_ids: set[str] = set()
+        if turn is not None:
+            candidate_audit_item_ids.update(
+                update.item_id for update in turn.status_updates
+            )
+            if isinstance(turn.action, _ItemAction):
+                candidate_audit_item_ids.add(turn.action.item_id)
 
         decision_budget_limit = _budget_limit_reached(
             limits,
@@ -1768,41 +1961,57 @@ async def run_research_loop(
 
             elif isinstance(action, SearchAction):
                 query = action.query
-                try:
-                    results = await search(
-                        action.query,
-                        tavily_client=tavily_client,
-                        max_results=max_search_results,
-                    )
-                    _remember_candidates(candidates, results)
+                pending_urls = _pending_candidate_urls(
+                    candidates,
+                    action.item_id,
+                )
+                if pending_urls:
                     summary = {
-                        "result_count": len(results),
-                        "results": [
-                            result.model_dump(mode="json") for result in results
-                        ],
+                        "action_rejected": True,
+                        "rejection_reason": "candidates_pending",
+                        "pending_unread_count": len(pending_urls),
+                        "pending_unread_urls": pending_urls,
                     }
-                except Exception as exc:  # noqa: BLE001 - tool failure is one turn
-                    summary = {"error": f"search failed: {exc}", "result_count": 0}
+                else:
+                    try:
+                        results = await search(
+                            action.query,
+                            tavily_client=tavily_client,
+                            max_results=max_search_results,
+                        )
+                        newly_pending = _remember_candidates(
+                            candidates,
+                            results,
+                            item_id=action.item_id,
+                        )
+                        summary = {
+                            "result_count": len(results),
+                            "results": [
+                                result.model_dump(mode="json")
+                                for result in results
+                            ],
+                            "new_pending_unread_count": len(newly_pending),
+                            "new_pending_unread_urls": newly_pending,
+                        }
+                    except Exception as exc:  # noqa: BLE001 - tool failure is one turn
+                        summary = {
+                            "error": f"search failed: {exc}",
+                            "result_count": 0,
+                        }
                 collection_failures[action.item_id] = (
                     collection_failures.get(action.item_id, 0) + 1
                 )
 
             elif isinstance(action, ReadAction):
                 url = action.url
-                candidate = candidates.setdefault(
-                    action.url,
-                    {
-                        "url": action.url,
-                        "title": "",
-                        "snippet": "",
-                        "score": None,
-                        "read": False,
-                    },
-                )
-                candidate["read"] = True
                 source_text = ledger.get_source(action.url)
                 cache_hit = source_text is not None
                 if cache_hit:
+                    _mark_candidate_read(
+                        candidates,
+                        item_id=action.item_id,
+                        url=action.url,
+                    )
                     summary = {
                         "cache_hit": True,
                         "source_chars": len(source_text),
@@ -1833,6 +2042,11 @@ async def run_research_loop(
                         )
 
                     if source_text is not None:
+                        _mark_candidate_read(
+                            candidates,
+                            item_id=action.item_id,
+                            url=action.url,
+                        )
                         current, note_tokens, note_cost, note_summary = (
                             await _extract_notes(
                                 current,
@@ -1858,6 +2072,37 @@ async def run_research_loop(
                         round_tokens += note_tokens
                         round_cost += note_cost
 
+            elif isinstance(action, DismissCandidatesAction):
+                dismissed: list[dict[str, str]] = []
+                rejected_dismissals: list[dict[str, str]] = []
+                for candidate in action.candidates:
+                    dismissal_error = _dismiss_candidate(
+                        candidates,
+                        item_id=action.item_id,
+                        url=candidate.url,
+                        reason=candidate.reason,
+                    )
+                    if dismissal_error is None:
+                        dismissed.append(candidate.model_dump(mode="json"))
+                    else:
+                        rejected_dismissals.append(
+                            {
+                                **candidate.model_dump(mode="json"),
+                                "error": dismissal_error,
+                            }
+                        )
+                remaining_pending = _pending_candidate_urls(
+                    candidates,
+                    action.item_id,
+                )
+                summary = {
+                    "dismissed_candidates": dismissed,
+                    "dismissed_count": len(dismissed),
+                    "rejected_dismissals": rejected_dismissals,
+                    "remaining_pending_unread_count": len(remaining_pending),
+                    "remaining_pending_unread_urls": remaining_pending,
+                }
+
             elif isinstance(action, ReanalyzeAction):
                 url = action.url
                 source_text = ledger.get_source(action.url)
@@ -1872,6 +2117,11 @@ async def run_research_loop(
                         collection_failures.get(action.item_id, 0) + 1
                     )
                 else:
+                    _mark_candidate_read(
+                        candidates,
+                        item_id=action.item_id,
+                        url=action.url,
+                    )
                     current, note_tokens, note_cost, note_summary = (
                         await _extract_notes(
                             current,
@@ -1982,6 +2232,11 @@ async def run_research_loop(
             summary["rejected_status_updates"] = rejected_status_updates
         if rejected_action is not None:
             summary["rejected_action"] = rejected_action
+        if candidate_audit_item_ids:
+            summary["candidate_work"] = _candidate_work_state(
+                candidates,
+                sorted(candidate_audit_item_ids),
+            )
         summary["decision_context"] = context_audit
         summary["budget_before_decision"] = budget_before_decision
 

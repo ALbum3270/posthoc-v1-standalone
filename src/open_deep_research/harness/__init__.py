@@ -111,7 +111,9 @@ from open_deep_research.harness.ledger import (
     SettlementEvidence,
 )
 from open_deep_research.harness.loop import (
+    CandidateDismissal,
     DecisionTurn,
+    DismissCandidatesAction,
     InspectNotesAction,
     LoopBudget,
     LoopResult,
@@ -214,6 +216,7 @@ __all__ = [
     "CitationParseResult",
     "CitationRequirement",
     "CachedCandidateHint",
+    "CandidateDismissal",
     "CandidateSource",
     "ChecklistChangeRecord",
     "ChecklistCoverageDisposition",
@@ -238,6 +241,7 @@ __all__ = [
     "DecisionTurn",
     "DomainProxyConcentrationAudit",
     "DomainProxyDistribution",
+    "DismissCandidatesAction",
     "DisagreementBudget",
     "DisagreementCallUsage",
     "DisagreementResult",
