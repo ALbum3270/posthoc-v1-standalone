@@ -192,7 +192,8 @@ def test_semantic_dispositions_require_code_located_report_references() -> None:
         checklist_coverage=result.summary,
     )
     assert rendered.checklist_coverage_line == (
-        "> 清单对账：已评估 3/3；完整覆盖 1/3（33.3%）；"
+        "> 清单内容覆盖（不表示来源支持）："
+        "已评估 3/3；完整覆盖 1/3（33.3%）；"
         "部分覆盖 1；未覆盖 1（where-1）；对账失败 0（无）。"
     )
     assert rendered.markdown.split("\n\n", maxsplit=1)[1] == draft

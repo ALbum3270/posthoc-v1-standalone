@@ -12,7 +12,10 @@ from open_deep_research.harness.claims import (
     SourceResolution,
 )
 from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
-from open_deep_research.harness.render import render_verified_report
+from open_deep_research.harness.render import (
+    InitialCollectionSnapshot,
+    render_verified_report,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
@@ -158,9 +161,21 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
         not in rendered.sources_markdown
     )
     assert (
-        "[查看逐字证据](report.sources.md#evidence-1)"
+        "[逐字证据](report.sources.md#evidence-1)"
         in rendered.markdown
     )
+    assert rendered.footnote_format_line in rendered.markdown
+    assert (
+        "[^1]: `source.example` · 支持 · "
+        "[逐字证据](report.sources.md#evidence-1) · "
+        "[原文][source-1]"
+    ) in rendered.markdown
+    assert rendered.markdown.count(
+        "[source-1]: <https://source.example/article>"
+    ) == 1
+    assert rendered.sources_markdown.count(
+        "[source-1]: <https://source.example/article>"
+    ) == 1
     assert '<a id="evidence-1"></a>' in rendered.sources_markdown
     assert rendered.bundle_validation.model_dump() == {
         "every_definition_has_unique_source_anchor": True,
@@ -173,9 +188,68 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
         "local_definition_count": 1,
         "no_duplicate_definitions": True,
         "no_duplicate_source_anchors": True,
+        "every_footnote_uses_expected_url_reference": True,
+        "report_and_sources_url_references_match": True,
+        "report_url_reference_definition_count": 1,
+        "report_url_references_are_unique": True,
         "source_anchor_count": 1,
+        "sources_url_reference_definition_count": 1,
+        "sources_url_references_are_unique": True,
         "sources_sha256_matches": True,
+        "unique_source_url_count": 1,
     }
+
+
+def test_url_references_are_deduplicated_by_first_footnote_occurrence() -> None:
+    draft = "First assertion. Second assertion."
+    first = _claim(draft, "claim-1", "First assertion.")
+    second = _claim(draft, "claim-2", "Second assertion.")
+    shared_url = "https://source.example/shared"
+    first_relation = _support(
+        "claim-1",
+        source_id="source-a",
+        source_quote="First source quote.",
+        url=shared_url,
+    ).model_copy(
+        update={"span": QuoteSpan(start_char=10, end_char=29)}
+    )
+    second_relation = _support(
+        "claim-2",
+        source_id="source-b",
+        source_quote="Second source quote.",
+        url=shared_url,
+    ).model_copy(
+        update={"span": QuoteSpan(start_char=40, end_char=60)}
+    )
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                first,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                first_relation,
+            ),
+            _verified(
+                second,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                second_relation,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(draft, verification)
+
+    assert len(rendered.footnotes) == 2
+    assert "[^1]:" in rendered.markdown
+    assert "[^2]:" in rendered.markdown
+    assert rendered.markdown.count("[原文][source-1]") == 2
+    assert rendered.markdown.count(
+        f"[source-1]: <{shared_url}>"
+    ) == 1
+    assert rendered.sources_markdown.count(
+        f"[source-1]: <{shared_url}>"
+    ) == 1
+    assert "[source-2]:" not in rendered.markdown
+    assert "[source-2]:" not in rendered.sources_markdown
 
 
 def test_renderer_does_not_read_corroboration_target() -> None:
@@ -572,3 +646,87 @@ def test_summary_discloses_when_claim_registry_does_not_cover_the_report() -> No
     assert "支持性引文无法定位 0" in rendered.evidence_summary_line
     assert "claim 定位失败 0" in rendered.evidence_summary_line
     assert rendered.summary.registry_coverage == coverage
+
+
+def test_zero_formal_support_explains_coverage_without_rewriting_counts() -> None:
+    draft = "A claim without candidate evidence."
+    claim = _claim(draft, "claim-zero", draft)
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                claim,
+                ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(
+        draft,
+        verification,
+        initial_collection_snapshot=InitialCollectionSnapshot(
+            cached_source_count=0,
+            note_count=0,
+            usable_note_count=0,
+        ),
+    )
+
+    assert rendered.evidence_status_line is not None
+    assert (
+        "本报告没有任何可定位的正式支持关系"
+        in rendered.evidence_status_line
+    )
+    assert "初次采集阶段未取得任何原文" in rendered.evidence_status_line
+    assert rendered.summary.external_claims == 1
+    assert rendered.summary.zero_publisher_support == 1
+    status_at = rendered.markdown.index("证据状态：")
+    summary_at = rendered.markdown.index("证据摘要：")
+    checklist_at = rendered.markdown.index(
+        "清单内容覆盖（不表示来源支持）："
+    )
+    assert status_at < summary_at < checklist_at
+    assert "清单对账：" not in rendered.markdown
+
+
+def test_zero_formal_support_does_not_relabel_collected_sources_as_absent() -> None:
+    rendered = render_verified_report(
+        "Narrative.",
+        VerificationResult(claims=()),
+        initial_collection_snapshot=InitialCollectionSnapshot(
+            cached_source_count=2,
+            note_count=3,
+            usable_note_count=2,
+        ),
+    )
+
+    assert rendered.evidence_status_line is not None
+    assert "没有任何可定位的正式支持关系" in rendered.evidence_status_line
+    assert "初次采集阶段未取得任何原文" not in rendered.markdown
+
+
+def test_formal_support_suppresses_zero_evidence_warning() -> None:
+    draft = "Supported assertion."
+    claim = _claim(draft, "claim-supported", draft)
+    relation = _support("claim-supported")
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                claim,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                relation,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(
+        draft,
+        verification,
+        initial_collection_snapshot=InitialCollectionSnapshot(
+            cached_source_count=0,
+            note_count=0,
+            usable_note_count=0,
+        ),
+    )
+
+    assert rendered.evidence_status_line is None
+    assert "证据状态：" not in rendered.markdown
+    assert "初次采集阶段未取得任何原文" not in rendered.markdown

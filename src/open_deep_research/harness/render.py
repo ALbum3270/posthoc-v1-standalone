@@ -32,10 +32,40 @@ _FOOTNOTE_DEFINITION = re.compile(
     r"^[ \t]*\[\^([A-Za-z0-9_-]+)\]:",
 )
 _FOOTNOTE_MARKER = re.compile(r"\[\^([A-Za-z0-9_-]+)\]")
+_SOURCE_REFERENCE_DEFINITION = re.compile(
+    r"^\[(source-\d+)\]: <([^\n]+)>$",
+    re.MULTILINE,
+)
 _EVIDENCE_LEGEND_LINE = (
     "> 图例：带脚注且无额外状态标签 = "
     "单一发布方提供了可定位支持引文"
 )
+_FOOTNOTE_FORMAT_LINE = (
+    "> 脚注格式：`域名代理` · 语义关系 · 逐字证据 · 原文。"
+)
+_NO_FORMAL_SUPPORT_LINE = (
+    "> **证据状态：本报告没有任何可定位的正式支持关系。"
+    "下列清单内容覆盖只表示正文讨论了相应调查项，"
+    "不表示相关陈述获得来源支持。**"
+)
+
+
+class InitialCollectionSnapshot(BaseModel):
+    """Collection-time counts frozen before any post-hoc retrieval can run."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    cached_source_count: int = Field(ge=0)
+    note_count: int = Field(ge=0)
+    usable_note_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _usable_notes_cannot_exceed_all_notes(
+        self,
+    ) -> InitialCollectionSnapshot:
+        if self.usable_note_count > self.note_count:
+            raise ValueError("usable_note_count cannot exceed note_count")
+        return self
 
 
 class EvidenceRegistryKey(BaseModel):
@@ -77,6 +107,9 @@ class EvidenceBundleValidation(BaseModel):
     footnote_count: int = Field(ge=0)
     local_definition_count: int = Field(ge=0)
     source_anchor_count: int = Field(ge=0)
+    unique_source_url_count: int = Field(ge=0)
+    report_url_reference_definition_count: int = Field(ge=0)
+    sources_url_reference_definition_count: int = Field(ge=0)
     every_marker_has_local_definition: bool
     every_definition_has_marker: bool
     every_definition_links_to_source_anchor: bool
@@ -85,6 +118,10 @@ class EvidenceBundleValidation(BaseModel):
     every_source_entry_contains_full_quote: bool
     no_duplicate_definitions: bool
     no_duplicate_source_anchors: bool
+    every_footnote_uses_expected_url_reference: bool
+    report_url_references_are_unique: bool
+    sources_url_references_are_unique: bool
+    report_and_sources_url_references_match: bool
     sources_sha256_matches: bool
 
     @model_validator(mode="after")
@@ -98,6 +135,10 @@ class EvidenceBundleValidation(BaseModel):
             self.every_source_entry_contains_full_quote,
             self.no_duplicate_definitions,
             self.no_duplicate_source_anchors,
+            self.every_footnote_uses_expected_url_reference,
+            self.report_url_references_are_unique,
+            self.sources_url_references_are_unique,
+            self.report_and_sources_url_references_match,
             self.sources_sha256_matches,
         )
         if not all(guarantees):
@@ -108,6 +149,12 @@ class EvidenceBundleValidation(BaseModel):
             == self.source_anchor_count
         ):
             raise ValueError("evidence bundle counts must agree")
+        if not (
+            self.unique_source_url_count
+            == self.report_url_reference_definition_count
+            == self.sources_url_reference_definition_count
+        ):
+            raise ValueError("URL reference definition counts must agree")
         return self
 
 
@@ -201,8 +248,10 @@ class RenderedReport(BaseModel):
     sources_sha256: str
     evidence_bundle_line: str
     bundle_validation: EvidenceBundleValidation
+    evidence_status_line: str | None = None
     evidence_summary_line: str
     evidence_legend_line: str
+    footnote_format_line: str
     checklist_coverage_line: str
     domain_proxy_concentration_line: str | None = None
     summary: EvidenceSummary
@@ -238,6 +287,7 @@ def _render_sources_document(
     *,
     run_id: str,
     report_filename: str,
+    source_alias_by_url: dict[str, str],
 ) -> str:
     lines = [
         "# 逐字证据",
@@ -255,7 +305,7 @@ def _render_sources_document(
                 "",
                 f"- 域名代理：`{footnote.publisher_domain_proxy}`",
                 f"- 关系：{_verdict_label(footnote.semantic_verdicts)}",
-                f"- 原文：[{footnote.url}](<{footnote.url}>)",
+                f"- 原文：[查看原文][{source_alias_by_url[footnote.url]}]",
             ]
         )
         if len(footnote.claim_anchors) > 1:
@@ -275,6 +325,12 @@ def _render_sources_document(
                 footnote.source_quote,
                 fence,
             ]
+        )
+    if source_alias_by_url:
+        lines.extend(["", "## 原文链接", ""])
+        lines.extend(
+            f"[{alias}]: <{url}>"
+            for url, alias in source_alias_by_url.items()
         )
     return "\n".join(lines) + "\n"
 
@@ -301,9 +357,20 @@ def _validate_evidence_bundle(
     )
     anchors = _SOURCE_ANCHOR.findall(sources_markdown)
     expected = {str(footnote.number) for footnote in footnotes}
+    source_alias_by_url = _source_alias_by_url(footnotes)
+    expected_url_references = {
+        alias: url for url, alias in source_alias_by_url.items()
+    }
+    report_url_definitions = _SOURCE_REFERENCE_DEFINITION.findall(
+        report_markdown
+    )
+    sources_url_definitions = _SOURCE_REFERENCE_DEFINITION.findall(
+        sources_markdown
+    )
     definition_set = set(definitions)
     anchor_set = set(anchors)
     links_complete = True
+    url_links_complete = True
     quote_complete = True
     anchor_matches = list(_SOURCE_ANCHOR.finditer(sources_markdown))
     sections: dict[str, str] = {}
@@ -320,7 +387,7 @@ def _validate_evidence_bundle(
             quote_complete = False
             break
         link = (
-            f"[查看逐字证据]"
+            f"[逐字证据]"
             f"({sources_filename}#evidence-{footnote.number})"
         )
         definition_line = next(
@@ -333,6 +400,11 @@ def _validate_evidence_bundle(
         )
         if link not in definition_line:
             links_complete = False
+        expected_url_link = (
+            f"[原文][{source_alias_by_url[footnote.url]}]"
+        )
+        if expected_url_link not in definition_line:
+            url_links_complete = False
     actual_sha256 = hashlib.sha256(
         sources_markdown.encode("utf-8")
     ).hexdigest()
@@ -340,6 +412,9 @@ def _validate_evidence_bundle(
         footnote_count=len(footnotes),
         local_definition_count=len(definitions),
         source_anchor_count=len(anchors),
+        unique_source_url_count=len(source_alias_by_url),
+        report_url_reference_definition_count=len(report_url_definitions),
+        sources_url_reference_definition_count=len(sources_url_definitions),
         every_marker_has_local_definition=set(markers) <= definition_set,
         every_definition_has_marker=definition_set <= set(markers),
         every_definition_links_to_source_anchor=links_complete,
@@ -350,8 +425,34 @@ def _validate_evidence_bundle(
         every_source_entry_contains_full_quote=quote_complete,
         no_duplicate_definitions=len(definitions) == len(definition_set),
         no_duplicate_source_anchors=len(anchors) == len(anchor_set),
+        every_footnote_uses_expected_url_reference=url_links_complete,
+        report_url_references_are_unique=(
+            len(report_url_definitions)
+            == len(dict(report_url_definitions))
+        ),
+        sources_url_references_are_unique=(
+            len(sources_url_definitions)
+            == len(dict(sources_url_definitions))
+        ),
+        report_and_sources_url_references_match=(
+            dict(report_url_definitions)
+            == dict(sources_url_definitions)
+            == expected_url_references
+        ),
         sources_sha256_matches=actual_sha256 == sources_sha256,
     )
+
+
+def _source_alias_by_url(
+    footnotes: Sequence[RenderedFootnote],
+) -> dict[str, str]:
+    """Assign stable URL aliases by first footnote occurrence."""
+
+    aliases: dict[str, str] = {}
+    for footnote in footnotes:
+        if footnote.url not in aliases:
+            aliases[footnote.url] = f"source-{len(aliases) + 1}"
+    return aliases
 
 
 def _definition_spans(markdown: str) -> list[tuple[int, int]]:
@@ -702,7 +803,7 @@ def _checklist_coverage_line(
     summary: ChecklistCoverageSummary | None,
 ) -> str:
     if summary is None:
-        return "> 清单对账：未执行。"
+        return "> 清单内容覆盖（不表示来源支持）：未执行。"
     uncovered = (
         ", ".join(summary.not_covered_item_ids)
         if summary.not_covered_item_ids
@@ -714,7 +815,7 @@ def _checklist_coverage_line(
         else "无"
     )
     return (
-        "> 清单对账："
+        "> 清单内容覆盖（不表示来源支持）："
         f"已评估 {summary.assessed_items}/{summary.total_items}；"
         f"完整覆盖 {summary.covered_items}/{summary.total_items}"
         f"（{summary.covered_rate:.1%}）；"
@@ -785,6 +886,7 @@ def render_verified_report(
     checklist_coverage: ChecklistCoverageSummary | None = None,
     domain_proxy_concentration: DomainProxyConcentrationAudit | None = None,
     disagreement_attempted_count: int | None = None,
+    initial_collection_snapshot: InitialCollectionSnapshot | None = None,
     run_id: str = "standalone",
     report_filename: str = "report.md",
     sources_filename: str = "report.sources.md",
@@ -1041,10 +1143,29 @@ def render_verified_report(
     footnotes = tuple(
         sorted(footnote_by_key.values(), key=lambda footnote: footnote.number)
     )
+    source_alias_by_url = _source_alias_by_url(footnotes)
+    formal_support_relation_count = len(
+        {
+            (entry.claim.claim_id, relation.source_id)
+            for entry in verification.claims
+            for relation in entry.relations
+            if relation.is_formal_supporting_evidence
+        }
+    )
+    if formal_support_relation_count == 0:
+        evidence_status_line = _NO_FORMAL_SUPPORT_LINE
+        if (
+            initial_collection_snapshot is not None
+            and initial_collection_snapshot.cached_source_count == 0
+        ):
+            evidence_status_line += " **初次采集阶段未取得任何原文。**"
+    else:
+        evidence_status_line = None
     sources_markdown = _render_sources_document(
         footnotes,
         run_id=run_id,
         report_filename=report_filename,
+        source_alias_by_url=source_alias_by_url,
     )
     sources_sha256 = hashlib.sha256(
         sources_markdown.encode("utf-8")
@@ -1056,22 +1177,31 @@ def render_verified_report(
         f"[{audit_filename}]({audit_filename})；"
         "缺失逐字证据、提交标记或摘要不符则证据包不完整。"
     )
-    header_lines = [bundle_line, summary_line]
+    header_lines = [bundle_line]
+    if evidence_status_line is not None:
+        header_lines.append(evidence_status_line)
+    header_lines.append(summary_line)
     if concentration_line is not None:
         header_lines.append(concentration_line)
-    header_lines.extend([_EVIDENCE_LEGEND_LINE, checklist_line])
+    header_lines.extend(
+        [_FOOTNOTE_FORMAT_LINE, _EVIDENCE_LEGEND_LINE, checklist_line]
+    )
     rendered = "\n".join(header_lines) + "\n\n" + body
     if footnotes:
         definitions = [
             (
                 f"[^{footnote.number}]: "
-                f"域名代理：`{footnote.publisher_domain_proxy}` · "
-                f"关系：{_verdict_label(footnote.semantic_verdicts)} · "
-                "[查看逐字证据]"
+                f"`{footnote.publisher_domain_proxy}` · "
+                f"{_verdict_label(footnote.semantic_verdicts)} · "
+                "[逐字证据]"
                 f"({sources_filename}#evidence-{footnote.number}) · "
-                f"[原文](<{footnote.url}>)"
+                f"[原文][{source_alias_by_url[footnote.url]}]"
             )
             for footnote in footnotes
+        ]
+        url_definitions = [
+            f"[{alias}]: <{url}>"
+            for url, alias in source_alias_by_url.items()
         ]
         separator = "\n" if rendered.endswith("\n") else "\n\n"
         rendered = (
@@ -1079,6 +1209,8 @@ def render_verified_report(
             + separator
             + "## 证据来源\n\n"
             + "\n".join(definitions)
+            + "\n\n"
+            + "\n".join(url_definitions)
             + "\n"
         )
     bundle_validation = _validate_evidence_bundle(
@@ -1097,8 +1229,10 @@ def render_verified_report(
         sources_sha256=sources_sha256,
         evidence_bundle_line=bundle_line,
         bundle_validation=bundle_validation,
+        evidence_status_line=evidence_status_line,
         evidence_summary_line=summary_line,
         evidence_legend_line=_EVIDENCE_LEGEND_LINE,
+        footnote_format_line=_FOOTNOTE_FORMAT_LINE,
         checklist_coverage_line=checklist_line,
         domain_proxy_concentration_line=concentration_line,
         summary=summary,

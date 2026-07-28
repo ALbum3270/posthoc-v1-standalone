@@ -11,6 +11,9 @@ Example:
     python scripts/replay_harness_notes.py \
       harness_runs/519d3215ec474b23b342aa405a1fb6c6.json \
       --model openai/gpt-5.4-mini
+
+New directory bundles are also accepted by passing either the run directory
+or its ``audit.json``. Historical flat audit paths remain readable.
 """
 
 from __future__ import annotations
@@ -464,7 +467,11 @@ def build_parser() -> argparse.ArgumentParser:
             "Replay cached harness note calls while changing only the model."
         )
     )
-    parser.add_argument("audit_json", type=Path)
+    parser.add_argument(
+        "audit_json",
+        type=Path,
+        help="historical flat audit JSON, new audit.json, or new run directory",
+    )
     parser.add_argument("--model", required=True)
     parser.add_argument("--output", type=Path)
     return parser
@@ -478,14 +485,22 @@ async def _run(args: argparse.Namespace) -> Path:
     base_url = os.environ.get("OPENAI_BASE_URL") or None
     _configure_proxy(base_url)
 
-    payload, cases = load_replay_cases(args.audit_json.resolve())
-    run_id = str(payload.get("run_id", args.audit_json.stem))
+    audit_path = args.audit_json.resolve()
+    if audit_path.is_dir():
+        audit_path = audit_path / "audit.json"
+    payload, cases = load_replay_cases(audit_path)
+    fallback_run_id = (
+        audit_path.parent.name
+        if audit_path.name == "audit.json"
+        else audit_path.stem
+    )
+    run_id = str(payload.get("run_id", fallback_run_id))
     output_path = (
         args.output.resolve()
         if args.output is not None
         else _default_output_path(run_id, args.model)
     )
-    if output_path.resolve() == args.audit_json.resolve():
+    if output_path.resolve() == audit_path:
         raise ValueError("replay output must not overwrite the source audit")
 
     client = AsyncOpenAI(api_key=api_key, base_url=base_url)

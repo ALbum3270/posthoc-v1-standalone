@@ -354,9 +354,9 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "attribution",
     ]
     assert result.loop_result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
-    assert result.report_path == tmp_path / "fixed-run.md"
-    assert result.sources_path == tmp_path / "fixed-run.sources.md"
-    assert result.audit_path == tmp_path / "fixed-run.json"
+    assert result.report_path == tmp_path / "fixed-run" / "report.md"
+    assert result.sources_path == tmp_path / "fixed-run" / "sources.md"
+    assert result.audit_path == tmp_path / "fixed-run" / "audit.json"
     final_markdown = result.report_path.read_text(encoding="utf-8")
     sources_markdown = result.sources_path.read_text(encoding="utf-8")
     assert final_markdown == result.rendered_report.markdown
@@ -365,14 +365,22 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "缺失逐字证据、提交标记或摘要不符则证据包不完整"
         in final_markdown.splitlines()[0]
     )
-    assert "正文块评估 2/2" in final_markdown.splitlines()[1]
+    assert "正文块评估 2/2" in final_markdown
+    assert (
+        "证据状态：本报告没有任何可定位的正式支持关系"
+        in final_markdown
+    )
+    assert "初次采集阶段未取得任何原文" in final_markdown
     assert "Run ID：`fixed-run`" in sources_markdown
-    assert "[fixed-run.md](fixed-run.md)" in sources_markdown
+    assert "[report.md](report.md)" in sources_markdown
     assert (
         "> 域名代理集中度：没有正式 claim–source 支持关系；"
         "域名仅作发布方代理。"
     ) in final_markdown
-    assert "> 清单对账：已评估 1/1；完整覆盖 1/1" in final_markdown
+    assert (
+        "> 清单内容覆盖（不表示来源支持）："
+        "已评估 1/1；完整覆盖 1/1"
+    ) in final_markdown
     assert (
         "The model wrote this report.〔未找到候选来源〕"
         in final_markdown
@@ -400,6 +408,11 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "reason": "all_items_terminal",
     }
     assert audit["collection_summary"] == {
+        "initial_collection_snapshot": {
+            "cached_source_count": 0,
+            "note_count": 0,
+            "usable_note_count": 0,
+        },
         "known_gaps": ["writing_input_budget_preflight_not_enforced"],
         "quote_quality": {
             "format_repair_rate": 0.0,
@@ -522,18 +535,20 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["models"]["verification"] == "strong-verifier"
     assert audit["models"]["reconciliation"] == "coverage-model"
     assert audit["artifacts"] == {
-        "audit": "fixed-run.json",
+        "audit": "audit.json",
         "bundle_complete": True,
-        "commit_marker": "fixed-run.json",
-        "publication_order": ["sources", "report", "audit"],
-        "report": "fixed-run.md",
+        "commit_marker": "audit.json",
+        "directory": "fixed-run",
+        "publication_order": ["directory"],
+        "report": "report.md",
         "report_sha256": hashlib.sha256(
             final_markdown.encode("utf-8")
         ).hexdigest(),
-        "sources": "fixed-run.sources.md",
+        "sources": "sources.md",
         "sources_sha256": hashlib.sha256(
             sources_markdown.encode("utf-8")
         ).hexdigest(),
+        "staging_write_order": ["sources", "report", "audit"],
     }
 
 
@@ -600,8 +615,8 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     assert "exact source evidence 2026." not in markdown
     assert "exact source evidence 2026." not in sources_markdown
     assert (
-        "[查看逐字证据]"
-        "(verified-run.sources.md#evidence-1)"
+        "[逐字证据]"
+        "(sources.md#evidence-1)"
         in markdown
     )
     assert '<a id="evidence-1"></a>' in sources_markdown
@@ -627,29 +642,26 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     ).hexdigest()
 
 
-def test_artifact_bundle_rolls_back_when_report_publish_fails(
+def test_artifact_bundle_publishes_by_one_directory_rename_or_not_at_all(
     tmp_path,
     monkeypatch,
 ):
-    report_path = tmp_path / "run.md"
-    sources_path = tmp_path / "run.sources.md"
-    audit_path = tmp_path / "run.json"
-    real_replace = os.replace
-    calls = 0
+    run_directory = tmp_path / "run"
+    report_path = run_directory / "report.md"
+    sources_path = run_directory / "sources.md"
+    audit_path = run_directory / "audit.json"
+    calls = []
 
-    def fail_on_report(source, destination):
-        nonlocal calls
-        calls += 1
-        if calls == 2:
-            raise OSError("simulated report publish failure")
-        return real_replace(source, destination)
+    def fail_publish(source, destination):
+        calls.append((source, destination))
+        raise OSError("simulated directory publish failure")
 
     monkeypatch.setattr(
         "open_deep_research.harness.runner.os.replace",
-        fail_on_report,
+        fail_publish,
     )
 
-    with pytest.raises(OSError, match="simulated report publish failure"):
+    with pytest.raises(OSError, match="simulated directory publish failure"):
         _publish_artifact_bundle(
             destination=tmp_path,
             report_path=report_path,
@@ -660,10 +672,48 @@ def test_artifact_bundle_rolls_back_when_report_publish_fails(
             audit_json="audit",
         )
 
-    assert not sources_path.exists()
-    assert not report_path.exists()
-    assert not audit_path.exists()
+    assert len(calls) == 1
+    assert calls[0][1] == run_directory
+    assert not run_directory.exists()
     assert list(tmp_path.iterdir()) == []
+
+
+def test_artifact_bundle_refuses_existing_directory_and_legacy_flat_run(
+    tmp_path,
+) -> None:
+    run_directory = tmp_path / "run"
+    report_path = run_directory / "report.md"
+    sources_path = run_directory / "sources.md"
+    audit_path = run_directory / "audit.json"
+    run_directory.mkdir()
+
+    with pytest.raises(FileExistsError, match="existing artifact bundle"):
+        _publish_artifact_bundle(
+            destination=tmp_path,
+            report_path=report_path,
+            sources_path=sources_path,
+            audit_path=audit_path,
+            report_markdown="new report",
+            sources_markdown="new sources",
+            audit_json="new audit",
+        )
+    assert list(run_directory.iterdir()) == []
+
+    run_directory.rmdir()
+    legacy_audit = tmp_path / "run.json"
+    legacy_audit.write_text("historical", encoding="utf-8")
+    with pytest.raises(FileExistsError, match="run.json"):
+        _publish_artifact_bundle(
+            destination=tmp_path,
+            report_path=report_path,
+            sources_path=sources_path,
+            audit_path=audit_path,
+            report_markdown="new report",
+            sources_markdown="new sources",
+            audit_json="new audit",
+        )
+    assert legacy_audit.read_text(encoding="utf-8") == "historical"
+    assert not run_directory.exists()
 
 
 def test_cli_configures_openrouter_proxy_without_touching_no_proxy(monkeypatch):

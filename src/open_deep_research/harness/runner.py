@@ -68,6 +68,7 @@ from open_deep_research.harness.loop import (
     run_research_loop,
 )
 from open_deep_research.harness.render import (
+    InitialCollectionSnapshot,
     RenderedReport,
     render_verified_report,
 )
@@ -150,17 +151,32 @@ def _publish_artifact_bundle(
     sources_markdown: str,
     audit_json: str,
 ) -> None:
-    """Stage all files and publish the audit commit marker last.
-
-    A flat set of files cannot be renamed atomically as one operation. The
-    audit file is therefore the commit marker: consumers must treat a run
-    without it as incomplete. Best-effort rollback removes already published
-    siblings if a later rename fails.
-    """
+    """Stage a complete run directory and publish it with one rename."""
 
     destination.mkdir(parents=True, exist_ok=True)
-    final_paths = (sources_path, report_path, audit_path)
-    existing = tuple(path for path in final_paths if path.exists())
+    final_directory = report_path.parent
+    if (
+        final_directory.parent != destination
+        or sources_path.parent != final_directory
+        or audit_path.parent != final_directory
+    ):
+        raise ValueError("artifact paths must share one run directory")
+    if (
+        report_path.name != "report.md"
+        or sources_path.name != "sources.md"
+        or audit_path.name != "audit.json"
+    ):
+        raise ValueError("artifact paths must use the canonical filenames")
+    legacy_paths = (
+        destination / f"{final_directory.name}.md",
+        destination / f"{final_directory.name}.sources.md",
+        destination / f"{final_directory.name}.json",
+    )
+    existing = tuple(
+        path
+        for path in (final_directory, *legacy_paths)
+        if path.exists()
+    )
     if existing:
         raise FileExistsError(
             "refusing to overwrite an existing artifact bundle: "
@@ -168,38 +184,34 @@ def _publish_artifact_bundle(
         )
     staging = Path(
         tempfile.mkdtemp(
-            prefix=f".{report_path.stem}-staging-",
+            prefix=f".{final_directory.name}-staging-",
             dir=destination,
         )
     )
     staged_sources = staging / sources_path.name
     staged_report = staging / report_path.name
     staged_audit = staging / audit_path.name
-    published: list[Path] = []
     try:
-        # Required construction and publication order: evidence first, then
-        # its digest-bearing report, and the audit commit marker last.
+        # Build and validate the whole bundle while it is still invisible.
         staged_sources.write_text(sources_markdown, encoding="utf-8")
         staged_report.write_text(report_markdown, encoding="utf-8")
         staged_audit.write_text(audit_json, encoding="utf-8")
-        for staged, final in (
-            (staged_sources, sources_path),
-            (staged_report, report_path),
-            (staged_audit, audit_path),
+        expected = {
+            staged_sources: sources_markdown,
+            staged_report: report_markdown,
+            staged_audit: audit_json,
+        }
+        if any(
+            path.read_text(encoding="utf-8") != content
+            for path, content in expected.items()
         ):
-            os.replace(staged, final)
-            published.append(final)
-    except BaseException:
-        for path in reversed(published):
-            try:
-                path.unlink(missing_ok=True)
-            except OSError:
-                # The absent audit commit marker still exposes an incomplete
-                # bundle if process-level cleanup cannot finish.
-                pass
-        raise
+            raise OSError("staged artifact validation failed")
+        # The target is preflighted as absent. os.replace publishes either the
+        # complete directory or nothing; an existing run is never merged.
+        os.replace(staging, final_directory)
     finally:
-        shutil.rmtree(staging, ignore_errors=True)
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
 
 
 def _usage_from_model(model_client: Any) -> UsageRecord:
@@ -293,9 +305,9 @@ async def run_harness(
     """Run collection, drafting, post-hoc evidence, and artifact rendering."""
 
     normalized_run_id = _normalize_run_id(run_id)
-    report_filename = f"{normalized_run_id}.md"
-    sources_filename = f"{normalized_run_id}.sources.md"
-    audit_filename = f"{normalized_run_id}.json"
+    report_filename = "report.md"
+    sources_filename = "sources.md"
+    audit_filename = "audit.json"
     ledger = ResearchLedger(research_id=normalized_run_id, topic=topic.strip())
     active_budget = budget or LoopBudget()
     if verification_required_independent_sources is not None:
@@ -326,6 +338,16 @@ async def run_harness(
     collection_usage = UsageRecord(
         token_count=ledger.total_tokens,
         cost_usd=ledger.total_cost_usd,
+    )
+    # Freeze this before any post-hoc retrieval can grow the ledger. Reader
+    # messaging about the initial collection must not be inferred from the
+    # final source cache.
+    initial_collection_snapshot = InitialCollectionSnapshot(
+        cached_source_count=len(ledger.source_cache),
+        note_count=len(ledger.notes),
+        usable_note_count=sum(
+            note.has_usable_source_span for note in ledger.notes
+        ),
     )
     collection_quote_quality = quote_quality_metrics(ledger.notes)
     settled_without_located_evidence = (
@@ -554,6 +576,7 @@ async def run_harness(
         disagreement_attempted_count=len(
             disagreement.disagreement_search_attempted
         ),
+        initial_collection_snapshot=initial_collection_snapshot,
         run_id=normalized_run_id,
         report_filename=report_filename,
         sources_filename=sources_filename,
@@ -606,9 +629,10 @@ async def run_harness(
     )
 
     destination = Path(output_dir)
-    report_path = destination / report_filename
-    sources_path = destination / sources_filename
-    audit_path = destination / audit_filename
+    run_directory = destination / normalized_run_id
+    report_path = run_directory / report_filename
+    sources_path = run_directory / sources_filename
+    audit_path = run_directory / audit_filename
     report_sha256 = hashlib.sha256(
         rendered_report.markdown.encode("utf-8")
     ).hexdigest()
@@ -624,6 +648,9 @@ async def run_harness(
             "is_success": loop_result.is_success,
         },
         "collection_summary": {
+            "initial_collection_snapshot": (
+                initial_collection_snapshot.model_dump(mode="json")
+            ),
             "settled_without_located_evidence": (
                 settled_without_located_evidence
             ),
@@ -696,6 +723,7 @@ async def run_harness(
         "models": dict(model_names or {}),
         "canonical_draft": report.canonical_draft,
         "artifacts": {
+            "directory": normalized_run_id,
             "report": report_path.name,
             "report_sha256": report_sha256,
             "sources": sources_path.name,
@@ -703,7 +731,8 @@ async def run_harness(
             "audit": audit_path.name,
             "commit_marker": audit_path.name,
             "bundle_complete": True,
-            "publication_order": ["sources", "report", "audit"],
+            "staging_write_order": ["sources", "report", "audit"],
+            "publication_order": ["directory"],
         },
     }
 
