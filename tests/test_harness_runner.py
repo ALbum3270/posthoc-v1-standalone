@@ -932,3 +932,66 @@ def test_a_diagnostic_pass_that_assessed_nothing_is_not_recorded_as_complete(
     assert record["unevaluated_ids"] == ["claim-0001"]
     # An advisory pass is not part of the spine, so it must not block release.
     assert result.publication_eligible is True
+
+
+class OmittingAttributionModel:
+    """Returns a well-formed response that covers none of the claims."""
+
+    def __init__(self, events):
+        self.events = events
+
+    async def generate(self, prompt):
+        self.events.append("attribution")
+        return {
+            "content": json.dumps({"action": "attribute", "claims": []}),
+            "token_count": 7,
+            "cost_usd": 0.02,
+        }
+
+
+def test_an_ineligible_run_still_writes_its_bundle(tmp_path):
+    """The incomplete-run path must survive all the way to the audit file.
+
+    This path replaced completion_status via model_copy, which does not
+    validate: a raw "partial" string silently displaced the enum and only blew
+    up later where the audit reads .value. Every stage had already run and been
+    paid for, so the failure cost a full run and produced nothing -- the exact
+    total-loss outcome the partial bundle exists to prevent.
+    """
+
+    events = []
+    draft = "# Report\n\nThe model wrote this report."
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=DecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=WriteModel(events),
+            claim_model=ClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=OmittingAttributionModel(events),
+            verification_model=UnusedVerificationModel(),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            output_dir=tmp_path,
+            run_id="ineligible-run",
+        )
+    )
+
+    assert result.publication_eligible is False
+
+    audit_path = tmp_path / "ineligible-run" / "audit.json"
+    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+
+    # The value must be the enum's serialised form, not whatever a caller
+    # happened to pass to model_copy.
+    assert audit["completion_status"] == "partial"
+    assert audit["publication_eligible"] is False
+    # The bundle is complete even though the run is not.
+    assert (tmp_path / "ineligible-run" / "report.md").is_file()
+    assert (tmp_path / "ineligible-run" / "sources.md").is_file()
+    # And the reader is told, in the report itself, that it is incomplete.
+    report = (tmp_path / "ineligible-run" / "report.md").read_text("utf-8")
+    assert "不完整运行产物" in report

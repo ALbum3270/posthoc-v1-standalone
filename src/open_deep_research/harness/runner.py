@@ -35,6 +35,7 @@ from open_deep_research.harness.budget import (
     RunCostController,
 )
 from open_deep_research.harness.budget_diagnostics import (
+    CompletionStatus,
     RunStopDiagnostic,
     build_run_stop_diagnostic,
 )
@@ -1185,8 +1186,14 @@ async def run_harness(
         for claim in claim_decomposition.claims
         if claim.citation_requirement is CitationRequirement.EXTERNAL
     )
+    # An ATTRIBUTION_ERROR record says the stage could not reach a conclusion
+    # for this claim, so presence in the result set is not evidence the work
+    # was done. NO_CANDIDATE_SOURCE is different and does count: attribution
+    # ran and concluded there were no candidates, which is a finding.
     attributed_ids = {
-        record.claim.claim_id for record in initial_attribution.attributions
+        record.claim.claim_id
+        for record in initial_attribution.attributions
+        if record.status is not AttributionStatus.ATTRIBUTION_ERROR
     }
     missing_attribution_ids = tuple(
         claim_id
@@ -1748,8 +1755,11 @@ async def run_harness(
                 + rendered_report.markdown,
             }
         )
+        # model_copy does not validate, so a raw string here silently replaces
+        # the enum and only fails much later when the audit reads .value --
+        # after the whole pipeline has run and been paid for.
         stop_diagnostic = stop_diagnostic.model_copy(
-            update={"completion_status": "partial"}
+            update={"completion_status": CompletionStatus.PARTIAL}
         )
 
     writing_usage = UsageRecord(
