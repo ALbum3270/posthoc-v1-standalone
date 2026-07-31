@@ -31,6 +31,7 @@ from open_deep_research.harness.checklist import (
 from open_deep_research.harness.budget import (
     RunCostBudget,
     RunCostBudgetAudit,
+    RunCostCapReached,
     RunCostController,
 )
 from open_deep_research.harness.budget_diagnostics import (
@@ -42,7 +43,9 @@ from open_deep_research.harness.claims import (
     ClaimDecompositionResult,
     ClaimDecompositionSettings,
     ClaimModelClient,
+    build_selection_prompt,
     decompose_claims,
+    parse_markdown_blocks,
 )
 from open_deep_research.harness.concentration import (
     DomainProxyConcentrationAudit,
@@ -102,6 +105,19 @@ from open_deep_research.harness.write import (
     WriteModelClient,
     write_report,
 )
+from open_deep_research.harness.stages import (
+    PostDraftExecutionAudit,
+    StageExecutionRecord,
+    StageExecutionStatus,
+    StageScope,
+    publication_audit,
+)
+from open_deep_research.harness.tail_budget import (
+    EvidenceTailReserveAudit,
+    EvidenceTailReserveController,
+    TailCheckpointName,
+    TailWorkUnit,
+)
 
 _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
@@ -125,19 +141,22 @@ class HarnessRunResult(BaseModel):
     sources_path: Path
     audit_path: Path
     report: ReportDraft
-    rendered_report: RenderedReport
+    rendered_report: RenderedReport | None
     loop_result: LoopResult
-    claim_decomposition: ClaimDecompositionResult
-    evaluative_diagnostics: EvaluativeDiagnosticResult
-    checklist_report_reconciliation: ChecklistReportReconciliation
-    domain_proxy_concentration: DomainProxyConcentrationAudit
-    attribution: AttributionResult
-    verification: VerificationResult
-    evidence_gap: EvidenceGapResult
-    disagreement: DisagreementResult
-    posthoc_retrieval_budget: PosthocRetrievalBudgetAudit
+    claim_decomposition: ClaimDecompositionResult | None
+    evaluative_diagnostics: EvaluativeDiagnosticResult | None
+    checklist_report_reconciliation: ChecklistReportReconciliation | None
+    domain_proxy_concentration: DomainProxyConcentrationAudit | None
+    attribution: AttributionResult | None
+    verification: VerificationResult | None
+    evidence_gap: EvidenceGapResult | None
+    disagreement: DisagreementResult | None
+    posthoc_retrieval_budget: PosthocRetrievalBudgetAudit | None
     run_cost_budget: RunCostBudgetAudit
     stop_diagnostic: RunStopDiagnostic
+    post_draft_execution: PostDraftExecutionAudit
+    evidence_tail_reserve: EvidenceTailReserveAudit
+    publication_eligible: bool
     usage: dict[str, UsageRecord]
 
 
@@ -278,6 +297,334 @@ def _usage_payload(
     }
 
 
+_MODEL_FOOTNOTE_DEFINITION = re.compile(
+    r"^\s*\[\^[A-Za-z0-9_-]+\]:.*$",
+    re.MULTILINE,
+)
+_MODEL_FOOTNOTE_MARKER = re.compile(r"\[\^[A-Za-z0-9_-]+\]")
+
+
+def _citation_free_partial_draft(canonical_draft: str) -> str:
+    """Defend the partial path against a writer violating the P-Cite contract."""
+
+    without_definitions = _MODEL_FOOTNOTE_DEFINITION.sub("", canonical_draft)
+    return _MODEL_FOOTNOTE_MARKER.sub("", without_definitions).strip()
+
+
+def _partial_bundle_markdown(
+    *,
+    canonical_draft: str,
+    run_id: str,
+    failed_stage: str,
+    audit_filename: str,
+) -> tuple[str, str]:
+    """Render an unmistakably non-publishable checkpoint without fake metrics."""
+
+    warning = (
+        "> **不完整运行产物：证据流程未完成；"
+        "`publication_eligible=false`。** "
+        f"后置阶段 `{failed_stage}` 因运行成本上限停止。"
+        "未执行的工作没有被解释为无来源、不支持、零覆盖或零候选；"
+        f"精确阶段状态与成本诊断见 [{audit_filename}]({audit_filename})。"
+    )
+    body = _citation_free_partial_draft(canonical_draft)
+    report = warning + "\n\n" + body + "\n"
+    sources = (
+        "# 不完整证据包\n\n"
+        f"- Run ID：`{run_id}`\n"
+        "- Publication eligible：`false`\n"
+        "- 本文件不包含伪造的空证据记录。证据尾链未完成，"
+        "因此没有生成可冒充完整核验结果的脚注定义。\n"
+        "- [返回报告](report.md)\n"
+    )
+    return report, sources
+
+
+def _scope_record(
+    *,
+    status: StageExecutionStatus,
+    reason: str,
+    unit: str | None = None,
+    expected_count: int | None = None,
+    evaluated_count: int | None = None,
+    unevaluated_ids: tuple[str, ...] = (),
+) -> StageExecutionRecord:
+    expected = (
+        StageScope(unit=unit, count=expected_count)
+        if unit is not None and expected_count is not None
+        else None
+    )
+    evaluated = (
+        StageScope(unit=unit, count=evaluated_count)
+        if expected is not None and evaluated_count is not None
+        else None
+    )
+    return StageExecutionRecord(
+        status=status,
+        reason=reason,
+        expected_scope=expected,
+        evaluated_scope=evaluated,
+        unevaluated_ids=unevaluated_ids,
+    )
+
+
+def _estimate_cost(model_client: Any, prompt: str) -> float | None:
+    estimator = getattr(model_client, "estimate_cost_usd", None)
+    if not callable(estimator):
+        return None
+    try:
+        return max(0.0, float(estimator(prompt)))
+    except (RuntimeError, TypeError, ValueError):
+        return None
+
+
+def _partial_usage(
+    run_cost_audit: RunCostBudgetAudit,
+    *,
+    checklist_usage: UsageRecord,
+    collection_usage: UsageRecord,
+    report: ReportDraft,
+) -> dict[str, UsageRecord]:
+    """Expose measured cost even when a stage did not return its own envelope."""
+
+    stage_cost = run_cost_audit.stage_cost_usd
+    usage = {
+        "checklist": checklist_usage,
+        "collection": collection_usage,
+        "writing": UsageRecord(
+            token_count=report.token_count,
+            cost_usd=report.cost_usd,
+        ),
+        "decomposition_attribution": UsageRecord(
+            cost_usd=stage_cost.get("decomposition_attribution", 0.0)
+        ),
+        "reconciliation": UsageRecord(
+            cost_usd=stage_cost.get("reconciliation", 0.0)
+        ),
+        "verification": UsageRecord(
+            cost_usd=stage_cost.get("verification", 0.0)
+        ),
+        "evidence_gap": UsageRecord(
+            cost_usd=stage_cost.get("evidence_gap", 0.0)
+        ),
+        "disagreement": UsageRecord(
+            cost_usd=stage_cost.get("disagreement", 0.0)
+        ),
+    }
+    usage["total"] = UsageRecord(
+        token_count=sum(record.token_count for record in usage.values()),
+        cost_usd=run_cost_audit.observed_total_cost_usd,
+    )
+    return usage
+
+
+def _publish_partial_result(
+    *,
+    normalized_run_id: str,
+    output_dir: str | Path,
+    report: ReportDraft,
+    failed_stage: str,
+    error: RunCostCapReached,
+    ledger: ResearchLedger,
+    loop_result: LoopResult,
+    checklist_usage: UsageRecord,
+    collection_usage: UsageRecord,
+    stages: dict[str, StageExecutionRecord],
+    tail_reserve: EvidenceTailReserveController,
+    initial_collection_snapshot: InitialCollectionSnapshot,
+    model_names: Mapping[str, str] | None,
+    claim_decomposition: ClaimDecompositionResult | None,
+    evaluative_diagnostics: EvaluativeDiagnosticResult | None,
+    checklist_reconciliation: ChecklistReportReconciliation | None,
+    attribution: AttributionResult | None,
+    verification: VerificationResult | None,
+) -> HarnessRunResult:
+    """Persist a controlled cutoff as a checkpoint, never as a final report."""
+
+    for stage_name in (
+        "claim_decomposition",
+        "evaluative_diagnostics",
+        "checklist_reconciliation",
+        "attribution",
+        "initial_verification",
+        "evidence_gap",
+        "disagreement",
+        "deterministic_rendering",
+    ):
+        stages.setdefault(
+            stage_name,
+            _scope_record(
+                status=StageExecutionStatus.NOT_RUN,
+                reason=(
+                    "not run because the absolute run cost cap stopped an "
+                    f"earlier stage ({failed_stage})"
+                ),
+            ),
+        )
+    post_draft_execution = publication_audit(stages)
+    if post_draft_execution.publication_eligible:
+        raise AssertionError("a cost-cutoff checkpoint cannot be publishable")
+
+    run_cost_audit = error.audit
+    stop_diagnostic = build_run_stop_diagnostic(
+        loop_result=loop_result,
+        run_cost_audit=run_cost_audit,
+        unattributed_claims=(
+            sum(
+                claim.citation_requirement is CitationRequirement.EXTERNAL
+                for claim in claim_decomposition.claims
+            )
+            if claim_decomposition is not None and attribution is None
+            else 0
+        ),
+        unverified_relations=(
+            sum(len(record.candidates) for record in attribution.attributions)
+            if attribution is not None and verification is None
+            else 0
+        ),
+        report_written=True,
+    )
+    if stop_diagnostic.completion_status.value != "partial":
+        raise AssertionError("a post-draft cost cutoff must be partial")
+
+    report_filename = "report.md"
+    sources_filename = "sources.md"
+    audit_filename = "audit.json"
+    report_markdown, sources_markdown = _partial_bundle_markdown(
+        canonical_draft=report.canonical_draft,
+        run_id=normalized_run_id,
+        failed_stage=failed_stage,
+        audit_filename=audit_filename,
+    )
+    sources_sha256 = hashlib.sha256(
+        sources_markdown.encode("utf-8")
+    ).hexdigest()
+    report_sha256 = hashlib.sha256(
+        report_markdown.encode("utf-8")
+    ).hexdigest()
+    usage = _partial_usage(
+        run_cost_audit,
+        checklist_usage=checklist_usage,
+        collection_usage=collection_usage,
+        report=report,
+    )
+    usage_audit = {
+        name: record.model_dump(mode="json")
+        for name, record in usage.items()
+    }
+    tail_audit = tail_reserve.audit()
+
+    destination = Path(output_dir)
+    run_directory = destination / normalized_run_id
+    report_path = run_directory / report_filename
+    sources_path = run_directory / sources_filename
+    audit_path = run_directory / audit_filename
+    posthoc: dict[str, Any] = {
+        "stage_execution": post_draft_execution.model_dump(mode="json"),
+        "claim_decomposition": (
+            claim_decomposition.model_dump(mode="json")
+            if claim_decomposition is not None
+            else None
+        ),
+        "evaluative_claim_diagnostics": (
+            evaluative_diagnostics.model_dump(mode="json")
+            if evaluative_diagnostics is not None
+            else None
+        ),
+        "checklist_report_reconciliation": (
+            checklist_reconciliation.model_dump(mode="json")
+            if checklist_reconciliation is not None
+            else None
+        ),
+        "attribution": (
+            attribution.model_dump(mode="json")
+            if attribution is not None
+            else None
+        ),
+        "verification": (
+            verification.model_dump(mode="json")
+            if verification is not None
+            else None
+        ),
+    }
+    audit = {
+        "run_id": normalized_run_id,
+        "topic": loop_result.checklist.topic,
+        "ledger": ledger.to_audit_dict(),
+        "checklist": loop_result.checklist.model_dump(mode="json"),
+        "canonical_draft": report.canonical_draft,
+        "completion_status": "partial",
+        "publication_eligible": False,
+        "stop": {
+            "reason": loop_result.stop_reason.value,
+            "detail": loop_result.stop_detail,
+            "open_item_ids": list(loop_result.open_item_ids),
+            "is_success": loop_result.is_success,
+            "diagnostic": stop_diagnostic.model_dump(mode="json"),
+            "post_draft_cutoff_stage": failed_stage,
+        },
+        "collection_summary": {
+            "initial_collection_snapshot": (
+                initial_collection_snapshot.model_dump(mode="json")
+            ),
+        },
+        "posthoc_evidence": posthoc,
+        "usage": usage_audit,
+        "run_cost_budget": run_cost_audit.model_dump(mode="json"),
+        "evidence_tail_reserve": tail_audit.model_dump(mode="json"),
+        "models": dict(model_names or {}),
+        "artifacts": {
+            "directory": normalized_run_id,
+            "report": report_filename,
+            "report_sha256": report_sha256,
+            "sources": sources_filename,
+            "sources_sha256": sources_sha256,
+            "audit": audit_filename,
+            "bundle_complete": True,
+            "publication_eligible": False,
+            "artifact_kind": "partial_checkpoint_bundle",
+            "staging_write_order": ["sources", "report", "audit"],
+            "publication_order": ["directory"],
+        },
+    }
+    audit_json = (
+        json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    )
+    _publish_artifact_bundle(
+        destination=destination,
+        report_path=report_path,
+        sources_path=sources_path,
+        audit_path=audit_path,
+        report_markdown=report_markdown,
+        sources_markdown=sources_markdown,
+        audit_json=audit_json,
+    )
+    return HarnessRunResult(
+        run_id=normalized_run_id,
+        report_path=report_path,
+        sources_path=sources_path,
+        audit_path=audit_path,
+        report=report,
+        rendered_report=None,
+        loop_result=loop_result,
+        claim_decomposition=claim_decomposition,
+        evaluative_diagnostics=evaluative_diagnostics,
+        checklist_report_reconciliation=checklist_reconciliation,
+        domain_proxy_concentration=None,
+        attribution=attribution,
+        verification=verification,
+        evidence_gap=None,
+        disagreement=None,
+        posthoc_retrieval_budget=None,
+        run_cost_budget=run_cost_audit,
+        stop_diagnostic=stop_diagnostic,
+        post_draft_execution=post_draft_execution,
+        evidence_tail_reserve=tail_audit,
+        publication_eligible=False,
+        usage=usage,
+    )
+
+
 async def run_harness(
     topic: str,
     *,
@@ -326,19 +673,22 @@ async def run_harness(
     ledger = ResearchLedger(research_id=normalized_run_id, topic=topic.strip())
     active_budget = budget or LoopBudget()
     run_cost = RunCostController(run_cost_budget)
-    verification_reserve_usd = (
-        run_cost.budget.verification_reserve_usd
+    evidence_tail_reserve_usd = (
+        run_cost.budget.effective_evidence_tail_reserve_usd
+    )
+    tail_reserve = EvidenceTailReserveController(
+        evidence_tail_reserve_usd
     )
     if (
         run_cost.budget.max_cost_usd is not None
         and (
             active_budget.writing_cost_reserve_usd
-            + verification_reserve_usd
+            + evidence_tail_reserve_usd
             > run_cost.budget.max_cost_usd
         )
     ):
         raise ValueError(
-            "writing and verification cost reserves together must not "
+            "writing and evidence-tail cost reserves together must not "
             "exceed the run-level cost limit"
         )
     if verification_required_independent_sources is not None:
@@ -360,7 +710,7 @@ async def run_harness(
         stage="checklist",
         protected_reserve_usd=(
             active_budget.writing_cost_reserve_usd
-            + verification_reserve_usd
+            + evidence_tail_reserve_usd
         ),
     )
     checklist = await generate_checklist(
@@ -370,7 +720,7 @@ async def run_harness(
     checklist_usage = _usage_from_model(budgeted_checklist_model)
     collection_allowance = run_cost.available_before_reserve(
         active_budget.writing_cost_reserve_usd
-        + verification_reserve_usd
+        + evidence_tail_reserve_usd
     )
     if collection_allowance is not None:
         active_budget = active_budget.model_copy(
@@ -444,59 +794,401 @@ async def run_harness(
     budgeted_write_model = run_cost.wrap(
         write_model,
         stage="writing",
-        protected_reserve_usd=verification_reserve_usd,
+        protected_reserve_usd=evidence_tail_reserve_usd,
     )
     report = await write_report(
         assembled,
         model_client=budgeted_write_model,
     )
+
+    # From this point onward a canonical draft exists. A controlled cost cutoff
+    # must persist it as a partial checkpoint instead of losing all paid work.
+    stage_records: dict[str, StageExecutionRecord] = {}
+    claim_decomposition: ClaimDecompositionResult | None = None
+    evaluative_diagnostics: EvaluativeDiagnosticResult | None = None
+    checklist_report_reconciliation: ChecklistReportReconciliation | None = (
+        None
+    )
+    initial_attribution: AttributionResult | None = None
+    initial_verification: VerificationResult | None = None
+
+    parsed_blocks = parse_markdown_blocks(report.canonical_draft)
+    claim_batch_size = (
+        claim_settings.batch_size
+        if claim_settings is not None
+        else ClaimDecompositionSettings().batch_size
+    )
+    selection_prompts = tuple(
+        build_selection_prompt(parsed_blocks[index : index + claim_batch_size])
+        for index in range(0, len(parsed_blocks), claim_batch_size)
+    )
+    selection_estimates = tuple(
+        _estimate_cost(claim_model, prompt) for prompt in selection_prompts
+    )
+    known_selection_estimates = tuple(
+        estimate for estimate in selection_estimates if estimate is not None
+    )
+    tail_reserve.checkpoint(
+        TailCheckpointName.DRAFT_AVAILABLE,
+        work_units=(
+            TailWorkUnit(
+                stage="claim_decomposition",
+                unit="markdown_block",
+                count=len(parsed_blocks),
+            ),
+            TailWorkUnit(
+                stage="claim_decomposition",
+                unit="selection_batch",
+                count=len(selection_prompts),
+            ),
+        ),
+        estimated_remaining_cost_usd=(
+            sum(known_selection_estimates)
+            if known_selection_estimates
+            else None
+        ),
+        # At this point claim count, attribution paging, and verification
+        # relations do not exist. The prompt estimate is therefore explicitly
+        # a lower bound, never a complete tail forecast.
+        estimate_complete=False,
+        limitations=(
+            "only selection prompts are constructible before selection",
+            "decontextualization, extraction, attribution, reconciliation, "
+            "and verification remain unestimated at this checkpoint",
+        ),
+    )
+
     budgeted_claim_model = run_cost.wrap(
         claim_model,
-        stage="decomposition_attribution",
-        protected_reserve_usd=verification_reserve_usd,
+        stage="claim_decomposition",
+        tail_reserve_controller=tail_reserve,
     )
-    claim_decomposition = await decompose_claims(
-        report.canonical_draft,
-        model_client=budgeted_claim_model,
-        settings=claim_settings,
-    )
-    evaluative_diagnostics = (
-        await diagnose_underspecified_evaluative_claims(
-            claim_decomposition.claims,
+    try:
+        claim_decomposition = await decompose_claims(
+            report.canonical_draft,
             model_client=budgeted_claim_model,
-            settings=evaluative_diagnostic_settings,
+            settings=claim_settings,
         )
+    except RunCostCapReached as error:
+        stage_records["claim_decomposition"] = _scope_record(
+            status=StageExecutionStatus.PARTIAL,
+            reason=str(error),
+            unit="markdown_block",
+            expected_count=len(parsed_blocks),
+            evaluated_count=0,
+            unevaluated_ids=tuple(block.block_id for block in parsed_blocks),
+        )
+        return _publish_partial_result(
+            normalized_run_id=normalized_run_id,
+            output_dir=output_dir,
+            report=report,
+            failed_stage="claim_decomposition",
+            error=error,
+            ledger=ledger,
+            loop_result=loop_result,
+            checklist_usage=checklist_usage,
+            collection_usage=collection_usage,
+            stages=stage_records,
+            tail_reserve=tail_reserve,
+            initial_collection_snapshot=initial_collection_snapshot,
+            model_names=model_names,
+            claim_decomposition=None,
+            evaluative_diagnostics=None,
+            checklist_reconciliation=None,
+            attribution=None,
+            verification=None,
+        )
+    claim_coverage = claim_decomposition.registry_coverage
+    stage_records["claim_decomposition"] = _scope_record(
+        status=(
+            StageExecutionStatus.COMPLETE
+            if claim_coverage.is_complete
+            else StageExecutionStatus.PARTIAL
+        ),
+        reason=(
+            "every markdown block received a selection disposition"
+            if claim_coverage.is_complete
+            else "some markdown blocks were not successfully assessed"
+        ),
+        unit="markdown_block",
+        expected_count=claim_coverage.total_blocks,
+        evaluated_count=claim_coverage.evaluated_blocks,
+        unevaluated_ids=claim_coverage.unassessed_block_ids,
     )
+    tail_reserve.observe_stage(
+        "claim_decomposition",
+        work_units=(
+            TailWorkUnit(
+                stage="claim_decomposition",
+                unit="markdown_block",
+                count=claim_coverage.total_blocks,
+            ),
+            TailWorkUnit(
+                stage="claim_decomposition",
+                unit="atomic_claim",
+                count=len(claim_decomposition.claims),
+            ),
+        ),
+        token_count=claim_decomposition.total_tokens,
+        cost_usd=claim_decomposition.total_cost_usd,
+    )
+    tail_reserve.checkpoint(
+        TailCheckpointName.CLAIMS_AVAILABLE,
+        work_units=(
+            TailWorkUnit(
+                stage="attribution",
+                unit="external_claim",
+                count=sum(
+                    claim.citation_requirement
+                    is CitationRequirement.EXTERNAL
+                    for claim in claim_decomposition.claims
+                ),
+            ),
+            TailWorkUnit(
+                stage="checklist_reconciliation",
+                unit="checklist_item",
+                count=len(loop_result.checklist.items),
+            ),
+        ),
+        estimated_remaining_cost_usd=None,
+        estimate_complete=False,
+        limitations=(
+            "attribution paging and claim-source relations are model outputs "
+            "that do not exist yet",
+        ),
+    )
+
+    # This diagnostic is an enhancement, not part of the publication spine.
+    # It may run here for prompt locality, but the dynamic controller protects
+    # the complete evidence-tail reserve from it.
+    budgeted_evaluative_model = run_cost.wrap(
+        claim_model,
+        stage="evaluative_diagnostics",
+        tail_reserve_controller=tail_reserve,
+    )
+    try:
+        evaluative_diagnostics = (
+            await diagnose_underspecified_evaluative_claims(
+                claim_decomposition.claims,
+                model_client=budgeted_evaluative_model,
+                settings=evaluative_diagnostic_settings,
+            )
+        )
+        stage_records["evaluative_diagnostics"] = _scope_record(
+            status=StageExecutionStatus.COMPLETE,
+            reason="advisory diagnostic pass returned a record",
+            unit="external_claim",
+            expected_count=sum(
+                claim.citation_requirement is CitationRequirement.EXTERNAL
+                for claim in claim_decomposition.claims
+            ),
+            evaluated_count=sum(
+                claim.citation_requirement is CitationRequirement.EXTERNAL
+                for claim in claim_decomposition.claims
+            ),
+        )
+        tail_reserve.observe_stage(
+            "evaluative_diagnostics",
+            work_units=(
+                TailWorkUnit(
+                    stage="evaluative_diagnostics",
+                    unit="external_claim",
+                    count=sum(
+                        claim.citation_requirement
+                        is CitationRequirement.EXTERNAL
+                        for claim in claim_decomposition.claims
+                    ),
+                ),
+            ),
+            token_count=evaluative_diagnostics.total_tokens,
+            cost_usd=evaluative_diagnostics.total_cost_usd,
+        )
+    except RunCostCapReached:
+        diagnostic_claim_ids = tuple(
+            claim.claim_id
+            for claim in claim_decomposition.claims
+            if claim.citation_requirement is CitationRequirement.EXTERNAL
+        )
+        evaluative_diagnostics = None
+        stage_records["evaluative_diagnostics"] = _scope_record(
+            status=StageExecutionStatus.NOT_RUN,
+            reason=(
+                "enhancement was denied while preserving the mandatory "
+                "evidence tail; claim registry and denominators remain unchanged"
+            ),
+            unit="external_claim",
+            expected_count=len(diagnostic_claim_ids),
+            evaluated_count=0,
+            unevaluated_ids=diagnostic_claim_ids,
+        )
+
     budgeted_reconciliation_model = run_cost.wrap(
         reconciliation_model,
-        stage="reconciliation",
-        protected_reserve_usd=verification_reserve_usd,
+        stage="checklist_reconciliation",
+        tail_reserve_controller=tail_reserve,
     )
-    checklist_report_reconciliation = await reconcile_checklist_report(
-        report.canonical_draft,
-        loop_result.checklist,
-        blocks=claim_decomposition.blocks,
-        claims=claim_decomposition.claims,
-        model_client=budgeted_reconciliation_model,
+    try:
+        checklist_report_reconciliation = await reconcile_checklist_report(
+            report.canonical_draft,
+            loop_result.checklist,
+            blocks=claim_decomposition.blocks,
+            claims=claim_decomposition.claims,
+            model_client=budgeted_reconciliation_model,
+        )
+    except RunCostCapReached as error:
+        item_ids = tuple(item.item_id for item in loop_result.checklist.items)
+        stage_records["checklist_reconciliation"] = _scope_record(
+            status=StageExecutionStatus.NOT_RUN,
+            reason=str(error),
+            unit="checklist_item",
+            expected_count=len(item_ids),
+            evaluated_count=0,
+            unevaluated_ids=item_ids,
+        )
+        return _publish_partial_result(
+            normalized_run_id=normalized_run_id,
+            output_dir=output_dir,
+            report=report,
+            failed_stage="checklist_reconciliation",
+            error=error,
+            ledger=ledger,
+            loop_result=loop_result,
+            checklist_usage=checklist_usage,
+            collection_usage=collection_usage,
+            stages=stage_records,
+            tail_reserve=tail_reserve,
+            initial_collection_snapshot=initial_collection_snapshot,
+            model_names=model_names,
+            claim_decomposition=claim_decomposition,
+            evaluative_diagnostics=None,
+            checklist_reconciliation=None,
+            attribution=None,
+            verification=None,
+        )
+    reconciliation_summary = checklist_report_reconciliation.summary
+    stage_records["checklist_reconciliation"] = _scope_record(
+        status=(
+            StageExecutionStatus.COMPLETE
+            if reconciliation_summary.assessment_failed_items == 0
+            else StageExecutionStatus.PARTIAL
+        ),
+        reason=(
+            "every checklist item received an auditable coverage disposition"
+            if reconciliation_summary.assessment_failed_items == 0
+            else "some checklist items could not be assessed"
+        ),
+        unit="checklist_item",
+        expected_count=reconciliation_summary.total_items,
+        evaluated_count=reconciliation_summary.assessed_items,
+        unevaluated_ids=reconciliation_summary.assessment_failed_item_ids,
     )
+    tail_reserve.observe_stage(
+        "checklist_reconciliation",
+        work_units=(
+            TailWorkUnit(
+                stage="checklist_reconciliation",
+                unit="checklist_item",
+                count=reconciliation_summary.total_items,
+            ),
+        ),
+        token_count=checklist_report_reconciliation.total_tokens,
+        cost_usd=checklist_report_reconciliation.total_cost_usd,
+    )
+
     budgeted_attribution_model = run_cost.wrap(
         attribution_model,
-        stage="decomposition_attribution",
-        protected_reserve_usd=verification_reserve_usd,
+        stage="attribution",
+        tail_reserve_controller=tail_reserve,
     )
-    if claim_decomposition.claims:
-        initial_attribution = await attribute_claims(
-            claim_decomposition.claims,
-            blocks=claim_decomposition.blocks,
-            notes=ledger.notes,
-            model_client=budgeted_attribution_model,
-            settings=attribution_settings,
+    try:
+        if claim_decomposition.claims:
+            initial_attribution = await attribute_claims(
+                claim_decomposition.claims,
+                blocks=claim_decomposition.blocks,
+                notes=ledger.notes,
+                model_client=budgeted_attribution_model,
+                settings=attribution_settings,
+            )
+        else:
+            initial_attribution = AttributionResult(
+                attributions=(),
+                stop_reason=AttributionStopReason.COMPLETED,
+            )
+    except RunCostCapReached as error:
+        external_ids = tuple(
+            claim.claim_id
+            for claim in claim_decomposition.claims
+            if claim.citation_requirement is CitationRequirement.EXTERNAL
         )
-    else:
-        initial_attribution = AttributionResult(
-            attributions=(),
-            stop_reason=AttributionStopReason.COMPLETED,
+        stage_records["attribution"] = _scope_record(
+            status=StageExecutionStatus.NOT_RUN,
+            reason=str(error),
+            unit="external_claim",
+            expected_count=len(external_ids),
+            evaluated_count=0,
+            unevaluated_ids=external_ids,
         )
+        return _publish_partial_result(
+            normalized_run_id=normalized_run_id,
+            output_dir=output_dir,
+            report=report,
+            failed_stage="attribution",
+            error=error,
+            ledger=ledger,
+            loop_result=loop_result,
+            checklist_usage=checklist_usage,
+            collection_usage=collection_usage,
+            stages=stage_records,
+            tail_reserve=tail_reserve,
+            initial_collection_snapshot=initial_collection_snapshot,
+            model_names=model_names,
+            claim_decomposition=claim_decomposition,
+            evaluative_diagnostics=None,
+            checklist_reconciliation=checklist_report_reconciliation,
+            attribution=None,
+            verification=None,
+        )
+    external_claim_ids = tuple(
+        claim.claim_id
+        for claim in claim_decomposition.claims
+        if claim.citation_requirement is CitationRequirement.EXTERNAL
+    )
+    attributed_ids = {
+        record.claim.claim_id for record in initial_attribution.attributions
+    }
+    missing_attribution_ids = tuple(
+        claim_id
+        for claim_id in external_claim_ids
+        if claim_id not in attributed_ids
+    )
+    stage_records["attribution"] = _scope_record(
+        status=(
+            StageExecutionStatus.COMPLETE
+            if not missing_attribution_ids
+            else StageExecutionStatus.PARTIAL
+        ),
+        reason=(
+            "every external claim received an attribution result"
+            if not missing_attribution_ids
+            else "some external claims received no attribution result"
+        ),
+        unit="external_claim",
+        expected_count=len(external_claim_ids),
+        evaluated_count=len(external_claim_ids) - len(missing_attribution_ids),
+        unevaluated_ids=missing_attribution_ids,
+    )
+    tail_reserve.observe_stage(
+        "attribution",
+        work_units=(
+            TailWorkUnit(
+                stage="attribution",
+                unit="external_claim",
+                count=len(external_claim_ids),
+            ),
+        ),
+        token_count=initial_attribution.total_tokens,
+        cost_usd=initial_attribution.total_cost_usd,
+    )
     corroboration_targets = {
         claim.claim_id: corroboration_target_for_external_claims
         for claim in claim_decomposition.claims
@@ -504,7 +1196,8 @@ async def run_harness(
     }
     budgeted_verification_model = run_cost.wrap(
         verification_model,
-        stage="verification",
+        stage="initial_verification",
+        tail_reserve_controller=tail_reserve,
     )
     run_verification_remaining = run_cost.remaining_cost_usd
     effective_verification_budget = verification_budget
@@ -537,16 +1230,114 @@ async def run_harness(
         effective_verification_cost_estimator = (
             budgeted_verification_model.estimate_cost_usd
         )
-    initial_verification = await verify_attributions(
-        initial_attribution.attributions,
-        source_cache=ledger.source_cache,
-        model_client=budgeted_verification_model,
-        settings=verification_settings,
-        budget=effective_verification_budget,
-        corroboration_targets=corroboration_targets,
-        estimate_input_tokens=verification_input_token_estimator,
-        estimate_cost_usd=effective_verification_cost_estimator,
+    candidate_relation_ids = tuple(
+        f"{record.claim.claim_id}|{candidate.source_id}"
+        for record in initial_attribution.attributions
+        for candidate in record.candidates
     )
+    tail_reserve.checkpoint(
+        TailCheckpointName.ATTRIBUTION_AVAILABLE,
+        work_units=(
+            TailWorkUnit(
+                stage="initial_verification",
+                unit="claim_source_relation",
+                count=len(candidate_relation_ids),
+            ),
+        ),
+        estimated_remaining_cost_usd=None,
+        estimate_complete=False,
+        limitations=(
+            "verification prompts are URL-grouped and estimates are recorded "
+            "at call admission rather than converted into a fixed ratio",
+        ),
+    )
+    try:
+        initial_verification = await verify_attributions(
+            initial_attribution.attributions,
+            source_cache=ledger.source_cache,
+            model_client=budgeted_verification_model,
+            settings=verification_settings,
+            budget=effective_verification_budget,
+            corroboration_targets=corroboration_targets,
+            estimate_input_tokens=verification_input_token_estimator,
+            estimate_cost_usd=effective_verification_cost_estimator,
+        )
+    except RunCostCapReached as error:
+        stage_records["initial_verification"] = _scope_record(
+            status=StageExecutionStatus.PARTIAL,
+            reason=str(error),
+            unit="claim_source_relation",
+            expected_count=len(candidate_relation_ids),
+            evaluated_count=0,
+            unevaluated_ids=candidate_relation_ids,
+        )
+        return _publish_partial_result(
+            normalized_run_id=normalized_run_id,
+            output_dir=output_dir,
+            report=report,
+            failed_stage="initial_verification",
+            error=error,
+            ledger=ledger,
+            loop_result=loop_result,
+            checklist_usage=checklist_usage,
+            collection_usage=collection_usage,
+            stages=stage_records,
+            tail_reserve=tail_reserve,
+            initial_collection_snapshot=initial_collection_snapshot,
+            model_names=model_names,
+            claim_decomposition=claim_decomposition,
+            evaluative_diagnostics=None,
+            checklist_reconciliation=checklist_report_reconciliation,
+            attribution=initial_attribution,
+            verification=None,
+        )
+    completed_relation_ids = {
+        f"{claim.claim.claim_id}|{relation.source_id}"
+        for claim in initial_verification.claims
+        for relation in claim.relations
+        if relation.status is VerificationRecordStatus.COMPLETED
+    }
+    unevaluated_relation_ids = tuple(
+        relation_id
+        for relation_id in candidate_relation_ids
+        if relation_id not in completed_relation_ids
+    )
+    stage_records["initial_verification"] = _scope_record(
+        status=(
+            StageExecutionStatus.COMPLETE
+            if not unevaluated_relation_ids
+            else StageExecutionStatus.PARTIAL
+        ),
+        reason=(
+            "every candidate claim-source relation completed verification"
+            if not unevaluated_relation_ids
+            else "some candidate relations did not complete verification"
+        ),
+        unit="claim_source_relation",
+        expected_count=len(candidate_relation_ids),
+        evaluated_count=len(candidate_relation_ids)
+        - len(unevaluated_relation_ids),
+        unevaluated_ids=unevaluated_relation_ids,
+    )
+    tail_reserve.observe_stage(
+        "initial_verification",
+        work_units=(
+            TailWorkUnit(
+                stage="initial_verification",
+                unit="claim_source_relation",
+                count=len(candidate_relation_ids),
+            ),
+        ),
+        token_count=initial_verification.total_tokens,
+        cost_usd=initial_verification.total_cost_usd,
+    )
+    tail_reserve.checkpoint(
+        TailCheckpointName.MANDATORY_TAIL_COMPLETE,
+        work_units=(),
+        estimated_remaining_cost_usd=0.0,
+        estimate_complete=True,
+    )
+
     effective_evidence_gap_budget = evidence_gap_budget
     if (
         evidence_gap_budget is not None
@@ -586,6 +1377,10 @@ async def run_harness(
             final_attribution=initial_attribution,
             final_verification=initial_verification,
         )
+        stage_records["evidence_gap"] = _scope_record(
+            status=StageExecutionStatus.NOT_RUN,
+            reason="no independent evidence-gap budget was configured",
+        )
     else:
         gap_decision_model = run_cost.wrap(
             decision_model,
@@ -603,24 +1398,73 @@ async def run_harness(
             verification_model,
             stage="evidence_gap",
         )
-        evidence_gap = await run_evidence_gap_round(
-            canonical_draft=report.canonical_draft,
-            checklist=loop_result.checklist,
-            blocks=claim_decomposition.blocks,
-            ledger=ledger,
-            initial_attribution=initial_attribution,
-            initial_verification=initial_verification,
-            gap_model=gap_decision_model,
-            note_model=gap_note_model,
-            attribution_model=gap_attribution_model,
-            verification_model=gap_verification_model,
-            tavily_client=tavily_client,
-            budget=effective_evidence_gap_budget,
-            attribution_settings=attribution_settings,
-            verification_settings=verification_settings,
-            corroboration_targets=corroboration_targets,
-            estimate_input_tokens=evidence_gap_input_token_estimator,
-            estimate_cost_usd=evidence_gap_cost_estimator,
+        try:
+            evidence_gap = await run_evidence_gap_round(
+                canonical_draft=report.canonical_draft,
+                checklist=loop_result.checklist,
+                blocks=claim_decomposition.blocks,
+                ledger=ledger,
+                initial_attribution=initial_attribution,
+                initial_verification=initial_verification,
+                gap_model=gap_decision_model,
+                note_model=gap_note_model,
+                attribution_model=gap_attribution_model,
+                verification_model=gap_verification_model,
+                tavily_client=tavily_client,
+                budget=effective_evidence_gap_budget,
+                attribution_settings=attribution_settings,
+                verification_settings=verification_settings,
+                corroboration_targets=corroboration_targets,
+                estimate_input_tokens=evidence_gap_input_token_estimator,
+                estimate_cost_usd=evidence_gap_cost_estimator,
+            )
+        except RunCostCapReached:
+            evidence_gap = EvidenceGapResult(
+                stop_reason=EvidenceGapStopReason.BUDGET_EXHAUSTED,
+                stop_detail=(
+                    "absolute run cost admission stopped this bounded "
+                    "enhancement pass; mandatory evidence registries are "
+                    "preserved"
+                ),
+                final_attribution=initial_attribution,
+                final_verification=initial_verification,
+            )
+        stage_records["evidence_gap"] = _scope_record(
+            status=(
+                StageExecutionStatus.COMPLETE
+                if evidence_gap.stop_reason
+                in {
+                    EvidenceGapStopReason.COMPLETED,
+                    EvidenceGapStopReason.NO_TARGETS,
+                }
+                else (
+                    StageExecutionStatus.PARTIAL
+                    if evidence_gap.stop_reason
+                    is EvidenceGapStopReason.BUDGET_EXHAUSTED
+                    else StageExecutionStatus.FAILED
+                )
+            ),
+            reason=evidence_gap.stop_detail,
+            unit="target_claim",
+            expected_count=len(evidence_gap.target_claim_ids),
+            evaluated_count=(
+                len(evidence_gap.target_claim_ids)
+                if evidence_gap.stop_reason
+                in {
+                    EvidenceGapStopReason.COMPLETED,
+                    EvidenceGapStopReason.NO_TARGETS,
+                }
+                else 0
+            ),
+            unevaluated_ids=(
+                ()
+                if evidence_gap.stop_reason
+                in {
+                    EvidenceGapStopReason.COMPLETED,
+                    EvidenceGapStopReason.NO_TARGETS,
+                }
+                else evidence_gap.target_claim_ids
+            ),
         )
     evidence_gap_attribution = evidence_gap.final_attribution
     evidence_gap_verification = evidence_gap.final_verification
@@ -628,6 +1472,10 @@ async def run_harness(
         disagreement = disabled_disagreement_result(
             evidence_gap_attribution,
             evidence_gap_verification,
+        )
+        stage_records["disagreement"] = _scope_record(
+            status=StageExecutionStatus.NOT_RUN,
+            reason="no disagreement-detection budget was configured",
         )
     else:
         if posthoc_retrieval_budget is None:
@@ -681,24 +1529,68 @@ async def run_harness(
             verification_model,
             stage="disagreement",
         )
-        disagreement = await run_disagreement_detection(
-            canonical_draft=report.canonical_draft,
-            checklist=loop_result.checklist,
-            blocks=claim_decomposition.blocks,
-            ledger=ledger,
-            initial_attribution=evidence_gap_attribution,
-            initial_verification=evidence_gap_verification,
-            selection_model=disagreement_selection_model,
-            note_model=disagreement_note_model,
-            attribution_model=disagreement_attribution_model,
-            verification_model=disagreement_verification_model,
-            tavily_client=tavily_client,
-            budget=effective_disagreement_budget,
-            attribution_settings=attribution_settings,
-            verification_settings=verification_settings,
-            corroboration_targets=corroboration_targets,
-            estimate_input_tokens=evidence_gap_input_token_estimator,
-            estimate_cost_usd=evidence_gap_cost_estimator,
+        try:
+            disagreement = await run_disagreement_detection(
+                canonical_draft=report.canonical_draft,
+                checklist=loop_result.checklist,
+                blocks=claim_decomposition.blocks,
+                ledger=ledger,
+                initial_attribution=evidence_gap_attribution,
+                initial_verification=evidence_gap_verification,
+                selection_model=disagreement_selection_model,
+                note_model=disagreement_note_model,
+                attribution_model=disagreement_attribution_model,
+                verification_model=disagreement_verification_model,
+                tavily_client=tavily_client,
+                budget=effective_disagreement_budget,
+                attribution_settings=attribution_settings,
+                verification_settings=verification_settings,
+                corroboration_targets=corroboration_targets,
+                estimate_input_tokens=evidence_gap_input_token_estimator,
+                estimate_cost_usd=evidence_gap_cost_estimator,
+            )
+        except RunCostCapReached:
+            disagreement = disabled_disagreement_result(
+                evidence_gap_attribution,
+                evidence_gap_verification,
+                detail=(
+                    "absolute run cost admission stopped this bounded "
+                    "enhancement pass"
+                ),
+            ).model_copy(
+                update={
+                    "stop_reason": DisagreementStopReason.BUDGET_EXHAUSTED,
+                }
+            )
+        stage_records["disagreement"] = _scope_record(
+            status=(
+                StageExecutionStatus.COMPLETE
+                if disagreement.stop_reason
+                in {
+                    DisagreementStopReason.COMPLETED,
+                    DisagreementStopReason.NO_ELIGIBLE_CLAIMS,
+                    DisagreementStopReason.NO_SELECTION,
+                }
+                else (
+                    StageExecutionStatus.PARTIAL
+                    if disagreement.stop_reason
+                    is DisagreementStopReason.BUDGET_EXHAUSTED
+                    else StageExecutionStatus.FAILED
+                )
+            ),
+            reason=disagreement.stop_detail,
+            unit="selected_claim",
+            expected_count=len(disagreement.selected_claims),
+            evaluated_count=len(disagreement.disagreement_search_attempted),
+            unevaluated_ids=tuple(
+                selection.claim_id
+                for selection in disagreement.selected_claims
+                if selection.claim_id
+                not in {
+                    attempt.claim_id
+                    for attempt in disagreement.disagreement_search_attempted
+                }
+            ),
         )
     attribution = disagreement.final_attribution
     verification = disagreement.final_verification
@@ -802,6 +1694,31 @@ async def run_harness(
         sources_filename=sources_filename,
         audit_filename=audit_filename,
     )
+    stage_records["deterministic_rendering"] = _scope_record(
+        status=StageExecutionStatus.COMPLETE,
+        reason="deterministic report and evidence package rendering completed",
+        unit="report_bundle",
+        expected_count=1,
+        evaluated_count=1,
+    )
+    post_draft_execution = publication_audit(stage_records)
+    if not post_draft_execution.publication_eligible:
+        incomplete_warning = (
+            "> **不完整运行产物：证据流程未完整覆盖；"
+            "`publication_eligible=false`。** "
+            f"{post_draft_execution.publication_reason}。"
+            "未评估工作不得解释为无来源、不支持或零覆盖。"
+        )
+        rendered_report = rendered_report.model_copy(
+            update={
+                "markdown": incomplete_warning
+                + "\n"
+                + rendered_report.markdown,
+            }
+        )
+        stop_diagnostic = stop_diagnostic.model_copy(
+            update={"completion_status": "partial"}
+        )
 
     writing_usage = UsageRecord(
         token_count=report.token_count,
@@ -810,12 +1727,20 @@ async def run_harness(
     decomposition_attribution_usage = UsageRecord(
         token_count=(
             claim_decomposition.total_tokens
-            + evaluative_diagnostics.total_tokens
+            + (
+                evaluative_diagnostics.total_tokens
+                if evaluative_diagnostics is not None
+                else 0
+            )
             + initial_attribution.total_tokens
         ),
         cost_usd=(
             claim_decomposition.total_cost_usd
-            + evaluative_diagnostics.total_cost_usd
+            + (
+                evaluative_diagnostics.total_cost_usd
+                if evaluative_diagnostics is not None
+                else 0.0
+            )
             + initial_attribution.total_cost_usd
         ),
     )
@@ -916,9 +1841,12 @@ async def run_harness(
             "known_gaps": ["writing_input_budget_preflight_not_enforced"],
         },
         "posthoc_evidence": {
+            "stage_execution": post_draft_execution.model_dump(mode="json"),
             "claim_decomposition": claim_decomposition.model_dump(mode="json"),
             "evaluative_claim_diagnostics": (
                 evaluative_diagnostics.model_dump(mode="json")
+                if evaluative_diagnostics is not None
+                else None
             ),
             "checklist_report_reconciliation": (
                 checklist_report_reconciliation.model_dump(mode="json")
@@ -945,6 +1873,9 @@ async def run_harness(
         },
         "usage": usage_audit,
         "run_cost_budget": run_cost_audit.model_dump(mode="json"),
+        "evidence_tail_reserve": tail_reserve.audit().model_dump(mode="json"),
+        "completion_status": stop_diagnostic.completion_status.value,
+        "publication_eligible": post_draft_execution.publication_eligible,
         "budget_decision_signal": (
             stop_diagnostic.budget_decision_signal.value
         ),
@@ -1002,5 +1933,8 @@ async def run_harness(
         posthoc_retrieval_budget=posthoc_budget_audit,
         run_cost_budget=run_cost_audit,
         stop_diagnostic=stop_diagnostic,
+        post_draft_execution=post_draft_execution,
+        evidence_tail_reserve=tail_reserve.audit(),
+        publication_eligible=post_draft_execution.publication_eligible,
         usage=usage,
     )

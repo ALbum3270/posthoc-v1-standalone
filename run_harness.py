@@ -327,12 +327,23 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--evidence-tail-cost-reserve-usd",
+        type=float,
+        default=0.0,
+        help=(
+            "initial estimated reserve for claim decomposition, attribution, "
+            "initial verification, checklist reconciliation, and deterministic "
+            "rendering. It is recalculated from observed work units and is not "
+            "a provider-side guarantee; no dollar amount is inferred by default"
+        ),
+    )
+    parser.add_argument(
         "--verification-cost-reserve-usd",
         type=float,
         default=0.0,
         help=(
-            "protect this portion of the run-level ceiling from all stages "
-            "before initial verification"
+            "deprecated verifier-only reserve retained for historical command "
+            "lines; use --evidence-tail-cost-reserve-usd"
         ),
     )
     parser.add_argument(
@@ -489,6 +500,9 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             ),
             run_cost_budget=RunCostBudget(
                 max_cost_usd=args.max_cost_usd,
+                evidence_tail_reserve_usd=(
+                    args.evidence_tail_cost_reserve_usd
+                ),
                 verification_reserve_usd=(
                     args.verification_cost_reserve_usd
                 ),

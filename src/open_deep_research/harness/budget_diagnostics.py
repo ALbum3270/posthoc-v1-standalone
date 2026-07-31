@@ -90,9 +90,16 @@ class BlockedOperationQuality(str, Enum):
     """
 
     NOTHING_BLOCKED = "nothing_blocked"
-    UNKNOWN = "unknown"
-    KNOWN_INVALID_OR_REPEATED = "known_invalid_or_repeated"
-    APPARENTLY_PRODUCTIVE = "apparently_productive"
+    PRODUCTIVE_CANDIDATE = "productive_candidate"
+    DUPLICATE = "duplicate"
+    INVALID = "invalid"
+    ERROR_RETRY = "error_retry"
+    INDETERMINATE = "indeterminate"
+    # Source-compatible aliases for audits/tests written before the finer
+    # classification. Serialised values use the new vocabulary.
+    KNOWN_INVALID_OR_REPEATED = "duplicate"
+    APPARENTLY_PRODUCTIVE = "productive_candidate"
+    UNKNOWN = "indeterminate"
 
 
 class StopBoundary(BaseModel):
@@ -396,13 +403,17 @@ def classify_blocked_operation(
     if not cap_was_binding:
         return BlockedOperationQuality.NOTHING_BLOCKED
     if not recent_rounds:
-        return BlockedOperationQuality.UNKNOWN
+        return BlockedOperationQuality.INDETERMINATE
     last = recent_rounds[-1]
-    if last.repeated_action or last.tool_error:
-        return BlockedOperationQuality.KNOWN_INVALID_OR_REPEATED
+    if last.tool_error:
+        return BlockedOperationQuality.ERROR_RETRY
+    if last.repeated_action:
+        return BlockedOperationQuality.DUPLICATE
     if last.produced_material:
-        return BlockedOperationQuality.APPARENTLY_PRODUCTIVE
-    return BlockedOperationQuality.UNKNOWN
+        return BlockedOperationQuality.PRODUCTIVE_CANDIDATE
+    if last.action not in ACQUISITION_ACTIONS:
+        return BlockedOperationQuality.INVALID
+    return BlockedOperationQuality.INDETERMINATE
 
 
 def _collection_stop_reason(loop_stop_reason: Any) -> ResourceStopReason:
@@ -501,8 +512,15 @@ def build_run_stop_diagnostic(
         completion = CompletionStatus.FAILED
     elif not getattr(loop_result, "rounds_executed", 0):
         completion = CompletionStatus.NOT_STARTED
-    elif getattr(loop_result, "is_success", False) and not (
+    elif (
+        not cap_was_binding
+        and not posthoc_retrieval_limited
+        and not evidence_gap_plan_unexecuted
+        and not disagreement_plan_unexecuted
+        and getattr(loop_result, "is_success", False)
+        and not (
         outstanding.has_outstanding_work
+        )
     ):
         completion = CompletionStatus.COMPLETE
     else:

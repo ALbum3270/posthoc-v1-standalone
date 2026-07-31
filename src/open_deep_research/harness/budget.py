@@ -22,7 +22,14 @@ class RunCostBudget(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     max_cost_usd: float | None = Field(default=None, ge=0.0)
+    evidence_tail_reserve_usd: float = Field(default=0.0, ge=0.0)
+    """Initial estimate reserved for the complete mandatory evidence tail.
+
+    No default dollar amount is inferred.  The estimate is recalculated as
+    draft blocks, claims, and claim-source relations become mechanically known.
+    """
     verification_reserve_usd: float = Field(default=0.0, ge=0.0)
+    """Deprecated verifier-only reserve retained for historical callers."""
     cost_objective_usd: float | None = Field(default=None, ge=0.0)
     """A product target, deliberately not a control-flow input.
 
@@ -36,16 +43,32 @@ class RunCostBudget(BaseModel):
 
     @model_validator(mode="after")
     def _reserve_requires_and_fits_limit(self) -> RunCostBudget:
-        if self.max_cost_usd is None:
-            if self.verification_reserve_usd:
-                raise ValueError(
-                    "verification_reserve_usd requires max_cost_usd"
-                )
-        elif self.verification_reserve_usd > self.max_cost_usd:
+        if self.evidence_tail_reserve_usd and self.verification_reserve_usd:
             raise ValueError(
-                "verification_reserve_usd must not exceed max_cost_usd"
+                "use evidence_tail_reserve_usd or the legacy "
+                "verification_reserve_usd, not both"
+            )
+        reserve = self.effective_evidence_tail_reserve_usd
+        if self.max_cost_usd is None:
+            if reserve:
+                raise ValueError(
+                    "evidence tail reserve requires max_cost_usd"
+                )
+        elif reserve > self.max_cost_usd:
+            raise ValueError(
+                "evidence tail reserve must not exceed max_cost_usd"
             )
         return self
+
+    @property
+    def effective_evidence_tail_reserve_usd(self) -> float:
+        """Return the new reserve, falling back to the legacy field."""
+
+        return (
+            self.evidence_tail_reserve_usd
+            if self.evidence_tail_reserve_usd
+            else self.verification_reserve_usd
+        )
 
 
 class RunCostAdmissionRecord(BaseModel):
@@ -71,7 +94,8 @@ class RunCostBudgetAudit(BaseModel):
 
     configured: bool
     max_cost_usd: float | None = Field(default=None, ge=0.0)
-    verification_reserve_usd: float = Field(ge=0.0)
+    evidence_tail_reserve_usd: float = Field(default=0.0, ge=0.0)
+    verification_reserve_usd: float = Field(default=0.0, ge=0.0)
     enforcement: str
     is_exact_provider_billing_cap: bool = False
     observed_total_cost_usd: float = Field(ge=0.0)
@@ -227,12 +251,14 @@ class RunCostController:
         *,
         stage: str,
         protected_reserve_usd: float = 0.0,
+        tail_reserve_controller: Any | None = None,
     ) -> _BudgetedModelClient:
         return _BudgetedModelClient(
             model_client,
             controller=self,
             stage=stage,
             protected_reserve_usd=protected_reserve_usd,
+            tail_reserve_controller=tail_reserve_controller,
         )
 
     def _estimate(self, model_client: Any, prompt: str) -> float | None:
@@ -329,6 +355,9 @@ class RunCostController:
                 not record.admitted for record in self._admissions
             ),
             max_cost_usd=limit,
+            evidence_tail_reserve_usd=(
+                self.budget.effective_evidence_tail_reserve_usd
+            ),
             verification_reserve_usd=(
                 self.budget.verification_reserve_usd
             ),
@@ -368,19 +397,31 @@ class _BudgetedModelClient:
         controller: RunCostController,
         stage: str,
         protected_reserve_usd: float,
+        tail_reserve_controller: Any | None,
     ) -> None:
         self._model_client = model_client
         self._controller = controller
         self._stage = stage
         self._protected_reserve_usd = protected_reserve_usd
+        self._tail_reserve_controller = tail_reserve_controller
         self.last_usage: Any = {"token_count": 0, "cost_usd": 0.0}
 
     async def generate(self, prompt: str) -> Any:
+        estimate = self._controller._estimate(self._model_client, prompt)
+        protected_reserve = self._protected_reserve_usd
+        if self._tail_reserve_controller is not None:
+            protected_reserve = max(
+                protected_reserve,
+                self._tail_reserve_controller.reserve_for_call(
+                    self._stage,
+                    estimate,
+                ),
+            )
         call_number, _ = self._controller._admit(
             model_client=self._model_client,
             stage=self._stage,
             prompt=prompt,
-            protected_reserve_usd=self._protected_reserve_usd,
+            protected_reserve_usd=protected_reserve,
         )
         response = self._model_client.generate(prompt)
         if inspect.isawaitable(response):
@@ -397,6 +438,11 @@ class _BudgetedModelClient:
                 "cost_usd": response.get("cost_usd", 0.0),
             }
         self._controller._complete(call_number, self._stage, cost)
+        if self._tail_reserve_controller is not None:
+            self._tail_reserve_controller.record_call_cost(
+                self._stage,
+                cost,
+            )
         return response
 
     def estimate_cost_usd(self, prompt: str) -> float:
