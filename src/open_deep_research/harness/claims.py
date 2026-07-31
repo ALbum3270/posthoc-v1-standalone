@@ -175,6 +175,27 @@ class BlockSelection(BaseModel):
         return self
 
 
+class _BlockSelectionProposal(BaseModel):
+    """Model-owned assertion proposal; disposition is code-owned.
+
+    ``disposition`` is accepted only as a typed legacy input so historical
+    scripted clients and audits remain replayable.  It is never copied into
+    :class:`BlockSelection`: assertion presence mechanically derives the only
+    structurally consistent disposition.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    block_id: str
+    rationale: str = ""
+    assertions: tuple[SelectedAssertion, ...] = ()
+    proposed_disposition: BlockDisposition | None = Field(
+        default=None,
+        validation_alias="disposition",
+        exclude=True,
+    )
+
+
 class AtomicClaim(BaseModel):
     """One retained atomic claim and its distinct model/report representations."""
 
@@ -630,11 +651,11 @@ the other is false, select them separately. Preserve every entity, time,
 place, quantity, negation, modality, and attribution qualifier that affects
 truth.
 
-For every supplied block_id, return exactly one disposition:
-- claims_selected: include every independently verifiable assertion in that
-  block;
-- no_verifiable_claims: use only when the block contains no independently
-  verifiable assertion.
+For every supplied block_id, return exactly one block entry. Put every
+independently truth-valued assertion in its assertions array. Return an empty
+assertions array when there is no assertion to select. Do not return a
+disposition: code mechanically derives claims_selected from a non-empty array
+and no_verifiable_claims from an empty array.
 
 Classify each selected assertion independently on the orthogonal evidence
 dimension:
@@ -642,10 +663,9 @@ dimension:
 - internal: it can be checked against the report artifact itself;
 - none: it makes no evidence-bearing factual assertion.
 
-Do not omit a block. Do not combine disposition with whether a source has
-already been found. Return JSON only:
-{{"blocks":[{{"block_id":"block-0001","disposition":"claims_selected|\
-no_verifiable_claims","rationale":"...",\
+Do not omit a block. Selection is independent of whether a source has already
+been found. Return JSON only:
+{{"blocks":[{{"block_id":"block-0001","rationale":"...",\
 "assertions":[{{"selected_text":"...","citation_requirement":"external|\
 internal|none"}}]}}]}}
 
@@ -794,12 +814,33 @@ def _selection_for_every_block(
     diagnostics: list[str] = []
     for index, raw_selection in enumerate(content["blocks"]):
         try:
-            selection = BlockSelection.model_validate(raw_selection)
+            proposal = _BlockSelectionProposal.model_validate(raw_selection)
         except (TypeError, ValidationError, ValueError) as exc:
             diagnostics.append(
                 f"selection_entry_invalid[{index}]: {exc}"
             )
             continue
+        derived_disposition = (
+            BlockDisposition.CLAIMS_SELECTED
+            if proposal.assertions
+            else BlockDisposition.NO_VERIFIABLE_CLAIMS
+        )
+        selection = BlockSelection(
+            block_id=proposal.block_id,
+            disposition=derived_disposition,
+            rationale=proposal.rationale,
+            assertions=proposal.assertions,
+        )
+        if (
+            proposal.proposed_disposition is not None
+            and proposal.proposed_disposition is not derived_disposition
+        ):
+            diagnostics.append(
+                "selection_legacy_disposition_ignored"
+                f"[{index}]: proposed="
+                f"{proposal.proposed_disposition.value}, derived="
+                f"{derived_disposition.value}"
+            )
         if selection.block_id not in expected:
             diagnostics.append(
                 f"selection_unknown_block: {selection.block_id}"

@@ -3,12 +3,16 @@ from __future__ import annotations
 import asyncio
 import json
 
+import pytest
+
 from open_deep_research.harness.claims import (
     BlockDisposition,
+    BlockSelection,
     CitationRequirement,
     ClaimDecompositionSettings,
     ClaimNormalizationStatus,
     MarkdownBlockKind,
+    SelectedAssertion,
     SourceResolution,
     build_decontextualization_prompt,
     build_extraction_prompt,
@@ -305,6 +309,80 @@ def test_selection_omission_is_retained_as_failed_disposition() -> None:
     assert result.selections[1].block_id == blocks[1].block_id
     assert result.claims == ()
     assert any("selection omitted this block" in item for item in result.diagnostics)
+
+
+def test_legacy_no_verifiable_with_none_assertion_is_mechanically_derived() -> None:
+    """Reproduce finance-06's rejected shape without accepting contradiction.
+
+    The old protocol let the model say both ``no_verifiable_claims`` and
+    return assertions classified ``none``.  The proposal is now accepted as
+    raw input, but the contradictory model-owned disposition is discarded;
+    the strict registry record is derived solely from assertion presence.
+    """
+
+    report = "A broad observation appears in the report."
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "disposition": "no_verifiable_claims",
+                    "rationale": "no evidence-bearing factual assertion",
+                    "assertions": [
+                        {
+                            "selected_text": report,
+                            "citation_requirement": "none",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": report,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "anchor_text": report,
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    assert result.registry_coverage.is_complete is True
+    assert result.registry_coverage.evaluated_blocks == 1
+    assert result.selections[0].disposition is BlockDisposition.CLAIMS_SELECTED
+    assert result.claims[0].citation_requirement is CitationRequirement.NONE
+    assert result.claims[0].normalization_status is ClaimNormalizationStatus.LOCATED
+    assert any(
+        item.startswith("selection_legacy_disposition_ignored[0]")
+        for item in result.diagnostics
+    )
+    assert "code mechanically derives claims_selected" in model.prompts[0]
+
+
+def test_strict_block_selection_still_rejects_contradictory_registry_data() -> None:
+    with pytest.raises(ValueError, match="only claims_selected"):
+        BlockSelection(
+            block_id="block-0001",
+            disposition=BlockDisposition.NO_VERIFIABLE_CLAIMS,
+            assertions=(
+                SelectedAssertion(
+                    selected_text="A broad observation.",
+                    citation_requirement=CitationRequirement.NONE,
+                ),
+            ),
+        )
 
 
 def test_selection_batches_preserve_order_and_expose_incomplete_coverage() -> None:
