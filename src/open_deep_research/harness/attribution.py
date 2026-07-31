@@ -6,6 +6,7 @@ import inspect
 import json
 from collections.abc import Awaitable, Mapping, Sequence
 from enum import Enum
+from hashlib import sha256
 from typing import Any, Literal, Protocol
 
 from pydantic import (
@@ -43,6 +44,7 @@ class AttributionStopReason(str, Enum):
     COMPLETED = "completed"
     MALFORMED_RESPONSE = "malformed_response"
     MODEL_ROUND_LIMIT = "model_round_limit"
+    CONTENT_RETRY_LIMIT = "content_retry_limit"
 
 
 class AttributionSettings(BaseModel):
@@ -191,11 +193,10 @@ class _InspectNotesAction(BaseModel):
 class _CandidateProposal(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    note_id: str = Field(min_length=1)
-    source_id: str = Field(min_length=1)
+    note_ref: str = Field(min_length=1)
     inherited_from_claim_id: str | None = None
 
-    @field_validator("note_id", "source_id")
+    @field_validator("note_ref")
     @classmethod
     def _identifier_not_blank(cls, value: str) -> str:
         normalized = value.strip()
@@ -219,7 +220,9 @@ Candidates may cross checklist item boundaries. Notes marked unlocatable are
 still legal candidates: their source can be inspected later, but the note is
 not evidence by itself.
 
-The compact note registry is complete. Do not invent note_id or source_id.
+The compact note registry is complete. Candidate identity is the opaque
+note_ref shown in that registry. Persistent note_id and source_id values are
+not model-owned fields and are derived by code from note_ref.
 When compact metadata is insufficient, request one deterministic full-note
 page using:
 {{"action":"inspect_notes","cursor":0}}
@@ -228,16 +231,16 @@ been selected for you.
 
 When ready, return:
 {{"action":"attribute","claims":[{{"claim_id":"claim-0001",\
-"candidates":[{{"note_id":"note-000001","source_id":"source-id",\
+"candidates":[{{"note_ref":"nref-example",\
 "inherited_from_claim_id":null}}]}}]}}
 
 When you match the current claim to a candidate itself, set
-inherited_from_claim_id to null. The same note_id/source_id pair may be listed
-this way for any number of claims: repetition is direct matching, not
-inheritance. Do not use inheritance to avoid repeating a pair.
+inherited_from_claim_id to null. The same note_ref may be listed this way for
+any number of claims: repetition is direct matching, not inheritance. Do not
+use inheritance to avoid repeating a note_ref.
 
 Set inherited_from_claim_id only when your semantic judgement is that the
-current claim borrows that exact candidate pair through a local narrative
+current claim borrows that exact note_ref through a local narrative
 continuation from an earlier claim. Code, not you, derives the structural
 source_resolution from the Markdown units. Invalid, backward, or nonlocal
 lineage remains an unresolved candidate with an audit error; it is never
@@ -282,6 +285,29 @@ def _ordered_notes(notes: Sequence[ResearchNote]) -> tuple[ResearchNote, ...]:
     return tuple(sorted(notes, key=lambda note: str(note.note_id)))
 
 
+def _note_reference(note: ResearchNote) -> str:
+    """Return a stable prompt-local handle with no ordinal relation to claims."""
+
+    if note.note_id is None:
+        raise ValueError("candidate attribution requires ledger-assigned note_id")
+    identity = f"{note.note_id}\0{note.source_id}".encode("utf-8")
+    return f"nref-{sha256(identity).hexdigest()[:16]}"
+
+
+def _note_reference_map(
+    notes: Sequence[ResearchNote],
+) -> dict[str, ResearchNote]:
+    """Build and mechanically verify the model-visible note handle registry."""
+
+    references: dict[str, ResearchNote] = {}
+    for note in notes:
+        note_ref = _note_reference(note)
+        if note_ref in references:
+            raise ValueError("candidate attribution note_ref collision")
+        references[note_ref] = note
+    return references
+
+
 def _compact_note_registry(
     notes: Sequence[ResearchNote],
     *,
@@ -289,8 +315,7 @@ def _compact_note_registry(
 ) -> list[dict[str, Any]]:
     return [
         {
-            "note_id": note.note_id,
-            "source_id": note.source_id,
+            "note_ref": _note_reference(note),
             "item_id": note.item_id,
             "finding": note.finding,
             "publisher": note.publisher,
@@ -302,7 +327,11 @@ def _compact_note_registry(
 
 
 def _full_note(note: ResearchNote) -> dict[str, Any]:
-    return note.model_dump(mode="json")
+    payload = note.model_dump(mode="json")
+    payload.pop("note_id", None)
+    payload.pop("source_id", None)
+    payload["note_ref"] = _note_reference(note)
+    return payload
 
 
 def build_attribution_prompt(
@@ -446,11 +475,16 @@ def _parse_final_attributions(
     claims: Sequence[AtomicClaim],
     blocks: Sequence[MarkdownBlock],
     notes: Sequence[ResearchNote],
+    claim_context: Sequence[AtomicClaim] | None = None,
+    existing_attributions: Sequence[ClaimAttribution] = (),
 ) -> tuple[tuple[ClaimAttribution, ...], tuple[str, ...]]:
-    claim_by_id = {claim.claim_id: claim for claim in claims}
-    claim_order = {claim.claim_id: index for index, claim in enumerate(claims)}
-    note_by_id = {str(note.note_id): note for note in notes}
-    known_source_ids = {note.source_id for note in notes}
+    scope_claim_by_id = {claim.claim_id: claim for claim in claims}
+    contextual_claims = tuple(claim_context or claims)
+    claim_by_id = {claim.claim_id: claim for claim in contextual_claims}
+    claim_order = {
+        claim.claim_id: index for index, claim in enumerate(contextual_claims)
+    }
+    note_by_ref = _note_reference_map(notes)
     diagnostics: list[str] = []
 
     raw_claims = content.get("claims")
@@ -476,8 +510,8 @@ def _parse_final_attributions(
             diagnostics.append(f"attribution_entry_missing_claim_id[{index}]")
             continue
         claim_id = claim_id.strip()
-        if claim_id not in claim_by_id:
-            diagnostics.append(f"attribution_unknown_claim: {claim_id}")
+        if claim_id not in scope_claim_by_id:
+            diagnostics.append(f"attribution_out_of_scope_claim: {claim_id}")
             continue
         if claim_id in entries:
             duplicate_claim_ids.add(claim_id)
@@ -527,6 +561,24 @@ def _parse_final_attributions(
             explicit_empty.add(claim_id)
             continue
         for index, raw_candidate in enumerate(raw_candidates):
+            if (
+                isinstance(raw_candidate, Mapping)
+                and "note_ref" not in raw_candidate
+                and "note_id" in raw_candidate
+            ):
+                entry_errors[claim_id].append(
+                    _error(
+                        claim_id,
+                        "persistent_note_id_not_accepted",
+                        (
+                            "candidate identity must use a note_ref from the "
+                            "model-visible registry; persistent note_id is "
+                            "code-owned"
+                        ),
+                        raw_candidate,
+                    )
+                )
+                continue
             try:
                 proposal = _CandidateProposal.model_validate(raw_candidate)
             except (TypeError, ValidationError, ValueError) as exc:
@@ -548,43 +600,21 @@ def _parse_final_attributions(
         claim_id = claim.claim_id
         seen_relations: set[tuple[str, str, str | None]] = set()
         for proposal in proposals[claim_id]:
-            note = note_by_id.get(proposal.note_id)
-            identity_valid = True
+            note = note_by_ref.get(proposal.note_ref)
             if note is None:
                 entry_errors[claim_id].append(
                     _error(
                         claim_id,
-                        "unknown_note_id",
-                        f"note_id does not exist: {proposal.note_id}",
-                        proposal.model_dump(mode="json"),
-                    )
-                )
-                identity_valid = False
-            if proposal.source_id not in known_source_ids:
-                entry_errors[claim_id].append(
-                    _error(
-                        claim_id,
-                        "unknown_source_id",
-                        f"source_id does not exist: {proposal.source_id}",
-                        proposal.model_dump(mode="json"),
-                    )
-                )
-                identity_valid = False
-            if not identity_valid:
-                continue
-            if note.source_id != proposal.source_id:
-                entry_errors[claim_id].append(
-                    _error(
-                        claim_id,
-                        "note_source_mismatch",
-                        "note_id is not owned by the proposed source_id",
+                        "unknown_note_ref",
+                        f"note_ref does not exist: {proposal.note_ref}",
                         proposal.model_dump(mode="json"),
                     )
                 )
                 continue
+            note_id = str(note.note_id)
             relation_key = (
-                proposal.note_id,
-                proposal.source_id,
+                note_id,
+                note.source_id,
                 proposal.inherited_from_claim_id,
             )
             if relation_key in seen_relations:
@@ -604,18 +634,25 @@ def _parse_final_attributions(
         claim.claim_id: [] for claim in claims
     }
     direct_pairs: dict[str, set[tuple[str, str]]] = {
-        claim.claim_id: set() for claim in claims
+        claim.claim_id: set() for claim in contextual_claims
     }
+    for attribution in existing_attributions:
+        direct_pairs.setdefault(attribution.claim.claim_id, set()).update(
+            (candidate.note_id, candidate.source_id)
+            for candidate in attribution.candidates
+            if candidate.inherited_from_claim_id is None
+        )
     for claim in claims:
         claim_id = claim.claim_id
         for proposal, note in valid_identity[claim_id]:
             if proposal.inherited_from_claim_id is not None:
                 continue
-            direct_pairs[claim_id].add((proposal.note_id, proposal.source_id))
+            note_id = str(note.note_id)
+            direct_pairs[claim_id].add((note_id, note.source_id))
             accepted[claim_id].append(
                 CandidateSource(
-                    note_id=proposal.note_id,
-                    source_id=proposal.source_id,
+                    note_id=note_id,
+                    source_id=note.source_id,
                     item_id=note.item_id,
                     publisher=note.publisher,
                     url=note.url,
@@ -650,8 +687,8 @@ def _parse_final_attributions(
                     )
                 )
             elif (
-                proposal.note_id,
-                proposal.source_id,
+                str(note.note_id),
+                note.source_id,
             ) not in direct_pairs[origin_id]:
                 entry_errors[claim_id].append(
                     _error(
@@ -692,8 +729,8 @@ def _parse_final_attributions(
                     )
             accepted[claim_id].append(
                 CandidateSource(
-                    note_id=proposal.note_id,
-                    source_id=proposal.source_id,
+                    note_id=str(note.note_id),
+                    source_id=note.source_id,
                     item_id=note.item_id,
                     publisher=note.publisher,
                     url=note.url,
@@ -740,6 +777,58 @@ def _parse_final_attributions(
     return tuple(result), tuple(diagnostics)
 
 
+def _ordered_attributions(
+    claims: Sequence[AtomicClaim],
+    by_claim_id: Mapping[str, ClaimAttribution],
+) -> tuple[ClaimAttribution, ...]:
+    """Restore the complete external-claim order after scoped retries."""
+
+    missing = [
+        claim.claim_id
+        for claim in claims
+        if claim.claim_id not in by_claim_id
+    ]
+    if missing:
+        raise AssertionError(
+            f"attribution result missing claims after retry: {missing}"
+        )
+    return tuple(by_claim_id[claim.claim_id] for claim in claims)
+
+
+def _content_retry_feedback(
+    rejected: Sequence[ClaimAttribution],
+    *,
+    valid_note_refs: Sequence[str],
+) -> str:
+    """Describe a mechanical rejection without re-running accepted claims."""
+
+    payload = {
+        "retry_claim_ids": [entry.claim.claim_id for entry in rejected],
+        "rejected_candidates": [
+            {
+                "claim_id": entry.claim.claim_id,
+                "errors": [
+                    {
+                        "code": error.code,
+                        "detail": error.detail,
+                        "raw": error.raw,
+                    }
+                    for error in entry.errors
+                ],
+            }
+            for entry in rejected
+        ],
+        "valid_note_refs": list(valid_note_refs),
+    }
+    return (
+        "The previous attribute action contained mechanically rejected "
+        "content. Retry exactly retry_claim_ids; accepted claims are frozen "
+        "and must not be returned again. Candidate identity must use one "
+        "note_ref from valid_note_refs. "
+        + json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    )
+
+
 async def attribute_claims(
     claims: Sequence[AtomicClaim],
     *,
@@ -770,12 +859,19 @@ async def attribute_claims(
     inspected_pages: list[InspectedNotePage] = []
     usage: list[AttributionCallUsage] = []
     feedback: list[str] = []
+    diagnostics: list[str] = []
+    completed: dict[str, ClaimAttribution] = {}
+    pending_claims = external_claims
+    external_by_id = {
+        claim.claim_id: claim for claim in external_claims
+    }
+    valid_note_refs = tuple(_note_reference_map(ordered_notes))
 
     for round_number in range(1, active_settings.max_model_rounds + 1):
         content, tokens, cost = await _generate(
             model_client,
             build_attribution_prompt(
-                external_claims,
+                pending_claims,
                 ordered_notes,
                 page_size=active_settings.note_page_size,
                 inspected_page_payloads=inspected_payloads,
@@ -797,19 +893,25 @@ async def attribute_claims(
         )
         if not isinstance(content, Mapping):
             failed = _failed_attributions(
-                external_claims,
+                pending_claims,
                 code="malformed_attribution_response",
                 detail="model response was not a JSON object",
                 raw=content,
             )
+            combined = dict(completed)
+            combined.update(
+                (entry.claim.claim_id, entry) for entry in failed
+            )
             return AttributionResult(
                 attributions=_merge_attribution_scope(
                     all_claims,
-                    failed,
+                    _ordered_attributions(external_claims, combined),
                 ),
                 inspected_pages=tuple(inspected_pages),
                 usage=tuple(usage),
-                diagnostics=("model response was not a JSON object",),
+                diagnostics=tuple(
+                    [*diagnostics, "model response was not a JSON object"]
+                ),
                 stop_reason=AttributionStopReason.MALFORMED_RESPONSE,
             )
 
@@ -817,7 +919,9 @@ async def attribute_claims(
             try:
                 action = _InspectNotesAction.model_validate(content)
             except ValidationError as exc:
-                feedback.append(f"invalid inspect_notes action: {exc}")
+                message = f"invalid inspect_notes action: {exc}"
+                feedback.append(message)
+                diagnostics.append(message)
                 continue
             cursor = action.cursor
             valid_cursor = (
@@ -825,7 +929,9 @@ async def attribute_claims(
                 and cursor % active_settings.note_page_size == 0
             )
             if not valid_cursor:
-                feedback.append(f"invalid note page cursor: {cursor}")
+                message = f"invalid note page cursor: {cursor}"
+                feedback.append(message)
+                diagnostics.append(message)
                 continue
             page = ordered_notes[
                 cursor : cursor + active_settings.note_page_size
@@ -847,38 +953,80 @@ async def attribute_claims(
             continue
 
         if content.get("action") == "attribute":
-            attributions, diagnostics = _parse_final_attributions(
+            attributions, parse_diagnostics = _parse_final_attributions(
                 content,
-                claims=external_claims,
+                claims=pending_claims,
                 blocks=blocks,
                 notes=ordered_notes,
+                claim_context=external_claims,
+                existing_attributions=tuple(completed.values()),
             )
-            return AttributionResult(
-                attributions=_merge_attribution_scope(
-                    all_claims,
-                    attributions,
-                ),
-                inspected_pages=tuple(inspected_pages),
-                usage=tuple(usage),
-                diagnostics=diagnostics,
-                stop_reason=AttributionStopReason.COMPLETED,
+            diagnostics.extend(parse_diagnostics)
+            rejected = tuple(
+                entry
+                for entry in attributions
+                if entry.status == AttributionStatus.ATTRIBUTION_ERROR
             )
+            for entry in attributions:
+                if entry.status != AttributionStatus.ATTRIBUTION_ERROR:
+                    completed[entry.claim.claim_id] = entry
+            if not rejected:
+                return AttributionResult(
+                    attributions=_merge_attribution_scope(
+                        all_claims,
+                        _ordered_attributions(external_claims, completed),
+                    ),
+                    inspected_pages=tuple(inspected_pages),
+                    usage=tuple(usage),
+                    diagnostics=tuple(diagnostics),
+                    stop_reason=AttributionStopReason.COMPLETED,
+                )
 
-        feedback.append(
-            "action must be inspect_notes or attribute"
-        )
+            retry_feedback = _content_retry_feedback(
+                rejected,
+                valid_note_refs=valid_note_refs,
+            )
+            diagnostics.append(retry_feedback)
+            if round_number == active_settings.max_model_rounds:
+                combined = dict(completed)
+                combined.update(
+                    (entry.claim.claim_id, entry) for entry in rejected
+                )
+                return AttributionResult(
+                    attributions=_merge_attribution_scope(
+                        all_claims,
+                        _ordered_attributions(external_claims, combined),
+                    ),
+                    inspected_pages=tuple(inspected_pages),
+                    usage=tuple(usage),
+                    diagnostics=tuple(diagnostics),
+                    stop_reason=AttributionStopReason.CONTENT_RETRY_LIMIT,
+                )
+            pending_claims = tuple(
+                external_by_id[entry.claim.claim_id]
+                for entry in rejected
+            )
+            feedback = [retry_feedback]
+            continue
 
+        message = "action must be inspect_notes or attribute"
+        feedback.append(message)
+        diagnostics.append(message)
+
+    failed = _failed_attributions(
+        pending_claims,
+        code="attribution_round_limit",
+        detail="model did not return a final attribute action",
+    )
+    combined = dict(completed)
+    combined.update((entry.claim.claim_id, entry) for entry in failed)
     return AttributionResult(
         attributions=_merge_attribution_scope(
             all_claims,
-            _failed_attributions(
-                external_claims,
-                code="attribution_round_limit",
-                detail="model did not return a final attribute action",
-            ),
+            _ordered_attributions(external_claims, combined),
         ),
         inspected_pages=tuple(inspected_pages),
         usage=tuple(usage),
-        diagnostics=tuple(feedback),
+        diagnostics=tuple(diagnostics),
         stop_reason=AttributionStopReason.MODEL_ROUND_LIMIT,
     )

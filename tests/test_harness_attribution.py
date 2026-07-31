@@ -7,6 +7,7 @@ from open_deep_research.harness.attribution import (
     AttributionSettings,
     AttributionStatus,
     AttributionStopReason,
+    _note_reference,
     attribute_claims,
 )
 from open_deep_research.harness.claims import (
@@ -133,8 +134,7 @@ def test_all_claims_and_compact_registry_are_visible_without_full_notes() -> Non
                     "claim_id": "claim-1",
                     "candidates": [
                         {
-                            "note_id": candidate.note_id,
-                            "source_id": candidate.source_id,
+                            "note_ref": _note_reference(candidate),
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -156,19 +156,21 @@ def test_all_claims_and_compact_registry_are_visible_without_full_notes() -> Non
     prompt = model.prompts[0]
     assert "The first independent claim." in prompt
     assert "The second independent claim." in prompt
-    assert candidate.note_id in prompt
-    assert candidate.source_id in prompt
+    assert _note_reference(candidate) in prompt
+    assert candidate.note_id not in prompt
+    assert candidate.source_id not in prompt
     assert candidate.item_id in prompt
     assert candidate.finding in prompt
     assert candidate.publisher in prompt
     assert candidate.location_status.value in prompt
-    assert other.note_id in prompt
+    assert _note_reference(other) in prompt
+    assert other.note_id not in prompt
     assert other.finding in prompt
     assert "MODEL WORDING NOT PRESENT IN THE SOURCE" not in prompt
     assert "Exact source phrase." not in prompt
     assert "https://one.example/page" not in prompt
     assert '"resolution"' not in prompt
-    assert "repetition is direct matching, not\ninheritance" in prompt
+    assert "repetition is direct matching, not inheritance" in prompt
 
     by_claim = _by_claim(result)
     first = by_claim["claim-1"]
@@ -214,8 +216,7 @@ def test_model_requests_full_note_page_then_uses_previous_unit_inheritance() -> 
                     "claim_id": "claim-1",
                     "candidates": [
                         {
-                            "note_id": note.note_id,
-                            "source_id": note.source_id,
+                            "note_ref": _note_reference(note),
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -224,8 +225,7 @@ def test_model_requests_full_note_page_then_uses_previous_unit_inheritance() -> 
                     "claim_id": "claim-2",
                     "candidates": [
                         {
-                            "note_id": note.note_id,
-                            "source_id": note.source_id,
+                            "note_ref": _note_reference(note),
                             "inherited_from_claim_id": "claim-1",
                         }
                     ],
@@ -273,27 +273,127 @@ def test_invented_identifiers_are_errors_not_no_candidate_source() -> None:
         source_text="Exact.",
         url="https://source.example/page",
     )
+    invalid_action = {
+        "action": "attribute",
+        "claims": [
+            {
+                "claim_id": "claim-1",
+                "candidates": [
+                    {
+                        "note_ref": "nref-does-not-exist",
+                        "inherited_from_claim_id": None,
+                    },
+                    {
+                        "note_id": note.note_id,
+                        "source_id": note.source_id,
+                        "inherited_from_claim_id": None,
+                    },
+                ],
+            }
+        ],
+    }
+    model = ScriptedAttributionModel(invalid_action, invalid_action)
+
+    result = asyncio.run(
+        attribute_claims(
+            claims,
+            blocks=blocks,
+            notes=ledger.notes,
+            model_client=model,
+            settings=AttributionSettings(max_model_rounds=2),
+        )
+    )
+
+    attribution = result.attributions[0]
+    assert attribution.status == AttributionStatus.ATTRIBUTION_ERROR
+    assert attribution.status != AttributionStatus.NO_CANDIDATE_SOURCE
+    assert attribution.candidates == ()
+    assert {error.code for error in attribution.errors} == {
+        "unknown_note_ref",
+        "persistent_note_id_not_accepted",
+    }
+    assert all(error.raw is not None for error in attribution.errors)
+    assert attribution.claim.source_resolution == SourceResolution.UNRESOLVED
+    assert result.stop_reason == AttributionStopReason.CONTENT_RETRY_LIMIT
+    assert len(result.usage) == 2
+    assert result.total_tokens == 14
+    assert result.total_cost_usd == 0.04
+
+
+def test_claim_indexed_persistent_note_ids_retry_only_rejected_claims() -> None:
+    """Reproduce finance-06's claim-0040 -> note-000040 failure shape."""
+
+    blocks = (_block("block-1", 0),)
+    claims = tuple(
+        _claim(
+            f"claim-{index:04d}",
+            "block-1",
+            f"Independent claim text {index}.",
+        )
+        for index in range(39, 51)
+    )
+    ledger = ResearchLedger()
+    notes = tuple(
+        _ledger_note(
+            ledger,
+            item_id="item-1",
+            finding=f"Registry finding {index}.",
+            quote=f"Exact source text {index}.",
+            source_text=f"Exact source text {index}.",
+            url=f"https://source-{index}.example/page",
+        )
+        for index in range(1, 39)
+    )
+    accepted_note = notes[0]
+    first_claim = claims[0]
+    rejected_claims = claims[1:]
     model = ScriptedAttributionModel(
         {
             "action": "attribute",
             "claims": [
                 {
-                    "claim_id": "claim-1",
+                    "claim_id": first_claim.claim_id,
                     "candidates": [
                         {
-                            "note_id": "note-does-not-exist",
-                            "source_id": note.source_id,
+                            "note_ref": _note_reference(accepted_note),
                             "inherited_from_claim_id": None,
-                        },
+                        }
+                    ],
+                },
+                *[
+                    {
+                        "claim_id": claim.claim_id,
+                        "candidates": [
+                            {
+                                # finance-06 copied each claim suffix into a
+                                # nonexistent persistent note identifier.
+                                "note_id": claim.claim_id.replace(
+                                    "claim-", "note-"
+                                ),
+                                "source_id": accepted_note.source_id,
+                                "inherited_from_claim_id": None,
+                            }
+                        ],
+                    }
+                    for claim in rejected_claims
+                ],
+            ],
+        },
+        {
+            "action": "attribute",
+            "claims": [
+                {
+                    "claim_id": claim.claim_id,
+                    "candidates": [
                         {
-                            "note_id": note.note_id,
-                            "source_id": "source-does-not-exist",
+                            "note_ref": _note_reference(accepted_note),
                             "inherited_from_claim_id": None,
-                        },
+                        }
                     ],
                 }
+                for claim in rejected_claims
             ],
-        }
+        },
     )
 
     result = asyncio.run(
@@ -305,16 +405,26 @@ def test_invented_identifiers_are_errors_not_no_candidate_source() -> None:
         )
     )
 
-    attribution = result.attributions[0]
-    assert attribution.status == AttributionStatus.ATTRIBUTION_ERROR
-    assert attribution.status != AttributionStatus.NO_CANDIDATE_SOURCE
-    assert attribution.candidates == ()
-    assert {error.code for error in attribution.errors} == {
-        "unknown_note_id",
-        "unknown_source_id",
-    }
-    assert all(error.raw is not None for error in attribution.errors)
-    assert attribution.claim.source_resolution == SourceResolution.UNRESOLVED
+    assert len(model.prompts) == 2
+    assert first_claim.claim_text in model.prompts[0]
+    assert first_claim.claim_text not in model.prompts[1]
+    assert all(
+        claim.claim_text in model.prompts[1] for claim in rejected_claims
+    )
+    assert '"note_id": "note-000038"' not in model.prompts[0]
+    assert _note_reference(notes[-1]) in model.prompts[0]
+    assert all(
+        attribution.status == AttributionStatus.CANDIDATE_SOURCES
+        for attribution in result.attributions
+    )
+    assert result.stop_reason == AttributionStopReason.COMPLETED
+    assert len(result.usage) == 2
+    assert result.total_tokens == 14
+    assert result.total_cost_usd == 0.04
+    assert any(
+        "persistent_note_id_not_accepted" in diagnostic
+        for diagnostic in result.diagnostics
+    )
 
 
 def test_nonlocal_lineage_keeps_candidate_unresolved_with_audit_error() -> None:
@@ -343,8 +453,7 @@ def test_nonlocal_lineage_keeps_candidate_unresolved_with_audit_error() -> None:
                     "claim_id": "claim-1",
                     "candidates": [
                         {
-                            "note_id": note.note_id,
-                            "source_id": note.source_id,
+                            "note_ref": _note_reference(note),
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -353,8 +462,7 @@ def test_nonlocal_lineage_keeps_candidate_unresolved_with_audit_error() -> None:
                     "claim_id": "claim-2",
                     "candidates": [
                         {
-                            "note_id": note.note_id,
-                            "source_id": note.source_id,
+                            "note_ref": _note_reference(note),
                             "inherited_from_claim_id": "claim-1",
                         }
                     ],
@@ -404,8 +512,7 @@ def test_same_unit_inheritance_uses_an_earlier_direct_candidate() -> None:
                     "claim_id": "claim-1",
                     "candidates": [
                         {
-                            "note_id": note.note_id,
-                            "source_id": note.source_id,
+                            "note_ref": _note_reference(note),
                             "inherited_from_claim_id": None,
                         }
                     ],
@@ -414,8 +521,7 @@ def test_same_unit_inheritance_uses_an_earlier_direct_candidate() -> None:
                     "claim_id": "claim-2",
                     "candidates": [
                         {
-                            "note_id": note.note_id,
-                            "source_id": note.source_id,
+                            "note_ref": _note_reference(note),
                             "inherited_from_claim_id": "claim-1",
                         }
                     ],
@@ -462,8 +568,7 @@ def test_inheritance_cannot_chain_beyond_a_direct_origin() -> None:
         url="https://source.example/page",
     )
     relation = {
-        "note_id": note.note_id,
-        "source_id": note.source_id,
+        "note_ref": _note_reference(note),
     }
     model = ScriptedAttributionModel(
         {
@@ -535,8 +640,7 @@ def test_repeated_pair_without_origin_is_direct_for_every_claim() -> None:
         url="https://source.example/page",
     )
     repeated = {
-        "note_id": note.note_id,
-        "source_id": note.source_id,
+        "note_ref": _note_reference(note),
         "inherited_from_claim_id": None,
     }
     model = ScriptedAttributionModel(
@@ -587,6 +691,7 @@ def test_omitted_claim_is_attribution_error_while_explicit_empty_is_legal() -> N
             blocks=blocks,
             notes=(),
             model_client=model,
+            settings=AttributionSettings(max_model_rounds=1),
         )
     )
 
@@ -598,6 +703,7 @@ def test_omitted_claim_is_attribution_error_while_explicit_empty_is_legal() -> N
     assert by_claim["claim-2"].errors[0].code == (
         "missing_claim_attribution"
     )
+    assert result.stop_reason == AttributionStopReason.CONTENT_RETRY_LIMIT
 
 
 def test_non_external_claims_never_enter_model_attribution_scope() -> None:
@@ -636,8 +742,7 @@ def test_non_external_claims_never_enter_model_attribution_scope() -> None:
                     "claim_id": external.claim_id,
                     "candidates": [
                         {
-                            "note_id": note.note_id,
-                            "source_id": note.source_id,
+                            "note_ref": _note_reference(note),
                             "inherited_from_claim_id": None,
                         }
                     ],

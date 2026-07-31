@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -9,7 +10,6 @@ import pytest
 import run_harness as harness_cli
 from open_deep_research.harness.claims import parse_markdown_blocks
 from open_deep_research.harness.loop import LoopBudget, StopReason
-from open_deep_research.harness.notes import source_id_for_url
 from open_deep_research.harness.runner import (
     _publish_artifact_bundle,
     run_harness,
@@ -258,6 +258,8 @@ class EvidenceAttributionModel:
 
     async def generate(self, prompt):
         self.events.append("attribution")
+        note_ref = re.search(r"nref-[0-9a-f]{16}", prompt)
+        assert note_ref is not None
         return {
             "content": json.dumps(
                 {
@@ -267,8 +269,7 @@ class EvidenceAttributionModel:
                             "claim_id": "claim-0001",
                             "candidates": [
                                 {
-                                    "note_id": "note-000001",
-                                    "source_id": source_id_for_url(self.url),
+                                    "note_ref": note_ref.group(0),
                                     "inherited_from_claim_id": None,
                                 }
                             ],

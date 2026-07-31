@@ -7,6 +7,7 @@ from open_deep_research.harness.attribution import (
     AttributionStopReason,
     CandidateSource,
     ClaimAttribution,
+    _note_reference,
 )
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
@@ -830,13 +831,12 @@ def test_new_source_and_notes_enter_gap_history_without_collection_rounds():
                     "action": "attribute",
                     "claims": [
                         {
-                            "claim_id": claim.claim_id,
-                            "candidates": [
-                                {
-                                    "note_id": note.note_id,
-                                    "source_id": note.source_id,
-                                    "inherited_from_claim_id": None,
-                                }
+                                "claim_id": claim.claim_id,
+                                "candidates": [
+                                    {
+                                        "note_ref": _note_reference(note),
+                                        "inherited_from_claim_id": None,
+                                    }
                             ],
                         }
                     ],
