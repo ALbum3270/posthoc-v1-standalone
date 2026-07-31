@@ -188,3 +188,50 @@ def stages_claiming_completion_without_output(
         if posthoc.get(payload_key) is None:
             offenders.append(stage_name)
     return tuple(offenders)
+
+
+# Which stage each stage's scope depends on. Attribution can only know how many
+# claims exist if decomposition built the registry; verification can only know
+# how many relations exist if attribution proposed them.
+STAGE_SCOPE_DEPENDS_ON = {
+    "attribution": "claim_decomposition",
+    "evaluative_diagnostics": "claim_decomposition",
+    "initial_verification": "attribution",
+}
+
+
+def demote_vacuous_completions(
+    stages: dict[str, StageExecutionRecord],
+) -> dict[str, StageExecutionRecord]:
+    """Refuse ``complete`` earned only by an upstream stage being cut off.
+
+    A run whose budget ran out before decomposition produced no claims, so
+    attribution had an empty scope and reported ``complete`` over 0 of 0 --
+    the exact zero-denominator this design forbids, arriving through the back
+    door. An empty scope is honest only when the stage that establishes it
+    actually finished; otherwise the emptiness is an artefact of truncation.
+
+    A genuinely claim-free report still yields ``complete``, because there
+    decomposition completed and simply found nothing to attribute.
+    """
+
+    adjusted = dict(stages)
+    for stage_name, upstream_name in STAGE_SCOPE_DEPENDS_ON.items():
+        record = adjusted.get(stage_name)
+        upstream = adjusted.get(upstream_name)
+        if record is None or upstream is None:
+            continue
+        if record.status is not StageExecutionStatus.COMPLETE:
+            continue
+        if upstream.status is StageExecutionStatus.COMPLETE:
+            continue
+        if record.expected_scope is not None and record.expected_scope.count:
+            continue
+        adjusted[stage_name] = StageExecutionRecord(
+            status=StageExecutionStatus.NOT_RUN,
+            reason=(
+                f"scope was empty only because {upstream_name} did not "
+                f"complete ({upstream.status.value}); nothing was evaluated"
+            ),
+        )
+    return adjusted

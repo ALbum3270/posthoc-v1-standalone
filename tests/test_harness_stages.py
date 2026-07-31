@@ -310,3 +310,75 @@ def test_every_completed_stage_in_a_measured_bundle_left_output(tmp_path):
         assert not offenders, f"{path.parent.name}: {offenders}"
     if not checked:
         pytest.skip("no stage-ledger bundles present in this checkout")
+
+
+def test_an_empty_scope_from_a_finished_upstream_is_still_complete():
+    """A report with no external claims genuinely leaves attribution nothing.
+
+    The demotion must not punish that case: there the emptiness is a finding,
+    not an artefact of truncation.
+    """
+
+    from open_deep_research.harness.stages import demote_vacuous_completions
+
+    stages = {
+        "claim_decomposition": complete("markdown_block", 4),
+        "attribution": StageExecutionRecord(
+            status=StageExecutionStatus.COMPLETE,
+            reason="no external claims to attribute",
+            expected_scope=StageScope(unit="external_claim", count=0),
+            evaluated_scope=StageScope(unit="external_claim", count=0),
+        ),
+    }
+
+    adjusted = demote_vacuous_completions(stages)
+
+    assert adjusted["attribution"].status is StageExecutionStatus.COMPLETE
+
+
+def test_an_empty_scope_from_a_truncated_upstream_is_demoted():
+    from open_deep_research.harness.stages import demote_vacuous_completions
+
+    stages = {
+        "claim_decomposition": StageExecutionRecord(
+            status=StageExecutionStatus.PARTIAL,
+            reason="cap reached before any block was assessed",
+            expected_scope=StageScope(unit="markdown_block", count=4),
+            evaluated_scope=StageScope(unit="markdown_block", count=0),
+        ),
+        "attribution": StageExecutionRecord(
+            status=StageExecutionStatus.COMPLETE,
+            reason="no external claims to attribute",
+            expected_scope=StageScope(unit="external_claim", count=0),
+            evaluated_scope=StageScope(unit="external_claim", count=0),
+        ),
+    }
+
+    adjusted = demote_vacuous_completions(stages)
+
+    assert adjusted["attribution"].status is StageExecutionStatus.NOT_RUN
+    assert "claim_decomposition did not complete" in (
+        adjusted["attribution"].reason
+    )
+    # The fabricated denominator is dropped rather than kept at zero.
+    assert adjusted["attribution"].expected_scope is None
+
+
+def test_a_real_scope_is_never_demoted_even_if_upstream_was_cut():
+    """Work actually done upstream must keep its record."""
+
+    from open_deep_research.harness.stages import demote_vacuous_completions
+
+    stages = {
+        "claim_decomposition": StageExecutionRecord(
+            status=StageExecutionStatus.PARTIAL,
+            reason="cap reached partway",
+            expected_scope=StageScope(unit="markdown_block", count=9),
+            evaluated_scope=StageScope(unit="markdown_block", count=5),
+        ),
+        "attribution": complete("external_claim", 12),
+    }
+
+    adjusted = demote_vacuous_completions(stages)
+
+    assert adjusted["attribution"].status is StageExecutionStatus.COMPLETE

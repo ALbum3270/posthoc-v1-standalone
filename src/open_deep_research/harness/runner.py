@@ -111,6 +111,7 @@ from open_deep_research.harness.stages import (
     PostDraftExecutionAudit,
     StageExecutionRecord,
     StageExecutionStatus,
+    demote_vacuous_completions,
     StageScope,
     publication_audit,
 )
@@ -1740,6 +1741,9 @@ async def run_harness(
         expected_count=1,
         evaluated_count=1,
     )
+    # A stage whose scope is empty only because its upstream was cut off has
+    # not completed anything; letting that stand would reintroduce 0/0.
+    stage_records = demote_vacuous_completions(stage_records)
     post_draft_execution = publication_audit(stage_records)
     if not post_draft_execution.publication_eligible:
         incomplete_warning = (

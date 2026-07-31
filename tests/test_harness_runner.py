@@ -995,3 +995,74 @@ def test_an_ineligible_run_still_writes_its_bundle(tmp_path):
     # And the reader is told, in the report itself, that it is incomplete.
     report = (tmp_path / "ineligible-run" / "report.md").read_text("utf-8")
     assert "不完整运行产物" in report
+
+
+def test_a_cap_that_bites_after_the_draft_still_writes_an_honest_bundle(
+    tmp_path,
+):
+    """The early-exit branches had no test at all; a real run cost $0.43.
+
+    Fakes spend 0.03 + 0.02 + 0.05 before decomposition, so a 0.10 run cap
+    admits the draft and then refuses every post-draft stage. Each of those
+    stages must record not_run with its denominator intact, and the bundle must
+    still be written -- losing the paid-for draft is the outcome this whole
+    mechanism exists to prevent.
+    """
+
+    from open_deep_research.harness.budget import RunCostBudget
+
+    events = []
+    draft = "# Report\n\nThe model wrote this report."
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=DecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=WriteModel(events),
+            claim_model=ClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=AttributionModel(events),
+            verification_model=UnusedVerificationModel(),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            run_cost_budget=RunCostBudget(max_cost_usd=0.10),
+            output_dir=tmp_path,
+            run_id="capped-after-draft",
+        )
+    )
+
+    assert result.publication_eligible is False
+
+    bundle = tmp_path / "capped-after-draft"
+    assert (bundle / "report.md").is_file()
+    assert (bundle / "sources.md").is_file()
+    audit = json.loads((bundle / "audit.json").read_text(encoding="utf-8"))
+
+    assert audit["completion_status"] == "partial"
+    stages = audit["posthoc_evidence"]["stage_execution"]["stages"]
+    # Every mandatory post-draft stage was refused, and says so.
+    assert stages["claim_decomposition"]["status"] == "partial"
+    assert stages["claim_decomposition"]["evaluated_scope"]["count"] == 0
+    # The denominator that *was* mechanically knowable survives.
+    assert stages["claim_decomposition"]["expected_scope"]["count"] > 0
+
+    # Downstream stages had an empty scope only because decomposition was cut
+    # off. Reporting that as "complete over 0 of 0" would smuggle the zero
+    # denominator back in through the door the design closed.
+    for downstream in ("attribution", "initial_verification"):
+        assert stages[downstream]["status"] == "not_run", downstream
+        assert stages[downstream]["expected_scope"] is None, downstream
+
+    # The draft the run already paid for is still in the bundle.
+    assert "The model wrote this report." in (
+        bundle / "report.md"
+    ).read_text(encoding="utf-8")
+
+    # And no stage claims completion without having produced anything.
+    from open_deep_research.harness.stages import (
+        stages_claiming_completion_without_output,
+    )
+
+    assert stages_claiming_completion_without_output(audit) == ()
