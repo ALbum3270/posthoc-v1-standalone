@@ -206,7 +206,12 @@ def test_an_ineligible_bundle_carries_no_footnote_definitions():
 
     from pathlib import Path
 
-    bundle = Path(__file__).resolve().parents[1] / "harness_runs" / "partial-04"
+    bundle = (
+        Path(__file__).resolve().parents[1]
+        / "harness_runs"
+        / "_prebugfix"
+        / "partial-04"
+    )
     if not bundle.is_dir():
         pytest.skip("measured partial bundle is not present in this checkout")
 
@@ -231,3 +236,77 @@ def test_an_ineligible_bundle_carries_no_footnote_definitions():
     assert attribution["expected_scope"]["count"] == 87
     assert attribution["evaluated_scope"]["count"] == 0
     assert len(attribution["unevaluated_ids"]) == 87
+
+
+def test_the_invariant_catches_a_stage_that_completed_without_output():
+    """This is the check that would have caught the evaluative bug for free."""
+
+    from open_deep_research.harness.stages import (
+        stages_claiming_completion_without_output,
+    )
+
+    audit = {
+        "posthoc_evidence": {
+            "claim_decomposition": {"blocks": []},
+            "evaluative_claim_diagnostics": None,
+            "verification": None,
+            "stage_execution": {
+                "stages": {
+                    "claim_decomposition": {"status": "complete"},
+                    "evaluative_diagnostics": {"status": "complete"},
+                    "initial_verification": {"status": "not_run"},
+                }
+            },
+        }
+    }
+
+    # Only the stage that claims completion with nothing to show is named. A
+    # stage that honestly reports not_run has no payload and no case to answer.
+    assert stages_claiming_completion_without_output(audit) == (
+        "evaluative_diagnostics",
+    )
+
+
+def test_the_invariant_is_quiet_when_every_completed_stage_produced_output():
+    from open_deep_research.harness.stages import (
+        stages_claiming_completion_without_output,
+    )
+
+    audit = {
+        "posthoc_evidence": {
+            "claim_decomposition": {"blocks": []},
+            "attribution": {"attributions": []},
+            "stage_execution": {
+                "stages": {
+                    "claim_decomposition": {"status": "complete"},
+                    "attribution": {"status": "complete"},
+                }
+            },
+        }
+    }
+
+    assert stages_claiming_completion_without_output(audit) == ()
+
+
+def test_every_completed_stage_in_a_measured_bundle_left_output(tmp_path):
+    """Applied to whatever real bundles this checkout has on disk."""
+
+    import json
+    from pathlib import Path
+
+    from open_deep_research.harness.stages import (
+        stages_claiming_completion_without_output,
+    )
+
+    runs = Path(__file__).resolve().parents[1] / "harness_runs"
+    bundles = sorted(runs.glob("*/audit.json")) if runs.is_dir() else []
+    checked = 0
+    for path in bundles:
+        audit = json.loads(path.read_text(encoding="utf-8"))
+        if "posthoc_evidence" not in audit:
+            continue  # predates the stage ledger
+        checked += 1
+        offenders = stages_claiming_completion_without_output(audit)
+        assert not offenders, f"{path.parent.name}: {offenders}"
+    if not checked:
+        pytest.skip("no stage-ledger bundles present in this checkout")

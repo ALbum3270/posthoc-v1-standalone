@@ -146,3 +146,45 @@ def publication_audit(
         publication_eligible=complete,
         publication_reason=reason,
     )
+
+
+# Where each stage's own output lands in the audit. A stage that claims to have
+# completed must have left something behind; the pairing is what makes that
+# checkable without reading eight bespoke record sites by hand.
+#
+# Stages absent from this mapping have no separate payload: deterministic
+# rendering *is* the artifact bundle, and the enhancement passes record their
+# outcome in their own stop reasons rather than a posthoc_evidence entry.
+STAGE_AUDIT_PAYLOAD_KEYS = {
+    "claim_decomposition": "claim_decomposition",
+    "attribution": "attribution",
+    "initial_verification": "verification",
+    "checklist_reconciliation": "checklist_report_reconciliation",
+    "evaluative_diagnostics": "evaluative_claim_diagnostics",
+}
+
+
+def stages_claiming_completion_without_output(
+    audit: dict,
+) -> tuple[str, ...]:
+    """Name stages recorded as complete whose audit payload is missing.
+
+    A run once reported ``evaluative_diagnostics`` as complete over 87 of 87
+    claims while every one of its calls had been refused and its payload was
+    null, because the record counted the work requested rather than the work
+    done. That shape is invisible to per-stage review and trivially visible
+    here, so it is checked mechanically instead.
+    """
+
+    posthoc = audit.get("posthoc_evidence") or {}
+    stages = (posthoc.get("stage_execution") or {}).get("stages") or {}
+    offenders = []
+    for stage_name, payload_key in sorted(STAGE_AUDIT_PAYLOAD_KEYS.items()):
+        record = stages.get(stage_name)
+        if record is None:
+            continue
+        if record.get("status") != StageExecutionStatus.COMPLETE.value:
+            continue
+        if posthoc.get(payload_key) is None:
+            offenders.append(stage_name)
+    return tuple(offenders)
