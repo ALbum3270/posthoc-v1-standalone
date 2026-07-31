@@ -76,6 +76,11 @@ class EvidenceTailReserveAudit(BaseModel):
         "initial_verification",
         "checklist_reconciliation",
         "deterministic_rendering",
+        "audit_editing",
+        "post_edit_claim_decomposition",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
     )
     enhancement_stages: tuple[str, ...] = (
         "evidence_gap",
@@ -103,6 +108,11 @@ class EvidenceTailReserveController:
             "initial_verification",
             "checklist_reconciliation",
             "deterministic_rendering",
+            "audit_editing",
+            "post_edit_claim_decomposition",
+            "post_edit_attribution",
+            "post_edit_initial_verification",
+            "post_edit_checklist_reconciliation",
         }
     )
     enhancement_stages = frozenset(

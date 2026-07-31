@@ -168,12 +168,14 @@ class LiveClients:
     reconciliation_model: OpenAIEnvelopeModel
     attribution_model: OpenAIEnvelopeModel
     verification_model: OpenAIEnvelopeModel
+    editor_model: OpenAIEnvelopeModel
     decision_model_name: str
     note_model_name: str
     claim_model_name: str
     reconciliation_model_name: str
     attribution_model_name: str
     verification_model_name: str
+    editor_model_name: str
 
     async def close(self) -> None:
         await self.openai.close()
@@ -230,6 +232,7 @@ def build_live_clients() -> LiveClients:
         "reconciliation", attribution_model_name
     )
     verification_model_name = _model_name("verification", default_model)
+    editor_model_name = _model_name("editor", claim_model_name)
 
     openai = AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
     tavily = AsyncTavilyClient(api_key=tavily_api_key)
@@ -278,12 +281,18 @@ def build_live_clients() -> LiveClients:
             verification_model_name,
             calibration=UsageCalibration(),
         ),
+        editor_model=OpenAIEnvelopeModel(
+            openai,
+            editor_model_name,
+            calibration=UsageCalibration(),
+        ),
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,
         claim_model_name=claim_model_name,
         reconciliation_model_name=reconciliation_model_name,
         attribution_model_name=attribution_model_name,
         verification_model_name=verification_model_name,
+        editor_model_name=editor_model_name,
     )
 
 
@@ -333,7 +342,8 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "initial estimated reserve for claim decomposition, attribution, "
             "initial verification, checklist reconciliation, and deterministic "
-            "rendering. It is recalculated from observed work units and is not "
+            "rendering, plus one audit-after-edit pass and a full re-audit when "
+            "the draft changes. It is recalculated from observed work units and is not "
             "a provider-side guarantee; no dollar amount is inferred by default"
         ),
     )
@@ -458,6 +468,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             reconciliation_model=clients.reconciliation_model,
             attribution_model=clients.attribution_model,
             verification_model=clients.verification_model,
+            editor_model=clients.editor_model,
             tavily_client=clients.tavily,
             budget=LoopBudget(
                 max_rounds=args.max_rounds,
@@ -516,6 +527,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 "reconciliation": clients.reconciliation_model_name,
                 "attribution": clients.attribution_model_name,
                 "verification": clients.verification_model_name,
+                "editorial": clients.editor_model_name,
             },
         )
     finally:

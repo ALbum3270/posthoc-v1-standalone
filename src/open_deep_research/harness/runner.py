@@ -69,6 +69,14 @@ from open_deep_research.harness.evidence_gap import (
     EvidenceGapStopReason,
     run_evidence_gap_round,
 )
+from open_deep_research.harness.edit import (
+    EditorialModelClient,
+    EditorialRevisionResult,
+    EditorialRevisionStatus,
+    EditorialSettings,
+    editorial_target_claim_ids,
+    revise_audited_draft,
+)
 from open_deep_research.harness.evaluative import (
     EvaluativeDiagnosticStatus,
     EvaluativeDiagnosticResult,
@@ -108,6 +116,7 @@ from open_deep_research.harness.write import (
     write_report,
 )
 from open_deep_research.harness.stages import (
+    MANDATORY_PUBLICATION_STAGES,
     PostDraftExecutionAudit,
     StageExecutionRecord,
     StageExecutionStatus,
@@ -154,6 +163,7 @@ class HarnessRunResult(BaseModel):
     verification: VerificationResult | None
     evidence_gap: EvidenceGapResult | None
     disagreement: DisagreementResult | None
+    editorial_revision: EditorialRevisionResult | None
     posthoc_retrieval_budget: PosthocRetrievalBudgetAudit | None
     run_cost_budget: RunCostBudgetAudit
     stop_diagnostic: RunStopDiagnostic
@@ -278,6 +288,7 @@ def _usage_payload(
     verification_usage: UsageRecord,
     evidence_gap_usage: UsageRecord,
     disagreement_usage: UsageRecord,
+    additional_stages: Mapping[str, UsageRecord] | None = None,
 ) -> tuple[dict[str, UsageRecord], dict[str, Any]]:
     stages = {
         "checklist": checklist_usage,
@@ -289,6 +300,8 @@ def _usage_payload(
         "evidence_gap": evidence_gap_usage,
         "disagreement": disagreement_usage,
     }
+    if additional_stages:
+        stages.update(additional_stages)
     total = UsageRecord(
         token_count=sum(value.token_count for value in stages.values()),
         cost_usd=sum(value.cost_usd for value in stages.values()),
@@ -618,6 +631,7 @@ def _publish_partial_result(
         verification=verification,
         evidence_gap=None,
         disagreement=None,
+        editorial_revision=None,
         posthoc_retrieval_budget=None,
         run_cost_budget=run_cost_audit,
         stop_diagnostic=stop_diagnostic,
@@ -640,6 +654,7 @@ async def run_harness(
     attribution_model: AttributionModelClient,
     verification_model: VerificationModelClient,
     tavily_client: TavilyClient,
+    editor_model: EditorialModelClient | None = None,
     budget: LoopBudget | None = None,
     loop_settings: LoopSettings | None = None,
     claim_settings: ClaimDecompositionSettings | None = None,
@@ -649,6 +664,7 @@ async def run_harness(
     attribution_settings: AttributionSettings | None = None,
     verification_settings: VerificationSettings | None = None,
     verification_budget: VerificationBudget | None = None,
+    editorial_settings: EditorialSettings | None = None,
     evidence_gap_budget: EvidenceGapBudget | None = None,
     disagreement_budget: DisagreementBudget | None = None,
     posthoc_retrieval_budget: PosthocRetrievalBudget | None = None,
@@ -814,6 +830,7 @@ async def run_harness(
     )
     initial_attribution: AttributionResult | None = None
     initial_verification: VerificationResult | None = None
+    editorial_revision: EditorialRevisionResult | None = None
 
     parsed_blocks = parse_markdown_blocks(report.canonical_draft)
     claim_batch_size = (
@@ -1371,12 +1388,18 @@ async def run_harness(
         token_count=initial_verification.total_tokens,
         cost_usd=initial_verification.total_cost_usd,
     )
-    tail_reserve.checkpoint(
-        TailCheckpointName.MANDATORY_TAIL_COMPLETE,
-        work_units=(),
-        estimated_remaining_cost_usd=0.0,
-        estimate_complete=True,
-    )
+    # With audit-after-edit enabled, the first verification is deliberately
+    # not the end of the mandatory evidence tail. Enhancement passes may run
+    # next, but they cannot borrow the still-frozen reserve needed to audit an
+    # edited draft. The reserve is released only after the second registry has
+    # either completed or the unchanged draft makes it unnecessary.
+    if editor_model is None:
+        tail_reserve.checkpoint(
+            TailCheckpointName.MANDATORY_TAIL_COMPLETE,
+            work_units=(),
+            estimated_remaining_cost_usd=0.0,
+            estimate_complete=True,
+        )
 
     effective_evidence_gap_budget = evidence_gap_budget
     if (
@@ -1641,6 +1664,537 @@ async def run_harness(
         disagreement_tokens=disagreement.total_tokens,
         disagreement_cost_usd=disagreement.total_cost_usd,
     )
+
+    # Freeze the complete first audit before any editorial judgement.  These
+    # records remain in the durable audit even when a revised draft later earns
+    # a fresh registry; deleting a claim from prose must never delete the fact
+    # that the first draft made it or how the sources assessed it.
+    pre_edit_claim_decomposition = claim_decomposition
+    pre_edit_evaluative_diagnostics = evaluative_diagnostics
+    pre_edit_reconciliation = checklist_report_reconciliation
+    pre_edit_attribution = attribution
+    pre_edit_verification = verification
+    pre_edit_draft = report.canonical_draft
+    additional_usage: dict[str, UsageRecord] = {}
+    post_edit_required_stages: tuple[str, ...] = ()
+
+    if editor_model is not None:
+        target_ids = editorial_target_claim_ids(pre_edit_verification)
+        original_evidence_complete = all(
+            stage_records[name].status is StageExecutionStatus.COMPLETE
+            for name in (
+                "claim_decomposition",
+                "attribution",
+                "initial_verification",
+            )
+        )
+        if not original_evidence_complete:
+            stage_records["audit_editing"] = _scope_record(
+                status=StageExecutionStatus.NOT_RUN,
+                reason=(
+                    "the first evidence registry was incomplete; an editor "
+                    "cannot treat missing evidence work as a content verdict"
+                ),
+                unit="audited_claim",
+                expected_count=len(target_ids),
+                evaluated_count=0,
+                unevaluated_ids=target_ids,
+            )
+        else:
+            budgeted_editor_model = run_cost.wrap(
+                editor_model,
+                stage="audit_editing",
+                tail_reserve_controller=tail_reserve,
+            )
+            try:
+                editorial_revision = await revise_audited_draft(
+                    pre_edit_draft,
+                    blocks=pre_edit_claim_decomposition.blocks,
+                    verification=pre_edit_verification,
+                    model_client=budgeted_editor_model,
+                    settings=editorial_settings,
+                )
+            except RunCostCapReached as error:
+                stage_records["audit_editing"] = _scope_record(
+                    status=StageExecutionStatus.NOT_RUN,
+                    reason=str(error),
+                    unit="audited_claim",
+                    expected_count=len(target_ids),
+                    evaluated_count=0,
+                    unevaluated_ids=target_ids,
+                )
+            else:
+                editorial_status = {
+                    EditorialRevisionStatus.COMPLETE: (
+                        StageExecutionStatus.COMPLETE
+                    ),
+                    EditorialRevisionStatus.PARTIAL: (
+                        StageExecutionStatus.PARTIAL
+                    ),
+                    EditorialRevisionStatus.FAILED: StageExecutionStatus.FAILED,
+                }[editorial_revision.status]
+                stage_records["audit_editing"] = _scope_record(
+                    status=editorial_status,
+                    reason=(
+                        "every substantive evidence exception received one "
+                        "auditable editorial decision"
+                        if editorial_status is StageExecutionStatus.COMPLETE
+                        else "the editorial pass did not assess every target; "
+                        "its partial rewrite was not applied"
+                    ),
+                    unit="audited_claim",
+                    expected_count=len(editorial_revision.target_claim_ids),
+                    evaluated_count=len(
+                        editorial_revision.evaluated_claim_ids
+                    ),
+                    unevaluated_ids=(
+                        editorial_revision.unevaluated_claim_ids
+                    ),
+                )
+                additional_usage["audit_editing"] = UsageRecord(
+                    token_count=editorial_revision.total_tokens,
+                    cost_usd=editorial_revision.total_cost_usd,
+                )
+
+        if (
+            editorial_revision is not None
+            and editorial_revision.status is EditorialRevisionStatus.COMPLETE
+            and editorial_revision.requires_reaudit
+        ):
+            post_edit_required_stages = (
+                "post_edit_claim_decomposition",
+                "post_edit_attribution",
+                "post_edit_initial_verification",
+                "post_edit_checklist_reconciliation",
+            )
+            proposed_draft = editorial_revision.edited_draft
+            proposed_blocks = parse_markdown_blocks(proposed_draft)
+            post_claims: ClaimDecompositionResult | None = None
+            post_attribution: AttributionResult | None = None
+            post_verification: VerificationResult | None = None
+            post_reconciliation: ChecklistReportReconciliation | None = None
+
+            budgeted_post_claim_model = run_cost.wrap(
+                claim_model,
+                stage="post_edit_claim_decomposition",
+                tail_reserve_controller=tail_reserve,
+            )
+            try:
+                post_claims = await decompose_claims(
+                    proposed_draft,
+                    model_client=budgeted_post_claim_model,
+                    settings=claim_settings,
+                )
+            except RunCostCapReached as error:
+                stage_records["post_edit_claim_decomposition"] = _scope_record(
+                    status=StageExecutionStatus.NOT_RUN,
+                    reason=str(error),
+                    unit="markdown_block",
+                    expected_count=len(proposed_blocks),
+                    evaluated_count=0,
+                    unevaluated_ids=tuple(
+                        block.block_id for block in proposed_blocks
+                    ),
+                )
+            else:
+                coverage = post_claims.registry_coverage
+                stage_records["post_edit_claim_decomposition"] = _scope_record(
+                    status=(
+                        StageExecutionStatus.COMPLETE
+                        if coverage.is_complete
+                        else StageExecutionStatus.PARTIAL
+                    ),
+                    reason=(
+                        "the edited draft received a complete new claim registry"
+                        if coverage.is_complete
+                        else "the edited draft claim registry is incomplete"
+                    ),
+                    unit="markdown_block",
+                    expected_count=coverage.total_blocks,
+                    evaluated_count=coverage.evaluated_blocks,
+                    unevaluated_ids=coverage.unassessed_block_ids,
+                )
+                additional_usage["post_edit_claim_decomposition"] = UsageRecord(
+                    token_count=post_claims.total_tokens,
+                    cost_usd=post_claims.total_cost_usd,
+                )
+                tail_reserve.observe_stage(
+                    "post_edit_claim_decomposition",
+                    work_units=(
+                        TailWorkUnit(
+                            stage="post_edit_claim_decomposition",
+                            unit="markdown_block",
+                            count=coverage.total_blocks,
+                        ),
+                        TailWorkUnit(
+                            stage="post_edit_claim_decomposition",
+                            unit="atomic_claim",
+                            count=len(post_claims.claims),
+                        ),
+                    ),
+                    token_count=post_claims.total_tokens,
+                    cost_usd=post_claims.total_cost_usd,
+                )
+
+            post_claim_stage_complete = (
+                stage_records["post_edit_claim_decomposition"].status
+                is StageExecutionStatus.COMPLETE
+            )
+            if post_claim_stage_complete and post_claims is not None:
+                post_external_ids = tuple(
+                    claim.claim_id
+                    for claim in post_claims.claims
+                    if claim.citation_requirement is CitationRequirement.EXTERNAL
+                )
+                budgeted_post_attribution_model = run_cost.wrap(
+                    attribution_model,
+                    stage="post_edit_attribution",
+                    tail_reserve_controller=tail_reserve,
+                )
+                try:
+                    post_attribution = (
+                        await attribute_claims(
+                            post_claims.claims,
+                            blocks=post_claims.blocks,
+                            notes=ledger.notes,
+                            model_client=budgeted_post_attribution_model,
+                            settings=attribution_settings,
+                        )
+                        if post_claims.claims
+                        else AttributionResult(
+                            attributions=(),
+                            stop_reason=AttributionStopReason.COMPLETED,
+                        )
+                    )
+                except RunCostCapReached as error:
+                    stage_records["post_edit_attribution"] = _scope_record(
+                        status=StageExecutionStatus.NOT_RUN,
+                        reason=str(error),
+                        unit="external_claim",
+                        expected_count=len(post_external_ids),
+                        evaluated_count=0,
+                        unevaluated_ids=post_external_ids,
+                    )
+                else:
+                    post_attributed_ids = {
+                        item.claim.claim_id
+                        for item in post_attribution.attributions
+                        if item.status is not AttributionStatus.ATTRIBUTION_ERROR
+                    }
+                    post_unattributed_ids = tuple(
+                        claim_id
+                        for claim_id in post_external_ids
+                        if claim_id not in post_attributed_ids
+                    )
+                    stage_records["post_edit_attribution"] = _scope_record(
+                        status=(
+                            StageExecutionStatus.COMPLETE
+                            if not post_unattributed_ids
+                            else StageExecutionStatus.PARTIAL
+                        ),
+                        reason=(
+                            "every edited external claim received an "
+                            "attribution conclusion"
+                            if not post_unattributed_ids
+                            else "some edited claims received attribution "
+                            "errors, which are not conclusions"
+                        ),
+                        unit="external_claim",
+                        expected_count=len(post_external_ids),
+                        evaluated_count=(
+                            len(post_external_ids) - len(post_unattributed_ids)
+                        ),
+                        unevaluated_ids=post_unattributed_ids,
+                    )
+                    additional_usage["post_edit_attribution"] = UsageRecord(
+                        token_count=post_attribution.total_tokens,
+                        cost_usd=post_attribution.total_cost_usd,
+                    )
+                    tail_reserve.observe_stage(
+                        "post_edit_attribution",
+                        work_units=(
+                            TailWorkUnit(
+                                stage="post_edit_attribution",
+                                unit="external_claim",
+                                count=len(post_external_ids),
+                            ),
+                        ),
+                        token_count=post_attribution.total_tokens,
+                        cost_usd=post_attribution.total_cost_usd,
+                    )
+            else:
+                stage_records["post_edit_attribution"] = _scope_record(
+                    status=StageExecutionStatus.NOT_RUN,
+                    reason=(
+                        "not run because the edited claim registry did not "
+                        "complete; an empty downstream scope is not completion"
+                    ),
+                )
+
+            post_attr_complete = (
+                stage_records["post_edit_attribution"].status
+                is StageExecutionStatus.COMPLETE
+            )
+            if (
+                post_attr_complete
+                and post_attribution is not None
+                and post_claims is not None
+            ):
+                post_relation_ids = tuple(
+                    f"{item.claim.claim_id}|{candidate.source_id}"
+                    for item in post_attribution.attributions
+                    for candidate in item.candidates
+                )
+                post_targets = {
+                    claim.claim_id: corroboration_target_for_external_claims
+                    for claim in post_claims.claims
+                    if claim.citation_requirement is CitationRequirement.EXTERNAL
+                }
+                budgeted_post_verification_model = run_cost.wrap(
+                    verification_model,
+                    stage="post_edit_initial_verification",
+                    tail_reserve_controller=tail_reserve,
+                )
+                post_verification_budget = verification_budget
+                remaining = run_cost.remaining_cost_usd
+                if remaining is not None:
+                    configured = (
+                        post_verification_budget.max_cost_usd
+                        if post_verification_budget is not None
+                        else None
+                    )
+                    post_verification_budget = VerificationBudget(
+                        max_tokens=(
+                            post_verification_budget.max_tokens
+                            if post_verification_budget is not None
+                            else None
+                        ),
+                        max_cost_usd=(
+                            min(remaining, configured)
+                            if configured is not None
+                            else remaining
+                        ),
+                    )
+                post_cost_estimator = verification_cost_estimator
+                if post_cost_estimator is None and run_cost.configured:
+                    post_cost_estimator = (
+                        budgeted_post_verification_model.estimate_cost_usd
+                    )
+                try:
+                    post_verification = await verify_attributions(
+                        post_attribution.attributions,
+                        source_cache=ledger.source_cache,
+                        model_client=budgeted_post_verification_model,
+                        settings=verification_settings,
+                        budget=post_verification_budget,
+                        corroboration_targets=post_targets,
+                        estimate_input_tokens=verification_input_token_estimator,
+                        estimate_cost_usd=post_cost_estimator,
+                    )
+                except RunCostCapReached as error:
+                    stage_records[
+                        "post_edit_initial_verification"
+                    ] = _scope_record(
+                        status=StageExecutionStatus.NOT_RUN,
+                        reason=str(error),
+                        unit="claim_source_relation",
+                        expected_count=len(post_relation_ids),
+                        evaluated_count=0,
+                        unevaluated_ids=post_relation_ids,
+                    )
+                else:
+                    post_completed_relations = {
+                        f"{claim.claim.claim_id}|{relation.source_id}"
+                        for claim in post_verification.claims
+                        for relation in claim.relations
+                        if relation.status is VerificationRecordStatus.COMPLETED
+                    }
+                    post_unevaluated_relations = tuple(
+                        relation_id
+                        for relation_id in post_relation_ids
+                        if relation_id not in post_completed_relations
+                    )
+                    stage_records[
+                        "post_edit_initial_verification"
+                    ] = _scope_record(
+                        status=(
+                            StageExecutionStatus.COMPLETE
+                            if not post_unevaluated_relations
+                            else StageExecutionStatus.PARTIAL
+                        ),
+                        reason=(
+                            "every edited claim-source relation completed "
+                            "verification"
+                            if not post_unevaluated_relations
+                            else "some edited claim-source relations did not "
+                            "complete verification"
+                        ),
+                        unit="claim_source_relation",
+                        expected_count=len(post_relation_ids),
+                        evaluated_count=(
+                            len(post_relation_ids)
+                            - len(post_unevaluated_relations)
+                        ),
+                        unevaluated_ids=post_unevaluated_relations,
+                    )
+                    additional_usage[
+                        "post_edit_initial_verification"
+                    ] = UsageRecord(
+                        token_count=post_verification.total_tokens,
+                        cost_usd=post_verification.total_cost_usd,
+                    )
+                    tail_reserve.observe_stage(
+                        "post_edit_initial_verification",
+                        work_units=(
+                            TailWorkUnit(
+                                stage="post_edit_initial_verification",
+                                unit="claim_source_relation",
+                                count=len(post_relation_ids),
+                            ),
+                        ),
+                        token_count=post_verification.total_tokens,
+                        cost_usd=post_verification.total_cost_usd,
+                    )
+            else:
+                stage_records["post_edit_initial_verification"] = _scope_record(
+                    status=StageExecutionStatus.NOT_RUN,
+                    reason=(
+                        "not run because edited attribution did not complete; "
+                        "no verification denominator was manufactured"
+                    ),
+                )
+
+            post_verify_complete = (
+                stage_records["post_edit_initial_verification"].status
+                is StageExecutionStatus.COMPLETE
+            )
+            if post_verify_complete and post_claims is not None:
+                item_ids = tuple(
+                    item.item_id for item in loop_result.checklist.items
+                )
+                budgeted_post_reconciliation_model = run_cost.wrap(
+                    reconciliation_model,
+                    stage="post_edit_checklist_reconciliation",
+                    tail_reserve_controller=tail_reserve,
+                )
+                try:
+                    post_reconciliation = await reconcile_checklist_report(
+                        proposed_draft,
+                        loop_result.checklist,
+                        blocks=post_claims.blocks,
+                        claims=post_claims.claims,
+                        model_client=budgeted_post_reconciliation_model,
+                    )
+                except RunCostCapReached as error:
+                    stage_records[
+                        "post_edit_checklist_reconciliation"
+                    ] = _scope_record(
+                        status=StageExecutionStatus.NOT_RUN,
+                        reason=str(error),
+                        unit="checklist_item",
+                        expected_count=len(item_ids),
+                        evaluated_count=0,
+                        unevaluated_ids=item_ids,
+                    )
+                else:
+                    summary = post_reconciliation.summary
+                    stage_records[
+                        "post_edit_checklist_reconciliation"
+                    ] = _scope_record(
+                        status=(
+                            StageExecutionStatus.COMPLETE
+                            if summary.assessment_failed_items == 0
+                            else StageExecutionStatus.PARTIAL
+                        ),
+                        reason=(
+                            "every checklist item was reconciled against the "
+                            "edited draft"
+                            if summary.assessment_failed_items == 0
+                            else "some checklist items could not be reconciled "
+                            "against the edited draft"
+                        ),
+                        unit="checklist_item",
+                        expected_count=summary.total_items,
+                        evaluated_count=summary.assessed_items,
+                        unevaluated_ids=summary.assessment_failed_item_ids,
+                    )
+                    additional_usage[
+                        "post_edit_checklist_reconciliation"
+                    ] = UsageRecord(
+                        token_count=post_reconciliation.total_tokens,
+                        cost_usd=post_reconciliation.total_cost_usd,
+                    )
+                    tail_reserve.observe_stage(
+                        "post_edit_checklist_reconciliation",
+                        work_units=(
+                            TailWorkUnit(
+                                stage="post_edit_checklist_reconciliation",
+                                unit="checklist_item",
+                                count=summary.total_items,
+                            ),
+                        ),
+                        token_count=post_reconciliation.total_tokens,
+                        cost_usd=post_reconciliation.total_cost_usd,
+                    )
+            else:
+                stage_records[
+                    "post_edit_checklist_reconciliation"
+                ] = _scope_record(
+                    status=StageExecutionStatus.NOT_RUN,
+                    reason=(
+                        "not run because the edited evidence registry did not "
+                        "complete"
+                    ),
+                )
+
+            post_edit_complete = all(
+                stage_records[name].status is StageExecutionStatus.COMPLETE
+                for name in post_edit_required_stages
+            )
+            if (
+                post_edit_complete
+                and post_claims is not None
+                and post_attribution is not None
+                and post_verification is not None
+                and post_reconciliation is not None
+            ):
+                report = report.model_copy(
+                    update={"canonical_draft": proposed_draft}
+                )
+                editorial_revision = editorial_revision.model_copy(
+                    update={"committed_after_reaudit": True}
+                )
+                claim_decomposition = post_claims
+                checklist_report_reconciliation = post_reconciliation
+                attribution = post_attribution
+                verification = post_verification
+                # The advisory diagnostic belongs to the first immutable
+                # registry. It is preserved below but never attached to new
+                # claim IDs without actually rerunning that pass.
+                evaluative_diagnostics = None
+
+        if (
+            editorial_revision is not None
+            and editorial_revision.status is EditorialRevisionStatus.COMPLETE
+            and not editorial_revision.requires_reaudit
+        ):
+            tail_reserve.checkpoint(
+                TailCheckpointName.MANDATORY_TAIL_COMPLETE,
+                work_units=(),
+                estimated_remaining_cost_usd=0.0,
+                estimate_complete=True,
+            )
+        elif (
+            editorial_revision is not None
+            and editorial_revision.committed_after_reaudit
+        ):
+            tail_reserve.checkpoint(
+                TailCheckpointName.MANDATORY_TAIL_COMPLETE,
+                work_units=(),
+                estimated_remaining_cost_usd=0.0,
+                estimate_complete=True,
+            )
+
     domain_proxy_concentration = audit_domain_proxy_concentration(
         verification,
         blocks=claim_decomposition.blocks,
@@ -1744,7 +2298,17 @@ async def run_harness(
     # A stage whose scope is empty only because its upstream was cut off has
     # not completed anything; letting that stand would reintroduce 0/0.
     stage_records = demote_vacuous_completions(stage_records)
-    post_draft_execution = publication_audit(stage_records)
+    mandatory_publication_stages = MANDATORY_PUBLICATION_STAGES
+    if editor_model is not None:
+        mandatory_publication_stages = (
+            *mandatory_publication_stages,
+            "audit_editing",
+            *post_edit_required_stages,
+        )
+    post_draft_execution = publication_audit(
+        stage_records,
+        mandatory_stages=mandatory_publication_stages,
+    )
     if not post_draft_execution.publication_eligible:
         incomplete_warning = (
             "> **不完整运行产物：证据流程未完整覆盖；"
@@ -1772,19 +2336,19 @@ async def run_harness(
     )
     decomposition_attribution_usage = UsageRecord(
         token_count=(
-            claim_decomposition.total_tokens
+            pre_edit_claim_decomposition.total_tokens
             + (
-                evaluative_diagnostics.total_tokens
-                if evaluative_diagnostics is not None
+                pre_edit_evaluative_diagnostics.total_tokens
+                if pre_edit_evaluative_diagnostics is not None
                 else 0
             )
             + initial_attribution.total_tokens
         ),
         cost_usd=(
-            claim_decomposition.total_cost_usd
+            pre_edit_claim_decomposition.total_cost_usd
             + (
-                evaluative_diagnostics.total_cost_usd
-                if evaluative_diagnostics is not None
+                pre_edit_evaluative_diagnostics.total_cost_usd
+                if pre_edit_evaluative_diagnostics is not None
                 else 0.0
             )
             + initial_attribution.total_cost_usd
@@ -1795,8 +2359,8 @@ async def run_harness(
         cost_usd=initial_verification.total_cost_usd,
     )
     reconciliation_usage = UsageRecord(
-        token_count=checklist_report_reconciliation.total_tokens,
-        cost_usd=checklist_report_reconciliation.total_cost_usd,
+        token_count=pre_edit_reconciliation.total_tokens,
+        cost_usd=pre_edit_reconciliation.total_cost_usd,
     )
     evidence_gap_usage = UsageRecord(
         token_count=evidence_gap.total_tokens,
@@ -1817,6 +2381,7 @@ async def run_harness(
         verification_usage=verification_usage,
         evidence_gap_usage=evidence_gap_usage,
         disagreement_usage=disagreement_usage,
+        additional_stages=additional_usage,
     )
 
     destination = Path(output_dir)
@@ -1889,6 +2454,35 @@ async def run_harness(
         "posthoc_evidence": {
             "stage_execution": post_draft_execution.model_dump(mode="json"),
             "claim_decomposition": claim_decomposition.model_dump(mode="json"),
+            "pre_edit_evidence": (
+                {
+                    "canonical_draft_sha256": hashlib.sha256(
+                        pre_edit_draft.encode("utf-8")
+                    ).hexdigest(),
+                    "claim_decomposition": (
+                        pre_edit_claim_decomposition.model_dump(mode="json")
+                    ),
+                    "evaluative_claim_diagnostics": (
+                        pre_edit_evaluative_diagnostics.model_dump(mode="json")
+                        if pre_edit_evaluative_diagnostics is not None
+                        else None
+                    ),
+                    "checklist_report_reconciliation": (
+                        pre_edit_reconciliation.model_dump(mode="json")
+                    ),
+                    "attribution": pre_edit_attribution.model_dump(mode="json"),
+                    "verification": pre_edit_verification.model_dump(mode="json"),
+                    "evidence_gap": evidence_gap.model_dump(mode="json"),
+                    "disagreement": disagreement.model_dump(mode="json"),
+                }
+                if editor_model is not None
+                else None
+            ),
+            "editorial_revision": (
+                editorial_revision.model_dump(mode="json")
+                if editorial_revision is not None
+                else None
+            ),
             "evaluative_claim_diagnostics": (
                 evaluative_diagnostics.model_dump(mode="json")
                 if evaluative_diagnostics is not None
@@ -1897,10 +2491,30 @@ async def run_harness(
             "checklist_report_reconciliation": (
                 checklist_report_reconciliation.model_dump(mode="json")
             ),
-            "initial_attribution": initial_attribution.model_dump(mode="json"),
-            "initial_verification": initial_verification.model_dump(mode="json"),
-            "evidence_gap": evidence_gap.model_dump(mode="json"),
-            "disagreement": disagreement.model_dump(mode="json"),
+            "initial_attribution": (
+                attribution.model_dump(mode="json")
+                if editorial_revision is not None
+                and editorial_revision.committed_after_reaudit
+                else initial_attribution.model_dump(mode="json")
+            ),
+            "initial_verification": (
+                verification.model_dump(mode="json")
+                if editorial_revision is not None
+                and editorial_revision.committed_after_reaudit
+                else initial_verification.model_dump(mode="json")
+            ),
+            "evidence_gap": (
+                None
+                if editorial_revision is not None
+                and editorial_revision.committed_after_reaudit
+                else evidence_gap.model_dump(mode="json")
+            ),
+            "disagreement": (
+                None
+                if editorial_revision is not None
+                and editorial_revision.committed_after_reaudit
+                else disagreement.model_dump(mode="json")
+            ),
             "posthoc_retrieval_budget": posthoc_budget_audit.model_dump(
                 mode="json"
             ),
@@ -1932,6 +2546,7 @@ async def run_harness(
         ),
         "models": dict(model_names or {}),
         "canonical_draft": report.canonical_draft,
+        "original_canonical_draft": pre_edit_draft,
         "artifacts": {
             "directory": normalized_run_id,
             "report": report_path.name,
@@ -1976,6 +2591,7 @@ async def run_harness(
         verification=verification,
         evidence_gap=evidence_gap,
         disagreement=disagreement,
+        editorial_revision=editorial_revision,
         posthoc_retrieval_budget=posthoc_budget_audit,
         run_cost_budget=run_cost_audit,
         stop_diagnostic=stop_diagnostic,

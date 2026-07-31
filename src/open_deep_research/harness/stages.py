@@ -122,17 +122,20 @@ class PostDraftExecutionAudit(BaseModel):
 
 def publication_audit(
     stages: dict[str, StageExecutionRecord],
+    *,
+    mandatory_stages: tuple[str, ...] | None = None,
 ) -> PostDraftExecutionAudit:
     """Derive publication eligibility; callers cannot assert it themselves."""
 
+    required = mandatory_stages or MANDATORY_PUBLICATION_STAGES
     complete = all(
         stages.get(name) is not None
         and stages[name].status is StageExecutionStatus.COMPLETE
-        for name in MANDATORY_PUBLICATION_STAGES
+        for name in required
     )
     incomplete = tuple(
         name
-        for name in MANDATORY_PUBLICATION_STAGES
+        for name in required
         if stages.get(name) is None
         or stages[name].status is not StageExecutionStatus.COMPLETE
     )
@@ -143,6 +146,7 @@ def publication_audit(
     )
     return PostDraftExecutionAudit(
         stages=stages,
+        mandatory_publication_stages=required,
         publication_eligible=complete,
         publication_reason=reason,
     )
@@ -161,6 +165,13 @@ STAGE_AUDIT_PAYLOAD_KEYS = {
     "initial_verification": "verification",
     "checklist_reconciliation": "checklist_report_reconciliation",
     "evaluative_diagnostics": "evaluative_claim_diagnostics",
+    "audit_editing": "editorial_revision",
+    "post_edit_claim_decomposition": "claim_decomposition",
+    "post_edit_attribution": "attribution",
+    "post_edit_initial_verification": "verification",
+    "post_edit_checklist_reconciliation": (
+        "checklist_report_reconciliation"
+    ),
 }
 
 
@@ -197,6 +208,9 @@ STAGE_SCOPE_DEPENDS_ON = {
     "attribution": "claim_decomposition",
     "evaluative_diagnostics": "claim_decomposition",
     "initial_verification": "attribution",
+    "post_edit_attribution": "post_edit_claim_decomposition",
+    "post_edit_initial_verification": "post_edit_attribution",
+    "post_edit_checklist_reconciliation": "post_edit_claim_decomposition",
 }
 
 

@@ -306,6 +306,148 @@ class EvidenceVerificationModel:
         }
 
 
+class AuditEditWriteModel:
+    async def generate(self, prompt):
+        return {
+            "content": "# Report\n\nThe model added an unsupported detail.",
+            "token_count": 5,
+            "cost_usd": 0.01,
+        }
+
+
+class ReauditClaimModel:
+    """Decomposes the first and edited drafts without reusing old anchors."""
+
+    def __init__(self):
+        self.call_number = 0
+
+    async def generate(self, prompt):
+        self.call_number += 1
+        edited = "A narrower supported fact." in prompt
+        draft = (
+            "# Report\n\nA narrower supported fact."
+            if edited
+            else "# Report\n\nThe model added an unsupported detail."
+        )
+        blocks = parse_markdown_blocks(draft)
+        paragraph = blocks[1]
+        phase = self.call_number if self.call_number <= 4 else self.call_number - 4
+        if phase == 1:
+            content = {
+                "blocks": [
+                    {
+                        "block_id": blocks[0].block_id,
+                        "assertions": [],
+                        "rationale": "heading",
+                    },
+                    {
+                        "block_id": paragraph.block_id,
+                        "assertions": [
+                            {
+                                "selected_text": paragraph.text,
+                                "citation_requirement": "external",
+                            }
+                        ],
+                        "rationale": "external assertion",
+                    },
+                ]
+            }
+        elif phase == 2:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": "claim-0001",
+                        "claim_text": paragraph.text,
+                        "context_spans": [],
+                    }
+                ]
+            }
+        elif phase == 3:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": "claim-0001",
+                        "start_segment_id": "S000002",
+                        "end_segment_id": "S000002",
+                    }
+                ]
+            }
+        else:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": "claim-0001",
+                        "status": "not_underspecified",
+                        "categories": [],
+                        "reason": "Bounded assertion.",
+                    }
+                ]
+            }
+        return {
+            "content": json.dumps(content),
+            "token_count": 5,
+            "cost_usd": 0.01,
+        }
+
+
+class AuditEditVerificationModel:
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, prompt):
+        self.calls += 1
+        result = {
+            "claim_id": "claim-0001",
+            "verdict": (
+                "does_not_support" if self.calls == 1 else "supports"
+            ),
+            "start_segment_id": None if self.calls == 1 else "S000001",
+            "end_segment_id": None if self.calls == 1 else "S000001",
+            "explanation": (
+                "The source does not contain the added detail."
+                if self.calls == 1
+                else "The source directly states the narrower fact."
+            ),
+        }
+        return {
+            "content": json.dumps({"results": [result]}),
+            "token_count": 8,
+            "cost_usd": 0.01,
+        }
+
+
+class AuditEditorModel:
+    def __init__(self):
+        self.prompts = []
+
+    async def generate(self, prompt):
+        self.prompts.append(prompt)
+        return {
+            "content": json.dumps(
+                {
+                    "blocks": [
+                        {
+                            "block_id": "block-0002",
+                            "replacement_text": "A narrower supported fact.",
+                            "decisions": [
+                                {
+                                    "claim_id": "claim-0001",
+                                    "action": "qualify",
+                                    "reason": (
+                                        "Replace the unsupported detail with "
+                                        "the narrower fact in the source."
+                                    ),
+                                }
+                            ],
+                        }
+                    ]
+                }
+            ),
+            "token_count": 6,
+            "cost_usd": 0.01,
+        }
+
+
 class UnusedTavily:
     async def search(self, query, **kwargs):
         raise AssertionError("search should not be called")
@@ -660,6 +802,91 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     assert audit["artifacts"]["sources_sha256"] == hashlib.sha256(
         result.sources_path.read_bytes()
     ).hexdigest()
+
+
+def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
+    tmp_path,
+):
+    """A finance-08-shaped unsupported claim cannot keep its old registry."""
+
+    events = []
+    url = "https://evidence.example/article"
+    claim_model = ReauditClaimModel()
+    verifier = AuditEditVerificationModel()
+    editor = AuditEditorModel()
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=ReadThenSettleDecisionModel(events, url),
+            note_model=OneNoteModel(events),
+            write_model=AuditEditWriteModel(),
+            claim_model=claim_model,
+            reconciliation_model=CoverageModel(events),
+            attribution_model=EvidenceAttributionModel(events, url),
+            verification_model=verifier,
+            editor_model=editor,
+            tavily_client=ReadingTavily(url),
+            budget=LoopBudget(max_rounds=3, max_tokens=100, max_cost_usd=1),
+            output_dir=tmp_path,
+            run_id="audit-edit-run",
+        )
+    )
+
+    assert result.publication_eligible is True
+    assert result.editorial_revision is not None
+    assert result.editorial_revision.committed_after_reaudit is True
+    assert result.report.canonical_draft == (
+        "# Report\n\nA narrower supported fact."
+    )
+    assert result.verification.claims[0].state is (
+        ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+    )
+    assert verifier.calls == 2
+    assert len(editor.prompts) == 1
+    # Three claim calls plus one advisory call for the first draft, then a
+    # completely new three-stage decomposition for the changed bytes.
+    assert claim_model.call_number == 7
+    assert "A narrower supported fact.[^1]" in result.rendered_report.markdown
+    assert "unsupported detail" not in result.rendered_report.markdown
+
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    posthoc = audit["posthoc_evidence"]
+    assert audit["original_canonical_draft"] == (
+        "# Report\n\nThe model added an unsupported detail."
+    )
+    assert audit["canonical_draft"] == (
+        "# Report\n\nA narrower supported fact."
+    )
+    assert posthoc["pre_edit_evidence"]["verification"]["claims"][0][
+        "state"
+    ] == "cited_sources_do_not_support"
+    assert posthoc["verification"]["claims"][0]["state"] == (
+        "supported_single_publisher"
+    )
+    assert posthoc["editorial_revision"]["committed_after_reaudit"] is True
+    stages = posthoc["stage_execution"]["stages"]
+    for stage in (
+        "audit_editing",
+        "post_edit_claim_decomposition",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
+    ):
+        assert stages[stage]["status"] == "complete", stage
+    assert posthoc["stage_execution"]["mandatory_publication_stages"] == [
+        "claim_decomposition",
+        "attribution",
+        "initial_verification",
+        "checklist_reconciliation",
+        "deterministic_rendering",
+        "audit_editing",
+        "post_edit_claim_decomposition",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
+    ]
 
 
 def test_artifact_bundle_publishes_by_one_directory_rename_or_not_at_all(
