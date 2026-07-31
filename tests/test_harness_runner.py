@@ -448,6 +448,171 @@ class AuditEditorModel:
         }
 
 
+class TwoBlockAuditWriteModel:
+    async def generate(self, prompt):
+        return {
+            "content": (
+                "# Report\n\nThe model added an unsupported detail.\n\n"
+                "A separate audited assertion."
+            ),
+            "token_count": 5,
+            "cost_usd": 0.01,
+        }
+
+
+class TwoBlockReauditClaimModel:
+    """Builds the same two-block registry before and after the safe edit."""
+
+    def __init__(self):
+        self.call_number = 0
+
+    async def generate(self, prompt):
+        self.call_number += 1
+        edited = "A narrower supported fact." in prompt
+        draft = (
+            "# Report\n\nA narrower supported fact.\n\n"
+            "A separate audited assertion."
+            if edited
+            else "# Report\n\nThe model added an unsupported detail.\n\n"
+            "A separate audited assertion."
+        )
+        blocks = parse_markdown_blocks(draft)
+        phase = self.call_number if self.call_number <= 4 else self.call_number - 4
+        if phase == 1:
+            content = {
+                "blocks": [
+                    {
+                        "block_id": blocks[0].block_id,
+                        "assertions": [],
+                        "rationale": "heading",
+                    },
+                    *[
+                        {
+                            "block_id": block.block_id,
+                            "assertions": [
+                                {
+                                    "selected_text": block.text,
+                                    "citation_requirement": "external",
+                                }
+                            ],
+                            "rationale": "external assertion",
+                        }
+                        for block in blocks[1:]
+                    ],
+                ]
+            }
+        elif phase == 2:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": f"claim-{index:04d}",
+                        "claim_text": block.text,
+                        "context_spans": [],
+                    }
+                    for index, block in enumerate(blocks[1:], start=1)
+                ]
+            }
+        elif phase == 3:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": f"claim-{index:04d}",
+                        "start_segment_id": f"S{index + 1:06d}",
+                        "end_segment_id": f"S{index + 1:06d}",
+                    }
+                    for index in range(1, 3)
+                ]
+            }
+        else:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": f"claim-{index:04d}",
+                        "status": "not_underspecified",
+                        "categories": [],
+                        "reason": "Bounded assertion.",
+                    }
+                    for index in range(1, 3)
+                ]
+            }
+        return {
+            "content": json.dumps(content),
+            "token_count": 5,
+            "cost_usd": 0.01,
+        }
+
+
+class TwoClaimEvidenceAttributionModel:
+    def __init__(self, url):
+        self.url = url
+
+    async def generate(self, prompt):
+        note_ref = re.search(r"nref-[0-9a-f]{16}", prompt)
+        assert note_ref is not None
+        return {
+            "content": json.dumps(
+                {
+                    "action": "attribute",
+                    "claims": [
+                        {
+                            "claim_id": claim_id,
+                            "candidates": [
+                                {
+                                    "note_ref": note_ref.group(0),
+                                    "inherited_from_claim_id": None,
+                                }
+                            ],
+                        }
+                        for claim_id in ("claim-0001", "claim-0002")
+                    ],
+                }
+            ),
+            "token_count": 7,
+            "cost_usd": 0.02,
+        }
+
+
+class TwoBlockPartialVerificationModel:
+    """Keeps one unrelated relation unlocatable across both audit passes."""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, prompt):
+        self.calls += 1
+        first_verdict = "does_not_support" if self.calls == 1 else "supports"
+        return {
+            "content": json.dumps(
+                {
+                    "results": [
+                        {
+                            "claim_id": "claim-0001",
+                            "verdict": first_verdict,
+                            "start_segment_id": (
+                                None if self.calls == 1 else "S000001"
+                            ),
+                            "end_segment_id": (
+                                None if self.calls == 1 else "S000001"
+                            ),
+                            "explanation": "First claim audit outcome.",
+                        },
+                        {
+                            "claim_id": "claim-0002",
+                            "verdict": "supports",
+                            "start_segment_id": "S000001",
+                            "end_segment_id": "S999999",
+                            "explanation": (
+                                "The proposed range is intentionally invalid."
+                            ),
+                        },
+                    ]
+                }
+            ),
+            "token_count": 8,
+            "cost_usd": 0.01,
+        }
+
+
 class UnusedTavily:
     async def search(self, query, **kwargs):
         raise AssertionError("search should not be called")
@@ -887,6 +1052,73 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
         "post_edit_initial_verification",
         "post_edit_checklist_reconciliation",
     ]
+
+
+def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(
+    tmp_path,
+):
+    """Unrelated audit failure cannot veto safe bytes or earn publication."""
+
+    events = []
+    url = "https://evidence.example/article"
+    claim_model = TwoBlockReauditClaimModel()
+    verifier = TwoBlockPartialVerificationModel()
+    editor = AuditEditorModel()
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=ReadThenSettleDecisionModel(events, url),
+            note_model=OneNoteModel(events),
+            write_model=TwoBlockAuditWriteModel(),
+            claim_model=claim_model,
+            reconciliation_model=CoverageModel(events),
+            attribution_model=TwoClaimEvidenceAttributionModel(url),
+            verification_model=verifier,
+            editor_model=editor,
+            tavily_client=ReadingTavily(url),
+            budget=LoopBudget(max_rounds=3, max_tokens=100, max_cost_usd=1),
+            output_dir=tmp_path,
+            run_id="local-edit-partial-publication",
+        )
+    )
+
+    assert result.editorial_admission is not None
+    assert result.editorial_admission.eligible_target_claim_ids == (
+        "claim-0001",
+    )
+    assert result.editorial_admission.blocked_target_claim_ids == ()
+    assert result.editorial_admission.unrelated_incomplete_claim_ids == (
+        "claim-0002",
+    )
+    assert result.editorial_revision is not None
+    assert result.editorial_revision.committed_after_reaudit is True
+    assert result.report.canonical_draft == (
+        "# Report\n\nA narrower supported fact.\n\n"
+        "A separate audited assertion."
+    )
+    assert len(editor.prompts) == 1
+    assert verifier.calls == 2
+    assert result.publication_eligible is False
+    assert result.verification.claims[1].state is (
+        ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE
+    )
+    assert "publication_eligible=false" in result.rendered_report.markdown
+
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    posthoc = audit["posthoc_evidence"]
+    assert posthoc["editorial_admission"] == (
+        result.editorial_admission.model_dump(mode="json")
+    )
+    assert posthoc["stage_execution"]["stages"][
+        "initial_verification"
+    ]["status"] == "partial"
+    assert posthoc["stage_execution"]["stages"][
+        "post_edit_initial_verification"
+    ]["status"] == "partial"
+    assert posthoc["editorial_revision"]["committed_after_reaudit"] is True
+    assert audit["canonical_draft"] == result.report.canonical_draft
+    assert audit["publication_eligible"] is False
 
 
 def test_artifact_bundle_publishes_by_one_directory_rename_or_not_at_all(

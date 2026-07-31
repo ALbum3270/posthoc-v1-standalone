@@ -70,11 +70,12 @@ from open_deep_research.harness.evidence_gap import (
     run_evidence_gap_round,
 )
 from open_deep_research.harness.edit import (
+    EditorialAdmissionAudit,
     EditorialModelClient,
     EditorialRevisionResult,
     EditorialRevisionStatus,
     EditorialSettings,
-    editorial_target_claim_ids,
+    audit_editorial_admission,
     revise_audited_draft,
 )
 from open_deep_research.harness.evaluative import (
@@ -163,6 +164,7 @@ class HarnessRunResult(BaseModel):
     verification: VerificationResult | None
     evidence_gap: EvidenceGapResult | None
     disagreement: DisagreementResult | None
+    editorial_admission: EditorialAdmissionAudit | None
     editorial_revision: EditorialRevisionResult | None
     posthoc_retrieval_budget: PosthocRetrievalBudgetAudit | None
     run_cost_budget: RunCostBudgetAudit
@@ -631,6 +633,7 @@ def _publish_partial_result(
         verification=verification,
         evidence_gap=None,
         disagreement=None,
+        editorial_admission=None,
         editorial_revision=None,
         posthoc_retrieval_budget=None,
         run_cost_budget=run_cost_audit,
@@ -831,6 +834,7 @@ async def run_harness(
     initial_attribution: AttributionResult | None = None
     initial_verification: VerificationResult | None = None
     editorial_revision: EditorialRevisionResult | None = None
+    editorial_admission: EditorialAdmissionAudit | None = None
 
     parsed_blocks = parse_markdown_blocks(report.canonical_draft)
     claim_batch_size = (
@@ -1679,82 +1683,61 @@ async def run_harness(
     post_edit_required_stages: tuple[str, ...] = ()
 
     if editor_model is not None:
-        target_ids = editorial_target_claim_ids(pre_edit_verification)
-        original_evidence_complete = all(
-            stage_records[name].status is StageExecutionStatus.COMPLETE
-            for name in (
-                "claim_decomposition",
-                "attribution",
-                "initial_verification",
-            )
+        editorial_admission = audit_editorial_admission(
+            pre_edit_verification,
+            blocks=pre_edit_claim_decomposition.blocks,
         )
-        if not original_evidence_complete:
+        target_ids = editorial_admission.target_claim_ids
+        eligible_target_ids = editorial_admission.eligible_target_claim_ids
+        budgeted_editor_model = run_cost.wrap(
+            editor_model,
+            stage="audit_editing",
+            tail_reserve_controller=tail_reserve,
+        )
+        try:
+            editorial_revision = await revise_audited_draft(
+                pre_edit_draft,
+                blocks=pre_edit_claim_decomposition.blocks,
+                verification=pre_edit_verification,
+                model_client=budgeted_editor_model,
+                settings=editorial_settings,
+            )
+        except RunCostCapReached as error:
             stage_records["audit_editing"] = _scope_record(
                 status=StageExecutionStatus.NOT_RUN,
-                reason=(
-                    "the first evidence registry was incomplete; an editor "
-                    "cannot treat missing evidence work as a content verdict"
-                ),
-                unit="audited_claim",
-                expected_count=len(target_ids),
+                reason=str(error),
+                unit="eligible_audited_claim",
+                expected_count=len(eligible_target_ids),
                 evaluated_count=0,
-                unevaluated_ids=target_ids,
+                unevaluated_ids=eligible_target_ids,
             )
         else:
-            budgeted_editor_model = run_cost.wrap(
-                editor_model,
-                stage="audit_editing",
-                tail_reserve_controller=tail_reserve,
+            editorial_status = {
+                EditorialRevisionStatus.COMPLETE: StageExecutionStatus.COMPLETE,
+                EditorialRevisionStatus.PARTIAL: StageExecutionStatus.PARTIAL,
+                EditorialRevisionStatus.FAILED: StageExecutionStatus.FAILED,
+            }[editorial_revision.status]
+            stage_records["audit_editing"] = _scope_record(
+                status=editorial_status,
+                reason=(
+                    "every block-locally eligible evidence exception received "
+                    "one auditable editorial decision; blocked blocks remained "
+                    "byte-for-byte untouched"
+                    if editorial_status is StageExecutionStatus.COMPLETE
+                    else "the editorial pass did not assess every eligible "
+                    "target; its partial rewrite was not applied"
+                ),
+                unit="eligible_audited_claim",
+                expected_count=len(
+                    editorial_revision.eligible_target_claim_ids
+                ),
+                evaluated_count=len(editorial_revision.evaluated_claim_ids),
+                unevaluated_ids=editorial_revision.unevaluated_claim_ids,
             )
-            try:
-                editorial_revision = await revise_audited_draft(
-                    pre_edit_draft,
-                    blocks=pre_edit_claim_decomposition.blocks,
-                    verification=pre_edit_verification,
-                    model_client=budgeted_editor_model,
-                    settings=editorial_settings,
-                )
-            except RunCostCapReached as error:
-                stage_records["audit_editing"] = _scope_record(
-                    status=StageExecutionStatus.NOT_RUN,
-                    reason=str(error),
-                    unit="audited_claim",
-                    expected_count=len(target_ids),
-                    evaluated_count=0,
-                    unevaluated_ids=target_ids,
-                )
-            else:
-                editorial_status = {
-                    EditorialRevisionStatus.COMPLETE: (
-                        StageExecutionStatus.COMPLETE
-                    ),
-                    EditorialRevisionStatus.PARTIAL: (
-                        StageExecutionStatus.PARTIAL
-                    ),
-                    EditorialRevisionStatus.FAILED: StageExecutionStatus.FAILED,
-                }[editorial_revision.status]
-                stage_records["audit_editing"] = _scope_record(
-                    status=editorial_status,
-                    reason=(
-                        "every substantive evidence exception received one "
-                        "auditable editorial decision"
-                        if editorial_status is StageExecutionStatus.COMPLETE
-                        else "the editorial pass did not assess every target; "
-                        "its partial rewrite was not applied"
-                    ),
-                    unit="audited_claim",
-                    expected_count=len(editorial_revision.target_claim_ids),
-                    evaluated_count=len(
-                        editorial_revision.evaluated_claim_ids
-                    ),
-                    unevaluated_ids=(
-                        editorial_revision.unevaluated_claim_ids
-                    ),
-                )
-                additional_usage["audit_editing"] = UsageRecord(
-                    token_count=editorial_revision.total_tokens,
-                    cost_usd=editorial_revision.total_cost_usd,
-                )
+            additional_usage["audit_editing"] = UsageRecord(
+                token_count=editorial_revision.total_tokens,
+                cost_usd=editorial_revision.total_cost_usd,
+            )
 
         if (
             editorial_revision is not None
@@ -2064,11 +2047,11 @@ async def run_harness(
                     ),
                 )
 
-            post_verify_complete = (
-                stage_records["post_edit_initial_verification"].status
-                is StageExecutionStatus.COMPLETE
-            )
-            if post_verify_complete and post_claims is not None:
+            # Checklist reconciliation is about the edited prose and its claim
+            # anchors, not whether every source relation produced a verdict. A
+            # partial verification registry must remain publishable as a partial
+            # bundle instead of suppressing this independent audit.
+            if post_claim_stage_complete and post_claims is not None:
                 item_ids = tuple(
                     item.item_id for item in loop_result.checklist.items
                 )
@@ -2142,22 +2125,26 @@ async def run_harness(
                 ] = _scope_record(
                     status=StageExecutionStatus.NOT_RUN,
                     reason=(
-                        "not run because the edited evidence registry did not "
+                        "not run because the edited claim registry did not "
                         "complete"
                     ),
                 )
 
-            post_edit_complete = all(
-                stage_records[name].status is StageExecutionStatus.COMPLETE
-                for name in post_edit_required_stages
-            )
-            if (
-                post_edit_complete
+            # Committing bytes and declaring them publication-eligible are two
+            # separate gates. A complete claim registry plus complete attribution
+            # and an actual (possibly partial) verification result bind every
+            # rendered status to the edited draft. Global stage completeness is
+            # still assessed below and keeps publication_eligible false whenever
+            # any original or re-audit work is incomplete.
+            post_edit_registry_coherent = (
+                post_claim_stage_complete
+                and post_attr_complete
                 and post_claims is not None
                 and post_attribution is not None
                 and post_verification is not None
                 and post_reconciliation is not None
-            ):
+            )
+            if post_edit_registry_coherent:
                 report = report.model_copy(
                     update={"canonical_draft": proposed_draft}
                 )
@@ -2483,6 +2470,11 @@ async def run_harness(
                 if editorial_revision is not None
                 else None
             ),
+            "editorial_admission": (
+                editorial_admission.model_dump(mode="json")
+                if editorial_admission is not None
+                else None
+            ),
             "evaluative_claim_diagnostics": (
                 evaluative_diagnostics.model_dump(mode="json")
                 if evaluative_diagnostics is not None
@@ -2591,6 +2583,7 @@ async def run_harness(
         verification=verification,
         evidence_gap=evidence_gap,
         disagreement=disagreement,
+        editorial_admission=editorial_admission,
         editorial_revision=editorial_revision,
         posthoc_retrieval_budget=posthoc_budget_audit,
         run_cost_budget=run_cost_audit,

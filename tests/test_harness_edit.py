@@ -6,11 +6,14 @@ from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
     ClaimNormalizationStatus,
+    MarkdownBlock,
+    MarkdownBlockKind,
     parse_markdown_blocks,
 )
 from open_deep_research.harness.edit import (
     EditorialAction,
     EditorialRevisionStatus,
+    audit_editorial_admission,
     revise_audited_draft,
 )
 from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
@@ -57,6 +60,77 @@ def _relation(claim_id, verdict, *, formal=False):
         span=QuoteSpan(start_char=0, end_char=26) if located else None,
         location_status=NoteLocationStatus.LOCATABLE if located else None,
         is_formal_supporting_evidence=formal,
+    )
+
+
+def _quote_unlocatable_relation(claim_id, source_id):
+    return VerifiedSourceRelation(
+        claim_id=claim_id,
+        source_id=source_id,
+        url=f"https://source.example/{source_id}",
+        publisher_domain_proxy="source.example",
+        candidate_note_ids=("note-000001",),
+        candidate_source_ids=(source_id,),
+        status=VerificationRecordStatus.QUOTE_UNLOCATABLE,
+        semantic_verdict=VerificationVerdict.SUPPORTS,
+        explanation="The proposed supporting range did not pass the protocol.",
+        is_formal_supporting_evidence=False,
+    )
+
+
+def _synthetic_block(block_id, ordinal):
+    text = f"Statement {ordinal}."
+    start = ordinal * 100
+    return MarkdownBlock(
+        block_id=block_id,
+        ordinal=ordinal,
+        kind=MarkdownBlockKind.PARAGRAPH,
+        text=text,
+        start_char=start,
+        end_char=start + len(text),
+    )
+
+
+def _synthetic_claim(claim_id, block, *, failed=False):
+    if failed:
+        return AtomicClaim(
+            claim_id=claim_id,
+            block_id=block.block_id,
+            selected_text=block.text,
+            claim_text=block.text,
+            anchor_text=None,
+            citation_requirement=CitationRequirement.EXTERNAL,
+            normalization_status=ClaimNormalizationStatus.NORMALIZATION_FAILED,
+            normalization_failure="context_span_not_verbatim",
+        )
+    return _claim(
+        claim_id,
+        block,
+        block.text,
+        block.start_char,
+        block.end_char,
+    )
+
+
+def _verification(claim, state, relations=()):
+    formal = sum(relation.is_formal_supporting_evidence for relation in relations)
+    publishers = tuple(
+        sorted(
+            {
+                relation.publisher_domain_proxy
+                for relation in relations
+                if relation.is_formal_supporting_evidence
+            }
+        )
+    )
+    return ClaimVerification(
+        claim=claim,
+        state=state,
+        corroboration_target=2,
+        relations=tuple(relations),
+        formal_supporting_evidence_count=formal,
+        publisher_domain_proxy_count=len(publishers),
+        publisher_domain_proxies=publishers,
     )
 
 
@@ -277,3 +351,234 @@ def test_protocol_failure_is_not_recast_as_an_editorial_content_problem():
     assert result.target_claim_ids == ()
     assert result.edited_draft == draft
     assert result.usage == ()
+
+
+def test_finance_09_shape_gates_only_incomplete_block_dependency_closures():
+    """Freeze the observed 111/108/3 relation and 21/15/6 edit shape.
+
+    Before block-local admission, the three incomplete relations caused the
+    whole editorial pass to be skipped. The fixture uses the exact observed
+    claim and block IDs for the two blocked dependency closures without copying
+    any topic-specific prose into the test.
+    """
+
+    safe_layout = {
+        "block-0001": 2,
+        "block-0002": 2,
+        "block-0003": 2,
+        "block-0004": 2,
+        "block-0005": 2,
+        "block-0006": 1,
+        "block-0007": 1,
+        "block-0008": 1,
+        "block-0009": 2,
+    }
+    blocks = [
+        _synthetic_block(block_id, ordinal)
+        for ordinal, block_id in enumerate(safe_layout, start=1)
+    ]
+    blocked_22 = _synthetic_block("block-0022", 22)
+    blocked_29 = _synthetic_block("block-0029", 29)
+    unrelated = _synthetic_block("block-9000", 90)
+    blocks.extend((blocked_22, blocked_29, unrelated))
+
+    records = []
+    next_target = 1
+    for block in blocks[:9]:
+        for _ in range(safe_layout[block.block_id]):
+            claim = _synthetic_claim(f"claim-{next_target:04d}", block)
+            records.append(
+                _verification(
+                    claim,
+                    ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                    (_relation(claim.claim_id, VerificationVerdict.DOES_NOT_SUPPORT),),
+                )
+            )
+            next_target += 1
+
+    for claim_id in ("claim-0075", "claim-0077", "claim-0078"):
+        claim = _synthetic_claim(claim_id, blocked_22)
+        records.append(
+            _verification(
+                claim,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (_relation(claim_id, VerificationVerdict.DOES_NOT_SUPPORT),),
+            )
+        )
+    normalized_failure = _synthetic_claim(
+        "claim-0076", blocked_22, failed=True
+    )
+    records.append(
+        _verification(
+            normalized_failure,
+            ClaimEvidenceState.NORMALIZATION_FAILED,
+        )
+    )
+    for claim_id in ("claim-0102", "claim-0103", "claim-0104"):
+        claim = _synthetic_claim(claim_id, blocked_29)
+        records.append(
+            _verification(
+                claim,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (_relation(claim_id, VerificationVerdict.DOES_NOT_SUPPORT),),
+            )
+        )
+    quote_failure = _synthetic_claim("claim-0105", blocked_29)
+    records.append(
+        _verification(
+            quote_failure,
+            ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE,
+            (_quote_unlocatable_relation("claim-0105", "source-0105"),),
+        )
+    )
+
+    # 87 completed non-target relations plus two unrelated incomplete
+    # relations establish the real aggregate: 111 total, 108 completed, 3
+    # quote_unlocatable. The normalization failure has no relation of its own.
+    for index in range(87):
+        claim_id = f"claim-filler-{index:04d}"
+        claim = _synthetic_claim(claim_id, unrelated)
+        records.append(
+            _verification(
+                claim,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                (_relation(claim_id, VerificationVerdict.SUPPORTS, formal=True),),
+            )
+        )
+    for index in range(2):
+        claim_id = f"claim-unrelated-incomplete-{index + 1}"
+        claim = _synthetic_claim(claim_id, unrelated)
+        records.append(
+            _verification(
+                claim,
+                ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE,
+                (_quote_unlocatable_relation(claim_id, f"source-u{index + 1}"),),
+            )
+        )
+
+    result = VerificationResult(claims=tuple(records))
+    relations = [
+        relation for record in result.claims for relation in record.relations
+    ]
+    audit = audit_editorial_admission(result, blocks=blocks)
+
+    assert len(relations) == 111
+    assert sum(
+        relation.status is VerificationRecordStatus.COMPLETED
+        for relation in relations
+    ) == 108
+    assert sum(
+        relation.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+        for relation in relations
+    ) == 3
+    assert len(audit.target_claim_ids) == 21
+    assert len(audit.eligible_target_claim_ids) == 15
+    assert len(audit.blocked_target_claim_ids) == 6
+    assert len(audit.eligible_block_ids) == 9
+    assert audit.blocked_block_ids == ("block-0022", "block-0029")
+    assert audit.gating_unit == "markdown_block"
+    assert {
+        failure.dependency_claim_id: (
+            failure.dependency_role,
+            failure.block_id,
+            failure.blocked_target_claim_ids,
+        )
+        for failure in audit.blocked_dependencies
+    } == {
+        "claim-0076": (
+            "co_located_non_target",
+            "block-0022",
+            ("claim-0075", "claim-0077", "claim-0078"),
+        ),
+        "claim-0105": (
+            "co_located_non_target",
+            "block-0029",
+            ("claim-0102", "claim-0103", "claim-0104"),
+        ),
+    }
+    failure_reasons = {
+        failure.dependency_claim_id: failure.failure_reasons
+        for failure in audit.blocked_dependencies
+    }
+    assert failure_reasons["claim-0076"] == (
+        "normalization_failed:context_span_not_verbatim",
+    )
+    assert failure_reasons["claim-0105"] == (
+        "claim_state:support_quote_unlocatable",
+        "claim_source_relation_incomplete:source-0105:quote_unlocatable",
+    )
+    assert audit.unrelated_incomplete_claim_ids == (
+        "claim-unrelated-incomplete-1",
+        "claim-unrelated-incomplete-2",
+    )
+
+
+def test_same_block_incomplete_dependency_blocks_bytes_but_not_safe_sibling_block():
+    draft = "# Report\n\nUnsupported safe detail.\n\nUnsupported blocked detail."
+    heading, safe_block, blocked_block = parse_markdown_blocks(draft)
+    safe_target = _synthetic_claim("claim-safe", safe_block)
+    blocked_target = _synthetic_claim("claim-blocked", blocked_block)
+    blocked_dependency = _synthetic_claim(
+        "claim-blocked-dependency", blocked_block, failed=True
+    )
+    verification = VerificationResult(
+        claims=(
+            _verification(
+                safe_target,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (_relation("claim-safe", VerificationVerdict.DOES_NOT_SUPPORT),),
+            ),
+            _verification(
+                blocked_target,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (
+                    _relation(
+                        "claim-blocked", VerificationVerdict.DOES_NOT_SUPPORT
+                    ),
+                ),
+            ),
+            _verification(
+                blocked_dependency,
+                ClaimEvidenceState.NORMALIZATION_FAILED,
+            ),
+        )
+    )
+    replacement = "Qualified safe detail."
+    model = ScriptedEditor(
+        {
+            "blocks": [
+                {
+                    "block_id": safe_block.block_id,
+                    "replacement_text": replacement,
+                    "decisions": [
+                        {
+                            "claim_id": "claim-safe",
+                            "action": "qualify",
+                            "reason": "Use the narrower audited wording.",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        revise_audited_draft(
+            draft,
+            blocks=(heading, safe_block, blocked_block),
+            verification=verification,
+            model_client=model,
+        )
+    )
+
+    assert result.status is EditorialRevisionStatus.COMPLETE
+    assert result.eligible_target_claim_ids == ("claim-safe",)
+    assert result.blocked_target_claim_ids == ("claim-blocked",)
+    assert result.evaluated_claim_ids == ("claim-safe",)
+    assert result.edited_draft == (
+        "# Report\n\nQualified safe detail.\n\nUnsupported blocked detail."
+    )
+    assert "claim-blocked" not in model.prompts[0]
+    assert result.blocked_dependencies[0].dependency_role == (
+        "co_located_non_target"
+    )
