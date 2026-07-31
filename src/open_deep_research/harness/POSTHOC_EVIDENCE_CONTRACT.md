@@ -54,8 +54,11 @@ claim.
 
 `claim_text` is self-contained and may differ from the report wording.
 `anchor_text` is a verbatim, contiguous substring of the canonical draft.
-Failure to find one unique anchor is retained as `normalization_failed`; it is
-never silently discarded.
+The extraction model selects report segment IDs; code resolves the range,
+copies the authoritative report bytes, and verifies that it stays inside the
+selected Markdown block. Invalid pointers are retained as
+`normalization_failed`; they are never clamped, repaired, or silently
+discarded.
 
 Granularity is not a score-tuning parameter. Changing it requires a new
 granularity contract version and re-scoring all historical fixtures.
@@ -63,9 +66,11 @@ granularity contract version and re-scoring all historical fixtures.
 ## Source fidelity
 
 Writing, verification, and footnote rendering consume `source_quote`, never
-`model_quote`. A supporting quote must be mechanically located in the cached
-source text. Diagnostic fragments, paraphrases, and unlocatable model quotes
-cannot become supporting evidence.
+`model_quote`. The verifier selects a continuous source segment range; code
+copies `source_quote` from the hash-bound cached source and owns its offsets.
+Invalid, reversed, oversized, or unknown ranges cannot become supporting
+evidence. Historical diagnostic fragments, paraphrases, and unlocatable model
+quotes likewise cannot become supporting evidence.
 
 The verifier may judge a source relation as `supports`, `does_not_support`,
 `contradicts`, or `not_enough_information`. Execution errors are recorded

@@ -453,7 +453,8 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
                 {
                     "claim_id": claim.claim_id,
                     "verdict": "supports",
-                    "quote": "The event occurred.",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
                     "explanation": "independent statement",
                 }
             ]
@@ -851,7 +852,8 @@ def test_new_source_and_notes_enter_gap_history_without_collection_rounds():
                 {
                     "claim_id": claim.claim_id,
                     "verdict": "contradicts",
-                    "quote": "The event occurred.",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
                     "explanation": "the source relation was checked",
                 }
             ]
@@ -1013,7 +1015,8 @@ def test_same_brand_on_another_domain_is_rejected_before_read():
                 {
                     "claim_id": claim.claim_id,
                     "verdict": "supports",
-                    "quote": "The event occurred.",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
                     "explanation": "same original source",
                 }
             ]

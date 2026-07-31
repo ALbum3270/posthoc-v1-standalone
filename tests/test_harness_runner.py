@@ -119,9 +119,8 @@ class ClaimModel:
                 "claims": [
                     {
                         "claim_id": "claim-0001",
-                        "anchor_text": paragraph.text,
-                        "start_char": paragraph.start_char,
-                        "end_char": paragraph.end_char,
+                        "start_segment_id": "S000002",
+                        "end_segment_id": "S000002",
                     }
                 ]
             }
@@ -295,7 +294,8 @@ class EvidenceVerificationModel:
                         {
                             "claim_id": "claim-0001",
                             "verdict": "supports",
-                            "quote": "exact source evidence 2026.",
+                            "start_segment_id": "S000001",
+                            "end_segment_id": "S000001",
                             "explanation": "The full source supports it.",
                         }
                     ]
@@ -494,7 +494,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     }
     assert audit["posthoc_evidence"]["claim_decomposition"][
         "anchor_copied_from_selection_rate"
-    ] == 1.0
+    ] == 0.0
     diagnostic = audit["posthoc_evidence"][
         "evaluative_claim_diagnostics"
     ]
@@ -645,11 +645,9 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     assert "source_id" not in sources_markdown
     assert "start_char" not in sources_markdown
     assert "end_char" not in sources_markdown
-    assert result.verification.claims[0].relations[0].model_quote == (
-        "exact source evidence 2026."
-    )
+    assert result.verification.claims[0].relations[0].model_quote is None
     assert result.verification.claims[0].relations[0].source_quote == (
-        "ExactSourceEvidence 2026"
+        "ExactSourceEvidence 2026."
     )
     audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
     assert audit["usage"]["verification"] == {
@@ -658,7 +656,7 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     }
     assert audit["posthoc_evidence"]["rendering"]["footnotes"][0][
         "source_quote"
-    ] == "ExactSourceEvidence 2026"
+    ] == "ExactSourceEvidence 2026."
     assert audit["artifacts"]["sources_sha256"] == hashlib.sha256(
         result.sources_path.read_bytes()
     ).hexdigest()

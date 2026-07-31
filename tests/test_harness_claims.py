@@ -21,6 +21,7 @@ from open_deep_research.harness.claims import (
     parse_markdown_blocks,
     source_inheritance_allowed,
 )
+from open_deep_research.harness.source_spans import build_source_span_registry
 
 
 class ScriptedClaimModel:
@@ -43,6 +44,35 @@ def _span(report: str, text: str) -> dict[str, object]:
         "text": text,
         "start_char": start,
         "end_char": start + len(text),
+    }
+
+
+def _pointer(
+    report: str,
+    text: str,
+    *,
+    occurrence: int = 0,
+) -> dict[str, str]:
+    starts: list[int] = []
+    cursor = 0
+    while True:
+        start = report.find(text, cursor)
+        if start < 0:
+            break
+        starts.append(start)
+        cursor = start + 1
+    start = starts[occurrence]
+    end = start + len(text)
+    registry = build_source_span_registry(report)
+    selected = [
+        segment
+        for segment in registry.segments
+        if segment.start_char < end and start < segment.end_char
+    ]
+    assert selected
+    return {
+        "start_segment_id": selected[0].segment_id,
+        "end_segment_id": selected[-1].segment_id,
     }
 
 
@@ -124,7 +154,7 @@ It expanded the facility in 2022.
 """
     blocks = parse_markdown_blocks(report)
     context = _span(report, "A group opened a facility.")
-    anchor = _span(report, "It expanded the facility in 2022.")
+    anchor_pointer = _pointer(report, "It expanded the facility in 2022.")
     model = ScriptedClaimModel(
         {
             "blocks": [
@@ -170,9 +200,7 @@ It expanded the facility in 2022.
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "anchor_text": anchor["text"],
-                    "start_char": 0,
-                    "end_char": 1,
+                    **anchor_pointer,
                 }
             ]
         },
@@ -187,8 +215,12 @@ It expanded the facility in 2022.
     claim = result.claims[0]
     assert claim.claim_text == "The group expanded the facility in 2022."
     assert claim.claim_text not in report
-    assert claim.anchor_text_proposal == "It expanded the facility in 2022."
+    assert claim.anchor_text_proposal is None
     assert claim.anchor_text == "It expanded the facility in 2022."
+    assert claim.anchor_start_segment_id == anchor_pointer["start_segment_id"]
+    assert claim.anchor_end_segment_id == anchor_pointer["end_segment_id"]
+    assert claim.anchor_span_registry_id is not None
+    assert claim.anchor_report_text_sha256 is not None
     assert report[claim.start_char : claim.end_char] == claim.anchor_text
     assert claim.context_spans[0].text == "A group opened a facility."
     assert claim.context_spans[0].start_char == report.index(
@@ -203,12 +235,12 @@ It expanded the facility in 2022.
     assert result.total_tokens == 30
     assert result.total_cost_usd == 0.03
     assert result.anchor_proposal_count == 1
-    assert result.anchor_copied_from_selection_count == 1
-    assert result.anchor_copied_from_selection_rate == 1.0
+    assert result.anchor_copied_from_selection_count == 0
+    assert result.anchor_copied_from_selection_rate == 0.0
 
     assert "Do not add facts" in model.prompts[1]
     assert "otherwise make\nthe assertion stronger" in model.prompts[1]
-    assert "calculate start_char/end_char" in model.prompts[2]
+    assert "Do not copy anchor text" in model.prompts[2]
     assert '"start_char":0' not in model.prompts[2]
 
 
@@ -262,7 +294,7 @@ def test_each_stage_omission_has_a_claim_specific_diagnostic() -> None:
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "anchor_text": "First fact.",
+                    **_pointer(report, "First fact."),
                 }
             ]
         },
@@ -351,7 +383,7 @@ def test_legacy_no_verifiable_with_none_assertion_is_mechanically_derived() -> N
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "anchor_text": report,
+                    **_pointer(report, report),
                 }
             ]
         },
@@ -511,7 +543,7 @@ def test_decontextualization_and_extraction_batch_every_selected_claim() -> None
             "claims": [
                 {
                     "claim_id": f"claim-{index:04d}",
-                    "anchor_text": anchors[index - 1],
+                    **_pointer(report, anchors[index - 1]),
                 }
                 for index in indexes
             ]
@@ -563,7 +595,7 @@ def test_decontextualization_and_extraction_batch_every_selected_claim() -> None
 def test_malformed_selection_entry_does_not_discard_valid_sibling() -> None:
     report = "A device stopped.\n\nAnother paragraph."
     blocks = parse_markdown_blocks(report)
-    anchor = _span(report, "A device stopped.")
+    anchor_pointer = _pointer(report, "A device stopped.")
     model = ScriptedClaimModel(
         {
             "blocks": [
@@ -598,9 +630,7 @@ def test_malformed_selection_entry_does_not_discard_valid_sibling() -> None:
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "anchor_text": anchor["text"],
-                    "start_char": anchor["start_char"],
-                    "end_char": anchor["end_char"],
+                    **anchor_pointer,
                 }
             ]
         },
@@ -621,10 +651,15 @@ def test_malformed_selection_entry_does_not_discard_valid_sibling() -> None:
     )
 
 
-def test_repeated_anchor_is_normalization_failed_without_position_guess() -> None:
+def test_segment_pointer_disambiguates_repeated_report_text() -> None:
     report = "The system changed.\n\nThe system changed."
     blocks = parse_markdown_blocks(report)
     second_start = report.rindex("The system changed.")
+    second_pointer = _pointer(
+        report,
+        "The system changed.",
+        occurrence=1,
+    )
     model = ScriptedClaimModel(
         {
             "blocks": [
@@ -660,9 +695,7 @@ def test_repeated_anchor_is_normalization_failed_without_position_guess() -> Non
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "anchor_text": "The system changed.",
-                    "start_char": second_start,
-                    "end_char": second_start + len("The system changed."),
+                    **second_pointer,
                 }
             ]
         },
@@ -671,13 +704,12 @@ def test_repeated_anchor_is_normalization_failed_without_position_guess() -> Non
     result = asyncio.run(decompose_claims(report, model_client=model))
 
     claim = result.claims[0]
-    assert claim.normalization_status == (
-        ClaimNormalizationStatus.NORMALIZATION_FAILED
-    )
-    assert claim.normalization_failure == "anchor_not_unique"
-    assert claim.start_char is None
-    assert claim.end_char is None
+    assert claim.normalization_status == ClaimNormalizationStatus.LOCATED
+    assert claim.normalization_failure is None
+    assert claim.start_char == second_start
+    assert claim.end_char == second_start + len("The system changed.")
     assert claim.anchor_text == "The system changed."
+    assert claim.anchor_start_segment_id == second_pointer["start_segment_id"]
     assert claim.source_resolution == SourceResolution.UNRESOLVED
 
 
@@ -774,7 +806,7 @@ def test_context_span_uses_conservative_repair_within_one_markdown_unit() -> Non
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "anchor_text": "It stopped.",
+                    **_pointer(report, "It stopped."),
                 }
             ]
         },
@@ -845,7 +877,7 @@ def test_context_repair_cannot_cross_markdown_units() -> None:
     )
 
 
-def test_anchor_repair_retains_model_proposal_and_uses_report_text() -> None:
+def test_anchor_pointer_uses_authoritative_report_segment() -> None:
     report = "The event happened, affecting others."
     blocks = parse_markdown_blocks(report)
     proposed_anchor = "The event happened."
@@ -878,7 +910,7 @@ def test_anchor_repair_retains_model_proposal_and_uses_report_text() -> None:
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "anchor_text": proposed_anchor,
+                    **_pointer(report, report),
                 }
             ]
         },
@@ -888,15 +920,15 @@ def test_anchor_repair_retains_model_proposal_and_uses_report_text() -> None:
 
     claim = result.claims[0]
     assert claim.normalization_status == ClaimNormalizationStatus.LOCATED
-    assert claim.anchor_text_proposal == proposed_anchor
-    assert claim.anchor_text == "The event happened"
+    assert claim.anchor_text_proposal is None
+    assert claim.anchor_text == report
     assert report[claim.start_char : claim.end_char] == claim.anchor_text
     assert result.anchor_proposal_count == 1
-    assert result.anchor_copied_from_selection_count == 1
-    assert result.anchor_copied_from_selection_rate == 1.0
+    assert result.anchor_copied_from_selection_count == 0
+    assert result.anchor_copied_from_selection_rate == 0.0
 
 
-def test_anchor_rewrite_remains_failed_after_conservative_repair() -> None:
+def test_invalid_anchor_pointer_remains_failed_without_clamping() -> None:
     report = "A person, a visible figure, led the group."
     blocks = parse_markdown_blocks(report)
     rewritten = "The person was a visible figure."
@@ -929,7 +961,8 @@ def test_anchor_rewrite_remains_failed_after_conservative_repair() -> None:
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "anchor_text": rewritten,
+                    "start_segment_id": "S999998",
+                    "end_segment_id": "S999999",
                 }
             ]
         },
@@ -941,11 +974,121 @@ def test_anchor_rewrite_remains_failed_after_conservative_repair() -> None:
     assert claim.normalization_status == (
         ClaimNormalizationStatus.NORMALIZATION_FAILED
     )
-    assert claim.normalization_failure == "anchor_not_found"
-    assert claim.anchor_text_proposal == rewritten
-    assert claim.anchor_text == rewritten
+    assert claim.normalization_failure == "anchor_pointer_invalid"
+    assert claim.anchor_text_proposal is None
+    assert claim.anchor_text is None
+    assert claim.anchor_start_segment_id == "S999998"
+    assert claim.anchor_end_segment_id == "S999999"
     assert claim.start_char is None
     assert claim.end_char is None
+
+
+def test_finance07_style_rewritten_selection_uses_report_pointer_not_copy() -> None:
+    """A paraphrased selection no longer becomes the report anchor proposal."""
+
+    report = (
+        "- **Milestone**  \n"
+        "  On day one, an initial plan was announced. "
+        "On day two, the plan was reversed after a review."
+    )
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "one assertion",
+                    "assertions": [
+                        {
+                            "selected_text": "On day two, the plan changed.",
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "The plan changed on day two.",
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    **_pointer(
+                        report,
+                        "On day two, the plan was reversed after a review.",
+                    ),
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
+    assert claim.anchor_text == (
+        "On day two, the plan was reversed after a review."
+    )
+    assert claim.anchor_text != claim.selected_text
+    assert report[claim.start_char : claim.end_char] == claim.anchor_text
+
+
+def test_anchor_pointer_outside_selected_block_is_still_rejected() -> None:
+    report = "First statement.\n\nSecond statement."
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "selected",
+                    "assertions": [
+                        {
+                            "selected_text": "First statement.",
+                            "citation_requirement": "external",
+                        }
+                    ],
+                },
+                {
+                    "block_id": blocks[1].block_id,
+                    "rationale": "empty",
+                    "assertions": [],
+                },
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "First statement.",
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    **_pointer(report, "Second statement."),
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status is (
+        ClaimNormalizationStatus.NORMALIZATION_FAILED
+    )
+    assert claim.normalization_failure == "anchor_outside_selected_block"
 
 
 def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
@@ -973,6 +1116,8 @@ def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
     assert "source_resolution" not in extraction
     assert '"start_char":0' not in decontext
     assert '"start_char":0' not in extraction
+    assert '"anchor_text"' not in extraction
+    assert '"start_segment_id"' in extraction
     assert all("json" in prompt.lower() for prompt in (
         selection,
         decontext,

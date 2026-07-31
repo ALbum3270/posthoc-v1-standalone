@@ -53,15 +53,14 @@ class ScriptedVerificationModel:
 
 
 class EchoSupportModel:
-    def __init__(self, quote: str) -> None:
-        self.quote = quote
+    def __init__(self) -> None:
         self.prompts: list[str] = []
         self.claim_batches: list[tuple[str, ...]] = []
 
     async def generate(self, prompt: str) -> dict[str, object]:
         self.prompts.append(prompt)
         match = re.search(
-            r"Claims:\n(.*?)\n\nBEGIN COMPLETE CACHED SOURCE",
+            r"Claims:\n(.*?)\n\nBEGIN COMPLETE CACHED SOURCE WITH",
             prompt,
             flags=re.DOTALL,
         )
@@ -76,7 +75,8 @@ class EchoSupportModel:
                         {
                             "claim_id": claim_id,
                             "verdict": "supports",
-                            "quote": self.quote,
+                            "start_segment_id": "S000002",
+                            "end_segment_id": "S000002",
                             "explanation": "The complete source states it.",
                         }
                         for claim_id in claim_ids
@@ -146,12 +146,17 @@ def _attribution(
 def _result(
     claim_id: str,
     verdict: str,
-    quote: str | None,
+    segment_range: tuple[str, str] | None,
 ) -> dict[str, object]:
     return {
         "claim_id": claim_id,
         "verdict": verdict,
-        "quote": quote,
+        "start_segment_id": (
+            segment_range[0] if segment_range is not None else None
+        ),
+        "end_segment_id": (
+            segment_range[1] if segment_range is not None else None
+        ),
         "explanation": "Auditable semantic judgement.",
     }
 
@@ -174,7 +179,7 @@ def test_groups_by_url_sorts_claim_ids_and_never_exceeds_twenty() -> None:
         )
         for index, claim in enumerate(reversed(claims))
     ]
-    model = EchoSupportModel("Exact supporting sentence.")
+    model = EchoSupportModel()
 
     result = asyncio.run(
         verify_attributions(
@@ -189,8 +194,12 @@ def test_groups_by_url_sorts_claim_ids_and_never_exceeds_twenty() -> None:
         f"claim-{index:02d}" for index in range(20)
     )
     assert model.claim_batches[1] == ("claim-20",)
-    assert all(source in prompt for prompt in model.prompts)
-    assert all("TAIL-SENTINEL-THAT-MUST-NOT-BE-TRUNCATED" in prompt for prompt in model.prompts)
+    assert all("<S000001>Beginning" in prompt for prompt in model.prompts)
+    assert all("<S000002>Exact supporting" in prompt for prompt in model.prompts)
+    assert all(
+        "TAIL-SENTINEL-THAT-MUST-NOT-BE-TRUNCATED" in prompt
+        for prompt in model.prompts
+    )
     assert len(result.claims) == 21
     assert all(
         claim.state == ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
@@ -233,7 +242,11 @@ def test_malformed_sibling_is_retried_without_discarding_valid_result() -> None:
             "content": json.dumps(
                 {
                     "results": [
-                        _result("claim-1", "supports", "First exact passage."),
+                        _result(
+                            "claim-1",
+                            "supports",
+                            ("S000001", "S000001"),
+                        ),
                         _result("claim-2", "supports", None),
                     ]
                 }
@@ -248,7 +261,7 @@ def test_malformed_sibling_is_retried_without_discarding_valid_result() -> None:
                         _result(
                             "claim-2",
                             "supports",
-                            "Second exact passage.",
+                            ("S000002", "S000002"),
                         )
                     ]
                 }
@@ -280,7 +293,7 @@ def test_malformed_sibling_is_retried_without_discarding_valid_result() -> None:
     )
 
 
-def test_strict_then_repair_gate_and_unlocatable_note_history() -> None:
+def test_pointer_gate_and_unlocatable_note_history() -> None:
     claim = _claim("claim-evidence")
     strict_url = "https://strict.example/a"
     repair_url = "https://repair.example/b"
@@ -318,15 +331,10 @@ def test_strict_then_repair_gate_and_unlocatable_note_history() -> None:
     model = ScriptedVerificationModel(
         {
             "results": [
-                _result(claim.claim_id, "supports", "alpha beta 2026.")
-            ]
-        },
-        {
-            "results": [
                 _result(
                     claim.claim_id,
                     "supports",
-                    "Original wording is materially different.",
+                    ("S000001", "S000001"),
                 )
             ]
         },
@@ -335,7 +343,7 @@ def test_strict_then_repair_gate_and_unlocatable_note_history() -> None:
                 _result(
                     claim.claim_id,
                     "supports",
-                    "Exact source-authored passage.",
+                    ("S000001", "S000001"),
                 )
             ]
         },
@@ -344,7 +352,16 @@ def test_strict_then_repair_gate_and_unlocatable_note_history() -> None:
                 _result(
                     claim.claim_id,
                     "supports",
-                    "A paraphrase with different words.",
+                    ("S000001", "S000001"),
+                )
+            ]
+        },
+        {
+            "results": [
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S999999", "S999999"),
                 )
             ]
         },
@@ -367,11 +384,11 @@ def test_strict_then_repair_gate_and_unlocatable_note_history() -> None:
     verified = result.claims[0]
     by_url = {relation.url: relation for relation in verified.relations}
     assert by_url[strict_url].location_status == NoteLocationStatus.LOCATABLE
-    assert by_url[repair_url].location_status == (
-        NoteLocationStatus.REPAIRED_LOCATABLE
-    )
-    assert by_url[repair_url].model_quote == "alpha beta 2026."
-    assert by_url[repair_url].source_quote == "AlphaBeta 2026"
+    assert by_url[repair_url].location_status == NoteLocationStatus.LOCATABLE
+    assert by_url[repair_url].model_quote is None
+    assert by_url[repair_url].source_quote == "AlphaBeta 2026."
+    assert by_url[repair_url].start_segment_id == "S000001"
+    assert by_url[repair_url].span_registry_id is not None
     assert by_url[rescued_url].is_formal_supporting_evidence is True
     assert by_url[rescued_url].source_quote == (
         "Original wording is materially different."
@@ -408,7 +425,7 @@ def test_support_and_contradiction_aggregate_as_conflicting_evidence() -> None:
                 _result(
                     claim.claim_id,
                     "contradicts",
-                    "The source explicitly contradicts the assertion.",
+                    ("S000001", "S000001"),
                 )
             ]
         },
@@ -417,7 +434,7 @@ def test_support_and_contradiction_aggregate_as_conflicting_evidence() -> None:
                 _result(
                     claim.claim_id,
                     "supports",
-                    "The source explicitly supports the assertion.",
+                    ("S000001", "S000001"),
                 )
             ]
         },
@@ -447,13 +464,17 @@ def test_support_and_contradiction_aggregate_as_conflicting_evidence() -> None:
     assert verified.formal_supporting_evidence_count == 1
 
 
-def test_noncontiguous_composite_diagnostic_cannot_become_formal_evidence() -> None:
+def test_invalid_segment_pointer_cannot_become_formal_evidence() -> None:
     claim = _claim("claim-composite")
     url = "https://composite.example/article"
     model = ScriptedVerificationModel(
         {
             "results": [
-                _result(claim.claim_id, "supports", "Alpha...Beta")
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S999998", "S999999"),
+                )
             ]
         }
     )
@@ -477,10 +498,136 @@ def test_noncontiguous_composite_diagnostic_cannot_become_formal_evidence() -> N
 
     relation = result.claims[0].relations[0]
     assert relation.status == VerificationRecordStatus.QUOTE_UNLOCATABLE
-    assert relation.quote_failure_reason.value == "noncontiguous_composite"
+    assert relation.error is not None
+    assert "unknown start_segment_id" in relation.error
+    assert relation.start_segment_id == "S999998"
     assert relation.source_quote is None
     assert relation.span is None
     assert relation.is_formal_supporting_evidence is False
+
+
+def test_finance07_style_cleaned_source_artifact_is_copied_by_code() -> None:
+    """Reproduce the free-copy failure shape from finance-07.
+
+    The naturalized model quote omitted conversion artifacts and therefore
+    could not be located. The model now selects the segment; code retains the
+    exact cached bytes instead of asking it to reproduce them.
+    """
+
+    claim = _claim("claim-artifact")
+    url = "https://artifact.example/article"
+    source = (
+        "The record listed $22currency-dollar22\\$22$ 22 units each."
+    )
+    naturalized_free_copy = "The record listed $22 units each."
+    assert naturalized_free_copy not in source
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S000001", "S000001"),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-artifact"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert '"quote"' not in model.prompts[0]
+    assert '"start_segment_id"' in model.prompts[0]
+    assert relation.status is VerificationRecordStatus.COMPLETED
+    assert relation.model_quote is None
+    assert relation.source_quote == source
+    assert source[relation.span.start_char : relation.span.end_char] == source
+    assert relation.is_formal_supporting_evidence is True
+
+
+def test_verifier_range_crosses_adjacent_units_but_stays_contiguous() -> None:
+    claim = _claim("claim-adjacent")
+    url = "https://adjacent.example/article"
+    source = "The first fact holds.\n\nTherefore the result follows."
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S000001", "S000002"),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-adjacent"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.source_quote == source
+    assert relation.start_segment_id == "S000001"
+    assert relation.end_segment_id == "S000002"
+
+
+def test_oversized_verifier_range_is_rejected_whole_without_truncation() -> None:
+    claim = _claim("claim-oversized")
+    url = "https://oversized.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S000001", "S000013"),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-oversized"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+    assert relation.source_quote is None
+    assert relation.span is None
+    assert relation.error is not None
+    assert "span_too_many_segments" in relation.error
+    assert relation.start_segment_id == "S000001"
+    assert relation.end_segment_id == "S000013"
 
 
 def test_no_candidate_and_all_admission_or_model_failures_remain_distinct() -> None:
@@ -622,12 +769,20 @@ def test_publisher_count_is_disclosed_as_a_proxy_not_strict_independence() -> No
     model = ScriptedVerificationModel(
         {
             "results": [
-                _result(claim.claim_id, "supports", "Exact claim support.")
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S000001", "S000001"),
+                )
             ]
         },
         {
             "results": [
-                _result(claim.claim_id, "supports", "Exact claim support.")
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S000001", "S000001"),
+                )
             ]
         },
     )

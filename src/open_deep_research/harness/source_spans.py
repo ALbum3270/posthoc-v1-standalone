@@ -86,7 +86,7 @@ class SourceSpanRegistry(BaseModel):
 
 
 class ResolvedSourceSpan(BaseModel):
-    """A mechanically resolved continuous range in one Markdown unit."""
+    """A mechanically resolved continuous range in authoritative source text."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -363,8 +363,14 @@ def resolve_source_span(
     *,
     start_segment_id: str,
     end_segment_id: str,
+    allow_cross_unit: bool = False,
 ) -> ResolvedSourceSpan:
-    """Resolve one valid, ordered range without clamping or truncation."""
+    """Resolve one valid, ordered range without clamping or truncation.
+
+    Note extraction keeps the default one-unit boundary. Verification may opt
+    into a continuous range across adjacent Markdown units; the returned quote
+    is still one exact source slice and never a join of separated fragments.
+    """
 
     _validate_registry_source(source_text, registry)
     by_id = {segment.segment_id: segment for segment in registry.segments}
@@ -376,10 +382,12 @@ def resolve_source_span(
         raise ValueError(f"unknown end_segment_id {end_segment_id!r}")
     if start.ordinal > end.ordinal:
         raise ValueError("segment range is reversed")
-    if start.unit_id != end.unit_id:
+    if not allow_cross_unit and start.unit_id != end.unit_id:
         raise ValueError("segment range crosses a Markdown unit boundary")
     selected = registry.segments[start.ordinal : end.ordinal + 1]
-    if any(segment.unit_id != start.unit_id for segment in selected):
+    if not allow_cross_unit and any(
+        segment.unit_id != start.unit_id for segment in selected
+    ):
         raise ValueError("segment range crosses a Markdown unit boundary")
     source_quote = source_text[start.start_char : end.end_char]
     if not source_quote:

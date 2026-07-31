@@ -24,6 +24,12 @@ from open_deep_research.harness.notes import (
     QuoteFailureReason,
     locate_verification_quote,
 )
+from open_deep_research.harness.source_spans import (
+    SourceSpanRegistry,
+    build_source_span_registry,
+    render_segmented_source,
+    resolve_source_span,
+)
 
 
 class MarkdownBlockKind(str, Enum):
@@ -207,6 +213,11 @@ class AtomicClaim(BaseModel):
     claim_text: str | None
     anchor_text: str | None
     anchor_text_proposal: str | None = None
+    anchor_start_segment_id: str | None = None
+    anchor_end_segment_id: str | None = None
+    anchor_span_registry_id: str | None = None
+    anchor_report_text_sha256: str | None = None
+    anchor_segmentation_version: str | None = None
     start_char: int | None = Field(default=None, ge=0)
     end_char: int | None = Field(default=None, ge=0)
     context_spans: tuple[ContextSpan, ...] = ()
@@ -218,6 +229,19 @@ class AtomicClaim(BaseModel):
 
     @model_validator(mode="after")
     def _location_fields_match_status(self) -> AtomicClaim:
+        pointer = (
+            self.anchor_start_segment_id,
+            self.anchor_end_segment_id,
+            self.anchor_span_registry_id,
+            self.anchor_report_text_sha256,
+            self.anchor_segmentation_version,
+        )
+        if any(value is not None for value in pointer) and not all(
+            value is not None for value in pointer
+        ):
+            raise ValueError(
+                "anchor segment pointers require complete registry binding"
+            )
         location = (self.anchor_text, self.start_char, self.end_char)
         if self.normalization_status == ClaimNormalizationStatus.LOCATED:
             if any(value is None for value in location):
@@ -401,19 +425,19 @@ class _DecontextualizedClaim(BaseModel):
 
 
 class _ExtractedAnchor(BaseModel):
-    # Ignore legacy model-supplied offsets during rollout. They are neither
-    # trusted nor consulted; code uniquely locates anchor_text below.
-    model_config = ConfigDict(extra="ignore", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     claim_id: str
-    anchor_text: str = Field(min_length=1)
+    start_segment_id: str = Field(min_length=1)
+    end_segment_id: str = Field(min_length=1)
 
-    @field_validator("anchor_text")
+    @field_validator("start_segment_id", "end_segment_id")
     @classmethod
-    def _anchor_not_blank(cls, value: str) -> str:
-        if not value:
-            raise ValueError("anchor_text must not be empty")
-        return value
+    def _segment_id_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("anchor segment IDs must not be blank")
+        return normalized
 
 
 _ATX_HEADING = re.compile(
@@ -712,22 +736,21 @@ Selected assertions:
 _EXTRACTION_PROMPT = """\
 Stage 3 of 3 — extraction.
 
-For each claim_id, identify one exact, contiguous anchor_text in the canonical
-report that expresses the selected assertion. Copy it verbatim, including its
-original punctuation and capitalization. Do not calculate or return character
-offsets. Do not use claim_text as anchor_text unless those exact bytes occur
-in the report. Do not join noncontiguous fragments.
+For each claim_id, identify the shortest continuous segment range in the
+canonical report that expresses the selected assertion. Return only its
+start_segment_id and end_segment_id. The range must stay inside that claim's
+supplied block_id. Do not copy anchor text or calculate character offsets. Do
+not join noncontiguous fragments.
 
-The code will require exactly one occurrence of anchor_text in the entire
-report, calculate start_char/end_char from that occurrence, and mechanically
-check report[start_char:end_char] == anchor_text. It will retain a failed
-normalization instead of guessing.
+Code resolves the IDs against a registry bound to the exact report bytes,
+copies anchor_text from report[start_char:end_char], and rejects unknown,
+reversed, cross-unit, or wrong-block ranges instead of guessing.
 
 Return exactly one entry per claim_id as JSON only:
 {{"claims":[{{"claim_id":"claim-0001",\
-"anchor_text":"A device stopped."}}]}}
+"start_segment_id":"S000001","end_segment_id":"S000001"}}]}}
 
-Canonical report:
+Canonical report with addressable segments:
 {report}
 
 Decontextualized claims:
@@ -761,11 +784,14 @@ def build_decontextualization_prompt(
 def build_extraction_prompt(
     report: str,
     claims: Sequence[Mapping[str, Any]],
+    *,
+    span_registry: SourceSpanRegistry | None = None,
 ) -> str:
-    """Build the exact-anchor extraction prompt."""
+    """Build the code-resolved anchor-pointer extraction prompt."""
 
+    registry = span_registry or build_source_span_registry(report)
     return _EXTRACTION_PROMPT.format(
-        report=report,
+        report=render_segmented_source(report, registry),
         claims=json.dumps(list(claims), ensure_ascii=False, sort_keys=True),
     )
 
@@ -1008,6 +1034,11 @@ def _normalization_failure(
     context_span_proposals: Sequence[ContextSpanProposal] = (),
     anchor_text_proposal: str | None = None,
     anchor_text: str | None = None,
+    anchor_start_segment_id: str | None = None,
+    anchor_end_segment_id: str | None = None,
+    anchor_span_registry_id: str | None = None,
+    anchor_report_text_sha256: str | None = None,
+    anchor_segmentation_version: str | None = None,
     reason: str,
 ) -> AtomicClaim:
     return AtomicClaim(
@@ -1017,6 +1048,11 @@ def _normalization_failure(
         claim_text=claim_text,
         anchor_text_proposal=anchor_text_proposal,
         anchor_text=anchor_text,
+        anchor_start_segment_id=anchor_start_segment_id,
+        anchor_end_segment_id=anchor_end_segment_id,
+        anchor_span_registry_id=anchor_span_registry_id,
+        anchor_report_text_sha256=anchor_report_text_sha256,
+        anchor_segmentation_version=anchor_segmentation_version,
         context_spans=tuple(context_spans),
         context_span_proposals=tuple(context_span_proposals),
         citation_requirement=CitationRequirement(
@@ -1043,6 +1079,7 @@ async def decompose_claims(
 
     active_settings = settings or ClaimDecompositionSettings()
     blocks = parse_markdown_blocks(report)
+    report_span_registry = build_source_span_registry(report)
     diagnostics: list[str] = []
     batch_records: list[ClaimBatchRecord] = []
     selection_usages: list[ClaimStageUsage] = []
@@ -1270,7 +1307,11 @@ async def decompose_claims(
             try:
                 extraction_content, batch_usage = await _call_model(
                     model_client,
-                    build_extraction_prompt(report, extraction_batch),
+                    build_extraction_prompt(
+                        report,
+                        extraction_batch,
+                        span_registry=report_span_registry,
+                    ),
                 )
                 call_error = None
             except Exception as exc:
@@ -1386,37 +1427,24 @@ async def decompose_claims(
             )
             continue
 
-        occurrences = _unique_occurrences(report, extraction.anchor_text)
         block = block_by_id[str(seed["block_id"])]
         reason: str | None = None
         anchor_start: int | None = None
         anchor_end: int | None = None
-        anchor_text = extraction.anchor_text
-        if len(occurrences) > 1:
-            reason = "anchor_not_unique"
-        elif occurrences:
-            anchor_start = occurrences[0]
-            anchor_end = anchor_start + len(extraction.anchor_text)
-            if report[anchor_start:anchor_end] != anchor_text:
-                raise AssertionError("code-owned anchor bounds must round-trip")
+        anchor_text: str | None = None
+        try:
+            resolved_anchor = resolve_source_span(
+                report,
+                report_span_registry,
+                start_segment_id=extraction.start_segment_id,
+                end_segment_id=extraction.end_segment_id,
+            )
+        except ValueError:
+            reason = "anchor_pointer_invalid"
         else:
-            repaired = locate_verification_quote(report, extraction.anchor_text)
-            if (
-                repaired.location_status
-                == NoteLocationStatus.REPAIRED_LOCATABLE
-                and repaired.span is not None
-                and repaired.source_quote is not None
-            ):
-                anchor_start = repaired.span.start_char
-                anchor_end = repaired.span.end_char
-                anchor_text = repaired.source_quote
-            else:
-                reason = (
-                    "anchor_not_unique"
-                    if repaired.failure_reason
-                    == QuoteFailureReason.AMBIGUOUS_FORMAT_MATCH
-                    else "anchor_not_found"
-                )
+            anchor_start = resolved_anchor.start_char
+            anchor_end = resolved_anchor.end_char
+            anchor_text = resolved_anchor.source_quote
         if reason is None and anchor_start is not None and anchor_end is not None:
             if report[anchor_start:anchor_end] != anchor_text:
                 raise AssertionError("code-owned anchor bounds must round-trip")
@@ -1434,8 +1462,16 @@ async def decompose_claims(
                     claim_text=claim_text,
                     context_spans=context_spans,
                     context_span_proposals=context_span_proposals,
-                    anchor_text_proposal=extraction.anchor_text,
                     anchor_text=anchor_text,
+                    anchor_start_segment_id=extraction.start_segment_id,
+                    anchor_end_segment_id=extraction.end_segment_id,
+                    anchor_span_registry_id=report_span_registry.registry_id,
+                    anchor_report_text_sha256=(
+                        report_span_registry.source_text_sha256
+                    ),
+                    anchor_segmentation_version=(
+                        report_span_registry.segmentation_version
+                    ),
                     reason=reason,
                 )
             )
@@ -1448,8 +1484,17 @@ async def decompose_claims(
                 block_id=str(seed["block_id"]),
                 selected_text=str(seed["selected_text"]),
                 claim_text=claim_text,
-                anchor_text_proposal=extraction.anchor_text,
+                anchor_text_proposal=None,
                 anchor_text=anchor_text,
+                anchor_start_segment_id=extraction.start_segment_id,
+                anchor_end_segment_id=extraction.end_segment_id,
+                anchor_span_registry_id=report_span_registry.registry_id,
+                anchor_report_text_sha256=(
+                    report_span_registry.source_text_sha256
+                ),
+                anchor_segmentation_version=(
+                    report_span_registry.segmentation_version
+                ),
                 start_char=anchor_start,
                 end_char=anchor_end,
                 context_spans=context_spans,
@@ -1462,21 +1507,11 @@ async def decompose_claims(
             )
         )
 
-    seed_by_id = {
-        str(seed["claim_id"]): seed
-        for seed in seed_claims
-    }
     anchor_proposal_count = len(extraction_by_id)
-    anchor_copied_from_selection_count = sum(
-        extraction.anchor_text
-        == str(seed_by_id[claim_id]["selected_text"])
-        for claim_id, extraction in extraction_by_id.items()
-    )
-    anchor_copied_from_selection_rate = (
-        anchor_copied_from_selection_count / anchor_proposal_count
-        if anchor_proposal_count
-        else 0.0
-    )
+    # Pointer extraction never asks the model to copy selected_text. Keep the
+    # historical audit metric at its mechanically true value: zero copies.
+    anchor_copied_from_selection_count = 0
+    anchor_copied_from_selection_rate = 0.0
     return ClaimDecompositionResult(
         blocks=blocks,
         selections=selections,
