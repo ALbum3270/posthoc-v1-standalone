@@ -69,6 +69,7 @@ from open_deep_research.harness.evidence_gap import (
     run_evidence_gap_round,
 )
 from open_deep_research.harness.evaluative import (
+    EvaluativeDiagnosticStatus,
     EvaluativeDiagnosticResult,
     EvaluativeDiagnosticSettings,
     diagnose_underspecified_evaluative_claims,
@@ -974,18 +975,49 @@ async def run_harness(
                 settings=evaluative_diagnostic_settings,
             )
         )
+        # Count what the pass actually assessed, never what it was asked to
+        # assess. These were once the same expression, so a pass whose calls
+        # were all refused by the admission layer still returned a record and
+        # was recorded as "87 of 87 evaluated". Returning a record is not
+        # doing the work.
+        evaluative_expected = sum(
+            claim.citation_requirement is CitationRequirement.EXTERNAL
+            for claim in claim_decomposition.claims
+        )
+        # A diagnostic_failed entry is a record that the pass could not assess
+        # this claim -- code writes it when the model omitted, duplicated, or
+        # malformed the entry. Counting it as assessed repeats the original
+        # error one layer down: having a record is not having done the work.
+        evaluative_assessed_ids = {
+            assessment.claim_id
+            for assessment in evaluative_diagnostics.assessments
+            if assessment.status is not EvaluativeDiagnosticStatus.DIAGNOSTIC_FAILED
+        }
+        evaluative_unassessed = tuple(
+            claim.claim_id
+            for claim in claim_decomposition.claims
+            if claim.citation_requirement is CitationRequirement.EXTERNAL
+            and claim.claim_id not in evaluative_assessed_ids
+        )
         stage_records["evaluative_diagnostics"] = _scope_record(
-            status=StageExecutionStatus.COMPLETE,
-            reason="advisory diagnostic pass returned a record",
+            status=(
+                StageExecutionStatus.COMPLETE
+                if not evaluative_unassessed
+                else StageExecutionStatus.PARTIAL
+                if evaluative_assessed_ids
+                else StageExecutionStatus.NOT_RUN
+            ),
+            reason=(
+                "advisory diagnostic assessed every external claim"
+                if not evaluative_unassessed
+                else "advisory diagnostic pass did not assess "
+                f"{len(evaluative_unassessed)} of {evaluative_expected} "
+                "external claims"
+            ),
             unit="external_claim",
-            expected_count=sum(
-                claim.citation_requirement is CitationRequirement.EXTERNAL
-                for claim in claim_decomposition.claims
-            ),
-            evaluated_count=sum(
-                claim.citation_requirement is CitationRequirement.EXTERNAL
-                for claim in claim_decomposition.claims
-            ),
+            expected_count=evaluative_expected,
+            evaluated_count=len(evaluative_assessed_ids),
+            unevaluated_ids=evaluative_unassessed,
         )
         tail_reserve.observe_stage(
             "evaluative_diagnostics",

@@ -868,3 +868,67 @@ def test_json_mode_adapter_supplies_provider_required_literal() -> None:
         "type": "json_object"
     }
     assert result["content"] == '{"ok":true}'
+
+
+class EmptyEvaluativeClaimModel(ClaimModel):
+    """Decomposes normally, but its advisory pass assesses nothing.
+
+    This is what an admission refusal looks like from the runner's side: the
+    diagnostic function still returns a well-formed record, it just carries no
+    assessments.
+    """
+
+    async def generate(self, prompt):
+        response = await super().generate(prompt)
+        if self.call_number >= 4:
+            response = dict(response)
+            response["content"] = json.dumps({"claims": []})
+        return response
+
+
+def test_a_diagnostic_pass_that_assessed_nothing_is_not_recorded_as_complete(
+    tmp_path,
+):
+    """Returning a record is not doing the work.
+
+    expected_count and evaluated_count were once the same expression -- both
+    counted the external claims the pass was *asked* to assess. A measured run
+    whose ten advisory calls were all refused by the admission layer therefore
+    recorded "87 of 87 evaluated" while its diagnostics payload was null.
+    """
+
+    events = []
+    draft = "# Report\n\nThe model wrote this report."
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=DecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=WriteModel(events),
+            claim_model=EmptyEvaluativeClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=AttributionModel(events),
+            verification_model=UnusedVerificationModel(),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            output_dir=tmp_path,
+            run_id="empty-evaluative",
+        )
+    )
+
+    audit = json.loads(
+        (tmp_path / "empty-evaluative" / "audit.json").read_text("utf-8")
+    )
+    record = audit["posthoc_evidence"]["stage_execution"]["stages"][
+        "evaluative_diagnostics"
+    ]
+
+    assert record["status"] == "not_run"
+    assert record["evaluated_scope"]["count"] == 0
+    # The denominator survives so the gap is legible rather than invisible.
+    assert record["expected_scope"]["count"] == 1
+    assert record["unevaluated_ids"] == ["claim-0001"]
+    # An advisory pass is not part of the spine, so it must not block release.
+    assert result.publication_eligible is True
