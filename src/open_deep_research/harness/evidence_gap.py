@@ -2106,40 +2106,40 @@ async def run_evidence_gap_round(
                     plan_rejected,
                 )
 
-        complete_attempts = [attempt for attempt in parsed_attempts if attempt[3]]
-        if complete_attempts:
-            selected = complete_attempts[0]
-            plan_contract_complete = True
-        else:
-            # A global capacity shortfall must not erase valid local routes.
-            # Select one internally coherent attempt instead of unioning them:
-            # a union could exceed query caps or combine contradictory cached
-            # candidate judgements.  The ordering is entirely mechanical.
-            def _salvage_score(
-                attempt: tuple[
-                    int,
-                    tuple[CachedCandidateHint, ...],
-                    tuple[GapSearchQuery, ...],
-                    bool,
-                ]
-            ) -> tuple[int, int, int, int]:
-                number, attempt_hints, attempt_queries, _ = attempt
-                required = _required_query_slots(
-                    target_claim_ids=tuple(
-                        target.claim.claim_id for target in targets
-                    ),
-                    hints=attempt_hints,
-                    max_queries=budget.max_search_queries,
-                )
-                return (
-                    -max(0, required - len(attempt_queries)),
-                    len(_plan_route_ids(attempt_hints, attempt_queries)),
-                    len(attempt_hints),
-                    number,
-                )
+        # A global capacity shortfall must not erase valid local routes. Select
+        # one internally coherent attempt instead of unioning them: a union
+        # could exceed query caps or combine contradictory cached-candidate
+        # judgements. Coverage comes first because a query slot is only a
+        # means of routing target claims. Filling more slots must not displace
+        # an otherwise-valid plan that routes more claims through focused,
+        # merged queries. Capacity use remains the second tie-breaker and is
+        # still enforced on the first attempt through the bounded correction.
+        def _selection_score(
+            attempt: tuple[
+                int,
+                tuple[CachedCandidateHint, ...],
+                tuple[GapSearchQuery, ...],
+                bool,
+            ]
+        ) -> tuple[int, int, int, int]:
+            number, attempt_hints, attempt_queries, _ = attempt
+            required = _required_query_slots(
+                target_claim_ids=tuple(
+                    target.claim.claim_id for target in targets
+                ),
+                hints=attempt_hints,
+                max_queries=budget.max_search_queries,
+            )
+            return (
+                len(_plan_route_ids(attempt_hints, attempt_queries)),
+                -max(0, required - len(attempt_queries)),
+                len(attempt_hints),
+                number,
+            )
 
-            selected = max(parsed_attempts, key=_salvage_score)
-            planning_degraded = True
+        selected = max(parsed_attempts, key=_selection_score)
+        plan_contract_complete = selected[3]
+        planning_degraded = not plan_contract_complete
 
         selected_planning_attempt, hints, queries, _ = selected
         routed_ids = _plan_route_ids(hints, queries)

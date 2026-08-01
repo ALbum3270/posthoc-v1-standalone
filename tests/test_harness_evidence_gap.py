@@ -730,6 +730,100 @@ def test_finance_15_shape_executes_six_routes_without_model_deferral_enumeration
     assert stage.evaluated_scope.count == 6
 
 
+def test_degraded_plan_selection_prefers_routed_claim_coverage_over_slot_use():
+    """A fuller query budget cannot displace a more complete route plan.
+
+    This distinguishes the two degradation priorities. The first attempt
+    leaves three query slots unused but routes twenty claims through three
+    focused merged queries. The correction fills all six slots but routes only
+    six claims. The selected single plan must preserve the larger audited
+    claim scope rather than treating slot utilization as an end in itself.
+    """
+
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(45)
+    )
+    first_plan = {
+        "cached_candidates": [],
+        "queries": [
+            {
+                "claim_ids": [claim.claim_id for claim in claims[:7]],
+                "item_id": "what-1",
+                "query": "focused route covering related facts one",
+            },
+            {
+                "claim_ids": [claim.claim_id for claim in claims[7:14]],
+                "item_id": "what-1",
+                "query": "focused route covering related facts two",
+            },
+            {
+                "claim_ids": [claim.claim_id for claim in claims[14:20]],
+                "item_id": "what-1",
+                "query": "focused route covering related facts three",
+            },
+        ],
+    }
+    corrected_plan = {
+        "cached_candidates": [],
+        "queries": [
+            {
+                "claim_ids": [claim.claim_id],
+                "item_id": "what-1",
+                "query": f"slot-filling route {index}",
+            }
+            for index, claim in enumerate(claims[:6], start=1)
+        ],
+    }
+    gap_model = ScriptedModel(first_plan, corrected_plan)
+    network = EmptySearchNetwork()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=6,
+                max_reads=0,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    from open_deep_research.harness.runner import _evidence_gap_execution_record
+
+    stage = _evidence_gap_execution_record(result)
+    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    assert result.planning_attempt_count == 2
+    assert result.selected_planning_attempt == 1
+    assert result.planning_contract_complete is False
+    assert result.planning_degraded is True
+    assert result.unused_query_slots == 3
+    assert network.queries == [
+        "focused route covering related facts one",
+        "focused route covering related facts two",
+        "focused route covering related facts three",
+    ]
+    assert result.routed_target_claim_ids == tuple(
+        claim.claim_id for claim in claims[:20]
+    )
+    assert len(result.deferred_targets) == 25
+    assert stage.status.value == "partial"
+    assert stage.expected_scope.count == 45
+    assert stage.evaluated_scope.count == 20
+
+
 def test_retry_admission_failure_preserves_first_valid_partial_plan():
     """The correction call has its own degradation path under a tight budget."""
 
