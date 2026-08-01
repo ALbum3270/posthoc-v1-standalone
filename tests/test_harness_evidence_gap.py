@@ -343,9 +343,9 @@ def test_planner_uses_one_ordered_query_for_multiple_claims_within_hard_cap():
     )
     prompt = gap_model.prompts[0]
     assert "hard budget of at most 1 web search queries" in prompt
-    assert "Every target claim must be accounted for" in prompt
-    assert '"reason":"query_capacity_not_allocated"' in prompt
-    assert "does not mean that evidence is unnecessary" in prompt
+    assert "Return only semantic routes" in prompt
+    assert "Do not return deferred_targets" in prompt
+    assert "Code records every unrouted target" in prompt
     assert '"corroboration_target": 2' in prompt
     assert result.verification_reserve is not None
     assert result.verification_reserve.planned_query_count == 1
@@ -385,17 +385,6 @@ def _many_gap_targets(count: int):
     return report, claims, attribution, verification
 
 
-def _capacity_deferred(claims):
-    return [
-        {
-            "claim_id": claim.claim_id,
-            "reason": "query_capacity_not_allocated",
-            "priority_rationale": "six higher-priority routes consumed the cap",
-        }
-        for claim in claims
-    ]
-
-
 def test_finance_14_shape_retries_sparse_plan_and_exposes_capacity_deferral():
     """One silent route for 43 targets is not executable planning work."""
 
@@ -422,7 +411,6 @@ def test_finance_14_shape_retries_sparse_plan_and_exposes_capacity_deferral():
             }
             for index, claim in enumerate(claims[:6], start=1)
         ],
-        "deferred_targets": _capacity_deferred(claims[6:]),
     }
     gap_model = ScriptedModel(first_sparse_plan, corrected_plan)
     network = EmptySearchNetwork()
@@ -470,8 +458,15 @@ def test_finance_14_shape_retries_sparse_plan_and_exposes_capacity_deferral():
     assert {target.reason for target in result.deferred_targets} == {
         "query_capacity_not_allocated"
     }
+    assert {target.allocation_source for target in result.deferred_targets} == {
+        "code_derived"
+    }
+    assert result.planning_contract_complete is True
+    assert result.planning_degraded is False
+    assert result.selected_planning_attempt == 2
+    assert result.unused_query_slots == 0
     assert any(
-        entry.get("stage") == "plan_coverage" and entry.get("attempt") == 1
+        entry.get("stage") == "plan_capacity" and entry.get("attempt") == 1
         for entry in result.rejected_entries
     )
     assert stage.status.value == "partial"
@@ -480,7 +475,7 @@ def test_finance_14_shape_retries_sparse_plan_and_exposes_capacity_deferral():
     assert "capacity-deferred target claims=37" in result.stop_detail
 
 
-def test_semantic_no_query_escape_is_rejected_before_capacity_deferral():
+def test_model_cannot_manufacture_a_semantic_no_query_escape():
     report, claims, initial_attribution, initial_verification = (
         _many_gap_targets(1)
     )
@@ -495,11 +490,6 @@ def test_semantic_no_query_escape_is_rejected_before_capacity_deferral():
                     "priority_rationale": "no likely source",
                 }
             ],
-        },
-        {
-            "cached_candidates": [],
-            "queries": [],
-            "deferred_targets": _capacity_deferred(claims),
         },
     )
 
@@ -527,17 +517,22 @@ def test_semantic_no_query_escape_is_rejected_before_capacity_deferral():
         )
     )
 
+    # With no search capacity, code—not the planner's semantic assertion—
+    # records the only legal deferral.  This is a completed bounded pass with
+    # zero executable capacity, not a budget admission failure.
     assert result.stop_reason is EvidenceGapStopReason.COMPLETED
     assert result.routed_target_claim_ids == ()
     assert result.unrouted_target_claim_ids == (claims[0].claim_id,)
     assert result.deferred_targets[0].reason == "query_capacity_not_allocated"
     assert any(
-        entry.get("stage") == "deferred_target" and entry.get("attempt") == 1
+        entry.get("error", "").startswith("planner_supplied_deferred_target")
         for entry in result.rejected_entries
     )
+    assert result.deferred_targets[0].allocation_source == "code_derived"
+    assert len(gap_model.prompts) == 1
 
 
-def test_incomplete_plan_after_bounded_retry_executes_no_partial_query():
+def test_incomplete_plan_after_bounded_retry_executes_audited_partial_route():
     report, claims, initial_attribution, initial_verification = (
         _many_gap_targets(43)
     )
@@ -547,7 +542,7 @@ def test_incomplete_plan_after_bounded_retry_executes_no_partial_query():
             {
                 "claim_ids": [claims[0].claim_id],
                 "item_id": "what-1",
-                "query": "must never execute",
+                "query": "one valid partial route",
             }
         ],
     }
@@ -578,13 +573,222 @@ def test_incomplete_plan_after_bounded_retry_executes_no_partial_query():
         )
     )
 
+    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    assert result.planning_contract_complete is False
+    assert result.planning_degraded is True
+    assert result.selected_planning_attempt == 2
+    assert result.unused_query_slots == 5
+    assert network.queries == ["one valid partial route"]
+    assert len(result.searches) == 1
+    assert result.routed_target_claim_ids == (claims[0].claim_id,)
+    assert result.unrouted_target_claim_ids == tuple(
+        claim.claim_id for claim in claims[1:]
+    )
+    assert tuple(target.claim_id for target in result.deferred_targets) == (
+        result.unrouted_target_claim_ids
+    )
+    assert any(
+        entry.get("stage") == "plan_degraded_execution"
+        for entry in result.rejected_entries
+    )
+    assert "planning contract=degraded_partial" in result.stop_detail
+
+
+def test_zero_route_plan_returns_failed_audit_instead_of_null_payload():
+    """A degradation path preserves audit state without inventing completion."""
+
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(3)
+    )
+    gap_model = ScriptedModel(
+        {"cached_candidates": [], "queries": []},
+        {"cached_candidates": [], "queries": []},
+    )
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=3,
+                max_reads=0,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    from open_deep_research.harness.runner import _evidence_gap_execution_record
+
+    stage = _evidence_gap_execution_record(result)
     assert result.stop_reason is EvidenceGapStopReason.MODEL_ERROR
-    assert "mechanically incomplete after two attempts" in result.stop_detail
-    assert network.queries == []
-    assert result.searches == ()
+    assert result.planning_attempt_count == 2
+    assert result.selected_planning_attempt == 2
+    assert result.planning_contract_complete is False
+    assert result.planning_degraded is True
     assert result.routed_target_claim_ids == ()
     assert result.unrouted_target_claim_ids == tuple(
         claim.claim_id for claim in claims
+    )
+    assert len(result.deferred_targets) == 3
+    assert "no executable cached or search route" in result.stop_detail
+    assert stage.status.value == "failed"
+    assert stage.evaluated_scope.count == 0
+
+
+def test_finance_15_shape_executes_six_routes_without_model_deferral_enumeration():
+    """Regression for 45 targets whose old global closure discarded all work.
+
+    The corrected attempt allocates all six query slots but does not enumerate
+    the other 39 target IDs.  Before the protocol change that was a fatal
+    coverage error; now code records those capacity deferrals and executes the
+    valid routes.
+    """
+
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(45)
+    )
+    first_plan = {
+        "cached_candidates": [],
+        "queries": [
+            {
+                "claim_ids": [claims[0].claim_id],
+                "item_id": "what-1",
+                "query": "first sparse route",
+            }
+        ],
+    }
+    corrected_plan = {
+        "cached_candidates": [],
+        "queries": [
+            {
+                "claim_ids": [claim.claim_id],
+                "item_id": "what-1",
+                "query": f"bounded route {index}",
+            }
+            for index, claim in enumerate(claims[:6], start=1)
+        ],
+    }
+    gap_model = ScriptedModel(first_plan, corrected_plan)
+    network = EmptySearchNetwork()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=6,
+                max_reads=3,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    from open_deep_research.harness.runner import _evidence_gap_execution_record
+
+    stage = _evidence_gap_execution_record(result)
+    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    assert result.planning_attempt_count == 2
+    assert result.selected_planning_attempt == 2
+    assert result.planning_contract_complete is True
+    assert result.planning_degraded is False
+    assert result.unused_query_slots == 0
+    assert network.queries == [f"bounded route {index}" for index in range(1, 7)]
+    assert result.routed_target_claim_ids == tuple(
+        claim.claim_id for claim in claims[:6]
+    )
+    assert len(result.deferred_targets) == 39
+    assert all(
+        target.allocation_source == "code_derived"
+        for target in result.deferred_targets
+    )
+    assert stage.status.value == "partial"
+    assert stage.expected_scope.count == 45
+    assert stage.evaluated_scope.count == 6
+
+
+def test_retry_admission_failure_preserves_first_valid_partial_plan():
+    """The correction call has its own degradation path under a tight budget."""
+
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(4)
+    )
+    first_plan = {
+        "cached_candidates": [],
+        "queries": [
+            {
+                "claim_ids": [claims[0].claim_id],
+                "item_id": "what-1",
+                "query": "preserved route",
+            }
+        ],
+    }
+    gap_model = ScriptedModel(first_plan)
+    network = EmptySearchNetwork()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=5,
+                max_cost_usd=1,
+                max_search_queries=4,
+                max_reads=0,
+            ),
+            estimate_input_tokens=lambda _client, prompt: (
+                100 if "MECHANICAL PLAN VALIDATION FAILED" in prompt else 1
+            ),
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert len(gap_model.prompts) == 1
+    # The first valid partial plan is still executed. The correction call
+    # cannot be admitted, and the already-consumed planning budget is exposed
+    # rather than being relabelled as a completed pass.
+    assert result.stop_reason is EvidenceGapStopReason.BUDGET_EXHAUSTED
+    assert result.planning_attempt_count == 1
+    assert result.selected_planning_attempt == 1
+    assert result.planning_contract_complete is False
+    assert result.planning_degraded is True
+    assert result.unused_query_slots == 3
+    assert network.queries == ["preserved route"]
+    assert any(
+        entry.get("stage") == "plan_retry_not_run_budget"
+        for entry in result.rejected_entries
     )
 
 

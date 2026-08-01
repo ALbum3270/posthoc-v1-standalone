@@ -209,13 +209,14 @@ not_enough_information are equally valid outcomes.
 
 You have at most {max_queries} web queries. This is an upper bound, not a
 target. One focused query may serve several claims when their alternative
-check genuinely overlaps. Return fewer or zero queries when appropriate.
+check genuinely overlaps. While selected claims remain unrouted, allocate
+every available query slot. Zero queries is valid only when max_queries is
+zero or accepted cached candidates already route every selected claim.
 
-Every selected claim must be accounted for by an accepted cached candidate,
-a proposed query, or deferred_targets. Deferral has exactly one legal reason:
-query capacity was not allocated in this bounded pass. It is legal only after
-all available query slots have been used. Code validates this route closure
-mechanically.
+Return only accepted cached candidates and proposed queries. Do not return
+deferred_targets. Code records every unrouted selected claim as
+query_capacity_not_allocated after parsing the plan. This is a mechanical
+capacity fact, not a semantic conclusion about the claim.
 
 Return:
 {{"cached_candidates":[{{"claim_id":"claim-0001",\
@@ -224,10 +225,7 @@ Return:
 "publisher_identity":"publishing organization",\
 "independence_rationale":"brief reason"}}],\
 "queries":[{{"claim_ids":["claim-0001"],\
-"item_id":"existing-checklist-item","query":"one focused query"}}],\
-"deferred_targets":[{{"claim_id":"claim-0002",\
-"reason":"query_capacity_not_allocated",\
-"priority_rationale":"why routed targets had higher priority"}}]}}
+"item_id":"existing-checklist-item","query":"one focused query"}}]}}
 
 Allowed checklist item IDs:
 {item_ids}
