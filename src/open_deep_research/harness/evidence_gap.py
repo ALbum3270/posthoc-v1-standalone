@@ -16,6 +16,7 @@ from pydantic import (
     Field,
     ValidationError,
     field_validator,
+    model_validator,
 )
 
 from open_deep_research.harness.attribution import (
@@ -242,6 +243,8 @@ class EvidenceGapResult(BaseModel):
     )
 
     target_claim_ids: tuple[str, ...] = ()
+    routed_target_claim_ids: tuple[str, ...] = ()
+    unrouted_target_claim_ids: tuple[str, ...] = ()
     initial_states: dict[str, ClaimEvidenceState] = Field(default_factory=dict)
     cached_candidate_hints: tuple[CachedCandidateHint, ...] = ()
     rejected_entries: tuple[dict[str, Any], ...] = ()
@@ -275,6 +278,75 @@ class EvidenceGapResult(BaseModel):
     verification_merge: VerificationMergeAudit | None = None
     final_attribution: AttributionResult = Field(exclude=True)
     final_verification: VerificationResult = Field(exclude=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _derive_target_routes(cls, value: Any) -> Any:
+        """Derive routing coverage from accepted, actually retained routes.
+
+        A target is routed only when it has an accepted cached-note candidate
+        or an issued search record.  Merely belonging to the requested target
+        set is not work done.  Keeping this derivation inside the result model
+        also makes hand-built offline/recovery results obey the same audit
+        contract as the live executor.
+        """
+
+        if not isinstance(value, Mapping):
+            return value
+        data = dict(value)
+        if (
+            "routed_target_claim_ids" in data
+            or "unrouted_target_claim_ids" in data
+        ):
+            return data
+        target_ids = tuple(data.get("target_claim_ids") or ())
+        routed: set[str] = set()
+        for hint in data.get("cached_candidate_hints") or ():
+            claim_id = (
+                hint.get("claim_id")
+                if isinstance(hint, Mapping)
+                else getattr(hint, "claim_id", None)
+            )
+            if claim_id is not None:
+                routed.add(str(claim_id))
+        for record in data.get("searches") or ():
+            query = (
+                record.get("query")
+                if isinstance(record, Mapping)
+                else getattr(record, "query", None)
+            )
+            claim_ids = (
+                query.get("claim_ids")
+                if isinstance(query, Mapping)
+                else getattr(query, "claim_ids", ())
+            )
+            routed.update(str(claim_id) for claim_id in claim_ids or ())
+        data["routed_target_claim_ids"] = tuple(
+            claim_id for claim_id in target_ids if claim_id in routed
+        )
+        data["unrouted_target_claim_ids"] = tuple(
+            claim_id for claim_id in target_ids if claim_id not in routed
+        )
+        return data
+
+    @model_validator(mode="after")
+    def _target_routes_partition_requested_scope(self) -> EvidenceGapResult:
+        target_ids = self.target_claim_ids
+        routed = self.routed_target_claim_ids
+        unrouted = self.unrouted_target_claim_ids
+        if len(set(target_ids)) != len(target_ids):
+            raise ValueError("target_claim_ids must be unique")
+        if len(set(routed)) != len(routed):
+            raise ValueError("routed_target_claim_ids must be unique")
+        if len(set(unrouted)) != len(unrouted):
+            raise ValueError("unrouted_target_claim_ids must be unique")
+        if set(routed) & set(unrouted):
+            raise ValueError("routed and unrouted target claims must be disjoint")
+        if set(routed) | set(unrouted) != set(target_ids):
+            raise ValueError(
+                "routed and unrouted target claims must partition targets"
+            )
+        return self
 
     @property
     def total_tokens(self) -> int:
@@ -1167,8 +1239,8 @@ def _parse_reads(
             error = "URL was not returned by the bounded searches"
         elif proposal.item_id not in item_ids:
             error = "unknown checklist item_id"
-        elif not claim_ids or any(claim_id not in target_by_id for claim_id in claim_ids):
-            error = "read must name known target claim_ids"
+        elif not claim_ids:
+            error = "read must name at least one target claim_id"
         elif proposal.item_id not in {
             item_id for _, item_id in allowed[proposal.url]
         }:
@@ -1177,26 +1249,6 @@ def _parse_reads(
             error = "model did not judge publisher independent"
         elif not identity:
             error = "publisher identity must not be blank"
-        elif any(
-            _publisher_proxy(proposal.url)
-            in set(target_by_id[claim_id].publisher_domain_proxies)
-            for claim_id in claim_ids
-        ):
-            error = "publisher domain proxy already supports a target claim"
-        elif any(
-            _identity_matches_proxy(
-                proposal.publisher_identity,
-                proxy,
-            )
-            for claim_id in claim_ids
-            for proxy in target_by_id[claim_id].publisher_domain_proxies
-        ):
-            error = "publisher identity matches an existing domain label"
-        elif any(
-            identity in identities_by_claim[claim_id]
-            for claim_id in claim_ids
-        ):
-            error = "publisher identity repeated for a target claim"
         if error is not None:
             rejected.append(
                 {
@@ -1207,14 +1259,57 @@ def _parse_reads(
                 }
             )
             continue
-        seen_urls.add(proposal.url)
+
+        # Independence is a claim-source property.  A grouped proposal may be
+        # redundant for one claim and new for another; rejecting the whole URL
+        # lets the redundant sibling erase a valid route.  Validate and audit
+        # each claim independently, then read the URL once for the survivors.
+        allowed_claim_ids = {
+            claim_id
+            for claim_id, item_id in allowed[proposal.url]
+            if item_id == proposal.item_id
+        }
+        accepted_claim_ids: list[str] = []
+        publisher_proxy = _publisher_proxy(proposal.url)
         for claim_id in claim_ids:
+            claim_error: str | None = None
+            if claim_id not in target_by_id:
+                claim_error = "unknown target claim_id"
+            elif claim_id not in allowed_claim_ids:
+                claim_error = "claim was not routed to this URL by search"
+            elif publisher_proxy in set(
+                target_by_id[claim_id].publisher_domain_proxies
+            ):
+                claim_error = "publisher domain proxy already supports this claim"
+            elif any(
+                _identity_matches_proxy(proposal.publisher_identity, proxy)
+                for proxy in target_by_id[claim_id].publisher_domain_proxies
+            ):
+                claim_error = "publisher identity matches an existing domain label"
+            elif identity in identities_by_claim[claim_id]:
+                claim_error = "publisher identity repeated for this claim"
+            if claim_error is not None:
+                rejected.append(
+                    {
+                        "stage": "read_selection_claim",
+                        "index": index,
+                        "claim_id": claim_id,
+                        "error": claim_error,
+                        "raw": proposal.model_dump(mode="json"),
+                    }
+                )
+                continue
+            accepted_claim_ids.append(claim_id)
+        if not accepted_claim_ids:
+            continue
+        seen_urls.add(proposal.url)
+        for claim_id in accepted_claim_ids:
             identities_by_claim[claim_id].add(identity)
         accepted.append(
             GapReadSelection(
                 url=proposal.url.strip(),
                 item_id=proposal.item_id,
-                claim_ids=claim_ids,
+                claim_ids=tuple(accepted_claim_ids),
                 publisher_identity=proposal.publisher_identity.strip(),
                 independence_rationale=(
                     proposal.independence_rationale.strip()
@@ -2137,8 +2232,20 @@ async def run_evidence_gap_round(
         stop_reason=stop_reason,
     )
     if stop_reason is EvidenceGapStopReason.COMPLETED:
+        routed_claim_ids = {
+            hint.claim_id for hint in hints
+        } | {
+            claim_id
+            for search_record in searches
+            for claim_id in search_record.query.claim_ids
+        }
+        routed_count = sum(
+            target.claim.claim_id in routed_claim_ids for target in targets
+        )
         stop_detail = (
-            "single bounded evidence-gap pass completed; "
+            "single bounded evidence-gap pass ended; "
+            f"routed target claims={routed_count}/{len(targets)}; "
+            f"unrouted target claims={len(targets) - routed_count}; "
             "new completed claim-source relations="
             f"{information_yield.new_completed_relation_count}"
         )

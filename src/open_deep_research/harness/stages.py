@@ -157,14 +157,16 @@ def publication_audit(
 # checkable without reading eight bespoke record sites by hand.
 #
 # Stages absent from this mapping have no separate payload: deterministic
-# rendering *is* the artifact bundle, and the enhancement passes record their
-# outcome in their own stop reasons rather than a posthoc_evidence entry.
+# rendering *is* the artifact bundle.  Evidence gap is included because its
+# payload contains the accepted target routes needed to distinguish a bounded
+# pass ending from every requested target actually being evaluated.
 STAGE_AUDIT_PAYLOAD_KEYS = {
     "claim_decomposition": "claim_decomposition",
     "attribution": "attribution",
     "initial_verification": "verification",
     "checklist_reconciliation": "checklist_report_reconciliation",
     "evaluative_diagnostics": "evaluative_claim_diagnostics",
+    "evidence_gap": "evidence_gap",
     "recovery_triage": "recovery_triage",
     "evidence_recovery": "evidence_recovery",
     "audit_editing": "editorial_revision",
@@ -180,16 +182,37 @@ STAGE_AUDIT_PAYLOAD_KEYS = {
 }
 
 
+def _evidence_gap_routed_claim_ids(payload: dict) -> tuple[str, ...]:
+    """Recover substantive routing from new or historical gap payloads."""
+
+    explicit = payload.get("routed_target_claim_ids")
+    if isinstance(explicit, (list, tuple)):
+        return tuple(dict.fromkeys(str(claim_id) for claim_id in explicit))
+    routed: list[str] = []
+    for hint in payload.get("cached_candidate_hints") or ():
+        if isinstance(hint, dict) and hint.get("claim_id") is not None:
+            routed.append(str(hint["claim_id"]))
+    for search in payload.get("searches") or ():
+        if not isinstance(search, dict):
+            continue
+        query = search.get("query") or {}
+        if not isinstance(query, dict):
+            continue
+        routed.extend(str(claim_id) for claim_id in query.get("claim_ids") or ())
+    return tuple(dict.fromkeys(routed))
+
+
 def stages_claiming_completion_without_output(
     audit: dict,
 ) -> tuple[str, ...]:
-    """Name stages recorded as complete whose audit payload is missing.
+    """Name complete stages missing substantive, scope-matching output.
 
     A run once reported ``evaluative_diagnostics`` as complete over 87 of 87
     claims while every one of its calls had been refused and its payload was
     null, because the record counted the work requested rather than the work
-    done. That shape is invisible to per-stage review and trivially visible
-    here, so it is checked mechanically instead.
+    done. A later gap pass left a non-null but sparse payload and made the same
+    mistake by calling two routed claims 58 evaluated claims. Both shapes are
+    checked mechanically here.
     """
 
     posthoc = audit.get("posthoc_evidence") or {}
@@ -211,6 +234,28 @@ def stages_claiming_completion_without_output(
             )
         if payload is None:
             offenders.append(stage_name)
+            continue
+        expected_scope = record.get("expected_scope") or {}
+        evaluated_scope = record.get("evaluated_scope") or {}
+        expected_count = expected_scope.get("count")
+        evaluated_count = evaluated_scope.get("count")
+        if (
+            isinstance(expected_count, int)
+            and expected_count > 0
+            and evaluated_count != expected_count
+        ):
+            offenders.append(stage_name)
+            continue
+        if stage_name == "evidence_gap" and isinstance(payload, dict):
+            routed_count = len(_evidence_gap_routed_claim_ids(payload))
+            if (
+                evaluated_count != routed_count
+                or (
+                    isinstance(expected_count, int)
+                    and routed_count != expected_count
+                )
+            ):
+                offenders.append(stage_name)
     return tuple(offenders)
 
 

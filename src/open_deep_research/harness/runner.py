@@ -401,6 +401,41 @@ def _scope_record(
     )
 
 
+def _evidence_gap_execution_record(
+    result: EvidenceGapResult,
+) -> StageExecutionRecord:
+    """Report accepted target routes, never the requested target count.
+
+    ``EvidenceGapStopReason.COMPLETED`` means the one bounded control-flow pass
+    ended without a budget/model failure.  It does not mean every requested
+    claim received a cache or search route.  Keeping these meanings separate
+    prevents a sparse two-claim plan from being audited as 58/58 evaluated.
+    """
+
+    expected_count = len(result.target_claim_ids)
+    evaluated_count = len(result.routed_target_claim_ids)
+    if result.stop_reason is EvidenceGapStopReason.NO_TARGETS:
+        status = StageExecutionStatus.COMPLETE
+    elif result.stop_reason is EvidenceGapStopReason.COMPLETED:
+        status = (
+            StageExecutionStatus.COMPLETE
+            if evaluated_count == expected_count
+            else StageExecutionStatus.PARTIAL
+        )
+    elif result.stop_reason is EvidenceGapStopReason.BUDGET_EXHAUSTED:
+        status = StageExecutionStatus.PARTIAL
+    else:
+        status = StageExecutionStatus.FAILED
+    return _scope_record(
+        status=status,
+        reason=result.stop_detail,
+        unit="target_claim",
+        expected_count=expected_count,
+        evaluated_count=evaluated_count,
+        unevaluated_ids=result.unrouted_target_claim_ids,
+    )
+
+
 def _evaluative_execution_record(
     claims: tuple[AtomicClaim, ...],
     result: EvaluativeDiagnosticResult,
@@ -1520,42 +1555,8 @@ async def run_harness(
                 final_attribution=initial_attribution,
                 final_verification=initial_verification,
             )
-        stage_records["evidence_gap"] = _scope_record(
-            status=(
-                StageExecutionStatus.COMPLETE
-                if evidence_gap.stop_reason
-                in {
-                    EvidenceGapStopReason.COMPLETED,
-                    EvidenceGapStopReason.NO_TARGETS,
-                }
-                else (
-                    StageExecutionStatus.PARTIAL
-                    if evidence_gap.stop_reason
-                    is EvidenceGapStopReason.BUDGET_EXHAUSTED
-                    else StageExecutionStatus.FAILED
-                )
-            ),
-            reason=evidence_gap.stop_detail,
-            unit="target_claim",
-            expected_count=len(evidence_gap.target_claim_ids),
-            evaluated_count=(
-                len(evidence_gap.target_claim_ids)
-                if evidence_gap.stop_reason
-                in {
-                    EvidenceGapStopReason.COMPLETED,
-                    EvidenceGapStopReason.NO_TARGETS,
-                }
-                else 0
-            ),
-            unevaluated_ids=(
-                ()
-                if evidence_gap.stop_reason
-                in {
-                    EvidenceGapStopReason.COMPLETED,
-                    EvidenceGapStopReason.NO_TARGETS,
-                }
-                else evidence_gap.target_claim_ids
-            ),
+        stage_records["evidence_gap"] = _evidence_gap_execution_record(
+            evidence_gap
         )
     evidence_gap_attribution = evidence_gap.final_attribution
     evidence_gap_verification = evidence_gap.final_verification

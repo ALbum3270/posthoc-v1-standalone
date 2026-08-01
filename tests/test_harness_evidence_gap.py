@@ -1,6 +1,8 @@
 import asyncio
 import json
 
+import pytest
+
 from open_deep_research.harness.attribution import (
     AttributionResult,
     AttributionStatus,
@@ -23,6 +25,9 @@ from open_deep_research.harness.claims import (
 )
 from open_deep_research.harness.evidence_gap import (
     EvidenceGapBudget,
+    EvidenceGapResult,
+    GapSearchQuery,
+    GapSearchRecord,
     EvidenceGapStopReason,
     _merge_verifications,
     run_evidence_gap_round,
@@ -348,6 +353,59 @@ def test_planner_uses_one_ordered_query_for_multiple_claims_within_hard_cap():
     assert result.information_yield.new_completed_relation_count == 0
     assert "new completed claim-source relations=0" in result.stop_detail
     assert "not found" not in result.stop_detail
+
+
+@pytest.mark.parametrize(
+    ("target_count", "routed_count"),
+    ((58, 2), (56, 6)),
+)
+def test_measured_sparse_gap_plans_report_actual_route_coverage(
+    target_count,
+    routed_count,
+):
+    """Regression for finance-13 (2/58) and finance-11 (6/56).
+
+    Both measured passes returned normally, but the old runner equated that
+    control-flow outcome with every target having received a route.  These are
+    the measured cardinalities, reduced only to IDs and one accepted query.
+    """
+
+    from open_deep_research.harness.runner import (
+        _evidence_gap_execution_record,
+    )
+
+    target_ids = tuple(
+        f"claim-{index:04d}" for index in range(1, target_count + 1)
+    )
+    result = EvidenceGapResult(
+        target_claim_ids=target_ids,
+        searches=(
+            GapSearchRecord(
+                query=GapSearchQuery(
+                    claim_ids=target_ids[:routed_count],
+                    item_id="what-1",
+                    query="one accepted merged query",
+                ),
+                results=(),
+            ),
+        ),
+        stop_reason=EvidenceGapStopReason.COMPLETED,
+        stop_detail="bounded pass returned normally",
+        final_attribution=AttributionResult(
+            attributions=(),
+            stop_reason=AttributionStopReason.COMPLETED,
+        ),
+        final_verification=VerificationResult(claims=()),
+    )
+
+    stage = _evidence_gap_execution_record(result)
+
+    assert result.routed_target_claim_ids == target_ids[:routed_count]
+    assert result.unrouted_target_claim_ids == target_ids[routed_count:]
+    assert stage.status.value == "partial"
+    assert stage.expected_scope.count == target_count
+    assert stage.evaluated_scope.count == routed_count
+    assert stage.unevaluated_ids == target_ids[routed_count:]
 
 
 def test_single_publisher_target_one_does_not_enter_gap_round() -> None:
@@ -702,6 +760,117 @@ class SearchAndReadNetwork:
                 }
             ]
         }
+
+
+def test_grouped_read_rejects_only_claim_with_existing_publisher():
+    """Finance-13 grouped one useful and one duplicate claim on one URL."""
+
+    report = "# Report\n\nThe first event occurred. The second event occurred."
+    first_claim = _claim(
+        report,
+        claim_id="claim-0001",
+        text="The first event occurred.",
+    )
+    duplicate_claim = _claim(
+        report,
+        claim_id="claim-0048",
+        text="The second event occurred.",
+    )
+    ledger = ResearchLedger(topic="A neutral topic")
+    first_note = _note(
+        ledger,
+        "https://first.example/article",
+        "The event occurred.",
+    )
+    selected_url = "https://sciencedirect.com/article"
+    duplicate_note = _note(ledger, selected_url, "The event occurred.")
+    first_attribution, first_verification = _initial(
+        first_claim,
+        candidate=_candidate(first_note),
+        state=ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+    )
+    duplicate_attribution, duplicate_verification = _initial(
+        duplicate_claim,
+        candidate=_candidate(duplicate_note),
+        state=ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+    )
+    initial_attribution = AttributionResult(
+        attributions=(
+            first_attribution.attributions[0],
+            duplicate_attribution.attributions[0],
+        ),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+    initial_verification = VerificationResult(
+        claims=(
+            first_verification.claims[0],
+            duplicate_verification.claims[0],
+        )
+    )
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [first_claim.claim_id, duplicate_claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "one result routed to two claims",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": selected_url,
+                    "item_id": "what-1",
+                    "claim_ids": [first_claim.claim_id, duplicate_claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "ScienceDirect",
+                    "independence_rationale": (
+                        "A different publisher for the first claim."
+                    ),
+                }
+            ]
+        },
+    )
+    network = SearchAndReadNetwork(selected_url)
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert len(result.read_selections) == 1
+    assert result.read_selections[0].claim_ids == (first_claim.claim_id,)
+    assert result.acquisitions[0].claim_ids == (first_claim.claim_id,)
+    assert result.acquisitions[0].outcome == "cache_hit_no_reanalysis"
+    assert network.extract_calls == 0
+    assert any(
+        entry.get("stage") == "read_selection_claim"
+        and entry.get("claim_id") == duplicate_claim.claim_id
+        and entry.get("error")
+        == "publisher domain proxy already supports this claim"
+        for entry in result.rejected_entries
+    )
 
 
 def test_search_and_read_admission_cannot_consume_verification_reserve():
