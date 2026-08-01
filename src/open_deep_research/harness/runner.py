@@ -111,6 +111,7 @@ from open_deep_research.harness.recovery import (
     RecoveryTriageSettings,
     RecoveryTriageStatus,
     build_recovery_gap_plan_prompt,
+    recovery_triage_targets,
     summarize_evidence_recovery,
     triage_evidence_recovery,
 )
@@ -1696,6 +1697,10 @@ async def run_harness(
     # enhancer and the mutating editor. Triage may identify a material fact as
     # worth one more bounded research attempt, but it cannot edit report bytes;
     # the frozen claim IDs then flow through the existing cache-first executor.
+    recovery_expected_target_ids = tuple(
+        target.claim.claim_id
+        for target in recovery_triage_targets(verification)
+    )
     if recovery_model is None or evidence_recovery_budget is None:
         disabled_reason = (
             "no recovery triage model was configured"
@@ -1705,6 +1710,10 @@ async def run_harness(
         stage_records["recovery_triage"] = _scope_record(
             status=StageExecutionStatus.NOT_RUN,
             reason=disabled_reason,
+            unit="evidence_exception_claim",
+            expected_count=len(recovery_expected_target_ids),
+            evaluated_count=0,
+            unevaluated_ids=recovery_expected_target_ids,
         )
         stage_records["evidence_recovery"] = _scope_record(
             status=StageExecutionStatus.NOT_RUN,
@@ -1728,6 +1737,10 @@ async def run_harness(
             stage_records["recovery_triage"] = _scope_record(
                 status=StageExecutionStatus.NOT_RUN,
                 reason=str(error),
+                unit="evidence_exception_claim",
+                expected_count=len(recovery_expected_target_ids),
+                evaluated_count=0,
+                unevaluated_ids=recovery_expected_target_ids,
             )
             stage_records["evidence_recovery"] = _scope_record(
                 status=StageExecutionStatus.NOT_RUN,

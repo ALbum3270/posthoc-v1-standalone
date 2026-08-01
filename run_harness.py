@@ -169,6 +169,7 @@ class LiveClients:
     attribution_model: OpenAIEnvelopeModel
     verification_model: OpenAIEnvelopeModel
     editor_model: OpenAIEnvelopeModel
+    recovery_model: OpenAIEnvelopeModel
     decision_model_name: str
     note_model_name: str
     claim_model_name: str
@@ -176,6 +177,7 @@ class LiveClients:
     attribution_model_name: str
     verification_model_name: str
     editor_model_name: str
+    recovery_model_name: str
 
     async def close(self) -> None:
         await self.openai.close()
@@ -233,6 +235,10 @@ def build_live_clients() -> LiveClients:
     )
     verification_model_name = _model_name("verification", default_model)
     editor_model_name = _model_name("editor", claim_model_name)
+    # Recovery triage decides whether an audited content exception is central
+    # enough to justify one more bounded research attempt. Keep it separately
+    # configurable, while defaulting to the existing editorial judgement tier.
+    recovery_model_name = _model_name("recovery", editor_model_name)
 
     openai = AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
     tavily = AsyncTavilyClient(api_key=tavily_api_key)
@@ -286,6 +292,11 @@ def build_live_clients() -> LiveClients:
             editor_model_name,
             calibration=UsageCalibration(),
         ),
+        recovery_model=OpenAIEnvelopeModel(
+            openai,
+            recovery_model_name,
+            calibration=UsageCalibration(),
+        ),
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,
         claim_model_name=claim_model_name,
@@ -293,6 +304,7 @@ def build_live_clients() -> LiveClients:
         attribution_model_name=attribution_model_name,
         verification_model_name=verification_model_name,
         editor_model_name=editor_model_name,
+        recovery_model_name=recovery_model_name,
     )
 
 
@@ -416,6 +428,43 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--evidence-gap-max-searches", type=int, default=3)
     parser.add_argument("--evidence-gap-max-reads", type=int, default=3)
     parser.add_argument(
+        "--evidence-recovery-max-tokens",
+        type=int,
+        default=40_000,
+        help=(
+            "independent token cap for the one bounded evidence-recovery "
+            "pass; its target claim set is frozen before retrieval and the "
+            "pass never starts an automatic second round"
+        ),
+    )
+    parser.add_argument(
+        "--evidence-recovery-max-cost-usd",
+        type=float,
+        default=0.08,
+        help=(
+            "independent cost cap for recovery retrieval and re-verification; "
+            "all recovery calls also remain inside --max-cost-usd"
+        ),
+    )
+    parser.add_argument(
+        "--evidence-recovery-max-searches",
+        type=int,
+        default=3,
+        help=(
+            "maximum searches in the single recovery pass; an upper bound, "
+            "not a target"
+        ),
+    )
+    parser.add_argument(
+        "--evidence-recovery-max-reads",
+        type=int,
+        default=3,
+        help=(
+            "maximum source reads in the single recovery pass; an upper "
+            "bound, not a target"
+        ),
+    )
+    parser.add_argument(
         "--posthoc-retrieval-max-tokens",
         type=int,
         default=60_000,
@@ -469,6 +518,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             attribution_model=clients.attribution_model,
             verification_model=clients.verification_model,
             editor_model=clients.editor_model,
+            recovery_model=clients.recovery_model,
             tavily_client=clients.tavily,
             budget=LoopBudget(
                 max_rounds=args.max_rounds,
@@ -497,6 +547,12 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 max_cost_usd=args.evidence_gap_max_cost_usd,
                 max_search_queries=args.evidence_gap_max_searches,
                 max_reads=args.evidence_gap_max_reads,
+            ),
+            evidence_recovery_budget=EvidenceGapBudget(
+                max_tokens=args.evidence_recovery_max_tokens,
+                max_cost_usd=args.evidence_recovery_max_cost_usd,
+                max_search_queries=args.evidence_recovery_max_searches,
+                max_reads=args.evidence_recovery_max_reads,
             ),
             disagreement_budget=DisagreementBudget(
                 max_tokens=args.disagreement_max_tokens,
@@ -528,6 +584,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 "attribution": clients.attribution_model_name,
                 "verification": clients.verification_model_name,
                 "editorial": clients.editor_model_name,
+                "recovery": clients.recovery_model_name,
             },
         )
     finally:

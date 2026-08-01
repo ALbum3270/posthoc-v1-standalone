@@ -9,7 +9,9 @@ import pytest
 
 import run_harness as harness_cli
 from open_deep_research.harness.claims import parse_markdown_blocks
+from open_deep_research.harness.evidence_gap import EvidenceGapBudget
 from open_deep_research.harness.loop import LoopBudget, StopReason
+from open_deep_research.harness.recovery import EvidenceRecoveryStopReason
 from open_deep_research.harness.runner import (
     _publish_artifact_bundle,
     run_harness,
@@ -183,6 +185,54 @@ class AttributionModel:
             ),
             "token_count": 7,
             "cost_usd": 0.02,
+        }
+
+
+class RecoveryAwareDecisionModel(DecisionModel):
+    """Settle collection, then execute one empty bounded recovery plan."""
+
+    async def generate(self, prompt):
+        if "This is the only bounded evidence-recovery pass" in prompt:
+            self.events.append("recovery-plan")
+            return {
+                "content": json.dumps(
+                    {"cached_candidates": [], "queries": []}
+                ),
+                "token_count": 3,
+                "cost_usd": 0.003,
+            }
+        return await super().generate(prompt)
+
+
+class ResearchMoreRecoveryModel:
+    def __init__(self, events):
+        self.events = events
+
+    async def generate(self, prompt):
+        self.events.append("recovery-triage")
+        return {
+            "content": json.dumps(
+                {
+                    "decisions": [
+                        {
+                            "claim_id": "claim-0001",
+                            "action": "research_more",
+                            "importance": "central",
+                            "importance_reason": (
+                                "The claim directly answers the question."
+                            ),
+                            "evidence_need": (
+                                "A record that addresses the assertion"
+                            ),
+                            "preferred_source_role": "underlying record",
+                            "query": "focused record for the assertion",
+                            "source_document_hint": None,
+                        }
+                    ]
+                }
+            ),
+            "token_count": 5,
+            "cost_usd": 0.005,
         }
 
 
@@ -783,6 +833,19 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert audit["posthoc_evidence"]["verification"]["claims"][0][
         "state"
     ] == "no_candidate_source"
+    recovery_stage = audit["posthoc_evidence"]["stage_execution"]["stages"][
+        "recovery_triage"
+    ]
+    assert recovery_stage["status"] == "not_run"
+    assert recovery_stage["expected_scope"] == {
+        "unit": "evidence_exception_claim",
+        "count": 1,
+    }
+    assert recovery_stage["evaluated_scope"] == {
+        "unit": "evidence_exception_claim",
+        "count": 0,
+    }
+    assert recovery_stage["unevaluated_ids"] == ["claim-0001"]
     assert audit["posthoc_evidence"]["verification"]["claims"][0][
         "corroboration_target"
     ] == 2
@@ -879,6 +942,63 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         ).hexdigest(),
         "staging_write_order": ["sources", "report", "audit"],
     }
+
+
+def test_runner_executes_cli_shaped_recovery_and_audits_zero_yield(tmp_path):
+    """A configured recovery role must not silently take the disabled path."""
+
+    events = []
+    draft = "# Report\n\nThe model wrote this report."
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=RecoveryAwareDecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=WriteModel(events),
+            claim_model=ClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=AttributionModel(events),
+            verification_model=UnusedVerificationModel(),
+            recovery_model=ResearchMoreRecoveryModel(events),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            evidence_recovery_budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            output_dir=tmp_path,
+            run_id="recovery-wired-run",
+        )
+    )
+
+    assert "recovery-triage" in events
+    assert "recovery-plan" in events
+    assert result.recovery_triage is not None
+    assert result.evidence_recovery is not None
+    assert result.evidence_recovery.stop_reason is (
+        EvidenceRecoveryStopReason.NO_INFORMATION_YIELD
+    )
+
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    posthoc = audit["posthoc_evidence"]
+    assert posthoc["recovery_triage"]["target_claim_ids"] == ["claim-0001"]
+    assert posthoc["recovery_triage"]["decisions"][0]["action"] == (
+        "research_more"
+    )
+    assert posthoc["evidence_recovery"]["stop_reason"] == (
+        "no_information_yield"
+    )
+    stages = posthoc["stage_execution"]["stages"]
+    assert stages["recovery_triage"]["status"] == "complete"
+    assert stages["evidence_recovery"]["status"] == "partial"
+    assert stages["evidence_recovery"]["expected_scope"]["count"] == 1
+    assert stages["evidence_recovery"]["evaluated_scope"]["count"] == 0
+    assert stages["evidence_recovery"]["unevaluated_ids"] == [
+        "claim-0001"
+    ]
 
 
 def test_runner_rejects_run_id_that_could_escape_output_directory(tmp_path):
@@ -1220,12 +1340,24 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
             "0.09",
             "--verification-cost-reserve-usd",
             "0.10",
+            "--evidence-recovery-max-tokens",
+            "12345",
+            "--evidence-recovery-max-cost-usd",
+            "0.07",
+            "--evidence-recovery-max-searches",
+            "2",
+            "--evidence-recovery-max-reads",
+            "1",
         ]
     )
 
     assert args.max_cost_usd == 0.28
     assert args.collection_max_cost_usd == 0.09
     assert args.verification_cost_reserve_usd == 0.10
+    assert args.evidence_recovery_max_tokens == 12_345
+    assert args.evidence_recovery_max_cost_usd == 0.07
+    assert args.evidence_recovery_max_searches == 2
+    assert args.evidence_recovery_max_reads == 1
     # argparse rewraps help text to the terminal width, so compare on
     # whitespace-normalised text rather than pinning a line break.
     help_text = " ".join(harness_cli.build_parser().format_help().split())
@@ -1237,6 +1369,10 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
     # The cost objective is a product target and must stay out of control flow.
     assert args.cost_objective_usd is None
     assert "Never blocks a call and never becomes a stop reason" in help_text
+    assert "--evidence-recovery-max-tokens" in help_text
+    assert "independent token cap for the one bounded evidence-" in help_text
+    assert "target claim set is frozen before retrieval" in help_text
+    assert "never starts an automatic second round" in help_text
 
 
 def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):
@@ -1259,6 +1395,8 @@ def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):
     monkeypatch.setenv("HARNESS_RECONCILIATION_MODEL", "coverage-model")
     monkeypatch.setenv("HARNESS_ATTRIBUTION_MODEL", "cheap-attribution")
     monkeypatch.setenv("HARNESS_VERIFICATION_MODEL", "strong-verifier")
+    monkeypatch.setenv("HARNESS_EDITOR_MODEL", "editor-tier")
+    monkeypatch.setenv("HARNESS_RECOVERY_MODEL", "recovery-tier")
 
     clients = harness_cli.build_live_clients()
 
@@ -1269,6 +1407,73 @@ def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):
     assert clients.attribution_model.model == "cheap-attribution"
     assert clients.verification_model.model == "strong-verifier"
     assert clients.verification_model is not clients.decision_model
+    assert clients.recovery_model.model == "recovery-tier"
+    assert clients.recovery_model is not clients.editor_model
+
+
+def test_cli_enables_recovery_and_passes_its_independent_budget(monkeypatch):
+    captured = {}
+    sentinel = object()
+
+    class FakeClients:
+        checklist_model = object()
+        decision_model = object()
+        note_model = object()
+        write_model = object()
+        claim_model = object()
+        reconciliation_model = object()
+        attribution_model = object()
+        verification_model = object()
+        editor_model = object()
+        recovery_model = object()
+        tavily = object()
+        decision_model_name = "decision"
+        note_model_name = "note"
+        claim_model_name = "claim"
+        reconciliation_model_name = "reconciliation"
+        attribution_model_name = "attribution"
+        verification_model_name = "verification"
+        editor_model_name = "editor"
+        recovery_model_name = "recovery"
+
+        async def close(self):
+            captured["closed"] = True
+
+    async def fake_run_harness(topic, **kwargs):
+        captured["topic"] = topic
+        captured["kwargs"] = kwargs
+        return sentinel
+
+    monkeypatch.setattr(harness_cli, "build_live_clients", FakeClients)
+    monkeypatch.setattr(harness_cli, "run_harness", fake_run_harness)
+    args = harness_cli.build_parser().parse_args(
+        [
+            "A topic",
+            "--evidence-recovery-max-tokens",
+            "22222",
+            "--evidence-recovery-max-cost-usd",
+            "0.06",
+            "--evidence-recovery-max-searches",
+            "2",
+            "--evidence-recovery-max-reads",
+            "1",
+        ]
+    )
+
+    result = asyncio.run(harness_cli._run(args))
+
+    assert result is sentinel
+    assert captured["closed"] is True
+    kwargs = captured["kwargs"]
+    assert kwargs["recovery_model"] is FakeClients.recovery_model
+    assert kwargs["evidence_recovery_budget"] == EvidenceGapBudget(
+        max_tokens=22_222,
+        max_cost_usd=0.06,
+        max_search_queries=2,
+        max_reads=1,
+    )
+    assert kwargs["run_cost_budget"].max_cost_usd == args.max_cost_usd
+    assert kwargs["model_names"]["recovery"] == "recovery"
 
 
 def test_cli_defaults_reconciliation_to_attribution_tier(monkeypatch):
