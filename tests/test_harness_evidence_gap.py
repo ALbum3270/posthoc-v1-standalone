@@ -1106,7 +1106,7 @@ def test_grouped_read_rejects_only_claim_with_existing_publisher():
     )
 
 
-def test_search_and_read_admission_cannot_consume_verification_reserve():
+def test_finance_14_read_prerequisite_is_not_starved_by_tail_reserve():
     report = "# Report\n\nThe event occurred."
     claim = _claim(report)
     ledger = ResearchLedger(topic="A neutral topic")
@@ -1131,7 +1131,8 @@ def test_search_and_read_admission_cannot_consume_verification_reserve():
                     "query": "a second independent account",
                 }
             ],
-        }
+        },
+        {"reads": []},
     )
     verifier = ScriptedModel()
     network = SearchAndReadNetwork(new_url)
@@ -1165,15 +1166,17 @@ def test_search_and_read_admission_cannot_consume_verification_reserve():
 
     assert result.verification_reserve is not None
     assert result.verification_reserve.estimated_tokens == 6
-    assert result.verification_reserve.reserved_tokens == 6
-    assert result.stop_reason == EvidenceGapStopReason.BUDGET_EXHAUSTED
-    assert "preserving the verification reserve" in result.stop_detail
+    assert result.verification_reserve.prerequisite_stage == "read_selection"
+    assert result.verification_reserve.prerequisite_estimated_tokens == 5
+    assert result.verification_reserve.reserved_tokens == 5
+    assert result.stop_reason == EvidenceGapStopReason.COMPLETED
     assert network.search_calls == 1
     assert network.extract_calls == 0
     assert [call.stage for call in result.usage] == [
-        "cache_review_and_search_plan"
+        "cache_review_and_search_plan",
+        "read_selection",
     ]
-    assert any(
+    assert not any(
         entry.get("stage") == "read_selection"
         and "preserving the verification reserve" in entry.get("error", "")
         for entry in result.rejected_entries

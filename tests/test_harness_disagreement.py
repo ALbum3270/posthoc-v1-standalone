@@ -21,6 +21,7 @@ from open_deep_research.harness.claims import (
 from open_deep_research.harness.disagreement import (
     DisagreementBudget,
     DisagreementSelection,
+    DisagreementStopReason,
     PosthocRetrievalBudget,
     _attempts,
     build_disagreement_selection_prompt,
@@ -127,6 +128,16 @@ class ScriptedModel:
         }
 
 
+class RawScriptedModel:
+    def __init__(self, *responses):
+        self.responses = list(responses)
+        self.prompts = []
+
+    async def generate(self, prompt):
+        self.prompts.append(prompt)
+        return self.responses.pop(0)
+
+
 class EmptySearch:
     def __init__(self):
         self.queries = []
@@ -175,6 +186,66 @@ def test_selection_is_neutral_and_excludes_non_external_claims() -> None:
         verdict.value in prompt for verdict in VerificationVerdict
     )
     assert "Zero conflicts\nis a normal result" in prompt
+
+
+def test_finance_13_malformed_selection_is_charged_and_retried_once() -> None:
+    """A paid, truncated JSON response is not erased from the audit."""
+
+    report = "# Report\n\nA measured value was reported."
+    claim = _claim(report)
+    attribution, verification = _initial((claim,))
+    malformed = (
+        '{"claims":[{"claim_id":"claim-0001","reason":"'
+        + ("alternative check " * 240)
+    )
+    model = RawScriptedModel(
+        {
+            "content": malformed,
+            "token_count": 1_101,
+            "cost_usd": 0.004,
+        },
+        {
+            "content": {"claims": []},
+            "token_count": 31,
+            "cost_usd": 0.001,
+        },
+    )
+
+    result = asyncio.run(
+        run_disagreement_detection(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=attribution,
+            initial_verification=verification,
+            selection_model=model,
+            note_model=UnusedModel(),
+            attribution_model=UnusedModel(),
+            verification_model=UnusedModel(),
+            tavily_client=EmptySearch(),
+            budget=DisagreementBudget(
+                max_tokens=10_000,
+                max_cost_usd=1,
+            ),
+            estimate_input_tokens=_tokens,
+            estimate_cost_usd=_cost,
+        )
+    )
+
+    assert result.stop_reason is DisagreementStopReason.NO_SELECTION
+    assert [call.stage for call in result.usage] == [
+        "disagreement_selection",
+        "disagreement_selection_retry",
+    ]
+    assert result.total_tokens == 1_132
+    assert result.total_cost_usd == 0.005
+    failure = result.rejected_selections[0]
+    assert failure["stage"] == "disagreement_selection_decode"
+    assert failure["attempt"] == 1
+    assert failure["response_chars"] == len(malformed)
+    assert failure["ended_with_json_closer"] is False
+    assert "complete replacement JSON object" in model.prompts[1]
 
 
 def test_zero_conflicts_is_normal_and_each_attempt_is_audited() -> None:

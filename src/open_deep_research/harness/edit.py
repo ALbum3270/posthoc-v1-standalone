@@ -206,7 +206,7 @@ class EditorialAdmissionAudit(BaseModel):
 
 
 class EditorialRevisionResult(BaseModel):
-    """Auditable proposal; incomplete proposals are never partly applied."""
+    """Auditable block-atomic proposal bound to a full-draft re-audit."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -283,8 +283,19 @@ class EditorialRevisionResult(BaseModel):
             raise ValueError("changes_applied must reflect the actual draft bytes")
         if self.requires_reaudit != changed:
             raise ValueError("every changed draft requires a fresh evidence audit")
-        if self.status is not EditorialRevisionStatus.COMPLETE and changed:
-            raise ValueError("incomplete editorial output cannot be partly applied")
+        if self.status is EditorialRevisionStatus.FAILED and changed:
+            raise ValueError("failed editorial output cannot change draft bytes")
+        edited_claim_ids = {
+            decision.claim_id
+            for edit in self.block_edits
+            for decision in edit.decisions
+        }
+        if edited_claim_ids != set(evaluated):
+            raise ValueError(
+                "accepted block edits must exactly cover evaluated claims"
+            )
+        if changed and not self.block_edits:
+            raise ValueError("changed editorial bytes require accepted block edits")
         if self.committed_after_reaudit and not changed:
             raise ValueError("only a changed draft can be committed after re-audit")
         return self
@@ -762,7 +773,7 @@ async def revise_audited_draft(
     model_client: EditorialModelClient,
     settings: EditorialSettings | None = None,
 ) -> EditorialRevisionResult:
-    """Run exactly one editorial pass and apply it only when fully covered."""
+    """Run one pass; accept valid blocks and require whole-draft re-audit."""
 
     active_settings = settings or EditorialSettings()
     block_by_id = {block.block_id: block for block in blocks}
@@ -866,18 +877,22 @@ async def revise_audited_draft(
         and len(evaluated_ids) == len(eligible_target_ids)
     )
     if complete:
-        edited_draft = _apply_block_edits(canonical_draft, block_by_id, edits)
         status = EditorialRevisionStatus.COMPLETE
     else:
-        # Valid block decisions remain in the audit, but a partial rewrite is
-        # never applied. This prevents one malformed block from manufacturing a
-        # report whose editorial contract was only partly executed.
-        edited_draft = canonical_draft
         status = (
             EditorialRevisionStatus.PARTIAL
             if evaluated_ids
             else EditorialRevisionStatus.FAILED
         )
+    # A rejected block remains byte-for-byte original, while independently
+    # valid block proposals survive. This is block-atomic, not publication:
+    # runner must re-decompose and re-audit the entire resulting draft before
+    # committing even one changed byte.
+    edited_draft = (
+        _apply_block_edits(canonical_draft, block_by_id, edits)
+        if edits
+        else canonical_draft
+    )
     edited_hash = hashlib.sha256(edited_draft.encode("utf-8")).hexdigest()
     return EditorialRevisionResult(
         status=status,

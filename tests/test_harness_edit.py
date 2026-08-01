@@ -316,6 +316,86 @@ def test_missing_claim_decision_never_applies_a_partial_rewrite():
     )
 
 
+def test_finance_13_accepts_four_valid_blocks_and_keeps_rejected_block() -> None:
+    """One unchanged remove proposal cannot discard four valid block edits."""
+
+    paragraphs = [f"Unsupported detail {index}." for index in range(1, 6)]
+    draft = "# Report\n\n" + "\n\n".join(paragraphs)
+    blocks = parse_markdown_blocks(draft)
+    claims = tuple(
+        _claim(
+            f"claim-{index:04d}",
+            block,
+            block.text,
+            block.start_char,
+            block.end_char,
+        )
+        for index, block in enumerate(blocks[1:], start=1)
+    )
+    verification = VerificationResult(
+        claims=tuple(
+            _verification(
+                claim,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (
+                    _relation(
+                        claim.claim_id,
+                        VerificationVerdict.DOES_NOT_SUPPORT,
+                    ),
+                ),
+            )
+            for claim in claims
+        )
+    )
+    proposals = []
+    for index, (block, claim) in enumerate(
+        zip(blocks[1:], claims, strict=True),
+        start=1,
+    ):
+        proposals.append(
+            {
+                "block_id": block.block_id,
+                "replacement_text": (
+                    f"Qualified detail {index}." if index < 5 else block.text
+                ),
+                "decisions": [
+                    {
+                        "claim_id": claim.claim_id,
+                        "action": "qualify" if index < 5 else "remove",
+                        "reason": "Use only the audited wording.",
+                    }
+                ],
+            }
+        )
+
+    result = asyncio.run(
+        revise_audited_draft(
+            draft,
+            blocks=blocks,
+            verification=verification,
+            model_client=ScriptedEditor({"blocks": proposals}),
+        )
+    )
+
+    assert result.status is EditorialRevisionStatus.PARTIAL
+    assert result.evaluated_claim_ids == tuple(
+        claim.claim_id for claim in claims[:4]
+    )
+    assert result.unevaluated_claim_ids == (claims[4].claim_id,)
+    assert len(result.block_edits) == 4
+    assert all(
+        f"Qualified detail {index}." in result.edited_draft
+        for index in range(1, 5)
+    )
+    assert paragraphs[4] in result.edited_draft
+    assert result.changes_applied is True
+    assert result.requires_reaudit is True
+    assert any(
+        f"editorial_block_rejected: {blocks[5].block_id}" in diagnostic
+        for diagnostic in result.diagnostics
+    )
+
+
 def test_protocol_failure_is_not_recast_as_an_editorial_content_problem():
     draft = "# Report\n\nA claim whose verifier call did not run."
     block = parse_markdown_blocks(draft)[1]

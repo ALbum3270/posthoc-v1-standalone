@@ -790,6 +790,85 @@ class TwoBlockPartialVerificationModel:
         }
 
 
+class TwoBlockEditorialVerificationModel:
+    """Both blocks are editorial targets, then both pass full re-audit."""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, prompt):
+        self.calls += 1
+        after_edit = self.calls == 2
+        return {
+            "content": json.dumps(
+                {
+                    "results": [
+                        {
+                            "claim_id": claim_id,
+                            "verdict": (
+                                "supports"
+                                if after_edit
+                                else "does_not_support"
+                            ),
+                            "start_segment_id": (
+                                "S000001" if after_edit else None
+                            ),
+                            "end_segment_id": (
+                                "S000001" if after_edit else None
+                            ),
+                            "explanation": "Audited block outcome.",
+                        }
+                        for claim_id in ("claim-0001", "claim-0002")
+                    ]
+                }
+            ),
+            "token_count": 8,
+            "cost_usd": 0.01,
+        }
+
+
+class PartiallyValidAuditEditorModel:
+    """Finance-13 shape: one valid block and one unchanged remove proposal."""
+
+    def __init__(self):
+        self.prompts = []
+
+    async def generate(self, prompt):
+        self.prompts.append(prompt)
+        return {
+            "content": json.dumps(
+                {
+                    "blocks": [
+                        {
+                            "block_id": "block-0002",
+                            "replacement_text": "A narrower supported fact.",
+                            "decisions": [
+                                {
+                                    "claim_id": "claim-0001",
+                                    "action": "qualify",
+                                    "reason": "Use the audited narrower fact.",
+                                }
+                            ],
+                        },
+                        {
+                            "block_id": "block-0003",
+                            "replacement_text": "A separate audited assertion.",
+                            "decisions": [
+                                {
+                                    "claim_id": "claim-0002",
+                                    "action": "remove",
+                                    "reason": "The model claimed removal.",
+                                }
+                            ],
+                        },
+                    ]
+                }
+            ),
+            "token_count": 6,
+            "cost_usd": 0.01,
+        }
+
+
 class UnusedTavily:
     async def search(self, query, **kwargs):
         raise AssertionError("search should not be called")
@@ -1345,6 +1424,59 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
         "post_edit_initial_verification",
         "post_edit_checklist_reconciliation",
     ]
+
+
+def test_runner_reaudits_whole_draft_after_partial_block_edit(tmp_path):
+    """A rejected sibling block stays original without discarding safe bytes."""
+
+    events = []
+    url = "https://evidence.example/article"
+    claim_model = TwoBlockReauditClaimModel()
+    verifier = TwoBlockEditorialVerificationModel()
+    editor = PartiallyValidAuditEditorModel()
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=ReadThenSettleDecisionModel(events, url),
+            note_model=OneNoteModel(events),
+            write_model=TwoBlockAuditWriteModel(),
+            claim_model=claim_model,
+            reconciliation_model=CoverageModel(events),
+            attribution_model=TwoClaimEvidenceAttributionModel(url),
+            verification_model=verifier,
+            editor_model=editor,
+            tavily_client=ReadingTavily(url),
+            budget=LoopBudget(max_rounds=3, max_tokens=100, max_cost_usd=1),
+            output_dir=tmp_path,
+            run_id="partial-block-edit-run",
+        )
+    )
+
+    assert result.editorial_revision is not None
+    assert result.editorial_revision.status.value == "partial"
+    assert result.editorial_revision.evaluated_claim_ids == ("claim-0001",)
+    assert result.editorial_revision.unevaluated_claim_ids == ("claim-0002",)
+    assert result.editorial_revision.committed_after_reaudit is True
+    assert result.report.canonical_draft == (
+        "# Report\n\nA narrower supported fact.\n\n"
+        "A separate audited assertion."
+    )
+    assert verifier.calls == 2
+    # Four claim-stage calls before and four after prove this was a whole-draft
+    # re-audit, not a local patch that reused the old sibling registry.
+    assert claim_model.call_number == 8
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    stages = audit["posthoc_evidence"]["stage_execution"]["stages"]
+    assert stages["audit_editing"]["status"] == "partial"
+    for stage in (
+        "post_edit_claim_decomposition",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
+    ):
+        assert stages[stage]["status"] == "complete", stage
 
 
 def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(

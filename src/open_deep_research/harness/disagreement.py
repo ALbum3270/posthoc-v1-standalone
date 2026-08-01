@@ -211,6 +211,12 @@ You have at most {max_queries} web queries. This is an upper bound, not a
 target. One focused query may serve several claims when their alternative
 check genuinely overlaps. Return fewer or zero queries when appropriate.
 
+Every selected claim must be accounted for by an accepted cached candidate,
+a proposed query, or deferred_targets. Deferral has exactly one legal reason:
+query capacity was not allocated in this bounded pass. It is legal only after
+all available query slots have been used. Code validates this route closure
+mechanically.
+
 Return:
 {{"cached_candidates":[{{"claim_id":"claim-0001",\
 "note_id":"note-000001","source_id":"source-id",\
@@ -218,7 +224,10 @@ Return:
 "publisher_identity":"publishing organization",\
 "independence_rationale":"brief reason"}}],\
 "queries":[{{"claim_ids":["claim-0001"],\
-"item_id":"existing-checklist-item","query":"one focused query"}}]}}
+"item_id":"existing-checklist-item","query":"one focused query"}}],\
+"deferred_targets":[{{"claim_id":"claim-0002",\
+"reason":"query_capacity_not_allocated",\
+"priority_rationale":"why routed targets had higher priority"}}]}}
 
 Allowed checklist item IDs:
 {item_ids}
@@ -323,15 +332,51 @@ def _estimate(
     return method(prompt)
 
 
-def _decode(response: Any) -> tuple[Any, int, float]:
+def _response_envelope(response: Any) -> tuple[Any, int, float]:
     if not isinstance(response, Mapping):
         raise ValueError("model response must be a usage envelope")
-    content = response.get("content")
-    decoded = loads_lenient(content) if isinstance(content, str) else content
     return (
-        decoded,
+        response.get("content"),
         max(0, int(response.get("token_count", 0))),
         max(0.0, float(response.get("cost_usd", 0.0))),
+    )
+
+
+def _decode_content(content: Any) -> Any:
+    return loads_lenient(content) if isinstance(content, str) else content
+
+
+def _decode_diagnostic(
+    content: Any,
+    error: Exception,
+    *,
+    attempt: int,
+) -> dict[str, Any]:
+    """Retain a mechanical failure record without inventing missing JSON."""
+
+    text = content if isinstance(content, str) else ""
+    stripped = text.rstrip()
+    return {
+        "stage": "disagreement_selection_decode",
+        "attempt": attempt,
+        "error": f"{type(error).__name__}: {error}",
+        "response_chars": len(text),
+        "ended_with_json_closer": stripped.endswith(("}", "]")),
+    }
+
+
+def _selection_retry_prompt(
+    base_prompt: str,
+    diagnostic: Mapping[str, Any],
+) -> str:
+    """Request one complete replacement after mechanical JSON failure."""
+
+    return (
+        base_prompt
+        + "\n\nMECHANICAL JSON DECODING FAILED. Return one complete replacement "
+        "JSON object, not a patch or continuation. The prior response was "
+        "charged but could not be decoded. Diagnostic:\n"
+        + json.dumps(dict(diagnostic), ensure_ascii=False, sort_keys=True)
     )
 
 
@@ -518,75 +563,132 @@ async def run_disagreement_detection(
         entry.claim.claim_id: entry.claim.model_dump(mode="json")
         for entry in initial_attribution.attributions
     }
-    prompt = build_disagreement_selection_prompt(
+    base_prompt = build_disagreement_selection_prompt(
         eligible,
         max_claims=budget.max_selected_claims,
     )
-    try:
-        estimated_tokens = max(
-            0,
-            int(
-                _estimate(
-                    selection_model,
-                    prompt,
-                    estimate_input_tokens,
-                    "estimate_tokens",
-                )
-            ),
-        )
-        estimated_cost = max(
-            0.0,
-            float(
-                _estimate(
-                    selection_model,
-                    prompt,
-                    estimate_cost_usd,
-                    "estimate_cost_usd",
-                )
-            ),
-        )
+    selection_usage: list[DisagreementCallUsage] = []
+    rejected: list[dict[str, Any]] = []
+    selections: tuple[DisagreementSelection, ...] = ()
+    selection_prompt = base_prompt
+    for attempt in range(1, 3):
+        try:
+            estimated_tokens = max(
+                0,
+                int(
+                    _estimate(
+                        selection_model,
+                        selection_prompt,
+                        estimate_input_tokens,
+                        "estimate_tokens",
+                    )
+                ),
+            )
+            estimated_cost = max(
+                0.0,
+                float(
+                    _estimate(
+                        selection_model,
+                        selection_prompt,
+                        estimate_cost_usd,
+                        "estimate_cost_usd",
+                    )
+                ),
+            )
+        except Exception as exc:
+            return DisagreementResult(
+                rejected_selections=tuple(rejected),
+                usage=tuple(selection_usage),
+                stop_reason=DisagreementStopReason.MODEL_ERROR,
+                stop_detail=f"{type(exc).__name__}: {exc}",
+                final_attribution=initial_attribution,
+                final_verification=initial_verification,
+            )
         if (
-            estimated_tokens > budget.max_tokens
-            or estimated_cost > budget.max_cost_usd
+            sum(call.token_count for call in selection_usage)
+            + estimated_tokens
+            > budget.max_tokens
+            or sum(call.cost_usd for call in selection_usage)
+            + estimated_cost
+            > budget.max_cost_usd
         ):
             return DisagreementResult(
+                rejected_selections=tuple(rejected),
+                usage=tuple(selection_usage),
                 stop_reason=DisagreementStopReason.BUDGET_EXHAUSTED,
                 stop_detail=(
-                    "selection admission exceeds disagreement pass budget"
+                    "selection admission exceeds remaining disagreement "
+                    "pass budget"
                 ),
                 final_attribution=initial_attribution,
                 final_verification=initial_verification,
             )
-        response = selection_model.generate(prompt)
-        if inspect.isawaitable(response):
-            response = await response
-        content, tokens, cost = _decode(response)
-        selection_usage = DisagreementCallUsage(
-            stage="disagreement_selection",
-            prompt_chars=len(prompt),
+        try:
+            response = selection_model.generate(selection_prompt)
+            if inspect.isawaitable(response):
+                response = await response
+            raw_content, tokens, cost = _response_envelope(response)
+        except Exception as exc:
+            return DisagreementResult(
+                rejected_selections=tuple(rejected),
+                usage=tuple(selection_usage),
+                stop_reason=DisagreementStopReason.MODEL_ERROR,
+                stop_detail=f"{type(exc).__name__}: {exc}",
+                final_attribution=initial_attribution,
+                final_verification=initial_verification,
+            )
+        call_usage = DisagreementCallUsage(
+            stage=(
+                "disagreement_selection"
+                if attempt == 1
+                else "disagreement_selection_retry"
+            ),
+            prompt_chars=len(selection_prompt),
             estimated_input_tokens=estimated_tokens,
             estimated_cost_usd=estimated_cost,
             token_count=tokens,
             cost_usd=cost,
         )
-        selections, rejected = _parse_selection(
+        selection_usage.append(call_usage)
+        try:
+            content = _decode_content(raw_content)
+        except Exception as exc:
+            diagnostic = _decode_diagnostic(
+                raw_content,
+                exc,
+                attempt=attempt,
+            )
+            rejected.append(diagnostic)
+            if attempt == 1:
+                selection_prompt = _selection_retry_prompt(
+                    base_prompt,
+                    diagnostic,
+                )
+                continue
+            return DisagreementResult(
+                rejected_selections=tuple(rejected),
+                usage=tuple(selection_usage),
+                stop_reason=DisagreementStopReason.MODEL_ERROR,
+                stop_detail=(
+                    "disagreement selection JSON remained undecodable after "
+                    "one bounded retry"
+                ),
+                final_attribution=initial_attribution,
+                final_verification=initial_verification,
+            )
+        selections, parsed_rejected = _parse_selection(
             content,
             eligible_claim_ids={
                 entry.claim.claim_id for entry in eligible
             },
             max_claims=budget.max_selected_claims,
         )
-    except Exception as exc:
-        return DisagreementResult(
-            stop_reason=DisagreementStopReason.MODEL_ERROR,
-            stop_detail=f"{type(exc).__name__}: {exc}",
-            final_attribution=initial_attribution,
-            final_verification=initial_verification,
-        )
+        rejected.extend(parsed_rejected)
+        break
     if not selections:
         return DisagreementResult(
-            rejected_selections=rejected,
-            usage=(selection_usage,),
+            rejected_selections=tuple(rejected),
+            usage=tuple(selection_usage),
             stop_reason=DisagreementStopReason.NO_SELECTION,
             stop_detail=(
                 "bounded selection completed with no claims selected; "
@@ -596,8 +698,16 @@ async def run_disagreement_detection(
             final_verification=initial_verification,
         )
 
-    remaining_tokens = max(0, budget.max_tokens - tokens)
-    remaining_cost = max(0.0, budget.max_cost_usd - cost)
+    remaining_tokens = max(
+        0,
+        budget.max_tokens
+        - sum(call.token_count for call in selection_usage),
+    )
+    remaining_cost = max(
+        0.0,
+        budget.max_cost_usd
+        - sum(call.cost_usd for call in selection_usage),
+    )
     acquisition = await run_evidence_gap_round(
         canonical_draft=canonical_draft,
         checklist=checklist,
@@ -629,7 +739,7 @@ async def run_disagreement_detection(
         ledger_event_prefix="disagreement",
     )
     usage = (
-        selection_usage,
+        *selection_usage,
         *(
             DisagreementCallUsage(
                 stage=call.stage,
@@ -686,7 +796,7 @@ async def run_disagreement_detection(
         )
     return DisagreementResult(
         selected_claims=selections,
-        rejected_selections=rejected,
+        rejected_selections=tuple(rejected),
         disagreement_search_attempted=attempts,
         completed_verdict_counts=counts,
         new_completed_relation_count=sum(counts.values()),

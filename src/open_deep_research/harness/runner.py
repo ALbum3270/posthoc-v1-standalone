@@ -1967,8 +1967,12 @@ async def run_harness(
                     "one auditable editorial decision; blocked blocks remained "
                     "byte-for-byte untouched"
                     if editorial_status is StageExecutionStatus.COMPLETE
-                    else "the editorial pass did not assess every eligible "
-                    "target; its partial rewrite was not applied"
+                    else (
+                        "the editorial pass did not assess every eligible "
+                        "target; accepted blocks form a partial proposal, "
+                        "rejected blocks remain byte-for-byte unchanged, and "
+                        "any changed draft still requires full re-audit"
+                    )
                 ),
                 unit="eligible_audited_claim",
                 expected_count=len(
@@ -1984,7 +1988,6 @@ async def run_harness(
 
         if (
             editorial_revision is not None
-            and editorial_revision.status is EditorialRevisionStatus.COMPLETE
             and editorial_revision.requires_reaudit
         ):
             post_edit_required_stages = (
@@ -2479,7 +2482,6 @@ async def run_harness(
 
         if (
             editorial_revision is not None
-            and editorial_revision.status is EditorialRevisionStatus.COMPLETE
             and not editorial_revision.requires_reaudit
         ):
             tail_reserve.checkpoint(

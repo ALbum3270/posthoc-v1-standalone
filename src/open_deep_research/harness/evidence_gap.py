@@ -219,11 +219,14 @@ class VerificationMergeAudit(BaseModel):
 
 
 class VerificationReserveAudit(BaseModel):
-    """Pre-search admission reserve for later full-source verification."""
+    """Pre-read admission reserve for later full-source verification."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    method: str = "planned_claim_groups_against_largest_cached_source"
+    method: str = (
+        "planned_claim_groups_against_largest_cached_source_after_"
+        "prerequisite_allowance"
+    )
     reference_source_url: str | None = None
     reference_source_chars: int = Field(default=0, ge=0)
     cached_hint_batch_count: int = Field(default=0, ge=0)
@@ -232,6 +235,9 @@ class VerificationReserveAudit(BaseModel):
     planned_query_claim_count: int = Field(default=0, ge=0)
     estimated_tokens: int = Field(default=0, ge=0)
     estimated_cost_usd: float = Field(default=0.0, ge=0.0)
+    prerequisite_stage: str | None = None
+    prerequisite_estimated_tokens: int = Field(default=0, ge=0)
+    prerequisite_estimated_cost_usd: float = Field(default=0.0, ge=0.0)
     reserved_tokens: int = Field(default=0, ge=0)
     reserved_cost_usd: float = Field(default=0.0, ge=0.0)
     limitations: tuple[str, ...] = (
@@ -639,18 +645,28 @@ class _BudgetTracker:
         *,
         tokens: int,
         cost_usd: float,
+        prerequisite_tokens: int = 0,
+        prerequisite_cost_usd: float = 0.0,
     ) -> tuple[int, float]:
-        """Protect an estimated verification envelope from earlier stages."""
+        """Protect verification without starving its required precursor."""
 
         remaining_tokens = max(0, self.budget.max_tokens - self.tokens_used)
         remaining_cost = max(0.0, self.budget.max_cost_usd - self.cost_used)
+        verification_token_capacity = max(
+            0,
+            remaining_tokens - max(0, int(prerequisite_tokens)),
+        )
+        verification_cost_capacity = max(
+            0.0,
+            remaining_cost - max(0.0, float(prerequisite_cost_usd)),
+        )
         self.verification_reserved_tokens = min(
             max(0, int(tokens)),
-            remaining_tokens,
+            verification_token_capacity,
         )
         self.verification_reserved_cost_usd = min(
             max(0.0, float(cost_usd)),
-            remaining_cost,
+            verification_cost_capacity,
         )
         return (
             self.verification_reserved_tokens,
@@ -958,8 +974,11 @@ def _reserve_verification_budget(
     max_reads: int,
     verification_model: VerificationModelClient,
     verification_settings: VerificationSettings,
+    prerequisite_stage: str | None = None,
+    prerequisite_estimated_tokens: int = 0,
+    prerequisite_estimated_cost_usd: float = 0.0,
 ) -> VerificationReserveAudit:
-    """Reserve a pre-search estimate without pretending future sizes are known."""
+    """Reserve a pre-read estimate without starving the next required call."""
 
     claim_by_id = {target.claim.claim_id: target.claim for target in targets}
     note_by_id = {str(note.note_id): note for note in notes}
@@ -1021,6 +1040,8 @@ def _reserve_verification_budget(
     reserved_tokens, reserved_cost = tracker.reserve_verification(
         tokens=estimated_tokens,
         cost_usd=estimated_cost,
+        prerequisite_tokens=prerequisite_estimated_tokens,
+        prerequisite_cost_usd=prerequisite_estimated_cost_usd,
     )
     return VerificationReserveAudit(
         reference_source_url=reference_url,
@@ -1037,6 +1058,9 @@ def _reserve_verification_budget(
         ),
         estimated_tokens=estimated_tokens,
         estimated_cost_usd=estimated_cost,
+        prerequisite_stage=prerequisite_stage,
+        prerequisite_estimated_tokens=prerequisite_estimated_tokens,
+        prerequisite_estimated_cost_usd=prerequisite_estimated_cost_usd,
         reserved_tokens=reserved_tokens,
         reserved_cost_usd=reserved_cost,
     )
@@ -2035,6 +2059,43 @@ async def run_evidence_gap_round(
                 "evidence-gap plan remained mechanically incomplete after "
                 "two attempts"
             )
+        for query in queries:
+            try:
+                results = tuple(
+                    await search(
+                        query.query,
+                        tavily_client=tavily_client,
+                        max_results=budget.max_results_per_search,
+                    )
+                )
+                searches.append(GapSearchRecord(query=query, results=results))
+            except Exception as exc:
+                searches.append(
+                    GapSearchRecord(
+                        query=query,
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                )
+
+        read_prompt: str | None = None
+        prerequisite_tokens = 0
+        prerequisite_cost = 0.0
+        if any(record.results for record in searches) and budget.max_reads:
+            read_prompt = build_evidence_gap_read_prompt(
+                targets=targets,
+                searches=searches,
+                max_reads=budget.max_reads,
+            )
+            prerequisite_tokens, prerequisite_cost = tracker._estimate(
+                gap_model,
+                read_prompt,
+            )
+
+        # Verification is downstream of read selection. Reserving every
+        # remaining token for verification before admitting that prerequisite
+        # made a real finance-14 pass deadlock despite five search results.
+        # The allowance is estimated from the exact post-search prompt; it is
+        # capacity accounting, not a judgement about which source to read.
         verification_reserve = _reserve_verification_budget(
             tracker=tracker,
             queries=queries,
@@ -2045,6 +2106,11 @@ async def run_evidence_gap_round(
             max_reads=budget.max_reads,
             verification_model=verification_model,
             verification_settings=active_verification_settings,
+            prerequisite_stage=(
+                "read_selection" if read_prompt is not None else None
+            ),
+            prerequisite_estimated_tokens=prerequisite_tokens,
+            prerequisite_estimated_cost_usd=prerequisite_cost,
         )
         ledger.record_evidence_gap(
             event=ledger_event("cache_review"),
@@ -2064,39 +2130,26 @@ async def run_evidence_gap_round(
                     "verification_reserved_cost_usd": (
                         verification_reserve.reserved_cost_usd
                     ),
+                    "prerequisite_stage": (
+                        verification_reserve.prerequisite_stage
+                    ),
+                    "prerequisite_estimated_tokens": (
+                        verification_reserve.prerequisite_estimated_tokens
+                    ),
+                    "prerequisite_estimated_cost_usd": (
+                        verification_reserve.prerequisite_estimated_cost_usd
+                    ),
                 },
                 ensure_ascii=False,
                 sort_keys=True,
             ),
         )
 
-        for query in queries:
-            try:
-                results = tuple(
-                    await search(
-                        query.query,
-                        tavily_client=tavily_client,
-                        max_results=budget.max_results_per_search,
-                    )
-                )
-                searches.append(GapSearchRecord(query=query, results=results))
-            except Exception as exc:
-                searches.append(
-                    GapSearchRecord(
-                        query=query,
-                        error=f"{type(exc).__name__}: {exc}",
-                    )
-                )
-
-        if any(record.results for record in searches) and budget.max_reads:
+        if read_prompt is not None:
             try:
                 read_response = await tracker.call(
                     gap_model,
-                    build_evidence_gap_read_prompt(
-                        targets=targets,
-                        searches=searches,
-                        max_reads=budget.max_reads,
-                    ),
+                    read_prompt,
                     stage="read_selection",
                 )
             except _GapBudgetExhausted as exc:
