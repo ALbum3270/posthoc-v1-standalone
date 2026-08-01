@@ -69,6 +69,7 @@ from open_deep_research.harness.concentration import (
 )
 from open_deep_research.harness.evidence_gap import (
     CachedCandidateHint,
+    DeferredGapTarget,
     EvidenceGapBudget,
     EvidenceGapCallUsage,
     EvidenceGapInformationAudit,
@@ -432,6 +433,7 @@ __all__ = [
     "VerifiedSourceRelation",
     "ClaimEvidenceState",
     "ClaimVerification",
+    "DeferredGapTarget",
     "PublisherIndependenceAudit",
     "HarnessRunResult",
     "assemble_notes",

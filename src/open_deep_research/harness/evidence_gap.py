@@ -7,7 +7,7 @@ import json
 import unicodedata
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from urllib.parse import urlparse
 
 from pydantic import (
@@ -89,7 +89,7 @@ class EvidenceGapBudget(BaseModel):
 
     max_tokens: int = Field(default=60_000, ge=0)
     max_cost_usd: float = Field(default=0.10, ge=0.0)
-    max_search_queries: int = Field(default=3, ge=0, le=20)
+    max_search_queries: int = Field(default=6, ge=0, le=20)
     max_reads: int = Field(default=3, ge=0, le=20)
     max_results_per_search: int = Field(default=5, ge=1, le=20)
 
@@ -128,6 +128,29 @@ class GapSearchQuery(BaseModel):
     claim_ids: tuple[str, ...] = Field(min_length=1)
     item_id: str
     query: str
+
+
+class DeferredGapTarget(BaseModel):
+    """A target explicitly left without a route because query capacity ended.
+
+    This is a capacity record, not a semantic judgement that the claim needs
+    no evidence or cannot be researched.  Those conclusions require actual
+    evidence work and are deliberately unavailable to the planner.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str
+    reason: Literal["query_capacity_not_allocated"]
+    priority_rationale: str
+
+    @field_validator("priority_rationale")
+    @classmethod
+    def _rationale_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("priority_rationale must not be blank")
+        return normalized
 
 
 class GapSearchRecord(BaseModel):
@@ -247,6 +270,7 @@ class EvidenceGapResult(BaseModel):
     unrouted_target_claim_ids: tuple[str, ...] = ()
     initial_states: dict[str, ClaimEvidenceState] = Field(default_factory=dict)
     cached_candidate_hints: tuple[CachedCandidateHint, ...] = ()
+    deferred_targets: tuple[DeferredGapTarget, ...] = ()
     rejected_entries: tuple[dict[str, Any], ...] = ()
     searches: tuple[GapSearchRecord, ...] = ()
     read_selections: tuple[GapReadSelection, ...] = ()
@@ -269,7 +293,9 @@ class EvidenceGapResult(BaseModel):
         "syndicated_or_republished_content_can_be_missed",
         "final_counts_still_use_publisher_domain_proxy",
     )
-    query_planning_method: str = "model_selected_ordered_merged_queries"
+    query_planning_method: str = (
+        "model_selected_ordered_merged_queries_with_mechanical_route_closure"
+    )
     query_merge_precision_status: str = "pending_observation"
     query_merge_precision_limitations: tuple[str, ...] = (
         "no in-repository A/B currently measures merged-query precision",
@@ -346,6 +372,11 @@ class EvidenceGapResult(BaseModel):
             raise ValueError(
                 "routed and unrouted target claims must partition targets"
             )
+        deferred_ids = tuple(target.claim_id for target in self.deferred_targets)
+        if len(set(deferred_ids)) != len(deferred_ids):
+            raise ValueError("deferred target claim_ids must be unique")
+        if not set(deferred_ids).issubset(set(unrouted)):
+            raise ValueError("deferred targets must be unrouted target claims")
         return self
 
     @property
@@ -399,6 +430,22 @@ class _RawSearchQuery(BaseModel):
         return normalized
 
 
+class _RawDeferredTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str
+    reason: Literal["query_capacity_not_allocated"]
+    priority_rationale: str
+
+    @field_validator("priority_rationale")
+    @classmethod
+    def _rationale_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("priority_rationale must not be blank")
+        return normalized
+
+
 class _RawRead(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -439,14 +486,19 @@ domains owned by the same organization, aggregators, and republished or
 syndicated copies are not independent publishers. Do not use domain spelling
 alone to manufacture a second publisher.
 
-You have a hard budget of at most {max_queries} web search queries. This is an
-upper bound, not a target: returning fewer or zero queries is legal. Select
-and order only the highest-value queries. Put the highest-priority query
-first. One query may name several claim_ids when the same focused search can
-plausibly find pages relevant to every named claim. Reusing one query for
-several claims is encouraged when their information need genuinely overlaps,
-but do not make a query vague merely to cover more claims. A target claim
-does not need its own output entry.
+You have a hard budget of at most {max_queries} web search queries. Select and
+order the highest-value focused queries, putting the highest priority first.
+One query may name several claim_ids only when the same focused search can
+plausibly find pages relevant to every named claim. Do not make a query vague
+merely to cover more claims.
+
+Every target claim must be accounted for by at least one accepted cached
+candidate, one proposed query, or deferred_targets. A routed target must not
+also be deferred. Deferral has only
+one legal meaning: query capacity was not allocated in this bounded pass. It
+does not mean that evidence is unnecessary, unavailable, or already disproven.
+When any otherwise-unrouted target is deferred, use every available query slot
+before deferring it. Code validates this coverage and capacity mechanically.
 
 Return:
 {{"cached_candidates":[{{"claim_id":"claim-0001",\
@@ -455,7 +507,10 @@ Return:
 "publisher_identity":"publishing organization",\
 "independence_rationale":"brief reason"}}],\
 "queries":[{{"claim_ids":["claim-0001","claim-0002"],\
-"item_id":"existing-checklist-item","query":"one focused query"}}]}}
+"item_id":"existing-checklist-item","query":"one focused query"}}],\
+"deferred_targets":[{{"claim_id":"claim-0003",\
+"reason":"query_capacity_not_allocated",\
+"priority_rationale":"why routed targets had higher priority"}}]}}
 
 Search may seek support, contradiction, absence of support, or insufficient
 information; do not optimize only for agreement.
@@ -997,7 +1052,9 @@ def _parse_plan(
 ) -> tuple[
     tuple[CachedCandidateHint, ...],
     tuple[GapSearchQuery, ...],
+    tuple[DeferredGapTarget, ...],
     tuple[dict[str, Any], ...],
+    bool,
 ]:
     target_by_id = {target.claim.claim_id: target for target in targets}
     note_by_id = {str(note.note_id): note for note in notes}
@@ -1005,16 +1062,24 @@ def _parse_plan(
     rejected: list[dict[str, Any]] = []
     accepted_hints: list[CachedCandidateHint] = []
     accepted_queries: list[GapSearchQuery] = []
+    accepted_deferred: list[DeferredGapTarget] = []
     if not isinstance(content, Mapping):
-        return (), (), (
-            {
-                "stage": "plan",
-                "error": "plan must be a JSON object",
-                "raw": content,
-            },
+        return (
+            (),
+            (),
+            (),
+            (
+                {
+                    "stage": "plan",
+                    "error": "plan must be a JSON object",
+                    "raw": content,
+                },
+            ),
+            False,
         )
     raw_hints = content.get("cached_candidates")
     raw_queries = content.get("queries")
+    raw_deferred = content.get("deferred_targets", ())
     if not isinstance(raw_hints, (list, tuple)):
         rejected.append(
             {
@@ -1033,6 +1098,15 @@ def _parse_plan(
             }
         )
         raw_queries = ()
+    if not isinstance(raw_deferred, (list, tuple)):
+        rejected.append(
+            {
+                "stage": "plan",
+                "error": "deferred_targets must be an array",
+                "raw": raw_deferred,
+            }
+        )
+        raw_deferred = ()
     identities_by_claim: dict[str, set[str]] = {
         claim_id: set() for claim_id in target_by_id
     }
@@ -1171,10 +1245,129 @@ def _parse_plan(
                 query=query.query,
             )
         )
+
+    routed_claim_ids = {
+        hint.claim_id for hint in accepted_hints
+    } | {
+        claim_id
+        for query in accepted_queries
+        for claim_id in query.claim_ids
+    }
+    seen_deferred: set[str] = set()
+    for index, raw in enumerate(raw_deferred):
+        try:
+            proposal = _RawDeferredTarget.model_validate(raw)
+        except (TypeError, ValidationError, ValueError) as exc:
+            rejected.append(
+                {
+                    "stage": "deferred_target",
+                    "index": index,
+                    "error": str(exc),
+                    "raw": raw,
+                }
+            )
+            continue
+        error: str | None = None
+        if proposal.claim_id not in target_by_id:
+            error = "unknown target claim_id"
+        elif proposal.claim_id in routed_claim_ids:
+            error = "routed target cannot also be deferred"
+        elif proposal.claim_id in seen_deferred:
+            error = "duplicate deferred target"
+        if error is not None:
+            rejected.append(
+                {
+                    "stage": "deferred_target",
+                    "index": index,
+                    "claim_id": proposal.claim_id,
+                    "error": error,
+                    "raw": proposal.model_dump(mode="json"),
+                }
+            )
+            continue
+        seen_deferred.add(proposal.claim_id)
+        accepted_deferred.append(
+            DeferredGapTarget(
+                claim_id=proposal.claim_id,
+                reason=proposal.reason,
+                priority_rationale=proposal.priority_rationale,
+            )
+        )
+
+    accounted_claim_ids = routed_claim_ids | seen_deferred
+    missing_claim_ids = tuple(
+        claim_id
+        for claim_id in target_by_id
+        if claim_id not in accounted_claim_ids
+    )
+    if missing_claim_ids:
+        rejected.append(
+            {
+                "stage": "plan_coverage",
+                "error": (
+                    "target claims must have a cached candidate, a query "
+                    "route, or an explicit capacity deferral"
+                ),
+                "missing_claim_ids": list(missing_claim_ids),
+            }
+        )
+
+    targets_without_cached_routes = set(target_by_id) - {
+        hint.claim_id for hint in accepted_hints
+    }
+    required_query_slots = min(max_queries, len(targets_without_cached_routes))
+    capacity_underused = bool(accepted_deferred) and (
+        len(accepted_queries) < required_query_slots
+    )
+    if capacity_underused:
+        rejected.append(
+            {
+                "stage": "plan_capacity",
+                "error": (
+                    "query_capacity_not_allocated is legal only after every "
+                    "available query slot has been allocated"
+                ),
+                "accepted_query_count": len(accepted_queries),
+                "required_query_count": required_query_slots,
+            }
+        )
     return (
         tuple(accepted_hints),
         tuple(accepted_queries),
+        tuple(accepted_deferred),
         tuple(rejected),
+        not missing_claim_ids and not capacity_underused,
+    )
+
+
+def _plan_retry_prompt(
+    base_prompt: str,
+    rejected: Sequence[Mapping[str, Any]],
+) -> str:
+    """Return one bounded correction prompt from mechanical plan failures."""
+
+    feedback = [
+        {
+            key: entry[key]
+            for key in (
+                "stage",
+                "error",
+                "missing_claim_ids",
+                "accepted_query_count",
+                "required_query_count",
+            )
+            if key in entry
+        }
+        for entry in rejected
+        if entry.get("stage") in {"plan", "plan_coverage", "plan_capacity"}
+    ]
+    return (
+        base_prompt
+        + "\n\nMECHANICAL PLAN VALIDATION FAILED. Return a complete replacement "
+        "plan, not a patch. Every target must be routed or explicitly "
+        "deferred, and capacity deferral is legal only after all available "
+        "query slots are allocated. Validation feedback:\n"
+        + json.dumps(feedback, ensure_ascii=False, sort_keys=True)
     )
 
 
@@ -1773,6 +1966,7 @@ async def run_evidence_gap_round(
     added_source_urls: list[str] = []
     added_note_ids: list[str] = []
     hints: tuple[CachedCandidateHint, ...] = ()
+    deferred_targets: tuple[DeferredGapTarget, ...] = ()
     verification_reserve: VerificationReserveAudit | None = None
     stop_reason = EvidenceGapStopReason.COMPLETED
     stop_detail = "single evidence-gap pass completed"
@@ -1785,25 +1979,62 @@ async def run_evidence_gap_round(
         active_plan_builder = (
             plan_prompt_builder or build_evidence_gap_plan_prompt
         )
-        plan_response = await tracker.call(
-            gap_model,
-            active_plan_builder(
-                targets=targets,
-                notes=ledger.notes,
-                checklist=checklist,
-                max_queries=budget.max_search_queries,
-            ),
-            stage="cache_review_and_search_plan",
-        )
-        plan_content = _decode_response(plan_response)
-        hints, queries, plan_rejected = _parse_plan(
-            plan_content,
+        base_plan_prompt = active_plan_builder(
             targets=targets,
             notes=ledger.notes,
             checklist=checklist,
             max_queries=budget.max_search_queries,
         )
-        rejected.extend(plan_rejected)
+        queries: tuple[GapSearchQuery, ...] = ()
+        plan_rejected: tuple[dict[str, Any], ...] = ()
+        plan_valid = False
+        plan_prompt = base_plan_prompt
+        plan_attempt_count = 0
+        for plan_attempt_count in range(1, 3):
+            plan_response = await tracker.call(
+                gap_model,
+                plan_prompt,
+                stage="cache_review_and_search_plan",
+            )
+            plan_content = _decode_response(plan_response)
+            (
+                attempt_hints,
+                attempt_queries,
+                attempt_deferred,
+                plan_rejected,
+                plan_valid,
+            ) = _parse_plan(
+                plan_content,
+                targets=targets,
+                notes=ledger.notes,
+                checklist=checklist,
+                max_queries=budget.max_search_queries,
+            )
+            rejected.extend(
+                {**entry, "attempt": plan_attempt_count}
+                for entry in plan_rejected
+            )
+            if plan_valid:
+                hints = attempt_hints
+                queries = attempt_queries
+                deferred_targets = attempt_deferred
+                break
+            if plan_attempt_count == 1:
+                plan_prompt = _plan_retry_prompt(
+                    base_plan_prompt,
+                    plan_rejected,
+                )
+        if not plan_valid:
+            # A mechanically incomplete plan cannot be partly executed. Doing
+            # so would restore the silent first-query bias this contract exists
+            # to expose. The failed proposals remain in rejected_entries.
+            hints = ()
+            queries = ()
+            deferred_targets = ()
+            raise ValueError(
+                "evidence-gap plan remained mechanically incomplete after "
+                "two attempts"
+            )
         verification_reserve = _reserve_verification_budget(
             tracker=tracker,
             queries=queries,
@@ -1822,7 +2053,11 @@ async def run_evidence_gap_round(
                     "target_claim_ids": [target.claim.claim_id for target in targets],
                     "accepted_cached_candidates": len(hints),
                     "search_queries": len(queries),
-                    "rejected_entries": len(plan_rejected),
+                    "deferred_target_claim_ids": [
+                        target.claim_id for target in deferred_targets
+                    ],
+                    "plan_attempt_count": plan_attempt_count,
+                    "rejected_entries": len(rejected),
                     "verification_reserved_tokens": (
                         verification_reserve.reserved_tokens
                     ),
@@ -2246,6 +2481,7 @@ async def run_evidence_gap_round(
             "single bounded evidence-gap pass ended; "
             f"routed target claims={routed_count}/{len(targets)}; "
             f"unrouted target claims={len(targets) - routed_count}; "
+            f"capacity-deferred target claims={len(deferred_targets)}; "
             "new completed claim-source relations="
             f"{information_yield.new_completed_relation_count}"
         )
@@ -2292,6 +2528,7 @@ async def run_evidence_gap_round(
         ),
         initial_states=initial_states,
         cached_candidate_hints=hints,
+        deferred_targets=deferred_targets,
         rejected_entries=tuple(rejected),
         searches=tuple(searches),
         read_selections=selections,

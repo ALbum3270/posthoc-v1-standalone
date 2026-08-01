@@ -204,14 +204,24 @@ class AttributionModel:
 
 
 class RecoveryAwareDecisionModel(DecisionModel):
-    """Settle collection, then execute one empty bounded recovery plan."""
+    """Settle collection, then route recovery through one empty search."""
 
     async def generate(self, prompt):
         if "This is the only bounded evidence-recovery pass" in prompt:
             self.events.append("recovery-plan")
             return {
                 "content": json.dumps(
-                    {"cached_candidates": [], "queries": []}
+                    {
+                        "cached_candidates": [],
+                        "queries": [
+                            {
+                                "claim_ids": ["claim-0001"],
+                                "item_id": "what-1",
+                                "query": "focused record for the assertion",
+                            }
+                        ],
+                        "deferred_targets": [],
+                    }
                 ),
                 "token_count": 3,
                 "cost_usd": 0.003,
@@ -788,6 +798,14 @@ class UnusedTavily:
         raise AssertionError("read should not be called")
 
 
+class EmptySearchTavily:
+    async def search(self, query, **kwargs):
+        return {"results": []}
+
+    async def extract(self, urls, **kwargs):
+        raise AssertionError("an empty search result cannot be read")
+
+
 def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path):
     events = []
     writer = WriteModel(events)
@@ -1088,7 +1106,7 @@ def test_runner_recovery_accepts_mixed_external_and_internal_registry(tmp_path):
             attribution_model=AttributionModel(events),
             verification_model=UnusedVerificationModel(),
             recovery_model=recovery_model,
-            tavily_client=UnusedTavily(),
+            tavily_client=EmptySearchTavily(),
             budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
             evidence_recovery_budget=EvidenceGapBudget(
                 max_tokens=100,
@@ -1144,12 +1162,13 @@ def test_runner_recovery_accepts_mixed_external_and_internal_registry(tmp_path):
     )
     stages = posthoc["stage_execution"]["stages"]
     assert stages["recovery_triage"]["status"] == "complete"
-    assert stages["evidence_recovery"]["status"] == "partial"
+    # The replacement fake now issues the required route and receives a real
+    # empty search result. That is completed evaluation with no information
+    # yield, not the old silent 0/1 plan that the new contract rejects.
+    assert stages["evidence_recovery"]["status"] == "complete"
     assert stages["evidence_recovery"]["expected_scope"]["count"] == 1
-    assert stages["evidence_recovery"]["evaluated_scope"]["count"] == 0
-    assert stages["evidence_recovery"]["unevaluated_ids"] == [
-        "claim-0001"
-    ]
+    assert stages["evidence_recovery"]["evaluated_scope"]["count"] == 1
+    assert stages["evidence_recovery"]["unevaluated_ids"] == []
 
 
 def test_runner_rejects_run_id_that_could_escape_output_directory(tmp_path):
@@ -1505,6 +1524,7 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
     assert args.max_cost_usd == 0.28
     assert args.collection_max_cost_usd == 0.09
     assert args.verification_cost_reserve_usd == 0.10
+    assert args.evidence_gap_max_searches == 6
     assert args.evidence_recovery_max_tokens == 12_345
     assert args.evidence_recovery_max_cost_usd == 0.07
     assert args.evidence_recovery_max_searches == 2

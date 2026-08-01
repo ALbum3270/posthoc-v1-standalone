@@ -239,10 +239,12 @@ class _GapPlanModel(_MeasuredFake):
         self,
         cached_candidates: Sequence[Mapping[str, Any]],
         queries: Sequence[Mapping[str, Any]],
+        deferred_targets: Sequence[Mapping[str, Any]],
     ) -> None:
         super().__init__()
         self.cached_candidates = tuple(dict(item) for item in cached_candidates)
         self.queries = tuple(dict(item) for item in queries)
+        self.deferred_targets = tuple(dict(item) for item in deferred_targets)
 
     async def generate(self, prompt: str) -> dict[str, Any]:
         del prompt
@@ -251,6 +253,7 @@ class _GapPlanModel(_MeasuredFake):
             {
                 "cached_candidates": list(self.cached_candidates),
                 "queries": list(self.queries),
+                "deferred_targets": list(self.deferred_targets),
             }
         )
 
@@ -475,7 +478,30 @@ async def _run_gap_scenario(
     mixed_verifier: bool,
 ) -> tuple[Any, dict[str, int]]:
     ledger = _clone_ledger(payload)
-    gap_model = _GapPlanModel(cached_candidates, queries)
+    routed_claim_ids = {
+        str(candidate["claim_id"]) for candidate in cached_candidates
+    } | {
+        str(claim_id)
+        for query in queries
+        for claim_id in query["claim_ids"]
+    }
+    deferred_targets = tuple(
+        {
+            "claim_id": claim_id,
+            "reason": "query_capacity_not_allocated",
+            "priority_rationale": (
+                "offline mixed-verdict probe deliberately has zero web "
+                "query capacity"
+            ),
+        }
+        for claim_id in triage.research_target_claim_ids
+        if claim_id not in routed_claim_ids
+    )
+    gap_model = _GapPlanModel(
+        cached_candidates,
+        queries,
+        deferred_targets,
+    )
     note_model = _ForbiddenBoundary("note model")
     attribution_model = _ForbiddenBoundary("attribution model")
     verifier: _MeasuredFake = (
@@ -503,7 +529,7 @@ async def _run_gap_scenario(
         budget=EvidenceGapBudget(
             max_tokens=10_000,
             max_cost_usd=1.0,
-            max_search_queries=3,
+            max_search_queries=3 if queries else 0,
             max_reads=3,
         ),
         explicit_target_claim_ids=triage.research_target_claim_ids,

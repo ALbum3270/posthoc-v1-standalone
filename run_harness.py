@@ -425,7 +425,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.10,
     )
-    parser.add_argument("--evidence-gap-max-searches", type=int, default=3)
+    parser.add_argument(
+        "--evidence-gap-max-searches",
+        type=int,
+        default=6,
+        help=(
+            "maximum searches in the bounded evidence-gap pass; targets "
+            "without an allocated route remain explicitly deferred"
+        ),
+    )
     parser.add_argument("--evidence-gap-max-reads", type=int, default=3)
     parser.add_argument(
         "--evidence-recovery-max-tokens",

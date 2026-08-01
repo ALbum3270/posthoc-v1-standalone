@@ -343,8 +343,9 @@ def test_planner_uses_one_ordered_query_for_multiple_claims_within_hard_cap():
     )
     prompt = gap_model.prompts[0]
     assert "hard budget of at most 1 web search queries" in prompt
-    assert "upper bound, not a target" in prompt
-    assert "A target claim\ndoes not need its own output entry" in prompt
+    assert "Every target claim must be accounted for" in prompt
+    assert '"reason":"query_capacity_not_allocated"' in prompt
+    assert "does not mean that evidence is unnecessary" in prompt
     assert '"corroboration_target": 2' in prompt
     assert result.verification_reserve is not None
     assert result.verification_reserve.planned_query_count == 1
@@ -353,6 +354,238 @@ def test_planner_uses_one_ordered_query_for_multiple_claims_within_hard_cap():
     assert result.information_yield.new_completed_relation_count == 0
     assert "new completed claim-source relations=0" in result.stop_detail
     assert "not found" not in result.stop_detail
+
+
+def _many_gap_targets(count: int):
+    sentences = tuple(f"Fact number {index} occurred." for index in range(1, count + 1))
+    report = "# Report\n\n" + " ".join(sentences)
+    claims = tuple(
+        _claim(
+            report,
+            claim_id=f"claim-{index:04d}",
+            text=sentence,
+        )
+        for index, sentence in enumerate(sentences, start=1)
+    )
+    initial_pairs = tuple(
+        _initial(
+            claim,
+            candidate=None,
+            state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+        )
+        for claim in claims
+    )
+    attribution = AttributionResult(
+        attributions=tuple(pair[0].attributions[0] for pair in initial_pairs),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+    verification = VerificationResult(
+        claims=tuple(pair[1].claims[0] for pair in initial_pairs)
+    )
+    return report, claims, attribution, verification
+
+
+def _capacity_deferred(claims):
+    return [
+        {
+            "claim_id": claim.claim_id,
+            "reason": "query_capacity_not_allocated",
+            "priority_rationale": "six higher-priority routes consumed the cap",
+        }
+        for claim in claims
+    ]
+
+
+def test_finance_14_shape_retries_sparse_plan_and_exposes_capacity_deferral():
+    """One silent route for 43 targets is not executable planning work."""
+
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(43)
+    )
+    first_sparse_plan = {
+        "cached_candidates": [],
+        "queries": [
+            {
+                "claim_ids": [claims[0].claim_id],
+                "item_id": "what-1",
+                "query": "only the first route",
+            }
+        ],
+    }
+    corrected_plan = {
+        "cached_candidates": [],
+        "queries": [
+            {
+                "claim_ids": [claim.claim_id],
+                "item_id": "what-1",
+                "query": f"focused route {index}",
+            }
+            for index, claim in enumerate(claims[:6], start=1)
+        ],
+        "deferred_targets": _capacity_deferred(claims[6:]),
+    }
+    gap_model = ScriptedModel(first_sparse_plan, corrected_plan)
+    network = EmptySearchNetwork()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_reads=3,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    from open_deep_research.harness.runner import _evidence_gap_execution_record
+
+    stage = _evidence_gap_execution_record(result)
+    assert EvidenceGapBudget().max_search_queries == 6
+    assert len(gap_model.prompts) == 2
+    assert "MECHANICAL PLAN VALIDATION FAILED" in gap_model.prompts[1]
+    assert claims[1].claim_id in gap_model.prompts[1]
+    assert network.queries == [f"focused route {index}" for index in range(1, 7)]
+    assert result.routed_target_claim_ids == tuple(
+        claim.claim_id for claim in claims[:6]
+    )
+    assert result.unrouted_target_claim_ids == tuple(
+        claim.claim_id for claim in claims[6:]
+    )
+    assert tuple(target.claim_id for target in result.deferred_targets) == (
+        result.unrouted_target_claim_ids
+    )
+    assert {target.reason for target in result.deferred_targets} == {
+        "query_capacity_not_allocated"
+    }
+    assert any(
+        entry.get("stage") == "plan_coverage" and entry.get("attempt") == 1
+        for entry in result.rejected_entries
+    )
+    assert stage.status.value == "partial"
+    assert stage.expected_scope.count == 43
+    assert stage.evaluated_scope.count == 6
+    assert "capacity-deferred target claims=37" in result.stop_detail
+
+
+def test_semantic_no_query_escape_is_rejected_before_capacity_deferral():
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(1)
+    )
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [],
+            "deferred_targets": [
+                {
+                    "claim_id": claims[0].claim_id,
+                    "reason": "unsearchable",
+                    "priority_rationale": "no likely source",
+                }
+            ],
+        },
+        {
+            "cached_candidates": [],
+            "queries": [],
+            "deferred_targets": _capacity_deferred(claims),
+        },
+    )
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=0,
+                max_reads=0,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    assert result.routed_target_claim_ids == ()
+    assert result.unrouted_target_claim_ids == (claims[0].claim_id,)
+    assert result.deferred_targets[0].reason == "query_capacity_not_allocated"
+    assert any(
+        entry.get("stage") == "deferred_target" and entry.get("attempt") == 1
+        for entry in result.rejected_entries
+    )
+
+
+def test_incomplete_plan_after_bounded_retry_executes_no_partial_query():
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(43)
+    )
+    sparse_plan = {
+        "cached_candidates": [],
+        "queries": [
+            {
+                "claim_ids": [claims[0].claim_id],
+                "item_id": "what-1",
+                "query": "must never execute",
+            }
+        ],
+    }
+    gap_model = ScriptedModel(sparse_plan, sparse_plan)
+    network = EmptySearchNetwork()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=6,
+                max_reads=3,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.MODEL_ERROR
+    assert "mechanically incomplete after two attempts" in result.stop_detail
+    assert network.queries == []
+    assert result.searches == ()
+    assert result.routed_target_claim_ids == ()
+    assert result.unrouted_target_claim_ids == tuple(
+        claim.claim_id for claim in claims
+    )
 
 
 @pytest.mark.parametrize(
