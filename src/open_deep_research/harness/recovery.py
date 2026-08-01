@@ -27,6 +27,7 @@ from pydantic import (
 
 from open_deep_research.harness.budget import RunCostCapReached
 from open_deep_research.harness.checklist import ResearchChecklist
+from open_deep_research.harness.claims import CitationRequirement
 from open_deep_research.harness.edit import EDITORIAL_TARGET_STATES
 from open_deep_research.harness.evidence_gap import (
     EvidenceGapResult,
@@ -66,6 +67,38 @@ class RecoveryTriageStatus(str, Enum):
     COMPLETE = "complete"
     PARTIAL = "partial"
     FAILED = "failed"
+
+
+class RecoveryInapplicabilityReason(str, Enum):
+    """Mechanical reasons an evidence anomaly is outside web recovery."""
+
+    NON_EXTERNAL_CITATION_REQUIREMENT = (
+        "non_external_citation_requirement"
+    )
+
+
+class RecoveryInapplicableClaim(BaseModel):
+    """An anomalous claim retained in audit but excluded from web retrieval."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str = Field(min_length=1)
+    citation_requirement: CitationRequirement
+    reason: RecoveryInapplicabilityReason = (
+        RecoveryInapplicabilityReason.NON_EXTERNAL_CITATION_REQUIREMENT
+    )
+    explanation: str = (
+        "evidence recovery performs external source retrieval; this claim's "
+        "citation requirement is not external"
+    )
+
+    @model_validator(mode="after")
+    def _external_claims_are_applicable(self) -> RecoveryInapplicableClaim:
+        if self.citation_requirement is CitationRequirement.EXTERNAL:
+            raise ValueError(
+                "an external claim cannot be recorded as recovery-inapplicable"
+            )
+        return self
 
 
 class RecoveryTriageSettings(BaseModel):
@@ -148,6 +181,7 @@ class RecoveryTriageResult(BaseModel):
     target_claim_ids: tuple[str, ...] = ()
     decisions: tuple[RecoveryTriageDecision, ...] = ()
     failed_claim_ids: tuple[str, ...] = ()
+    inapplicable_claims: tuple[RecoveryInapplicableClaim, ...] = ()
     diagnostics: tuple[str, ...] = ()
     usage: tuple[RecoveryTriageCallUsage, ...] = ()
     canonical_draft_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -161,12 +195,21 @@ class RecoveryTriageResult(BaseModel):
         target_ids = tuple(self.target_claim_ids)
         decision_ids = tuple(decision.claim_id for decision in self.decisions)
         failed_ids = tuple(self.failed_claim_ids)
+        inapplicable_ids = tuple(
+            claim.claim_id for claim in self.inapplicable_claims
+        )
         if len(set(target_ids)) != len(target_ids):
             raise ValueError("recovery triage target IDs must be unique")
         if len(set(decision_ids)) != len(decision_ids):
             raise ValueError("recovery triage decisions must be unique")
         if len(set(failed_ids)) != len(failed_ids):
             raise ValueError("recovery triage failures must be unique")
+        if len(set(inapplicable_ids)) != len(inapplicable_ids):
+            raise ValueError("inapplicable recovery claim IDs must be unique")
+        if set(inapplicable_ids) & set(target_ids):
+            raise ValueError(
+                "an inapplicable recovery claim cannot enter triage scope"
+            )
         if set(decision_ids) | set(failed_ids) != set(target_ids):
             raise ValueError(
                 "triage decisions and failures must partition targets"
@@ -266,6 +309,14 @@ class EvidenceRecoveryResult(BaseModel):
     @model_validator(mode="after")
     def _attempts_partition_frozen_targets(self) -> EvidenceRecoveryResult:
         targets = tuple(self.frozen_target_claim_ids)
+        if targets != self.triage.research_target_claim_ids:
+            raise ValueError(
+                "frozen recovery targets must equal triage research targets"
+            )
+        if tuple(self.pass_result.target_claim_ids) != targets:
+            raise ValueError(
+                "gap executor targets must equal frozen recovery targets"
+            )
         attempts = tuple(attempt.claim_id for attempt in self.attempts)
         if attempts != targets:
             raise ValueError("one recovery attempt record is required per target")
@@ -383,12 +434,29 @@ def _claim_registry_sha256(verification: VerificationResult) -> str:
 def recovery_triage_targets(
     verification: VerificationResult,
 ) -> tuple[ClaimVerification, ...]:
-    """Select completed content anomalies; protocol failures stay excluded."""
+    """Select external content anomalies accepted by the gap executor."""
 
     return tuple(
         claim
         for claim in verification.claims
         if claim.state in EDITORIAL_TARGET_STATES
+        and claim.claim.citation_requirement is CitationRequirement.EXTERNAL
+    )
+
+
+def recovery_inapplicable_claims(
+    verification: VerificationResult,
+) -> tuple[RecoveryInapplicableClaim, ...]:
+    """Retain non-external anomalies without sending them to web retrieval."""
+
+    return tuple(
+        RecoveryInapplicableClaim(
+            claim_id=claim.claim.claim_id,
+            citation_requirement=claim.claim.citation_requirement,
+        )
+        for claim in verification.claims
+        if claim.state in EDITORIAL_TARGET_STATES
+        and claim.claim.citation_requirement is not CitationRequirement.EXTERNAL
     )
 
 
@@ -536,11 +604,13 @@ async def triage_evidence_recovery(
     frozen_draft = canonical_draft
     frozen_registry_hash = _claim_registry_sha256(verification)
     targets = recovery_triage_targets(verification)
+    inapplicable_claims = recovery_inapplicable_claims(verification)
     target_ids = tuple(target.claim.claim_id for target in targets)
     draft_hash = hashlib.sha256(canonical_draft.encode("utf-8")).hexdigest()
     if not targets:
         return RecoveryTriageResult(
             status=RecoveryTriageStatus.NO_TARGETS,
+            inapplicable_claims=inapplicable_claims,
             canonical_draft_sha256=draft_hash,
             claim_registry_sha256=frozen_registry_hash,
         )
@@ -617,6 +687,7 @@ async def triage_evidence_recovery(
         target_claim_ids=target_ids,
         decisions=ordered_decisions,
         failed_claim_ids=ordered_failed,
+        inapplicable_claims=inapplicable_claims,
         diagnostics=tuple(diagnostics),
         usage=tuple(usage),
         canonical_draft_sha256=draft_hash,
@@ -830,6 +901,8 @@ __all__ = [
     "EvidenceRecoveryResult",
     "EvidenceRecoveryStopReason",
     "RecoveryClaimAttempt",
+    "RecoveryInapplicabilityReason",
+    "RecoveryInapplicableClaim",
     "RecoveryImportance",
     "RecoveryTriageAction",
     "RecoveryTriageDecision",
@@ -840,6 +913,7 @@ __all__ = [
     "build_recovery_gap_plan_prompt",
     "build_recovery_triage_prompt",
     "recovery_triage_targets",
+    "recovery_inapplicable_claims",
     "summarize_evidence_recovery",
     "triage_evidence_recovery",
 ]

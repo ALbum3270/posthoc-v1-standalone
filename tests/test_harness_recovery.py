@@ -2,6 +2,8 @@ import asyncio
 import hashlib
 import json
 
+import pytest
+
 from open_deep_research.harness.attribution import (
     AttributionResult,
     AttributionStopReason,
@@ -334,3 +336,48 @@ def test_zero_yield_56_target_shape_is_not_silently_called_complete():
     assert all(
         not attempt.attempted for attempt in result.attempts[1:]
     )
+
+
+def test_recovery_rejects_target_drift_between_triage_and_gap_executor():
+    """A future caller cannot silently execute a different frozen scope."""
+
+    claim_id = "claim-0001"
+    verification = VerificationResult(claims=(_verification(claim_id),))
+    triage = RecoveryTriageResult(
+        status=RecoveryTriageStatus.COMPLETE,
+        target_claim_ids=(claim_id,),
+        decisions=(
+            RecoveryTriageDecision(
+                claim_id=claim_id,
+                action=RecoveryTriageAction.RESEARCH_MORE,
+                importance=RecoveryImportance.CENTRAL,
+                importance_reason="The assertion is answer-bearing.",
+                evidence_need="A record addressing the assertion",
+                preferred_source_role="underlying record",
+                query="focused query",
+            ),
+        ),
+        canonical_draft_sha256=hashlib.sha256(b"draft").hexdigest(),
+        claim_registry_sha256=hashlib.sha256(b"registry").hexdigest(),
+    )
+    drifted_pass = EvidenceGapResult(
+        target_claim_ids=("claim-9999",),
+        stop_reason=EvidenceGapStopReason.COMPLETED,
+        stop_detail="wrong target was executed",
+        final_attribution=AttributionResult(
+            attributions=(),
+            stop_reason=AttributionStopReason.COMPLETED,
+        ),
+        final_verification=verification,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="gap executor targets must equal frozen recovery targets",
+    ):
+        summarize_evidence_recovery(
+            triage=triage,
+            pass_result=drifted_pass,
+            initial_verification=verification,
+            cached_source_urls=(),
+        )

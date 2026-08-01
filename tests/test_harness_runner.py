@@ -73,6 +73,21 @@ class WriteModel:
         }
 
 
+class FixedDraftWriteModel(WriteModel):
+    def __init__(self, events, draft):
+        super().__init__(events)
+        self.draft = draft
+
+    async def generate(self, prompt):
+        self.events.append("write")
+        self.prompts.append(prompt)
+        return {
+            "content": self.draft,
+            "token_count": 5,
+            "cost_usd": 0.05,
+        }
+
+
 class ClaimModel:
     def __init__(self, events, draft):
         self.events = events
@@ -207,15 +222,23 @@ class RecoveryAwareDecisionModel(DecisionModel):
 class ResearchMoreRecoveryModel:
     def __init__(self, events):
         self.events = events
+        self.prompts = []
 
     async def generate(self, prompt):
         self.events.append("recovery-triage")
+        self.prompts.append(prompt)
+        claim_ids = ["claim-0001"]
+        # Before the recovery/gap contract fix, a non-external claim appeared
+        # in this prompt and the scripted model reasonably selected it too.
+        # The resulting explicit target crashed the downstream gap executor.
+        if "claim-0002" in prompt:
+            claim_ids.append("claim-0002")
         return {
             "content": json.dumps(
                 {
                     "decisions": [
                         {
-                            "claim_id": "claim-0001",
+                            "claim_id": claim_id,
                             "action": "research_more",
                             "importance": "central",
                             "importance_reason": (
@@ -228,11 +251,105 @@ class ResearchMoreRecoveryModel:
                             "query": "focused record for the assertion",
                             "source_document_hint": None,
                         }
+                        for claim_id in claim_ids
                     ]
                 }
             ),
             "token_count": 5,
             "cost_usd": 0.005,
+        }
+
+
+class MixedRequirementClaimModel:
+    """Produce one external and one internal claim from the same draft."""
+
+    def __init__(self, events, draft):
+        self.events = events
+        self.draft = draft
+        self.blocks = parse_markdown_blocks(draft)
+        self.call_number = 0
+
+    async def generate(self, prompt):
+        self.call_number += 1
+        self.events.append(f"claim-{self.call_number}")
+        external = self.blocks[1]
+        internal = self.blocks[2]
+        if self.call_number == 1:
+            content = {
+                "blocks": [
+                    {
+                        "block_id": self.blocks[0].block_id,
+                        "assertions": [],
+                        "rationale": "heading",
+                    },
+                    {
+                        "block_id": external.block_id,
+                        "assertions": [
+                            {
+                                "selected_text": external.text,
+                                "citation_requirement": "external",
+                            }
+                        ],
+                        "rationale": "external assertion",
+                    },
+                    {
+                        "block_id": internal.block_id,
+                        "assertions": [
+                            {
+                                "selected_text": internal.text,
+                                "citation_requirement": "internal",
+                            }
+                        ],
+                        "rationale": "report-internal assertion",
+                    },
+                ]
+            }
+        elif self.call_number == 2:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": "claim-0001",
+                        "claim_text": external.text,
+                        "context_spans": [],
+                    },
+                    {
+                        "claim_id": "claim-0002",
+                        "claim_text": internal.text,
+                        "context_spans": [],
+                    },
+                ]
+            }
+        elif self.call_number == 3:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": "claim-0001",
+                        "start_segment_id": "S000002",
+                        "end_segment_id": "S000002",
+                    },
+                    {
+                        "claim_id": "claim-0002",
+                        "start_segment_id": "S000003",
+                        "end_segment_id": "S000003",
+                    },
+                ]
+            }
+        else:
+            # Evaluative diagnostics are deliberately external-only.
+            content = {
+                "claims": [
+                    {
+                        "claim_id": "claim-0001",
+                        "status": "not_underspecified",
+                        "categories": [],
+                        "reason": "The assertion has explicit boundaries.",
+                    }
+                ]
+            }
+        return {
+            "content": json.dumps(content),
+            "token_count": 10,
+            "cost_usd": 0.01,
         }
 
 
@@ -944,23 +1061,33 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     }
 
 
-def test_runner_executes_cli_shaped_recovery_and_audits_zero_yield(tmp_path):
-    """A configured recovery role must not silently take the disabled path."""
+def test_runner_recovery_accepts_mixed_external_and_internal_registry(tmp_path):
+    """Only external anomalies may enter the explicit gap target contract.
+
+    This reproduces the paid-run failure shape: attribution and verification
+    create records for both external and internal claims, while the recovery
+    model selects every anomaly it is shown. Before filtering at the triage
+    boundary, claim-0002 reached run_evidence_gap_round and raised ValueError.
+    """
 
     events = []
-    draft = "# Report\n\nThe model wrote this report."
+    draft = (
+        "# Report\n\nAn externally checkable assertion.\n\n"
+        "This conclusion follows from the report's own structure."
+    )
+    recovery_model = ResearchMoreRecoveryModel(events)
     result = asyncio.run(
         run_harness(
             "A topic",
             checklist_model=ChecklistModel(events),
             decision_model=RecoveryAwareDecisionModel(events),
             note_model=UnusedNoteModel(),
-            write_model=WriteModel(events),
-            claim_model=ClaimModel(events, draft),
+            write_model=FixedDraftWriteModel(events, draft),
+            claim_model=MixedRequirementClaimModel(events, draft),
             reconciliation_model=CoverageModel(events),
             attribution_model=AttributionModel(events),
             verification_model=UnusedVerificationModel(),
-            recovery_model=ResearchMoreRecoveryModel(events),
+            recovery_model=recovery_model,
             tavily_client=UnusedTavily(),
             budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
             evidence_recovery_budget=EvidenceGapBudget(
@@ -976,11 +1103,24 @@ def test_runner_executes_cli_shaped_recovery_and_audits_zero_yield(tmp_path):
 
     assert "recovery-triage" in events
     assert "recovery-plan" in events
+    assert "claim-0001" in recovery_model.prompts[0]
+    assert "claim-0002" not in recovery_model.prompts[0]
     assert result.recovery_triage is not None
     assert result.evidence_recovery is not None
     assert result.evidence_recovery.stop_reason is (
         EvidenceRecoveryStopReason.NO_INFORMATION_YIELD
     )
+    assert result.evidence_recovery.frozen_target_claim_ids == (
+        "claim-0001",
+    )
+    assert result.evidence_recovery.pass_result.target_claim_ids == (
+        "claim-0001",
+    )
+    assert result.evidence_recovery.claim_registry_unchanged is True
+    assert {
+        claim.claim.claim_id: claim.claim.citation_requirement.value
+        for claim in result.verification.claims
+    } == {"claim-0001": "external", "claim-0002": "internal"}
 
     audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
     posthoc = audit["posthoc_evidence"]
@@ -988,6 +1128,17 @@ def test_runner_executes_cli_shaped_recovery_and_audits_zero_yield(tmp_path):
     assert posthoc["recovery_triage"]["decisions"][0]["action"] == (
         "research_more"
     )
+    assert posthoc["recovery_triage"]["inapplicable_claims"] == [
+        {
+            "claim_id": "claim-0002",
+            "citation_requirement": "internal",
+            "reason": "non_external_citation_requirement",
+            "explanation": (
+                "evidence recovery performs external source retrieval; this "
+                "claim's citation requirement is not external"
+            ),
+        }
+    ]
     assert posthoc["evidence_recovery"]["stop_reason"] == (
         "no_information_yield"
     )

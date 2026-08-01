@@ -1761,8 +1761,9 @@ async def run_harness(
                     RecoveryTriageStatus.FAILED: StageExecutionStatus.FAILED,
                 }[recovery_triage.status],
                 reason=(
-                    "every completed evidence exception received a "
-                    "non-mutating recovery disposition"
+                    "every applicable external evidence exception received "
+                    "a non-mutating recovery disposition; non-external "
+                    "exceptions remain separately audited as inapplicable"
                     if recovery_triage.status
                     in {
                         RecoveryTriageStatus.NO_TARGETS,
