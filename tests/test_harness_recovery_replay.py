@@ -77,6 +77,42 @@ def test_finance_11_registry_replays_recovery_without_network_or_mutation():
         "verification_model": 0,
         "tavily": 1,
     }
+    empty_attempts = {
+        attempt["claim_id"]: attempt for attempt in empty["attempts"]
+    }
+    assert {
+        claim_id: attempt["query_route"]
+        for claim_id, attempt in empty_attempts.items()
+    } == {
+        "claim-0035": "source_chain",
+        "claim-0036": "source_chain",
+        "claim-0040": "source_chain",
+        "claim-0047": "direct_search_fallback",
+        "claim-0056": "source_chain",
+    }
+    assert all(
+        empty_attempts[claim_id]["selected_source_lead_id"] is not None
+        for claim_id in (
+            "claim-0035",
+            "claim-0036",
+            "claim-0040",
+            "claim-0056",
+        )
+    )
+    assert empty_attempts["claim-0047"]["selected_source_lead_id"] is None
+    assert empty_attempts["claim-0047"]["source_chain_access"] == (
+        "not_applicable_direct_search"
+    )
+    assert all(
+        empty_attempts[claim_id]["source_chain_access"]
+        == "lead_search_no_result"
+        for claim_id in (
+            "claim-0035",
+            "claim-0036",
+            "claim-0040",
+            "claim-0056",
+        )
+    )
 
     mixed = result["mixed_verdict_retrieval"]
     assert mixed["new_completed_relation_count"] == 3

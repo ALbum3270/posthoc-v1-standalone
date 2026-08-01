@@ -15,6 +15,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from open_deep_research.harness.ledger import SourceLinkRecord
+
 
 _URL = re.compile(r"https?://[^\s<>\]\[()\"']+")
 _DOI = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b", re.IGNORECASE)
@@ -82,6 +84,8 @@ class SourceLeadCandidate(BaseModel):
     kind: SourceLeadKind
     source_url: str = Field(min_length=1)
     verbatim_text: str = Field(min_length=1)
+    target_url: str | None = None
+    link_label: str | None = None
     entry_number: int | None = Field(default=None, ge=0)
     source_label_candidate: str | None = None
     document_title_candidate: str | None = None
@@ -113,6 +117,8 @@ def _candidate(
     source_url: str,
     kind: SourceLeadKind,
     verbatim_text: str,
+    target_url: str | None = None,
+    link_label: str | None = None,
     entry_number: int | None = None,
     source_label_candidate: str | None = None,
     document_title_candidate: str | None = None,
@@ -129,6 +135,8 @@ def _candidate(
         kind=kind,
         source_url=source_url,
         verbatim_text=verbatim_text,
+        target_url=target_url,
+        link_label=link_label,
         entry_number=entry_number,
         source_label_candidate=source_label_candidate,
         document_title_candidate=document_title_candidate,
@@ -156,15 +164,23 @@ def _line_contexts(text: str) -> tuple[str, ...]:
 
 def inventory_source_lead_candidates(
     source_cache: Mapping[str, str],
+    *,
+    source_links: Mapping[str, Sequence[SourceLinkRecord]] | None = None,
 ) -> tuple[SourceLeadCandidate, ...]:
-    """Inventory generic cached-text structures in deterministic order."""
+    """Inventory cached text plus an optional provider-link sidecar."""
 
     candidates: list[SourceLeadCandidate] = []
     seen_ids: set[str] = set()
+    seen_link_targets: set[tuple[str, str]] = set()
 
     def add(candidate: SourceLeadCandidate) -> None:
         if candidate.lead_id in seen_ids:
             return
+        if candidate.target_url is not None:
+            target_key = (candidate.source_url, candidate.target_url)
+            if target_key in seen_link_targets:
+                return
+            seen_link_targets.add(target_key)
         seen_ids.add(candidate.lead_id)
         candidates.append(candidate)
 
@@ -195,6 +211,22 @@ def inventory_source_lead_candidates(
                     source_url=normalized_url,
                     kind=SourceLeadKind.EXPLICIT_URL,
                     verbatim_text=explicit_url,
+                    target_url=explicit_url,
+                )
+            )
+        for link in (source_links or {}).get(normalized_url, ()):
+            link_text = (
+                f"{link.label}: {link.target_url}"
+                if link.label
+                else link.target_url
+            )
+            add(
+                _candidate(
+                    source_url=normalized_url,
+                    kind=SourceLeadKind.EXPLICIT_URL,
+                    verbatim_text=link_text,
+                    target_url=link.target_url,
+                    link_label=link.label or None,
                 )
             )
         for doi in _unique_matches(_DOI, source_text):
@@ -256,7 +288,8 @@ SOURCE_LEAD_INVENTORY_LIMITATIONS = (
     "candidates are mechanical text shapes, not source-role judgements",
     "quoted text can be a quotation rather than a document title",
     "a selected lead is not evidence and does not establish claim support",
-    "the current Tavily text extraction boundary can omit hyperlink targets",
+    "provider Markdown link capture can be incomplete or unavailable",
+    "a captured link label does not establish the target document identity",
     "date contexts longer than 2000 characters are omitted rather than truncated",
 )
 

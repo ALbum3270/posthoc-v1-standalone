@@ -11,6 +11,9 @@ from open_deep_research.harness.ledger import (
     ExhaustionAttemptSnapshot,
     ResearchLedger,
     SettlementEvidence,
+    SourceLinkCaptureAudit,
+    SourceLinkCaptureStatus,
+    SourceLinkRecord,
 )
 from open_deep_research.harness.notes import NoteLocationStatus, create_note
 
@@ -88,6 +91,43 @@ def test_source_cache_is_idempotent_but_does_not_overwrite_changed_text():
         ledger.cache_source("https://example.com", "replacement")
 
     assert ledger.get_source("https://example.com") == "original"
+
+
+def test_source_link_sidecar_round_trips_without_changing_canonical_text():
+    url = "https://example.com/report"
+    text = "Canonical cleaned source text."
+    links = (
+        SourceLinkRecord(
+            target_url="https://records.example/filing.pdf",
+            label="Original filing",
+        ),
+    )
+    capture = SourceLinkCaptureAudit(
+        status=SourceLinkCaptureStatus.CAPTURED,
+        captured_link_count=1,
+    )
+    ledger = ResearchLedger()
+
+    assert ledger.cache_source(
+        url,
+        text,
+        source_links=links,
+        link_capture=capture,
+    ) is True
+    restored = ResearchLedger.model_validate_json(ledger.to_audit_json())
+
+    assert restored.source_cache[url] == text
+    assert restored.source_links[url] == links
+    assert restored.source_link_capture[url] == capture
+
+
+def test_historical_ledger_without_link_sidecar_remains_valid():
+    restored = ResearchLedger.model_validate(
+        {"source_cache": {"https://example.com/report": "Historical text."}}
+    )
+
+    assert restored.source_links == {}
+    assert restored.source_link_capture == {}
 
 
 def test_legacy_serialized_notes_receive_stable_ids_when_loaded():

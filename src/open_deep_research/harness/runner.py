@@ -1733,6 +1733,7 @@ async def run_harness(
                 model_client=budgeted_recovery_model,
                 settings=recovery_triage_settings,
                 source_cache=ledger.source_cache,
+                source_links=ledger.source_links,
             )
         except RunCostCapReached as error:
             stage_records["recovery_triage"] = _scope_record(

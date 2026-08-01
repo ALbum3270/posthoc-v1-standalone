@@ -27,6 +27,7 @@ from open_deep_research.harness.evidence_gap import (
     GapSearchRecord,
     GapSourceAcquisition,
 )
+from open_deep_research.harness.ledger import SourceLinkRecord
 from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
 from open_deep_research.harness.recovery import (
     EvidenceRecoveryStopReason,
@@ -295,9 +296,30 @@ def test_registered_lead_selection_structurally_routes_chain_or_fallback():
     assert by_id["claim-0002"].source_document_hint is None
     assert result.source_leads == leads
     assert filing.lead_id in model.prompts[0]
-    assert "the current Tavily text extraction boundary can omit" in " ".join(
+    assert "provider Markdown link capture can be incomplete" in " ".join(
         result.source_lead_inventory_limitations
     )
+
+
+def test_markdown_sidecar_link_is_a_registered_source_chain_candidate():
+    source_url = "https://secondary.example/report"
+    target_url = "https://records.example/filing.pdf"
+    links = {
+        source_url: (
+            SourceLinkRecord(target_url=target_url, label="Original filing"),
+        )
+    }
+
+    leads = inventory_source_lead_candidates(
+        {source_url: "A secondary discussion with no visible URL."},
+        source_links=links,
+    )
+
+    link_leads = tuple(lead for lead in leads if lead.target_url == target_url)
+    assert len(link_leads) == 1
+    assert link_leads[0].kind is SourceLeadKind.EXPLICIT_URL
+    assert link_leads[0].link_label == "Original filing"
+    assert link_leads[0].source_url == source_url
 
 
 def test_unknown_lead_id_is_audited_and_uses_direct_fallback_query():

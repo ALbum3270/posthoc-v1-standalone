@@ -135,6 +135,9 @@ from open_deep_research.harness.ledger import (
     ResearchLedger,
     RoundRecord,
     SettlementEvidence,
+    SourceLinkCaptureAudit,
+    SourceLinkCaptureStatus,
+    SourceLinkRecord,
     UnreadableCandidateSnapshot,
 )
 from open_deep_research.harness.loop import (
@@ -251,7 +254,10 @@ from open_deep_research.harness.tail_budget import (
 from open_deep_research.harness.tools import (
     SearchResult,
     SourceReadError,
+    SourceReadResult,
+    extract_markdown_links,
     read,
+    read_with_links,
     search,
 )
 from open_deep_research.harness.write import (
@@ -398,6 +404,10 @@ __all__ = [
     "SettlementEvidence",
     "UnreadableCandidateSnapshot",
     "SourceReadError",
+    "SourceReadResult",
+    "SourceLinkCaptureAudit",
+    "SourceLinkCaptureStatus",
+    "SourceLinkRecord",
     "StopAction",
     "StopReason",
     "SourceResolution",
@@ -456,6 +466,8 @@ __all__ = [
     "generate_checklist",
     "locate_verification_quote",
     "read",
+    "read_with_links",
+    "extract_markdown_links",
     "reconcile_checklist_report",
     "render_verified_report",
     "run_harness",

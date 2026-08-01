@@ -35,6 +35,7 @@ from open_deep_research.harness.evidence_gap import (
     build_evidence_gap_plan_prompt,
 )
 from open_deep_research.harness.jsonio import loads_lenient
+from open_deep_research.harness.ledger import SourceLinkRecord
 from open_deep_research.harness.notes import ResearchNote
 from open_deep_research.harness.source_leads import (
     SOURCE_LEAD_INVENTORY_LIMITATIONS,
@@ -713,13 +714,17 @@ async def triage_evidence_recovery(
     model_client: RecoveryTriageModelClient,
     settings: RecoveryTriageSettings | None = None,
     source_cache: Mapping[str, str] | None = None,
+    source_links: Mapping[str, Sequence[SourceLinkRecord]] | None = None,
 ) -> RecoveryTriageResult:
     """Assess all completed evidence anomalies without changing any bytes."""
 
     frozen_draft = canonical_draft
     frozen_registry_hash = _claim_registry_sha256(verification)
     targets = recovery_triage_targets(verification)
-    source_leads = inventory_source_lead_candidates(source_cache or {})
+    source_leads = inventory_source_lead_candidates(
+        source_cache or {},
+        source_links=source_links,
+    )
     inapplicable_claims = recovery_inapplicable_claims(verification)
     target_ids = tuple(target.claim.claim_id for target in targets)
     draft_hash = hashlib.sha256(canonical_draft.encode("utf-8")).hexdigest()

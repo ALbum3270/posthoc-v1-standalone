@@ -48,7 +48,7 @@ from open_deep_research.harness.source_spans import (
 from open_deep_research.harness.tools import (
     SearchResult,
     TavilyClient,
-    read,
+    read_with_links,
     search,
 )
 
@@ -2479,11 +2479,17 @@ async def run_research_loop(
                         )
                     else:
                         try:
-                            source_text = await read(
+                            source_read = await read_with_links(
                                 action.url,
                                 tavily_client=tavily_client,
                             )
-                            ledger.cache_source(action.url, source_text)
+                            source_text = source_read.cleaned_text
+                            ledger.cache_source(
+                                action.url,
+                                source_text,
+                                source_links=source_read.source_links,
+                                link_capture=source_read.link_capture,
+                            )
                             _record_acquisition_attempt(
                                 acquisition_attempts,
                                 item_id=action.item_id,

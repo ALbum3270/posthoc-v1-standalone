@@ -9,7 +9,10 @@ from open_deep_research.harness.checklist import (
     ChecklistStatus,
     ResearchChecklist,
 )
-from open_deep_research.harness.ledger import ResearchLedger
+from open_deep_research.harness.ledger import (
+    ResearchLedger,
+    SourceLinkCaptureStatus,
+)
 from open_deep_research.harness.loop import (
     LoopBudget,
     LoopSettings,
@@ -353,7 +356,12 @@ def test_cached_read_returns_note_ids_without_rerunning_note_model():
         tavily=tavily,
     )
 
-    assert len(client.extract_calls) == 1
+    # A cache miss reads canonical text once and captures an independent
+    # Markdown link sidecar once; the second read is a true cache hit.
+    assert [call[1]["format"] for call in client.extract_calls] == [
+        "text",
+        "markdown",
+    ]
     assert len(note_model.prompts) == 1
     assert all(
         all(
@@ -1016,7 +1024,15 @@ def test_candidates_pending_allows_read_and_records_the_resolved_state():
     result, _, _, client = run_loop(decisions, notes=note_outputs)
 
     assert len(client.search_calls) == 1
-    assert len(client.extract_calls) == 1
+    assert [call[1]["format"] for call in client.extract_calls] == [
+        "text",
+        "markdown",
+    ]
+    assert result.ledger.source_cache[url] == "A useful exact sentence."
+    assert result.ledger.source_links[url] == ()
+    assert result.ledger.source_link_capture[url].status is (
+        SourceLinkCaptureStatus.NO_LINKS_CAPTURED
+    )
     read_audit = json.loads(result.ledger.rounds[1].result_summary)
     assert read_audit["candidate_work"]["what-1"] == {
         "read_count": 1,
@@ -1049,7 +1065,9 @@ def test_failed_read_consumes_pending_candidate_and_is_not_called_again():
 
     result, decision_model, _, _ = run_loop(decisions, tavily=client)
 
-    assert len(client.extract_calls) == 1
+    # Canonical text failed, so the optional Markdown sidecar was never tried;
+    # the mechanically unreadable candidate also prevents a second attempt.
+    assert [call[1]["format"] for call in client.extract_calls] == ["text"]
     first_failure = json.loads(result.ledger.rounds[1].result_summary)
     assert first_failure["candidate_marked_unreadable"] is True
     assert first_failure["candidate_work"]["what-1"] == {
@@ -1227,7 +1245,11 @@ def test_reanalyze_is_the_only_way_to_rerun_notes_for_a_cached_url():
 
     result, _, note_model, client = run_loop(decisions, notes=note_outputs)
 
-    assert len(client.extract_calls) == 1
+    # Reanalysis reruns only the note model, not either retrieval channel.
+    assert [call[1]["format"] for call in client.extract_calls] == [
+        "text",
+        "markdown",
+    ]
     assert len(note_model.prompts) == 2
     assert all(
         'Active item:\n{"item_id": "what-1", "question": "What happened?"}'

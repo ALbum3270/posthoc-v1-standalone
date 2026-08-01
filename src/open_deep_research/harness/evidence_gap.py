@@ -46,7 +46,7 @@ from open_deep_research.harness.tools import (
     SearchResult,
     SourceReadError,
     TavilyClient,
-    read,
+    read_with_links,
     search,
 )
 from open_deep_research.harness.verify import (
@@ -1796,9 +1796,18 @@ async def run_evidence_gap_round(
             existing = ledger.get_source(selection.url)
             cache_hit = existing is not None
             try:
-                source_text = existing or await read(
-                    selection.url,
-                    tavily_client=tavily_client,
+                source_read = (
+                    None
+                    if existing is not None
+                    else await read_with_links(
+                        selection.url,
+                        tavily_client=tavily_client,
+                    )
+                )
+                source_text = (
+                    existing
+                    if existing is not None
+                    else source_read.cleaned_text
                 )
             except SourceReadError as exc:
                 acquisitions.append(
@@ -1818,7 +1827,12 @@ async def run_evidence_gap_round(
                 )
                 continue
             if not cache_hit:
-                ledger.cache_source(selection.url, source_text)
+                ledger.cache_source(
+                    selection.url,
+                    source_text,
+                    source_links=source_read.source_links,
+                    link_capture=source_read.link_capture,
+                )
                 added_source_urls.append(selection.url)
 
             if cache_hit:

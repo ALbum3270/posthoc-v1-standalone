@@ -126,6 +126,44 @@ class _MeasuredFake:
 class _ScriptedTriageModel(_MeasuredFake):
     """Return the expected finance-11 routing for every observed target."""
 
+    @staticmethod
+    def _selected_lead_by_claim(
+        leads: Sequence[Mapping[str, Any]],
+    ) -> dict[str, Mapping[str, Any]]:
+        def numbered_entry(number: int) -> Mapping[str, Any]:
+            matches = tuple(
+                lead
+                for lead in leads
+                if lead.get("kind") == "bibliographic_entry"
+                and lead.get("entry_number") == number
+                and "investopedia.com" in str(lead.get("source_url"))
+            )
+            if len(matches) != 1:
+                raise ValueError(
+                    f"expected one registered entry {number}, found "
+                    f"{len(matches)}"
+                )
+            return matches[0]
+
+        payout_contexts = tuple(
+            lead
+            for lead in leads
+            if lead.get("kind") == "dated_context"
+            and "September 30, 2025" in tuple(lead.get("dates") or ())
+            and "FTX Recovery Trust" in str(lead.get("verbatim_text"))
+        )
+        if len(payout_contexts) != 1:
+            raise ValueError(
+                "expected one registered issuer/date payout context, found "
+                f"{len(payout_contexts)}"
+            )
+        return {
+            "claim-0035": numbered_entry(6),
+            "claim-0036": numbered_entry(7),
+            "claim-0040": numbered_entry(37),
+            "claim-0056": payout_contexts[0],
+        }
+
     async def generate(self, prompt: str) -> dict[str, Any]:
         self.calls += 1
         try:
@@ -134,8 +172,10 @@ class _ScriptedTriageModel(_MeasuredFake):
                     _TRIAGE_LEADS_MARKER, 1
                 )[0]
             )
+            leads = json.loads(prompt.split(_TRIAGE_LEADS_MARKER, 1)[1])
         except (IndexError, json.JSONDecodeError) as exc:
             raise ValueError("triage prompt did not expose its target array") from exc
+        selected_lead_by_claim = self._selected_lead_by_claim(leads)
         decisions: list[dict[str, Any]] = []
         for claim in claims:
             claim_id = str(claim["claim_id"])
@@ -146,6 +186,12 @@ class _ScriptedTriageModel(_MeasuredFake):
             else:
                 action = RecoveryTriageAction.LEAVE_AS_IS
             research = action is RecoveryTriageAction.RESEARCH_MORE
+            selected_lead = selected_lead_by_claim.get(claim_id)
+            lead_text = (
+                str(selected_lead["verbatim_text"])
+                if selected_lead is not None
+                else None
+            )
             decisions.append(
                 {
                     "claim_id": claim_id,
@@ -165,9 +211,22 @@ class _ScriptedTriageModel(_MeasuredFake):
                         else None
                     ),
                     "query": (
-                        f"offline replay query for {claim_id}" if research else None
+                        " ".join(
+                            part
+                            for part in (
+                                lead_text,
+                                f"offline replay query for {claim_id}",
+                            )
+                            if part
+                        )
+                        if research
+                        else None
                     ),
-                    "selected_source_lead_id": None,
+                    "selected_source_lead_id": (
+                        str(selected_lead["lead_id"])
+                        if selected_lead is not None
+                        else None
+                    ),
                 }
             )
         return self.envelope({"decisions": decisions})
@@ -519,6 +578,7 @@ async def replay_finance_recovery(audit_path: Path) -> dict[str, Any]:
         checklist=checklist,
         verification=verification,
         model_client=triage_model,
+        source_cache=payload["ledger"]["source_cache"],
     )
     decisions = _decision_map(triage)
     actual_research = tuple(

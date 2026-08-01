@@ -3,11 +3,76 @@
 from __future__ import annotations
 
 import json
+from enum import Enum
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from open_deep_research.harness.notes import ResearchNote
+
+
+class SourceLinkCaptureStatus(str, Enum):
+    """Mechanical outcome of the optional Markdown link sidecar request."""
+
+    CAPTURED = "captured"
+    NO_LINKS_CAPTURED = "no_links_captured"
+    NO_MARKDOWN_CONTENT = "no_markdown_content"
+    PROVIDER_ERROR = "provider_error"
+
+
+class SourceLinkRecord(BaseModel):
+    """One HTTP(S) link mechanically parsed from provider Markdown."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target_url: str = Field(min_length=1)
+    label: str = ""
+
+    @model_validator(mode="after")
+    def _target_is_http_url(self) -> SourceLinkRecord:
+        parsed = urlsplit(self.target_url)
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("source link target must be an absolute HTTP(S) URL")
+        return self
+
+
+class SourceLinkCaptureAudit(BaseModel):
+    """Audit the best-effort sidecar without claiming link completeness."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: SourceLinkCaptureStatus
+    requested_format: str = "markdown"
+    captured_link_count: int = Field(default=0, ge=0)
+    completeness_guaranteed: bool = False
+    error: str | None = None
+
+    @model_validator(mode="after")
+    def _capture_count_matches_status(self) -> SourceLinkCaptureAudit:
+        if (
+            self.status is SourceLinkCaptureStatus.CAPTURED
+            and self.captured_link_count == 0
+        ):
+            raise ValueError("captured status requires at least one link")
+        if (
+            self.status is not SourceLinkCaptureStatus.CAPTURED
+            and self.captured_link_count != 0
+        ):
+            raise ValueError("non-captured status requires zero links")
+        if self.completeness_guaranteed:
+            raise ValueError("provider Markdown link completeness is not guaranteed")
+        if (
+            self.status is SourceLinkCaptureStatus.PROVIDER_ERROR
+            and not self.error
+        ):
+            raise ValueError("provider_error status requires an error message")
+        if (
+            self.status is not SourceLinkCaptureStatus.PROVIDER_ERROR
+            and self.error is not None
+        ):
+            raise ValueError("only provider_error status may carry an error")
+        return self
 
 
 class SettlementEvidence(BaseModel):
@@ -165,6 +230,12 @@ class ResearchLedger(BaseModel):
     topic: str = ""
     rounds: list[RoundRecord] = Field(default_factory=list)
     source_cache: dict[str, str] = Field(default_factory=dict)
+    source_links: dict[str, tuple[SourceLinkRecord, ...]] = Field(
+        default_factory=dict
+    )
+    source_link_capture: dict[str, SourceLinkCaptureAudit] = Field(
+        default_factory=dict
+    )
     notes: list[ResearchNote] = Field(default_factory=list)
     checklist_history: list[ChecklistChangeRecord] = Field(default_factory=list)
     evidence_gap_history: list[EvidenceGapLedgerRecord] = Field(
@@ -198,6 +269,28 @@ class ResearchLedger(BaseModel):
         self.notes[:] = normalized_notes
         return self
 
+    @model_validator(mode="after")
+    def _source_link_sidecars_match_cache(self) -> ResearchLedger:
+        """Reject orphaned or internally inconsistent sidecar metadata."""
+
+        sidecar_urls = set(self.source_links) | set(self.source_link_capture)
+        orphaned = sidecar_urls - set(self.source_cache)
+        if orphaned:
+            raise ValueError(
+                "source link sidecars require cached source text: "
+                + ", ".join(sorted(orphaned))
+            )
+        if set(self.source_links) != set(self.source_link_capture):
+            raise ValueError(
+                "source links and capture audits must have identical URL keys"
+            )
+        for url, capture in self.source_link_capture.items():
+            if capture.captured_link_count != len(self.source_links[url]):
+                raise ValueError(
+                    f"source link capture count mismatch for URL: {url}"
+                )
+        return self
+
     def record_round(
         self,
         *,
@@ -225,8 +318,20 @@ class ResearchLedger(BaseModel):
         self.rounds.append(record)
         return record
 
-    def cache_source(self, url: str, cleaned_text: str) -> bool:
-        """Cache full cleaned text once, rejecting later content drift."""
+    def cache_source(
+        self,
+        url: str,
+        cleaned_text: str,
+        *,
+        source_links: tuple[SourceLinkRecord, ...] | None = None,
+        link_capture: SourceLinkCaptureAudit | None = None,
+    ) -> bool:
+        """Cache canonical text and optional link sidecar without drift.
+
+        The canonical text has exactly the historical ``clean_text`` contract.
+        Link records are separate provider metadata and never rewrite those
+        bytes.  Missing sidecar fields remain valid for historical audits.
+        """
 
         normalized_url = url.strip()
         if not normalized_url:
@@ -235,9 +340,49 @@ class ResearchLedger(BaseModel):
         if existing is not None:
             if existing != cleaned_text:
                 raise ValueError(f"cached source changed for URL: {normalized_url}")
+            self._cache_source_link_sidecar(
+                normalized_url,
+                source_links=source_links,
+                link_capture=link_capture,
+            )
             return False
         self.source_cache[normalized_url] = cleaned_text
+        self._cache_source_link_sidecar(
+            normalized_url,
+            source_links=source_links,
+            link_capture=link_capture,
+        )
         return True
+
+    def _cache_source_link_sidecar(
+        self,
+        url: str,
+        *,
+        source_links: tuple[SourceLinkRecord, ...] | None,
+        link_capture: SourceLinkCaptureAudit | None,
+    ) -> None:
+        if (source_links is None) is not (link_capture is None):
+            raise ValueError(
+                "source links and link capture audit must be cached together"
+            )
+        if source_links is not None:
+            normalized_links = tuple(source_links)
+            existing_links = self.source_links.get(url)
+            if existing_links is not None and existing_links != normalized_links:
+                raise ValueError(f"cached source links changed for URL: {url}")
+            self.source_links[url] = normalized_links
+        if link_capture is not None:
+            if (
+                source_links is not None
+                and link_capture.captured_link_count != len(source_links)
+            ):
+                raise ValueError(
+                    "link capture count must equal cached source link count"
+                )
+            existing_capture = self.source_link_capture.get(url)
+            if existing_capture is not None and existing_capture != link_capture:
+                raise ValueError(f"source link capture changed for URL: {url}")
+            self.source_link_capture[url] = link_capture
 
     def get_source(self, url: str) -> str | None:
         """Return cached source text without refetching it."""
