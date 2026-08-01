@@ -15,15 +15,29 @@ Example:
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import json
 import os
 import re
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 _BASE = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_BASE / "src"))
+
+from open_deep_research.harness.checklist import ResearchChecklist  # noqa: E402
+from open_deep_research.harness.recovery import (  # noqa: E402
+    RecoveryTriageAction,
+    triage_evidence_recovery,
+)
+from open_deep_research.harness.source_leads import (  # noqa: E402
+    SourceLeadKind,
+    inventory_source_lead_candidates,
+)
+from open_deep_research.harness.verify import VerificationResult  # noqa: E402
 
 _URL = re.compile(r"https?://[^\s<>\]\[()\"']+")
 _DOI = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b", re.IGNORECASE)
@@ -61,6 +75,85 @@ _LOCATORS = (
         ),
     ),
 )
+
+_ROUTING_TARGETS = (
+    "claim-0035",
+    "claim-0036",
+    "claim-0040",
+    "claim-0047",
+    "claim-0056",
+)
+_DIRECT_ROUTE_TARGETS = {"claim-0047"}
+_EDIT_DIRECTLY_TARGETS = {"claim-0053", "claim-0068"}
+
+
+class _FixedRouteTriageModel:
+    """A zero-cost semantic fixture over real finance-11 candidates."""
+
+    def __init__(
+        self,
+        selected_leads: Mapping[str, str],
+        selected_lead_text: Mapping[str, str],
+    ) -> None:
+        self.selected_leads = dict(selected_leads)
+        self.selected_lead_text = dict(selected_lead_text)
+
+    async def generate(self, prompt: str) -> dict[str, Any]:
+        claims_marker = "Frozen evidence exceptions:\n"
+        leads_marker = "\n\nRegistered source-chain candidates"
+        claims_text = prompt.split(claims_marker, 1)[1].split(
+            leads_marker, 1
+        )[0]
+        claims = json.loads(claims_text)
+        decisions: list[dict[str, Any]] = []
+        for claim in claims:
+            claim_id = str(claim["claim_id"])
+            research = claim_id in _ROUTING_TARGETS
+            action = (
+                RecoveryTriageAction.RESEARCH_MORE.value
+                if research
+                else RecoveryTriageAction.EDIT_DIRECTLY.value
+                if claim_id in _EDIT_DIRECTLY_TARGETS
+                else RecoveryTriageAction.LEAVE_AS_IS.value
+            )
+            claim_text = str(claim["claim_text"])
+            decisions.append(
+                {
+                    "claim_id": claim_id,
+                    "action": action,
+                    "importance": "central" if research else "supporting",
+                    "importance_reason": (
+                        "fixed offline routing over the historical registry"
+                    ),
+                    "evidence_need": claim_text if research else None,
+                    "preferred_source_role": (
+                        "underlying record or independent explanatory reporting"
+                        if research
+                        else None
+                    ),
+                    "query": (
+                        " ".join(
+                            part
+                            for part in (
+                                self.selected_lead_text.get(claim_id),
+                                claim_text,
+                                "underlying record independent reporting",
+                            )
+                            if part
+                        )
+                        if research
+                        else None
+                    ),
+                    "selected_source_lead_id": (
+                        self.selected_leads.get(claim_id) if research else None
+                    ),
+                }
+            )
+        return {
+            "content": {"decisions": decisions},
+            "token_count": 0,
+            "cost_usd": 0.0,
+        }
 
 
 def _sha256_bytes(value: bytes) -> str:
@@ -128,6 +221,125 @@ def inventory_source_text(url: str, text: str) -> dict[str, Any]:
     }
 
 
+def _select_finance_route_leads(
+    source_cache: Mapping[str, str],
+) -> tuple[dict[str, str], dict[str, Any]]:
+    """Select fixed real candidates for a labelled offline routing replay."""
+
+    candidates = inventory_source_lead_candidates(source_cache)
+
+    def entry(number: int) -> Any:
+        matches = tuple(
+            candidate
+            for candidate in candidates
+            if candidate.kind is SourceLeadKind.BIBLIOGRAPHIC_ENTRY
+            and candidate.entry_number == number
+            and "investopedia.com" in candidate.source_url
+        )
+        if len(matches) != 1:
+            raise ValueError(
+                f"expected one cached Investopedia entry {number}, "
+                f"found {len(matches)}"
+            )
+        return matches[0]
+
+    payout_contexts = tuple(
+        candidate
+        for candidate in candidates
+        if candidate.kind is SourceLeadKind.DATED_CONTEXT
+        and "cryptoresearch.report" in candidate.source_url
+        and "September 30, 2025" in candidate.verbatim_text
+        and "FTX Recovery Trust" in candidate.verbatim_text
+    )
+    if len(payout_contexts) != 1:
+        raise ValueError(
+            "expected one cached issuer/date payout context, "
+            f"found {len(payout_contexts)}"
+        )
+    selected = {
+        "claim-0035": entry(6),
+        "claim-0036": entry(7),
+        # The disclosure statement is only a lead to inspect. Selecting it
+        # does not assert that it supports the repayment/recovery figures.
+        "claim-0040": entry(37),
+        # This header names the recovery body and distribution context. The
+        # model may follow that clue while independent reporting remains in
+        # scope for interpretation and cross-checking.
+        "claim-0056": payout_contexts[0],
+    }
+    selected_ids = {
+        claim_id: candidate.lead_id
+        for claim_id, candidate in selected.items()
+    }
+    selected_payload = {
+        claim_id: candidate.model_dump(mode="json")
+        for claim_id, candidate in selected.items()
+    }
+    return selected_ids, selected_payload
+
+
+async def _replay_finance_routes(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Run production triage routing with a fixed, zero-cost fake model."""
+
+    ledger = payload.get("ledger")
+    posthoc = payload.get("posthoc_evidence")
+    pre_edit = (
+        posthoc.get("pre_edit_evidence")
+        if isinstance(posthoc, Mapping)
+        else None
+    )
+    if not isinstance(ledger, Mapping) or not isinstance(pre_edit, Mapping):
+        raise ValueError("audit lacks ledger or pre-edit evidence registry")
+    source_cache = ledger.get("source_cache")
+    if not isinstance(source_cache, Mapping):
+        raise ValueError("audit has no ledger.source_cache object")
+    selected_ids, selected_payload = _select_finance_route_leads(source_cache)
+    triage = await triage_evidence_recovery(
+        str(payload["original_canonical_draft"]),
+        checklist=ResearchChecklist.model_validate(payload["checklist"]),
+        verification=VerificationResult.model_validate(pre_edit["verification"]),
+        model_client=_FixedRouteTriageModel(
+            selected_ids,
+            {
+                claim_id: str(candidate["verbatim_text"])
+                for claim_id, candidate in selected_payload.items()
+            },
+        ),
+        source_cache={str(url): str(text) for url, text in source_cache.items()},
+    )
+    by_id = {decision.claim_id: decision for decision in triage.decisions}
+    routes = []
+    for claim_id in _ROUTING_TARGETS:
+        decision = by_id[claim_id]
+        routes.append(
+            {
+                "claim_id": claim_id,
+                "query_route": decision.query_route.value,
+                "selected_source_lead_id": decision.selected_source_lead_id,
+                "source_document_hint": decision.source_document_hint,
+                "query": decision.query,
+                "route_basis": (
+                    "registered_cached_lead"
+                    if decision.selected_source_lead_id is not None
+                    else "no_registered_upstream_lead"
+                ),
+            }
+        )
+    return {
+        "mode": "fixed_fake_semantic_selection_over_real_cached_candidates",
+        "network_calls": 0,
+        "model_cost_usd": 0.0,
+        "selected_leads": selected_payload,
+        "routes": routes,
+        "expected_direct_fallback_claim_ids": sorted(_DIRECT_ROUTE_TARGETS),
+        "all_targets_routed": all(
+            route["query_route"]
+            in {"source_chain", "direct_search_fallback"}
+            for route in routes
+        ),
+    }
+
+
 def replay_source_leads(audit_path: Path) -> dict[str, Any]:
     """Return a source-lead inventory while proving the audit stayed frozen."""
 
@@ -146,6 +358,32 @@ def replay_source_leads(audit_path: Path) -> dict[str, Any]:
         inventory_source_text(str(url), str(text))
         for url, text in source_cache.items()
     ]
+    posthoc = payload.get("posthoc_evidence")
+    pre_edit = (
+        posthoc.get("pre_edit_evidence")
+        if isinstance(posthoc, Mapping)
+        else None
+    )
+    verification = (
+        pre_edit.get("verification")
+        if isinstance(pre_edit, Mapping)
+        else None
+    )
+    observed_claim_ids = {
+        str(claim.get("claim", {}).get("claim_id"))
+        for claim in verification.get("claims", ())
+        if isinstance(claim, Mapping)
+    } if isinstance(verification, Mapping) else set()
+    routing_replay = (
+        asyncio.run(_replay_finance_routes(payload))
+        if set(_ROUTING_TARGETS).issubset(observed_claim_ids)
+        else {
+            "mode": "not_applicable_to_this_historical_registry",
+            "required_claim_ids": list(_ROUTING_TARGETS),
+            "network_calls": 0,
+            "model_cost_usd": 0.0,
+        }
+    )
     result = {
         "replay_mode": "offline_mechanical_source_lead_inventory",
         "source_audit": str(audit_path),
@@ -178,6 +416,7 @@ def replay_source_leads(audit_path: Path) -> dict[str, Any]:
             ),
         },
         "sources": sources,
+        "routing_replay": routing_replay,
         "source_audit_unchanged": audit_path.read_bytes() == before,
     }
     return result

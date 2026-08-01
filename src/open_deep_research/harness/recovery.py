@@ -36,6 +36,11 @@ from open_deep_research.harness.evidence_gap import (
 )
 from open_deep_research.harness.jsonio import loads_lenient
 from open_deep_research.harness.notes import ResearchNote
+from open_deep_research.harness.source_leads import (
+    SOURCE_LEAD_INVENTORY_LIMITATIONS,
+    SourceLeadCandidate,
+    inventory_source_lead_candidates,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
@@ -67,6 +72,24 @@ class RecoveryTriageStatus(str, Enum):
     COMPLETE = "complete"
     PARTIAL = "partial"
     FAILED = "failed"
+
+
+class RecoveryQueryRoute(str, Enum):
+    """Code-owned route derived from a registered lead selection."""
+
+    SOURCE_CHAIN = "source_chain"
+    DIRECT_SEARCH_FALLBACK = "direct_search_fallback"
+
+
+class RecoverySourceChainAccess(str, Enum):
+    """What happened after a registered source-chain lead was selected."""
+
+    NOT_APPLICABLE_DIRECT_SEARCH = "not_applicable_direct_search"
+    LEAD_SEARCH_NOT_EXECUTED = "lead_search_not_executed"
+    LEAD_SEARCH_NO_RESULT = "lead_search_no_result"
+    LEAD_FOUND_NOT_READ = "lead_found_not_read"
+    LEAD_FOUND_AND_READABLE = "lead_found_and_readable"
+    LEAD_FOUND_BUT_UNREADABLE = "lead_found_but_unreadable"
 
 
 class RecoveryInapplicabilityReason(str, Enum):
@@ -121,14 +144,19 @@ class RecoveryTriageDecision(BaseModel):
     evidence_need: str | None = None
     preferred_source_role: str | None = None
     query: str | None = None
+    selected_source_lead_id: str | None = None
     source_document_hint: str | None = None
+    query_route: RecoveryQueryRoute | None = None
+    rejected_source_lead_id: str | None = None
 
     @field_validator(
         "importance_reason",
         "evidence_need",
         "preferred_source_role",
         "query",
+        "selected_source_lead_id",
         "source_document_hint",
+        "rejected_source_lead_id",
     )
     @classmethod
     def _normalize_optional_text(cls, value: str | None) -> str | None:
@@ -150,9 +178,34 @@ class RecoveryTriageDecision(BaseModel):
                     "research_more requires evidence_need, "
                     "preferred_source_role, and query"
                 )
+            if self.query_route is RecoveryQueryRoute.SOURCE_CHAIN:
+                if (
+                    self.selected_source_lead_id is None
+                    or self.source_document_hint is None
+                ):
+                    raise ValueError(
+                        "source_chain requires a registered lead and "
+                        "code-resolved document hint"
+                    )
+            elif self.query_route is RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK:
+                if (
+                    self.selected_source_lead_id is not None
+                    or self.source_document_hint is not None
+                ):
+                    raise ValueError(
+                        "direct_search_fallback cannot claim a source lead"
+                    )
+            else:
+                raise ValueError("research_more requires a code-owned route")
         elif any(
             value is not None
-            for value in (*intent, self.source_document_hint)
+            for value in (
+                *intent,
+                self.selected_source_lead_id,
+                self.source_document_hint,
+                self.query_route,
+                self.rejected_source_lead_id,
+            )
         ):
             raise ValueError(
                 "only research_more may carry a retrieval intent"
@@ -184,6 +237,10 @@ class RecoveryTriageResult(BaseModel):
     inapplicable_claims: tuple[RecoveryInapplicableClaim, ...] = ()
     diagnostics: tuple[str, ...] = ()
     usage: tuple[RecoveryTriageCallUsage, ...] = ()
+    source_leads: tuple[SourceLeadCandidate, ...] = ()
+    source_lead_inventory_limitations: tuple[str, ...] = (
+        SOURCE_LEAD_INVENTORY_LIMITATIONS
+    )
     canonical_draft_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     claim_registry_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     canonical_draft_unchanged: bool = True
@@ -256,6 +313,10 @@ class RecoveryClaimAttempt(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     claim_id: str
+    query_route: RecoveryQueryRoute
+    selected_source_lead_id: str | None = None
+    source_document_hint: str | None = None
+    source_chain_access: RecoverySourceChainAccess
     planned_query_count: int = Field(ge=0)
     executed_search_count: int = Field(ge=0)
     search_error_count: int = Field(ge=0)
@@ -366,7 +427,7 @@ class _RawDecision(BaseModel):
     evidence_need: str | None = None
     preferred_source_role: str | None = None
     query: str | None = None
-    source_document_hint: str | None = None
+    selected_source_lead_id: str | None = None
 
 
 _TRIAGE_PROMPT = """\
@@ -395,12 +456,17 @@ For research_more, also provide:
   record or independent explanatory reporting. This is a semantic preference,
   not a domain allowlist and not a claim that a host is authoritative;
 - query: one focused initial query;
-- source_document_hint: a document title, date, identifier, issuing body, or
-  other lead visible in the current evidence, or null when none is visible.
+- selected_source_lead_id: an ID from the registered source-lead array when a
+  concrete title, date, identifier, issuing body, or original URL is useful;
+  otherwise null. Never invent an ID.
 
-When a current secondary source names a document or issuing body, prefer a
-query that follows that lead toward the underlying record. Do not fabricate a
-document hint. For other actions, all four retrieval-intent fields must be
+Code, not the model, derives the route: selecting a registered ID means a
+source-chain search; null means the supplied query is a direct-search
+fallback. A registered lead is only a clue, not evidence and not proof that a
+source is original. Original records are useful for their own contents, while
+independent reporting can still be needed for explanation and cross-checking;
+do not let an official source monopolize interpretive claims. For other
+actions, all four retrieval-intent fields and selected_source_lead_id must be
 null.
 
 Return exactly one entry per claim_id:
@@ -411,13 +477,16 @@ Return exactly one entry per claim_id:
 "evidence_need":"specific proposition or null",\
 "preferred_source_role":"source role or null",\
 "query":"focused query or null",\
-"source_document_hint":"visible lead or null"}}]}}
+"selected_source_lead_id":"lead-... or null"}}]}}
 
 Research topic and checklist:
 {checklist}
 
 Frozen evidence exceptions:
 {claims}
+
+Registered source-chain candidates (mechanical text shapes, not evidence):
+{source_leads}
 """
 
 
@@ -464,6 +533,7 @@ def build_recovery_triage_prompt(
     targets: Sequence[ClaimVerification],
     *,
     checklist: ResearchChecklist,
+    source_leads: Sequence[SourceLeadCandidate] = (),
 ) -> str:
     """Build the semantic triage prompt without any source allowlist."""
 
@@ -502,6 +572,11 @@ def build_recovery_triage_prompt(
             checklist_payload, ensure_ascii=False, sort_keys=True
         ),
         claims=json.dumps(claims, ensure_ascii=False, sort_keys=True),
+        source_leads=json.dumps(
+            [lead.model_dump(mode="json") for lead in source_leads],
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
     )
 
 
@@ -522,6 +597,8 @@ async def _call_triage_model(
 def _parse_triage_batch(
     content: Any,
     targets: Sequence[ClaimVerification],
+    *,
+    source_leads: Sequence[SourceLeadCandidate] = (),
 ) -> tuple[
     tuple[RecoveryTriageDecision, ...],
     tuple[str, ...],
@@ -532,6 +609,7 @@ def _parse_triage_batch(
     state_by_id = {
         target.claim.claim_id: target.state for target in targets
     }
+    source_lead_by_id = {lead.lead_id: lead for lead in source_leads}
     diagnostics: list[str] = []
     failed: set[str] = set()
     by_id: dict[str, RecoveryTriageDecision] = {}
@@ -545,8 +623,44 @@ def _parse_triage_batch(
         raw_id = raw.get("claim_id") if isinstance(raw, Mapping) else None
         try:
             proposal = _RawDecision.model_validate(raw)
+            proposal_payload = proposal.model_dump(mode="python")
+            selected_lead_id = proposal.selected_source_lead_id
+            selected_lead = (
+                source_lead_by_id.get(selected_lead_id)
+                if selected_lead_id is not None
+                else None
+            )
+            rejected_lead_id: str | None = None
+            if selected_lead_id is not None and selected_lead is None:
+                rejected_lead_id = selected_lead_id
+                diagnostics.append(
+                    "recovery_triage_unknown_source_lead_fell_back_direct: "
+                    f"{proposal.claim_id} -> {selected_lead_id}"
+                )
+            proposal_payload.update(
+                {
+                    "selected_source_lead_id": (
+                        selected_lead.lead_id
+                        if selected_lead is not None
+                        else None
+                    ),
+                    "source_document_hint": (
+                        selected_lead.verbatim_text
+                        if selected_lead is not None
+                        else None
+                    ),
+                    "query_route": (
+                        RecoveryQueryRoute.SOURCE_CHAIN
+                        if selected_lead is not None
+                        else RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK
+                    )
+                    if proposal.action is RecoveryTriageAction.RESEARCH_MORE
+                    else None,
+                    "rejected_source_lead_id": rejected_lead_id,
+                }
+            )
             decision = RecoveryTriageDecision.model_validate(
-                proposal.model_dump(mode="python")
+                proposal_payload
             )
         except (TypeError, ValidationError, ValueError) as exc:
             diagnostics.append(f"recovery_triage_entry_invalid[{index}]: {exc}")
@@ -598,12 +712,14 @@ async def triage_evidence_recovery(
     verification: VerificationResult,
     model_client: RecoveryTriageModelClient,
     settings: RecoveryTriageSettings | None = None,
+    source_cache: Mapping[str, str] | None = None,
 ) -> RecoveryTriageResult:
     """Assess all completed evidence anomalies without changing any bytes."""
 
     frozen_draft = canonical_draft
     frozen_registry_hash = _claim_registry_sha256(verification)
     targets = recovery_triage_targets(verification)
+    source_leads = inventory_source_lead_candidates(source_cache or {})
     inapplicable_claims = recovery_inapplicable_claims(verification)
     target_ids = tuple(target.claim.claim_id for target in targets)
     draft_hash = hashlib.sha256(canonical_draft.encode("utf-8")).hexdigest()
@@ -613,6 +729,7 @@ async def triage_evidence_recovery(
             inapplicable_claims=inapplicable_claims,
             canonical_draft_sha256=draft_hash,
             claim_registry_sha256=frozen_registry_hash,
+            source_leads=source_leads,
         )
 
     active_settings = settings or RecoveryTriageSettings()
@@ -627,10 +744,16 @@ async def triage_evidence_recovery(
         try:
             content, tokens, cost = await _call_triage_model(
                 model_client,
-                build_recovery_triage_prompt(batch, checklist=checklist),
+                build_recovery_triage_prompt(
+                    batch,
+                    checklist=checklist,
+                    source_leads=source_leads,
+                ),
             )
             parsed, failed, batch_diagnostics = _parse_triage_batch(
-                content, batch
+                content,
+                batch,
+                source_leads=source_leads,
             )
         except RunCostCapReached:
             raise
@@ -690,6 +813,7 @@ async def triage_evidence_recovery(
         inapplicable_claims=inapplicable_claims,
         diagnostics=tuple(diagnostics),
         usage=tuple(usage),
+        source_leads=source_leads,
         canonical_draft_sha256=draft_hash,
         claim_registry_sha256=frozen_registry_hash,
     )
@@ -721,12 +845,16 @@ def build_recovery_gap_plan_prompt(
     return (
         "This is the only bounded evidence-recovery pass. The target IDs and "
         "report wording are frozen. First review cached notes. Then use the "
-        "recorded evidence_need, source role, query, and document hint to "
-        "select or merge at most the stated number of focused searches. "
-        "Follow visible titles, dates, identifiers, issuing bodies, or source "
-        "leads toward underlying records when possible. Do not invent a "
-        "document or treat a preferred role as a host allowlist. Any later "
-        "verdict is useful; do not search only for agreement.\n\n"
+        "recorded evidence_need, source role, query_route, query, and "
+        "code-resolved document hint to select or merge at most the stated "
+        "number of focused searches. For source_chain, follow the registered "
+        "title, date, identifier, issuing body, or URL. For "
+        "direct_search_fallback, there was no registered upstream clue: use "
+        "the recorded claim/evidence/source-role query rather than silently "
+        "omitting the target. Do not invent a document or treat a preferred "
+        "role as a host allowlist. Original records and independent reporting "
+        "can coexist. Any later verdict is useful; do not search only for "
+        "agreement.\n\n"
         "Frozen recovery intents:\n"
         + json.dumps(intents, ensure_ascii=False, sort_keys=True)
         + "\n\n"
@@ -762,9 +890,17 @@ def summarize_evidence_recovery(
         pass_result.final_verification
     )
     cached_urls = set(cached_source_urls)
+    decision_by_id = {
+        decision.claim_id: decision for decision in triage.decisions
+    }
     attempts: list[RecoveryClaimAttempt] = []
     all_unread: set[str] = set()
     for claim_id in target_ids:
+        decision = decision_by_id[claim_id]
+        if decision.query_route is None:
+            raise AssertionError(
+                f"research target has no code-owned query route: {claim_id}"
+            )
         searches = tuple(
             search
             for search in pass_result.searches
@@ -814,9 +950,36 @@ def summarize_evidence_recovery(
             )
             verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
         attempted = bool(searches or hints)
+        if decision.query_route is RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK:
+            source_chain_access = (
+                RecoverySourceChainAccess.NOT_APPLICABLE_DIRECT_SEARCH
+            )
+        elif any(
+            acquisition.outcome != "read_error"
+            for acquisition in acquisitions
+        ):
+            source_chain_access = (
+                RecoverySourceChainAccess.LEAD_FOUND_AND_READABLE
+            )
+        elif acquisitions:
+            source_chain_access = (
+                RecoverySourceChainAccess.LEAD_FOUND_BUT_UNREADABLE
+            )
+        elif result_urls:
+            source_chain_access = RecoverySourceChainAccess.LEAD_FOUND_NOT_READ
+        elif searches:
+            source_chain_access = RecoverySourceChainAccess.LEAD_SEARCH_NO_RESULT
+        else:
+            source_chain_access = (
+                RecoverySourceChainAccess.LEAD_SEARCH_NOT_EXECUTED
+            )
         attempts.append(
             RecoveryClaimAttempt(
                 claim_id=claim_id,
+                query_route=decision.query_route,
+                selected_source_lead_id=decision.selected_source_lead_id,
+                source_document_hint=decision.source_document_hint,
+                source_chain_access=source_chain_access,
                 planned_query_count=len(searches),
                 executed_search_count=len(searches),
                 search_error_count=sum(
@@ -904,6 +1067,8 @@ __all__ = [
     "RecoveryInapplicabilityReason",
     "RecoveryInapplicableClaim",
     "RecoveryImportance",
+    "RecoveryQueryRoute",
+    "RecoverySourceChainAccess",
     "RecoveryTriageAction",
     "RecoveryTriageDecision",
     "RecoveryTriageModelClient",

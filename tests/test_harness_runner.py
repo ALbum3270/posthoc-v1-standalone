@@ -249,7 +249,7 @@ class ResearchMoreRecoveryModel:
                             ),
                             "preferred_source_role": "underlying record",
                             "query": "focused record for the assertion",
-                            "source_document_hint": None,
+                            "selected_source_lead_id": None,
                         }
                         for claim_id in claim_ids
                     ]

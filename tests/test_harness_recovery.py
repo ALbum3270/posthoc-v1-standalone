@@ -31,12 +31,18 @@ from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
 from open_deep_research.harness.recovery import (
     EvidenceRecoveryStopReason,
     RecoveryImportance,
+    RecoveryQueryRoute,
+    RecoverySourceChainAccess,
     RecoveryTriageAction,
     RecoveryTriageDecision,
     RecoveryTriageResult,
     RecoveryTriageStatus,
     summarize_evidence_recovery,
     triage_evidence_recovery,
+)
+from open_deep_research.harness.source_leads import (
+    SourceLeadKind,
+    inventory_source_lead_candidates,
 )
 from open_deep_research.harness.tools import SearchResult
 from open_deep_research.harness.verify import (
@@ -141,7 +147,7 @@ def _decision(claim_id, action):
         "evidence_need": "A dated record of the specific event" if research else None,
         "preferred_source_role": "underlying record" if research else None,
         "query": f"{claim_id} dated record" if research else None,
-        "source_document_hint": None,
+        "selected_source_lead_id": None,
     }
 
 
@@ -240,6 +246,85 @@ def test_refuted_claim_cannot_be_routed_to_support_seeking():
     )
 
 
+def test_registered_lead_selection_structurally_routes_chain_or_fallback():
+    source_cache = {
+        "https://secondary.example/report": (
+            '1. Records Office. "Dated Filing." Docket #314.\n'
+            "A secondary discussion."
+        )
+    }
+    leads = inventory_source_lead_candidates(source_cache)
+    filing = next(
+        lead
+        for lead in leads
+        if lead.kind is SourceLeadKind.BIBLIOGRAPHIC_ENTRY
+    )
+    model = ScriptedTriageModel(
+        [
+            {
+                **_decision("claim-0001", "research_more"),
+                "selected_source_lead_id": filing.lead_id,
+            },
+            _decision("claim-0002", "research_more"),
+        ]
+    )
+
+    result = asyncio.run(
+        triage_evidence_recovery(
+            "A draft.",
+            checklist=_checklist(),
+            verification=VerificationResult(
+                claims=(
+                    _verification("claim-0001"),
+                    _verification("claim-0002"),
+                )
+            ),
+            model_client=model,
+            source_cache=source_cache,
+        )
+    )
+
+    by_id = {decision.claim_id: decision for decision in result.decisions}
+    assert by_id["claim-0001"].query_route is RecoveryQueryRoute.SOURCE_CHAIN
+    assert by_id["claim-0001"].source_document_hint == (
+        'Records Office. "Dated Filing." Docket #314.'
+    )
+    assert by_id["claim-0002"].query_route is (
+        RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK
+    )
+    assert by_id["claim-0002"].source_document_hint is None
+    assert result.source_leads == leads
+    assert filing.lead_id in model.prompts[0]
+    assert "the current Tavily text extraction boundary can omit" in " ".join(
+        result.source_lead_inventory_limitations
+    )
+
+
+def test_unknown_lead_id_is_audited_and_uses_direct_fallback_query():
+    decision = _decision("claim-0001", "research_more")
+    decision["selected_source_lead_id"] = "lead-ffffffffffffffff"
+    result = asyncio.run(
+        triage_evidence_recovery(
+            "A draft.",
+            checklist=_checklist(),
+            verification=VerificationResult(
+                claims=(_verification("claim-0001"),)
+            ),
+            model_client=ScriptedTriageModel([decision]),
+            source_cache={},
+        )
+    )
+
+    parsed = result.decisions[0]
+    assert parsed.query_route is RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK
+    assert parsed.selected_source_lead_id is None
+    assert parsed.rejected_source_lead_id == "lead-ffffffffffffffff"
+    assert any(
+        "unknown_source_lead_fell_back_direct" in diagnostic
+        for diagnostic in result.diagnostics
+    )
+
+
 def test_zero_yield_56_target_shape_is_not_silently_called_complete():
     """Reproduce 56 targets, one search/read, and zero information yield."""
 
@@ -261,6 +346,7 @@ def test_zero_yield_56_target_shape_is_not_silently_called_complete():
                 evidence_need="A record addressing the assertion",
                 preferred_source_role="underlying record",
                 query=f"focused query {claim_id}",
+                query_route=RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK,
             )
             for claim_id in claim_ids
         ),
@@ -333,6 +419,12 @@ def test_zero_yield_56_target_shape_is_not_silently_called_complete():
     assert len(result.unattempted_claim_ids) == 55
     assert result.unread_candidate_urls == ()
     assert result.attempts[0].new_completed_relation_count == 0
+    assert result.attempts[0].query_route is (
+        RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK
+    )
+    assert result.attempts[0].source_chain_access is (
+        RecoverySourceChainAccess.NOT_APPLICABLE_DIRECT_SEARCH
+    )
     assert all(
         not attempt.attempted for attempt in result.attempts[1:]
     )
@@ -355,6 +447,7 @@ def test_recovery_rejects_target_drift_between_triage_and_gap_executor():
                 evidence_need="A record addressing the assertion",
                 preferred_source_role="underlying record",
                 query="focused query",
+                query_route=RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK,
             ),
         ),
         canonical_draft_sha256=hashlib.sha256(b"draft").hexdigest(),
@@ -381,3 +474,110 @@ def test_recovery_rejects_target_drift_between_triage_and_gap_executor():
             initial_verification=verification,
             cached_source_urls=(),
         )
+
+
+@pytest.mark.parametrize(
+    ("acquisition_outcome", "expected_access"),
+    [
+        (
+            "notes_extracted",
+            RecoverySourceChainAccess.LEAD_FOUND_AND_READABLE,
+        ),
+        (
+            "read_error",
+            RecoverySourceChainAccess.LEAD_FOUND_BUT_UNREADABLE,
+        ),
+    ],
+)
+def test_source_chain_audit_distinguishes_readable_from_unreadable(
+    acquisition_outcome,
+    expected_access,
+):
+    claim_id = "claim-0001"
+    verification = VerificationResult(claims=(_verification(claim_id),))
+    triage = RecoveryTriageResult(
+        status=RecoveryTriageStatus.COMPLETE,
+        target_claim_ids=(claim_id,),
+        decisions=(
+            RecoveryTriageDecision(
+                claim_id=claim_id,
+                action=RecoveryTriageAction.RESEARCH_MORE,
+                importance=RecoveryImportance.CENTRAL,
+                importance_reason="The assertion is answer-bearing.",
+                evidence_need="A dated filing",
+                preferred_source_role="underlying record",
+                query="Dated Filing docket 314",
+                selected_source_lead_id="lead-1111111111111111",
+                source_document_hint='Records Office. "Dated Filing."',
+                query_route=RecoveryQueryRoute.SOURCE_CHAIN,
+            ),
+        ),
+        canonical_draft_sha256=hashlib.sha256(b"draft").hexdigest(),
+        claim_registry_sha256=hashlib.sha256(b"registry").hexdigest(),
+    )
+    result_url = "https://records.example/filing"
+    query = GapSearchQuery(
+        claim_ids=(claim_id,),
+        item_id="what-1",
+        query="Dated Filing docket 314",
+    )
+    pass_result = EvidenceGapResult(
+        target_claim_ids=(claim_id,),
+        searches=(
+            GapSearchRecord(
+                query=query,
+                results=(
+                    SearchResult(
+                        title="Dated Filing",
+                        url=result_url,
+                        snippet="A filing result.",
+                    ),
+                ),
+            ),
+        ),
+        read_selections=(
+            GapReadSelection(
+                url=result_url,
+                item_id="what-1",
+                claim_ids=(claim_id,),
+                publisher_identity="Records Office",
+                independence_rationale="The selected record merits reading.",
+            ),
+        ),
+        acquisitions=(
+            GapSourceAcquisition(
+                url=result_url,
+                claim_ids=(claim_id,),
+                publisher_identity="Records Office",
+                cache_hit=False,
+                outcome=acquisition_outcome,
+                error=(
+                    "unreadable document"
+                    if acquisition_outcome == "read_error"
+                    else None
+                ),
+            ),
+        ),
+        information_yield=EvidenceGapInformationAudit(
+            pass_completed_within_budget=True
+        ),
+        stop_reason=EvidenceGapStopReason.COMPLETED,
+        stop_detail="single pass completed",
+        final_attribution=AttributionResult(
+            attributions=(),
+            stop_reason=AttributionStopReason.COMPLETED,
+        ),
+        final_verification=verification,
+    )
+
+    recovery = summarize_evidence_recovery(
+        triage=triage,
+        pass_result=pass_result,
+        initial_verification=verification,
+        cached_source_urls=(),
+    )
+
+    assert recovery.attempts[0].source_chain_access is expected_access
+    assert recovery.attempts[0].source_document_hint == (
+        'Records Office. "Dated Filing."'
+    )

@@ -76,6 +76,10 @@ _MIXED_VERDICTS = {
     "claim-0040": VerificationVerdict.NOT_ENOUGH_INFORMATION,
 }
 _TRIAGE_CLAIMS_MARKER = "Frozen evidence exceptions:\n"
+_TRIAGE_LEADS_MARKER = (
+    "\n\nRegistered source-chain candidates "
+    "(mechanical text shapes, not evidence):\n"
+)
 _VERIFICATION_CLAIMS_RE = re.compile(
     r"Claims:\n(?P<claims>\[.*?\])\n\n"
     r"BEGIN COMPLETE CACHED SOURCE WITH ADDRESSABLE SEGMENTS",
@@ -125,7 +129,11 @@ class _ScriptedTriageModel(_MeasuredFake):
     async def generate(self, prompt: str) -> dict[str, Any]:
         self.calls += 1
         try:
-            claims = json.loads(prompt.split(_TRIAGE_CLAIMS_MARKER, 1)[1])
+            claims = json.loads(
+                prompt.split(_TRIAGE_CLAIMS_MARKER, 1)[1].split(
+                    _TRIAGE_LEADS_MARKER, 1
+                )[0]
+            )
         except (IndexError, json.JSONDecodeError) as exc:
             raise ValueError("triage prompt did not expose its target array") from exc
         decisions: list[dict[str, Any]] = []
@@ -159,7 +167,7 @@ class _ScriptedTriageModel(_MeasuredFake):
                     "query": (
                         f"offline replay query for {claim_id}" if research else None
                     ),
-                    "source_document_hint": None,
+                    "selected_source_lead_id": None,
                 }
             )
         return self.envelope({"decisions": decisions})

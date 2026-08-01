@@ -61,4 +61,26 @@ def test_finance_11_replay_extracts_real_leads_without_inventing_links():
         {"kind": "docket_number", "value": "Docket #14301"}
     ]
     assert result["source_audit_unchanged"] is True
+    routes = {
+        route["claim_id"]: route
+        for route in result["routing_replay"]["routes"]
+    }
+    assert {
+        claim_id: route["query_route"]
+        for claim_id, route in routes.items()
+    } == {
+        "claim-0035": "source_chain",
+        "claim-0036": "source_chain",
+        "claim-0040": "source_chain",
+        "claim-0047": "direct_search_fallback",
+        "claim-0056": "source_chain",
+    }
+    assert routes["claim-0040"]["source_document_hint"].endswith(
+        "Docket #14301, click link. Downloads a document."
+    )
+    assert "FTX Recovery Trust" in routes["claim-0056"][
+        "source_document_hint"
+    ]
+    assert routes["claim-0047"]["source_document_hint"] is None
+    assert result["routing_replay"]["network_calls"] == 0
     assert _FINANCE_11_AUDIT.read_bytes() == before
