@@ -165,7 +165,12 @@ STAGE_AUDIT_PAYLOAD_KEYS = {
     "initial_verification": "verification",
     "checklist_reconciliation": "checklist_report_reconciliation",
     "evaluative_diagnostics": "evaluative_claim_diagnostics",
+    "recovery_triage": "recovery_triage",
+    "evidence_recovery": "evidence_recovery",
     "audit_editing": "editorial_revision",
+    "post_edit_evaluative_diagnostics": (
+        "post_edit_evaluative_claim_diagnostics"
+    ),
     "post_edit_claim_decomposition": "claim_decomposition",
     "post_edit_attribution": "attribution",
     "post_edit_initial_verification": "verification",
@@ -196,7 +201,15 @@ def stages_claiming_completion_without_output(
             continue
         if record.get("status") != StageExecutionStatus.COMPLETE.value:
             continue
-        if posthoc.get(payload_key) is None:
+        payload = posthoc.get(payload_key)
+        if (
+            stage_name == "evaluative_diagnostics"
+            and posthoc.get("pre_edit_evidence") is not None
+        ):
+            payload = posthoc["pre_edit_evidence"].get(
+                "evaluative_claim_diagnostics"
+            )
+        if payload is None:
             offenders.append(stage_name)
     return tuple(offenders)
 
@@ -207,8 +220,10 @@ def stages_claiming_completion_without_output(
 STAGE_SCOPE_DEPENDS_ON = {
     "attribution": "claim_decomposition",
     "evaluative_diagnostics": "claim_decomposition",
+    "evidence_recovery": "recovery_triage",
     "initial_verification": "attribution",
     "post_edit_attribution": "post_edit_claim_decomposition",
+    "post_edit_evaluative_diagnostics": "post_edit_claim_decomposition",
     "post_edit_initial_verification": "post_edit_attribution",
     "post_edit_checklist_reconciliation": "post_edit_claim_decomposition",
 }

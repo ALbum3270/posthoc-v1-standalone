@@ -1010,9 +1010,12 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
     )
     assert verifier.calls == 2
     assert len(editor.prompts) == 1
-    # Three claim calls plus one advisory call for the first draft, then a
-    # completely new three-stage decomposition for the changed bytes.
-    assert claim_model.call_number == 7
+    # Three claim calls plus one advisory diagnostic call for the first draft,
+    # then the changed bytes receive a completely new three-stage
+    # decomposition *and* a new evaluative-diagnostic call. Reusing the first
+    # draft's diagnostic would attach an old claim-bound payload to the edited
+    # registry.
+    assert claim_model.call_number == 8
     assert "A narrower supported fact.[^1]" in result.rendered_report.markdown
     assert "unsupported detail" not in result.rendered_report.markdown
 

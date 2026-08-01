@@ -86,6 +86,9 @@ class EvidenceTailReserveAudit(BaseModel):
         "evidence_gap",
         "disagreement",
         "evaluative_diagnostics",
+        "recovery_triage",
+        "evidence_recovery",
+        "post_edit_evaluative_diagnostics",
     )
     enhancement_can_borrow_reserve: bool = False
     limitations: tuple[str, ...] = (
@@ -116,7 +119,14 @@ class EvidenceTailReserveController:
         }
     )
     enhancement_stages = frozenset(
-        {"evidence_gap", "disagreement", "evaluative_diagnostics"}
+        {
+            "evidence_gap",
+            "disagreement",
+            "evaluative_diagnostics",
+            "recovery_triage",
+            "evidence_recovery",
+            "post_edit_evaluative_diagnostics",
+        }
     )
 
     def __init__(self, initial_estimate_usd: float = 0.0) -> None:

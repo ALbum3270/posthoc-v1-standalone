@@ -40,6 +40,7 @@ from open_deep_research.harness.budget_diagnostics import (
     build_run_stop_diagnostic,
 )
 from open_deep_research.harness.claims import (
+    AtomicClaim,
     CitationRequirement,
     ClaimDecompositionResult,
     ClaimDecompositionSettings,
@@ -101,6 +102,17 @@ from open_deep_research.harness.reconcile import (
     ChecklistReportReconciliation,
     ReconciliationModelClient,
     reconcile_checklist_report,
+)
+from open_deep_research.harness.recovery import (
+    EvidenceRecoveryResult,
+    EvidenceRecoveryStopReason,
+    RecoveryTriageModelClient,
+    RecoveryTriageResult,
+    RecoveryTriageSettings,
+    RecoveryTriageStatus,
+    build_recovery_gap_plan_prompt,
+    summarize_evidence_recovery,
+    triage_evidence_recovery,
 )
 from open_deep_research.harness.tools import TavilyClient
 from open_deep_research.harness.verify import (
@@ -164,6 +176,8 @@ class HarnessRunResult(BaseModel):
     verification: VerificationResult | None
     evidence_gap: EvidenceGapResult | None
     disagreement: DisagreementResult | None
+    recovery_triage: RecoveryTriageResult | None = None
+    evidence_recovery: EvidenceRecoveryResult | None = None
     editorial_admission: EditorialAdmissionAudit | None
     editorial_revision: EditorialRevisionResult | None
     posthoc_retrieval_budget: PosthocRetrievalBudgetAudit | None
@@ -386,6 +400,46 @@ def _scope_record(
     )
 
 
+def _evaluative_execution_record(
+    claims: tuple[AtomicClaim, ...],
+    result: EvaluativeDiagnosticResult,
+    *,
+    draft_label: str,
+) -> StageExecutionRecord:
+    """Count only usable diagnoses; failure placeholders are not work done."""
+
+    external_ids = tuple(
+        claim.claim_id
+        for claim in claims
+        if claim.citation_requirement is CitationRequirement.EXTERNAL
+    )
+    assessed_ids = {
+        assessment.claim_id
+        for assessment in result.assessments
+        if assessment.status is not EvaluativeDiagnosticStatus.DIAGNOSTIC_FAILED
+    }
+    unassessed = tuple(
+        claim_id for claim_id in external_ids if claim_id not in assessed_ids
+    )
+    return _scope_record(
+        status=(
+            StageExecutionStatus.COMPLETE
+            if not unassessed
+            else StageExecutionStatus.PARTIAL
+            if assessed_ids
+            else StageExecutionStatus.NOT_RUN
+        ),
+        reason=(
+            f"advisory diagnostic assessed every {draft_label} external claim"
+            if not unassessed
+            else f"advisory diagnostic did not assess {len(unassessed)} of "
+            f"{len(external_ids)} {draft_label} external claims"
+        ),
+        unit="external_claim",
+        expected_count=len(external_ids),
+        evaluated_count=len(assessed_ids),
+        unevaluated_ids=unassessed,
+    )
 def _estimate_cost(model_client: Any, prompt: str) -> float | None:
     estimator = getattr(model_client, "estimate_cost_usd", None)
     if not callable(estimator):
@@ -658,6 +712,7 @@ async def run_harness(
     verification_model: VerificationModelClient,
     tavily_client: TavilyClient,
     editor_model: EditorialModelClient | None = None,
+    recovery_model: RecoveryTriageModelClient | None = None,
     budget: LoopBudget | None = None,
     loop_settings: LoopSettings | None = None,
     claim_settings: ClaimDecompositionSettings | None = None,
@@ -668,7 +723,9 @@ async def run_harness(
     verification_settings: VerificationSettings | None = None,
     verification_budget: VerificationBudget | None = None,
     editorial_settings: EditorialSettings | None = None,
+    recovery_triage_settings: RecoveryTriageSettings | None = None,
     evidence_gap_budget: EvidenceGapBudget | None = None,
+    evidence_recovery_budget: EvidenceGapBudget | None = None,
     disagreement_budget: DisagreementBudget | None = None,
     posthoc_retrieval_budget: PosthocRetrievalBudget | None = None,
     run_cost_budget: RunCostBudget | None = None,
@@ -833,8 +890,11 @@ async def run_harness(
     )
     initial_attribution: AttributionResult | None = None
     initial_verification: VerificationResult | None = None
+    recovery_triage: RecoveryTriageResult | None = None
+    evidence_recovery: EvidenceRecoveryResult | None = None
     editorial_revision: EditorialRevisionResult | None = None
     editorial_admission: EditorialAdmissionAudit | None = None
+    additional_usage: dict[str, UsageRecord] = {}
 
     parsed_blocks = parse_markdown_blocks(report.canonical_draft)
     claim_batch_size = (
@@ -998,49 +1058,12 @@ async def run_harness(
                 settings=evaluative_diagnostic_settings,
             )
         )
-        # Count what the pass actually assessed, never what it was asked to
-        # assess. These were once the same expression, so a pass whose calls
-        # were all refused by the admission layer still returned a record and
-        # was recorded as "87 of 87 evaluated". Returning a record is not
-        # doing the work.
-        evaluative_expected = sum(
-            claim.citation_requirement is CitationRequirement.EXTERNAL
-            for claim in claim_decomposition.claims
-        )
-        # A diagnostic_failed entry is a record that the pass could not assess
-        # this claim -- code writes it when the model omitted, duplicated, or
-        # malformed the entry. Counting it as assessed repeats the original
-        # error one layer down: having a record is not having done the work.
-        evaluative_assessed_ids = {
-            assessment.claim_id
-            for assessment in evaluative_diagnostics.assessments
-            if assessment.status is not EvaluativeDiagnosticStatus.DIAGNOSTIC_FAILED
-        }
-        evaluative_unassessed = tuple(
-            claim.claim_id
-            for claim in claim_decomposition.claims
-            if claim.citation_requirement is CitationRequirement.EXTERNAL
-            and claim.claim_id not in evaluative_assessed_ids
-        )
-        stage_records["evaluative_diagnostics"] = _scope_record(
-            status=(
-                StageExecutionStatus.COMPLETE
-                if not evaluative_unassessed
-                else StageExecutionStatus.PARTIAL
-                if evaluative_assessed_ids
-                else StageExecutionStatus.NOT_RUN
-            ),
-            reason=(
-                "advisory diagnostic assessed every external claim"
-                if not evaluative_unassessed
-                else "advisory diagnostic pass did not assess "
-                f"{len(evaluative_unassessed)} of {evaluative_expected} "
-                "external claims"
-            ),
-            unit="external_claim",
-            expected_count=evaluative_expected,
-            evaluated_count=len(evaluative_assessed_ids),
-            unevaluated_ids=evaluative_unassessed,
+        stage_records["evaluative_diagnostics"] = (
+            _evaluative_execution_record(
+                claim_decomposition.claims,
+                evaluative_diagnostics,
+                draft_label="initial-draft",
+            )
         )
         tail_reserve.observe_stage(
             "evaluative_diagnostics",
@@ -1669,6 +1692,209 @@ async def run_harness(
         disagreement_cost_usd=disagreement.total_cost_usd,
     )
 
+    # A recovery pass is deliberately separate from both the ordinary gap
+    # enhancer and the mutating editor. Triage may identify a material fact as
+    # worth one more bounded research attempt, but it cannot edit report bytes;
+    # the frozen claim IDs then flow through the existing cache-first executor.
+    if recovery_model is None or evidence_recovery_budget is None:
+        disabled_reason = (
+            "no recovery triage model was configured"
+            if recovery_model is None
+            else "no independent evidence-recovery budget was configured"
+        )
+        stage_records["recovery_triage"] = _scope_record(
+            status=StageExecutionStatus.NOT_RUN,
+            reason=disabled_reason,
+        )
+        stage_records["evidence_recovery"] = _scope_record(
+            status=StageExecutionStatus.NOT_RUN,
+            reason=disabled_reason,
+        )
+    else:
+        budgeted_recovery_model = run_cost.wrap(
+            recovery_model,
+            stage="recovery_triage",
+            tail_reserve_controller=tail_reserve,
+        )
+        try:
+            recovery_triage = await triage_evidence_recovery(
+                report.canonical_draft,
+                checklist=loop_result.checklist,
+                verification=verification,
+                model_client=budgeted_recovery_model,
+                settings=recovery_triage_settings,
+            )
+        except RunCostCapReached as error:
+            stage_records["recovery_triage"] = _scope_record(
+                status=StageExecutionStatus.NOT_RUN,
+                reason=str(error),
+            )
+            stage_records["evidence_recovery"] = _scope_record(
+                status=StageExecutionStatus.NOT_RUN,
+                reason="triage was denied, so no recovery target set exists",
+            )
+        else:
+            stage_records["recovery_triage"] = _scope_record(
+                status={
+                    RecoveryTriageStatus.NO_TARGETS: (
+                        StageExecutionStatus.COMPLETE
+                    ),
+                    RecoveryTriageStatus.COMPLETE: (
+                        StageExecutionStatus.COMPLETE
+                    ),
+                    RecoveryTriageStatus.PARTIAL: (
+                        StageExecutionStatus.PARTIAL
+                    ),
+                    RecoveryTriageStatus.FAILED: StageExecutionStatus.FAILED,
+                }[recovery_triage.status],
+                reason=(
+                    "every completed evidence exception received a "
+                    "non-mutating recovery disposition"
+                    if recovery_triage.status
+                    in {
+                        RecoveryTriageStatus.NO_TARGETS,
+                        RecoveryTriageStatus.COMPLETE,
+                    }
+                    else "some evidence exceptions did not receive a usable "
+                    "recovery disposition"
+                ),
+                unit="evidence_exception_claim",
+                expected_count=len(recovery_triage.target_claim_ids),
+                evaluated_count=len(recovery_triage.decisions),
+                unevaluated_ids=recovery_triage.failed_claim_ids,
+            )
+            additional_usage["recovery_triage"] = UsageRecord(
+                token_count=recovery_triage.total_tokens,
+                cost_usd=recovery_triage.total_cost_usd,
+            )
+            research_ids = recovery_triage.research_target_claim_ids
+            if research_ids:
+                effective_recovery_budget = evidence_recovery_budget
+                recovery_remaining = run_cost.remaining_cost_usd
+                if recovery_remaining is not None:
+                    effective_recovery_budget = (
+                        effective_recovery_budget.model_copy(
+                            update={
+                                "max_cost_usd": min(
+                                    effective_recovery_budget.max_cost_usd,
+                                    recovery_remaining,
+                                )
+                            }
+                        )
+                    )
+                recovery_gap_model = run_cost.wrap(
+                    decision_model,
+                    stage="evidence_recovery",
+                    tail_reserve_controller=tail_reserve,
+                )
+                recovery_note_model = run_cost.wrap(
+                    note_model,
+                    stage="evidence_recovery",
+                    tail_reserve_controller=tail_reserve,
+                )
+                recovery_attribution_model = run_cost.wrap(
+                    attribution_model,
+                    stage="evidence_recovery",
+                    tail_reserve_controller=tail_reserve,
+                )
+                recovery_verification_model = run_cost.wrap(
+                    verification_model,
+                    stage="evidence_recovery",
+                    tail_reserve_controller=tail_reserve,
+                )
+
+                def recovery_plan_builder(**kwargs: Any) -> str:
+                    return build_recovery_gap_plan_prompt(
+                        **kwargs,
+                        triage=recovery_triage,
+                    )
+
+                try:
+                    recovery_pass = await run_evidence_gap_round(
+                        canonical_draft=report.canonical_draft,
+                        checklist=loop_result.checklist,
+                        blocks=claim_decomposition.blocks,
+                        ledger=ledger,
+                        initial_attribution=attribution,
+                        initial_verification=verification,
+                        gap_model=recovery_gap_model,
+                        note_model=recovery_note_model,
+                        attribution_model=recovery_attribution_model,
+                        verification_model=recovery_verification_model,
+                        tavily_client=tavily_client,
+                        budget=effective_recovery_budget,
+                        attribution_settings=attribution_settings,
+                        verification_settings=verification_settings,
+                        corroboration_targets=corroboration_targets,
+                        estimate_input_tokens=(
+                            evidence_gap_input_token_estimator
+                        ),
+                        estimate_cost_usd=evidence_gap_cost_estimator,
+                        explicit_target_claim_ids=research_ids,
+                        plan_prompt_builder=recovery_plan_builder,
+                        ledger_event_prefix="recovery",
+                    )
+                except RunCostCapReached:
+                    recovery_pass = EvidenceGapResult(
+                        target_claim_ids=research_ids,
+                        stop_reason=EvidenceGapStopReason.BUDGET_EXHAUSTED,
+                        stop_detail=(
+                            "absolute run cost admission stopped the only "
+                            "evidence-recovery pass"
+                        ),
+                        final_attribution=attribution,
+                        final_verification=verification,
+                    )
+            else:
+                recovery_pass = EvidenceGapResult(
+                    stop_reason=EvidenceGapStopReason.NO_TARGETS,
+                    stop_detail=(
+                        "triage selected no claims for evidence recovery"
+                    ),
+                    final_attribution=attribution,
+                    final_verification=verification,
+                )
+            evidence_recovery = summarize_evidence_recovery(
+                triage=recovery_triage,
+                pass_result=recovery_pass,
+                initial_verification=verification,
+                cached_source_urls=tuple(ledger.source_cache),
+            )
+            recovery_complete = (
+                not evidence_recovery.unattempted_claim_ids
+                and evidence_recovery.stop_reason
+                not in {
+                    EvidenceRecoveryStopReason.BUDGET_EXHAUSTED,
+                    EvidenceRecoveryStopReason.MODEL_ERROR,
+                }
+            )
+            recovery_failed = (
+                evidence_recovery.stop_reason
+                is EvidenceRecoveryStopReason.MODEL_ERROR
+            )
+            stage_records["evidence_recovery"] = _scope_record(
+                status=(
+                    StageExecutionStatus.COMPLETE
+                    if recovery_complete
+                    else StageExecutionStatus.FAILED
+                    if recovery_failed
+                    else StageExecutionStatus.PARTIAL
+                ),
+                reason=evidence_recovery.stop_detail,
+                unit="frozen_recovery_target",
+                expected_count=len(
+                    evidence_recovery.frozen_target_claim_ids
+                ),
+                evaluated_count=len(evidence_recovery.attempted_claim_ids),
+                unevaluated_ids=evidence_recovery.unattempted_claim_ids,
+            )
+            additional_usage["evidence_recovery"] = UsageRecord(
+                token_count=recovery_pass.total_tokens,
+                cost_usd=recovery_pass.total_cost_usd,
+            )
+            attribution = recovery_pass.final_attribution
+            verification = recovery_pass.final_verification
+
     # Freeze the complete first audit before any editorial judgement.  These
     # records remain in the durable audit even when a revised draft later earns
     # a fresh registry; deleting a claim from prose must never delete the fact
@@ -1679,8 +1905,8 @@ async def run_harness(
     pre_edit_attribution = attribution
     pre_edit_verification = verification
     pre_edit_draft = report.canonical_draft
-    additional_usage: dict[str, UsageRecord] = {}
     post_edit_required_stages: tuple[str, ...] = ()
+    post_edit_evaluative_diagnostics: EvaluativeDiagnosticResult | None = None
 
     if editor_model is not None:
         editorial_admission = audit_editorial_admission(
@@ -1823,6 +2049,80 @@ async def run_harness(
                 stage_records["post_edit_claim_decomposition"].status
                 is StageExecutionStatus.COMPLETE
             )
+            if post_claim_stage_complete and post_claims is not None:
+                post_external_ids = tuple(
+                    claim.claim_id
+                    for claim in post_claims.claims
+                    if claim.citation_requirement is CitationRequirement.EXTERNAL
+                )
+                budgeted_post_evaluative_model = run_cost.wrap(
+                    claim_model,
+                    stage="post_edit_evaluative_diagnostics",
+                    tail_reserve_controller=tail_reserve,
+                )
+                try:
+                    post_edit_evaluative_diagnostics = (
+                        await diagnose_underspecified_evaluative_claims(
+                            post_claims.claims,
+                            model_client=budgeted_post_evaluative_model,
+                            settings=evaluative_diagnostic_settings,
+                        )
+                    )
+                except RunCostCapReached as error:
+                    stage_records[
+                        "post_edit_evaluative_diagnostics"
+                    ] = _scope_record(
+                        status=StageExecutionStatus.NOT_RUN,
+                        reason=str(error),
+                        unit="external_claim",
+                        expected_count=len(post_external_ids),
+                        evaluated_count=0,
+                        unevaluated_ids=post_external_ids,
+                    )
+                else:
+                    stage_records[
+                        "post_edit_evaluative_diagnostics"
+                    ] = _evaluative_execution_record(
+                        post_claims.claims,
+                        post_edit_evaluative_diagnostics,
+                        draft_label="edited-draft",
+                    )
+                    additional_usage[
+                        "post_edit_evaluative_diagnostics"
+                    ] = UsageRecord(
+                        token_count=(
+                            post_edit_evaluative_diagnostics.total_tokens
+                        ),
+                        cost_usd=(
+                            post_edit_evaluative_diagnostics.total_cost_usd
+                        ),
+                    )
+                    tail_reserve.observe_stage(
+                        "post_edit_evaluative_diagnostics",
+                        work_units=(
+                            TailWorkUnit(
+                                stage="post_edit_evaluative_diagnostics",
+                                unit="external_claim",
+                                count=len(post_external_ids),
+                            ),
+                        ),
+                        token_count=(
+                            post_edit_evaluative_diagnostics.total_tokens
+                        ),
+                        cost_usd=(
+                            post_edit_evaluative_diagnostics.total_cost_usd
+                        ),
+                    )
+            else:
+                stage_records[
+                    "post_edit_evaluative_diagnostics"
+                ] = _scope_record(
+                    status=StageExecutionStatus.NOT_RUN,
+                    reason=(
+                        "not run because the edited claim registry did not "
+                        "complete"
+                    ),
+                )
             if post_claim_stage_complete and post_claims is not None:
                 post_external_ids = tuple(
                     claim.claim_id
@@ -2155,10 +2455,10 @@ async def run_harness(
                 checklist_report_reconciliation = post_reconciliation
                 attribution = post_attribution
                 verification = post_verification
-                # The advisory diagnostic belongs to the first immutable
-                # registry. It is preserved below but never attached to new
-                # claim IDs without actually rerunning that pass.
-                evaluative_diagnostics = None
+                # The first diagnostic remains nested under pre_edit_evidence.
+                # The top-level payload belongs only to the edited claim IDs
+                # and is null when that independent rerun did not execute.
+                evaluative_diagnostics = post_edit_evaluative_diagnostics
 
         if (
             editorial_revision is not None
@@ -2461,6 +2761,16 @@ async def run_harness(
                     "verification": pre_edit_verification.model_dump(mode="json"),
                     "evidence_gap": evidence_gap.model_dump(mode="json"),
                     "disagreement": disagreement.model_dump(mode="json"),
+                    "recovery_triage": (
+                        recovery_triage.model_dump(mode="json")
+                        if recovery_triage is not None
+                        else None
+                    ),
+                    "evidence_recovery": (
+                        evidence_recovery.model_dump(mode="json")
+                        if evidence_recovery is not None
+                        else None
+                    ),
                 }
                 if editor_model is not None
                 else None
@@ -2475,9 +2785,24 @@ async def run_harness(
                 if editorial_admission is not None
                 else None
             ),
+            "recovery_triage": (
+                recovery_triage.model_dump(mode="json")
+                if recovery_triage is not None
+                else None
+            ),
+            "evidence_recovery": (
+                evidence_recovery.model_dump(mode="json")
+                if evidence_recovery is not None
+                else None
+            ),
             "evaluative_claim_diagnostics": (
                 evaluative_diagnostics.model_dump(mode="json")
                 if evaluative_diagnostics is not None
+                else None
+            ),
+            "post_edit_evaluative_claim_diagnostics": (
+                post_edit_evaluative_diagnostics.model_dump(mode="json")
+                if post_edit_evaluative_diagnostics is not None
                 else None
             ),
             "checklist_report_reconciliation": (
@@ -2583,6 +2908,8 @@ async def run_harness(
         verification=verification,
         evidence_gap=evidence_gap,
         disagreement=disagreement,
+        recovery_triage=recovery_triage,
+        evidence_recovery=evidence_recovery,
         editorial_admission=editorial_admission,
         editorial_revision=editorial_revision,
         posthoc_retrieval_budget=posthoc_budget_audit,

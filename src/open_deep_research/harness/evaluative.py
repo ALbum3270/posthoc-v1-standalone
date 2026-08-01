@@ -18,6 +18,7 @@ from pydantic import (
     model_validator,
 )
 
+from open_deep_research.harness.budget import RunCostCapReached
 from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
@@ -406,6 +407,8 @@ async def diagnose_underspecified_evaluative_claims(
                 content,
                 batch,
             )
+        except RunCostCapReached:
+            raise
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
             usage = ClaimStageUsage()
