@@ -502,6 +502,17 @@ attempt attributed to that item. A zero-result search or a tool error is still
 an attempt; an action rejected before the tool runs is not. Code enforces this
 mechanically and rejects only the ineligible status entry.
 
+"settled" is your qualitative research judgement, not a note-count or
+domain-count threshold. Do not treat the existence of a note, a search snippet,
+or a secondary account as proof that the underlying question is answered. When
+the current material is a lead, decide whether to trace it to a more direct
+record, participant, or independent account appropriate to the question before
+settling. Give particular care to claimed quantities, dates, causal accounts,
+and the current state of an ongoing process: lack of material collected so far
+is not a conclusion about the world. You choose relevance, source role,
+independence, timeliness, and when further research is worthwhile; code does
+not classify sources or impose a source-quality threshold.
+
 The optional action is one of:
 {{"action":"search","item_id":"...","query":"..."}}
 {{"action":"read","item_id":"...","url":"..."}}

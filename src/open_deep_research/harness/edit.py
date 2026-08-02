@@ -466,6 +466,11 @@ important questions. If the evidence exception concerns an important unresolved
 answer, retain it with a label or qualify it rather than silently deleting the
 answer.
 
+Write every replacement_text in the same primary natural language as the
+research topic in the supplied intent. Proper nouns, document titles, and
+source-specific terms may remain in their original language. This is an
+editorial instruction for you, not a mechanical acceptance test.
+
 Research intent:
 {preservation_context}
 

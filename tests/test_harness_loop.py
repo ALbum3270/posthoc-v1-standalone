@@ -17,6 +17,7 @@ from open_deep_research.harness.loop import (
     LoopBudget,
     LoopSettings,
     StopReason,
+    build_decision_prompt,
     build_note_prompt,
     run_research_loop,
 )
@@ -263,6 +264,23 @@ def test_collection_limit_stop_reasons_stay_distinguishable_from_completion():
     }
     for reason in StopReason:
         assert reason.is_collection_limit is (reason in limits)
+
+
+def test_decision_prompt_leaves_source_assessment_and_stopping_to_the_model():
+    """The collection prompt adds investigative guidance, not a quality gate."""
+
+    prompt = build_decision_prompt(
+        checklist(second=False),
+        [],
+        {},
+    )
+
+    assert '"settled" is your qualitative research judgement' in prompt
+    assert "lack of material collected so far\nis not a conclusion about the world" in prompt
+    assert (
+        "code does\nnot classify sources or impose a source-quality threshold"
+        in prompt
+    )
 
 
 def test_malformed_actions_are_billed_and_stop_at_the_consecutive_limit():

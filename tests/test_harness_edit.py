@@ -21,6 +21,7 @@ from open_deep_research.harness.edit import (
     EditorialResearchQuestion,
     EditorialRevisionStatus,
     audit_editorial_admission,
+    build_editorial_prompt,
     revise_audited_draft,
 )
 from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
@@ -314,6 +315,36 @@ def test_editor_receives_answer_context_and_records_semantic_preservation_judgem
     assert "What happened to customer funds?" in model.prompts[0]
     assert "What funds were recovered and distributed?" in model.prompts[0]
     assert "may_reduce_answer_coverage" in model.prompts[0]
+
+
+def test_editor_prompt_carries_the_draft_language_contract_without_gating():
+    """Replacement language follows the topic by model instruction only."""
+
+    draft = "# 报告\n\n这是一条待修订的中文断言。"
+    block = parse_markdown_blocks(draft)[1]
+    claim = _claim(
+        "claim-language", block, block.text, block.start_char, block.end_char
+    )
+    verification = VerificationResult(
+        claims=(
+            _verification(
+                claim,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (_relation(claim.claim_id, VerificationVerdict.DOES_NOT_SUPPORT),),
+            ),
+        )
+    )
+    context = EditorialPreservationContext(topic="FTX 客户资金去了哪里？")
+
+    prompt = build_editorial_prompt(
+        (block,),
+        verification=verification,
+        preservation_context=context,
+    )
+
+    assert "same primary natural language as the\nresearch topic" in prompt
+    assert "not a mechanical acceptance test" in prompt
+    assert context.topic in prompt
 
 
 def test_recorded_editorial_preservation_impact_needs_a_rationale():
