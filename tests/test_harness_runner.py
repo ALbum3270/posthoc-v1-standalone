@@ -949,10 +949,14 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     final_markdown = result.report_path.read_text(encoding="utf-8")
     sources_markdown = result.sources_path.read_text(encoding="utf-8")
     assert final_markdown == result.rendered_report.markdown
-    assert final_markdown.startswith("> 证据包：")
+    assert final_markdown.startswith(
+        "> **质量审核状态：未完成独立质量审核。**"
+    )
+    assert "`pipeline_complete` 只表示规定流程已执行" in final_markdown
+    assert "> 证据包：" in final_markdown
     assert (
         "缺失逐字证据、提交标记或摘要不符则证据包不完整"
-        in final_markdown.splitlines()[0]
+        in final_markdown
     )
     assert "正文块评估 2/2" in final_markdown
     assert (
@@ -1052,6 +1056,9 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "writing": {"cost_usd": 0.05, "token_count": 5},
     }
     assert audit["run_cost_limit_status"] == "no_run_level_cost_limit"
+    assert audit["pipeline_complete"] is True
+    assert audit["quality_review_passed"] is None
+    assert "publication_eligible" not in audit
     assert audit["run_cost_budget"]["configured"] is False
     assert audit["run_cost_budget"]["max_cost_usd"] is None
     assert audit["run_cost_budget"]["enforcement"] == (
@@ -1162,7 +1169,9 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
         "bundle_complete": True,
         "commit_marker": "audit.json",
         "directory": "fixed-run",
+        "pipeline_complete": True,
         "publication_order": ["directory"],
+        "quality_review_passed": None,
         "report": "report.md",
         "report_sha256": hashlib.sha256(
             final_markdown.encode("utf-8")
@@ -1385,7 +1394,9 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
         )
     )
 
-    assert result.publication_eligible is True
+    assert result.pipeline_complete is True
+    assert result.quality_review_passed is None
+    assert result.publication_eligible is False
     assert result.editorial_revision is not None
     assert result.editorial_revision.committed_after_reaudit is True
     assert result.report.canonical_draft == (
@@ -1429,7 +1440,7 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
         "post_edit_checklist_reconciliation",
     ):
         assert stages[stage]["status"] == "complete", stage
-    assert posthoc["stage_execution"]["mandatory_publication_stages"] == [
+    assert posthoc["stage_execution"]["mandatory_pipeline_stages"] == [
         "claim_decomposition",
         "attribution",
         "initial_verification",
@@ -1541,11 +1552,13 @@ def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(
     )
     assert len(editor.prompts) == 1
     assert verifier.calls == 2
+    assert result.pipeline_complete is False
+    assert result.quality_review_passed is None
     assert result.publication_eligible is False
     assert result.verification.claims[1].state is (
         ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE
     )
-    assert "publication_eligible=false" in result.rendered_report.markdown
+    assert "pipeline_complete=false" in result.rendered_report.markdown
 
     audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
     posthoc = audit["posthoc_evidence"]
@@ -1560,7 +1573,9 @@ def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(
     ]["status"] == "partial"
     assert posthoc["editorial_revision"]["committed_after_reaudit"] is True
     assert audit["canonical_draft"] == result.report.canonical_draft
-    assert audit["publication_eligible"] is False
+    assert audit["pipeline_complete"] is False
+    assert audit["quality_review_passed"] is None
+    assert "publication_eligible" not in audit
 
 
 def test_artifact_bundle_publishes_by_one_directory_rename_or_not_at_all(
@@ -1924,8 +1939,11 @@ def test_a_diagnostic_pass_that_assessed_nothing_is_not_recorded_as_complete(
     # The denominator survives so the gap is legible rather than invisible.
     assert record["expected_scope"]["count"] == 1
     assert record["unevaluated_ids"] == ["claim-0001"]
-    # An advisory pass is not part of the spine, so it must not block release.
-    assert result.publication_eligible is True
+    # An advisory pass is not part of the execution spine.  The spine can be
+    # complete while independent report-quality review remains pending.
+    assert result.pipeline_complete is True
+    assert result.quality_review_passed is None
+    assert result.publication_eligible is False
 
 
 class OmittingAttributionModel:
@@ -1974,6 +1992,8 @@ def test_an_ineligible_run_still_writes_its_bundle(tmp_path):
         )
     )
 
+    assert result.pipeline_complete is False
+    assert result.quality_review_passed is None
     assert result.publication_eligible is False
 
     audit_path = tmp_path / "ineligible-run" / "audit.json"
@@ -1982,7 +2002,9 @@ def test_an_ineligible_run_still_writes_its_bundle(tmp_path):
     # The value must be the enum's serialised form, not whatever a caller
     # happened to pass to model_copy.
     assert audit["completion_status"] == "partial"
-    assert audit["publication_eligible"] is False
+    assert audit["pipeline_complete"] is False
+    assert audit["quality_review_passed"] is None
+    assert "publication_eligible" not in audit
     # The bundle is complete even though the run is not.
     assert (tmp_path / "ineligible-run" / "report.md").is_file()
     assert (tmp_path / "ineligible-run" / "sources.md").is_file()
@@ -2027,6 +2049,8 @@ def test_a_cap_that_bites_after_the_draft_still_writes_an_honest_bundle(
         )
     )
 
+    assert result.pipeline_complete is False
+    assert result.quality_review_passed is None
     assert result.publication_eligible is False
 
     bundle = tmp_path / "capped-after-draft"

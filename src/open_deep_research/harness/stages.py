@@ -1,4 +1,4 @@
-"""Auditable post-draft stage execution and publication eligibility.
+"""Auditable post-draft execution separated from report-quality review.
 
 The absence of a stage result is not a zero-valued result.  These records keep
 ``not_run`` and ``partial`` explicit so a cost cutoff cannot silently become
@@ -18,6 +18,14 @@ class StageExecutionStatus(str, Enum):
     NOT_RUN = "not_run"
     PARTIAL = "partial"
     COMPLETE = "complete"
+    FAILED = "failed"
+
+
+class QualityReviewStatus(str, Enum):
+    """Independent report-quality review, not pipeline execution state."""
+
+    NOT_REVIEWED = "not_reviewed"
+    PASSED = "passed"
     FAILED = "failed"
 
 
@@ -75,32 +83,56 @@ class StageExecutionRecord(BaseModel):
         return self
 
 
-MANDATORY_PUBLICATION_STAGES = (
+MANDATORY_PIPELINE_STAGES = (
     "claim_decomposition",
     "attribution",
     "initial_verification",
     "checklist_reconciliation",
     "deterministic_rendering",
 )
+# Historical import compatibility.  New audits and code use the narrower name.
+MANDATORY_PUBLICATION_STAGES = MANDATORY_PIPELINE_STAGES
 
 
 class PostDraftExecutionAudit(BaseModel):
-    """Stage ledger plus a mechanically validated publication decision."""
+    """Stage ledger separated from independent report-quality review."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     stages: dict[str, StageExecutionRecord]
-    mandatory_publication_stages: tuple[str, ...] = (
-        MANDATORY_PUBLICATION_STAGES
+    mandatory_pipeline_stages: tuple[str, ...] = MANDATORY_PIPELINE_STAGES
+    pipeline_complete: bool
+    pipeline_completion_reason: str = Field(min_length=1)
+    quality_review_status: QualityReviewStatus = QualityReviewStatus.NOT_REVIEWED
+    quality_review_passed: bool | None = None
+    quality_review_reason: str = (
+        "no independent report-quality review has been completed"
     )
-    publication_eligible: bool
-    publication_reason: str = Field(min_length=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _read_historical_publication_shape(cls, value: object) -> object:
+        """Read old audits without re-emitting their over-strong semantics."""
+
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        old = data.pop("mandatory_publication_stages", None)
+        if "mandatory_pipeline_stages" not in data and old is not None:
+            data["mandatory_pipeline_stages"] = old
+        old = data.pop("publication_eligible", None)
+        if "pipeline_complete" not in data and old is not None:
+            data["pipeline_complete"] = old
+        old = data.pop("publication_reason", None)
+        if "pipeline_completion_reason" not in data and old is not None:
+            data["pipeline_completion_reason"] = old
+        return data
 
     @model_validator(mode="after")
-    def _publication_is_mechanically_gated(self) -> PostDraftExecutionAudit:
+    def _completion_and_quality_are_independent(self) -> PostDraftExecutionAudit:
         missing = [
             name
-            for name in self.mandatory_publication_stages
+            for name in self.mandatory_pipeline_stages
             if name not in self.stages
         ]
         if missing:
@@ -110,14 +142,37 @@ class PostDraftExecutionAudit(BaseModel):
             )
         all_complete = all(
             self.stages[name].status is StageExecutionStatus.COMPLETE
-            for name in self.mandatory_publication_stages
+            for name in self.mandatory_pipeline_stages
         )
-        if self.publication_eligible != all_complete:
+        if self.pipeline_complete != all_complete:
             raise ValueError(
-                "publication_eligible must equal mechanical completion of "
-                "every mandatory publication stage"
+                "pipeline_complete must equal mechanical completion of "
+                "every mandatory pipeline stage"
+            )
+        expected_review_value = {
+            QualityReviewStatus.NOT_REVIEWED: None,
+            QualityReviewStatus.PASSED: True,
+            QualityReviewStatus.FAILED: False,
+        }[self.quality_review_status]
+        if self.quality_review_passed is not expected_review_value:
+            raise ValueError(
+                "quality_review_passed must match quality_review_status"
             )
         return self
+
+    @property
+    def publication_eligible(self) -> bool:
+        """Compatibility accessor; new serialized audits do not emit it."""
+
+        return self.pipeline_complete and self.quality_review_passed is True
+
+    @property
+    def publication_reason(self) -> str:
+        """Compatibility accessor that does not equate completion with quality."""
+
+        if not self.pipeline_complete:
+            return self.pipeline_completion_reason
+        return self.quality_review_reason
 
 
 def publication_audit(
@@ -125,9 +180,9 @@ def publication_audit(
     *,
     mandatory_stages: tuple[str, ...] | None = None,
 ) -> PostDraftExecutionAudit:
-    """Derive publication eligibility; callers cannot assert it themselves."""
+    """Derive pipeline completion; quality remains independently unreviewed."""
 
-    required = mandatory_stages or MANDATORY_PUBLICATION_STAGES
+    required = mandatory_stages or MANDATORY_PIPELINE_STAGES
     complete = all(
         stages.get(name) is not None
         and stages[name].status is StageExecutionStatus.COMPLETE
@@ -146,9 +201,15 @@ def publication_audit(
     )
     return PostDraftExecutionAudit(
         stages=stages,
-        mandatory_publication_stages=required,
-        publication_eligible=complete,
-        publication_reason=reason,
+        mandatory_pipeline_stages=required,
+        pipeline_complete=complete,
+        pipeline_completion_reason=reason,
+        quality_review_status=QualityReviewStatus.NOT_REVIEWED,
+        quality_review_passed=None,
+        quality_review_reason=(
+            "pipeline completion does not establish report quality; "
+            "independent verifier and preservation review are pending"
+        ),
     )
 
 

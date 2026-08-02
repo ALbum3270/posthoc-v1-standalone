@@ -134,7 +134,7 @@ from open_deep_research.harness.write import (
     write_report,
 )
 from open_deep_research.harness.stages import (
-    MANDATORY_PUBLICATION_STAGES,
+    MANDATORY_PIPELINE_STAGES,
     PostDraftExecutionAudit,
     StageExecutionRecord,
     StageExecutionStatus,
@@ -190,8 +190,15 @@ class HarnessRunResult(BaseModel):
     stop_diagnostic: RunStopDiagnostic
     post_draft_execution: PostDraftExecutionAudit
     evidence_tail_reserve: EvidenceTailReserveAudit
-    publication_eligible: bool
+    pipeline_complete: bool
+    quality_review_passed: bool | None
     usage: dict[str, UsageRecord]
+
+    @property
+    def publication_eligible(self) -> bool:
+        """Compatibility accessor; completion alone is never publication."""
+
+        return self.pipeline_complete and self.quality_review_passed is True
 
 
 def _new_run_id() -> str:
@@ -359,7 +366,7 @@ def _partial_bundle_markdown(
 
     warning = (
         "> **不完整运行产物：证据流程未完成；"
-        "`publication_eligible=false`。** "
+        "`pipeline_complete=false`。** "
         f"后置阶段 `{failed_stage}` 因运行成本上限停止。"
         "未执行的工作没有被解释为无来源、不支持、零覆盖或零候选；"
         f"精确阶段状态与成本诊断见 [{audit_filename}]({audit_filename})。"
@@ -369,7 +376,8 @@ def _partial_bundle_markdown(
     sources = (
         "# 不完整证据包\n\n"
         f"- Run ID：`{run_id}`\n"
-        "- Publication eligible：`false`\n"
+        "- Pipeline complete：`false`\n"
+        "- Quality review passed：`not reviewed`\n"
         "- 本文件不包含伪造的空证据记录。证据尾链未完成，"
         "因此没有生成可冒充完整核验结果的脚注定义。\n"
         "- [返回报告](report.md)\n"
@@ -574,8 +582,8 @@ def _publish_partial_result(
             ),
         )
     post_draft_execution = publication_audit(stages)
-    if post_draft_execution.publication_eligible:
-        raise AssertionError("a cost-cutoff checkpoint cannot be publishable")
+    if post_draft_execution.pipeline_complete:
+        raise AssertionError("a cost-cutoff checkpoint cannot be pipeline-complete")
 
     run_cost_audit = error.audit
     stop_diagnostic = build_run_stop_diagnostic(
@@ -666,7 +674,8 @@ def _publish_partial_result(
         "checklist": loop_result.checklist.model_dump(mode="json"),
         "canonical_draft": report.canonical_draft,
         "completion_status": "partial",
-        "publication_eligible": False,
+        "pipeline_complete": False,
+        "quality_review_passed": None,
         "stop": {
             "reason": loop_result.stop_reason.value,
             "detail": loop_result.stop_detail,
@@ -693,7 +702,8 @@ def _publish_partial_result(
             "sources_sha256": sources_sha256,
             "audit": audit_filename,
             "bundle_complete": True,
-            "publication_eligible": False,
+            "pipeline_complete": False,
+            "quality_review_passed": None,
             "artifact_kind": "partial_checkpoint_bundle",
             "staging_write_order": ["sources", "report", "audit"],
             "publication_order": ["directory"],
@@ -734,7 +744,8 @@ def _publish_partial_result(
         stop_diagnostic=stop_diagnostic,
         post_draft_execution=post_draft_execution,
         evidence_tail_reserve=tail_audit,
-        publication_eligible=False,
+        pipeline_complete=False,
+        quality_review_passed=None,
         usage=usage,
     )
 
@@ -2471,7 +2482,7 @@ async def run_harness(
             # separate gates. A complete claim registry plus complete attribution
             # and an actual (possibly partial) verification result bind every
             # rendered status to the edited draft. Global stage completeness is
-            # still assessed below and keeps publication_eligible false whenever
+            # still assessed below and keeps pipeline_complete false whenever
             # any original or re-audit work is incomplete.
             post_edit_registry_coherent = (
                 post_claim_stage_complete
@@ -2621,22 +2632,31 @@ async def run_harness(
     # A stage whose scope is empty only because its upstream was cut off has
     # not completed anything; letting that stand would reintroduce 0/0.
     stage_records = demote_vacuous_completions(stage_records)
-    mandatory_publication_stages = MANDATORY_PUBLICATION_STAGES
+    mandatory_pipeline_stages = MANDATORY_PIPELINE_STAGES
     if editor_model is not None:
-        mandatory_publication_stages = (
-            *mandatory_publication_stages,
+        mandatory_pipeline_stages = (
+            *mandatory_pipeline_stages,
             "audit_editing",
             *post_edit_required_stages,
         )
     post_draft_execution = publication_audit(
         stage_records,
-        mandatory_stages=mandatory_publication_stages,
+        mandatory_stages=mandatory_pipeline_stages,
     )
-    if not post_draft_execution.publication_eligible:
+    if post_draft_execution.quality_review_passed is None:
+        quality_warning = (
+            "> **质量审核状态：未完成独立质量审核。** "
+            "`pipeline_complete` 只表示规定流程已执行，"
+            "不表示事实正确、来源充分或适合公开发布。"
+        )
+        rendered_report = rendered_report.model_copy(
+            update={"markdown": quality_warning + "\n" + rendered_report.markdown}
+        )
+    if not post_draft_execution.pipeline_complete:
         incomplete_warning = (
             "> **不完整运行产物：证据流程未完整覆盖；"
-            "`publication_eligible=false`。** "
-            f"{post_draft_execution.publication_reason}。"
+            "`pipeline_complete=false`。** "
+            f"{post_draft_execution.pipeline_completion_reason}。"
             "未评估工作不得解释为无来源、不支持或零覆盖。"
         )
         rendered_report = rendered_report.model_copy(
@@ -2888,7 +2908,8 @@ async def run_harness(
         "run_cost_budget": run_cost_audit.model_dump(mode="json"),
         "evidence_tail_reserve": tail_reserve.audit().model_dump(mode="json"),
         "completion_status": stop_diagnostic.completion_status.value,
-        "publication_eligible": post_draft_execution.publication_eligible,
+        "pipeline_complete": post_draft_execution.pipeline_complete,
+        "quality_review_passed": post_draft_execution.quality_review_passed,
         "budget_decision_signal": (
             stop_diagnostic.budget_decision_signal.value
         ),
@@ -2909,6 +2930,10 @@ async def run_harness(
             "audit": audit_path.name,
             "commit_marker": audit_path.name,
             "bundle_complete": True,
+            "pipeline_complete": post_draft_execution.pipeline_complete,
+            "quality_review_passed": (
+                post_draft_execution.quality_review_passed
+            ),
             "staging_write_order": ["sources", "report", "audit"],
             "publication_order": ["directory"],
         },
@@ -2953,6 +2978,7 @@ async def run_harness(
         stop_diagnostic=stop_diagnostic,
         post_draft_execution=post_draft_execution,
         evidence_tail_reserve=tail_reserve.audit(),
-        publication_eligible=post_draft_execution.publication_eligible,
+        pipeline_complete=post_draft_execution.pipeline_complete,
+        quality_review_passed=post_draft_execution.quality_review_passed,
         usage=usage,
     )

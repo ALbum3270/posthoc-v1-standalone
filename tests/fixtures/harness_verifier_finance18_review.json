@@ -1,0 +1,1630 @@
+{
+  "cases": [
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0001:source-43bc2ad54dde90f4:0",
+      "claim_id": "claim-0001",
+      "claim_text": "FTX 交易所由 Sam Bankman-Fried（简称 SBF）与 Gary Wang 于 2019 年创立。",
+      "evidence_quote": "| Type | Private |\n| Industry | Cryptocurrency |\n| Founded | May 2019; 7 years ago (2019-05) |\n| Founders | Sam Bankman-Fried Gary Wang \"Gary Wang (American businessman)\") |\n| Fate | Filed for Chapter 11 bankruptcy in November 2022 |\n| Headquarters | Nassau, New Providence , The Bahamas |\n| Key people | John J. Ray III (CEO) |\n| Products | Cryptocurrency exchange cryptocurrencies |\n| Revenue | Increase US$1.02 billion (2021) |\n| Operating income | Increase US$272 million (2021) |\n| Net income | Increase US$388 million (2021) |\n| Number of employees | c. 300 (2022) |\nFTX Trading Ltd., trading as FTX (Futures Exchange), is a bankrupt company that formerly operated a cryptocurrency exchange and crypto hedge fund. The exchange was founded in 2019 by Sam Bankman-Fried and Gary Wang \"Gary Wang (American businessman)\") and collapsed in 2022.",
+      "original_explanation": "Source states FTX was founded in May 2019 by Sam Bankman-Fried and Gary Wang.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0002:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0002",
+      "claim_text": "SBF 曾被视为加密货币界的“神童”，在行业内以慈善家和监管倡导者的形象著称。",
+      "evidence_quote": "Sam Bankman-Fried, the former CEO of FTX, was a 30-year-old crypto wunderkind who for years garnered goodwill as a philanthropist and leading proponent of industry regulation.",
+      "original_explanation": "Source says Bankman-Fried was a crypto wunderkind and had goodwill as a philanthropist and leading proponent of industry regulation.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0003:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0003",
+      "claim_text": "除了 FTX 外，SBF 还于 2017 年共同创办了 Alameda Research，一家加密基金。",
+      "evidence_quote": "Origins Origins and the relationship between FTX and Alameda In 2017, Sam Bankman-Fried (“SBF”) co-founded Alameda Research (“Alameda”), a crypto fund.",
+      "original_explanation": "Source states that in 2017 SBF co-founded Alameda Research, a crypto fund.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0003:source-43bc2ad54dde90f4:1",
+      "claim_id": "claim-0003",
+      "claim_text": "除了 FTX 外，SBF 还于 2017 年共同创办了 Alameda Research，一家加密基金。",
+      "evidence_quote": "FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California.",
+      "original_explanation": "Source says FTX began within Alameda Research, founded by Bankman-Fried and others in 2017.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0004:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0004",
+      "claim_text": "Alameda 同时也是 FTX 的主要市场制造者和清算引擎的资金后盾。",
+      "evidence_quote": "The backstop for this liquidation engine was Alameda.",
+      "original_explanation": "Source says the backstop for FTX’s liquidation engine was Alameda.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0005:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0005",
+      "claim_text": "Gary Wang 和 Nishad Singh 拥有 FTX 及相关实体的重要股权。",
+      "evidence_quote": "Sam Bankman-Fried (“SBF”) West Realm Shires Inc. (Delaware) (“FTX US”) Third party investors Clifton Bay Investments LLC (“FTX Ventures”) Alameda Research LLC (Delaware) (“Alameda”) FTX Trading Ltd (Antigua) (“FTX Global”) 25% 75% 90% 10%: Gary Wang 8%: Nishad Singh 23%: Gary Wang 10%: Nishad Singh 67% 53% 17%: Gary Wang A cryptocurrency fund and the largest market-maker on FTX Venture investments in early and growth-stage web 3 and crypto companies and projects Crypto exchange for US residents Crypto exchange for non-US residents Core business: Source: Declaration of John J Ray III in support of Chapter 11 petitions (“the Declaration”), 17 November 2022 Note: (a) Simplification on Exhibit A and Exhibit B from the Declaration. 22% Collectively ‘FTX’ Simplified corporate structure(a) 2 Document Classification: KPMG Public © 2022 KPMG, a Hong Kong partnership and a member firm of the KPMG global organisation of independent member firms affiliated with KPMG International Limited, a private English company limited by guarantee.",
+      "original_explanation": "The simplified corporate structure shows Gary Wang and Nishad Singh holdings in FTX-related entities, indicating important equity stakes.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0006:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0006",
+      "claim_text": "Alameda Research 的前联合 CEO 包括 Sam Trabucco 和 Caroline Ellison。",
+      "evidence_quote": "Jul USD 421m funding round at a USD 25bn valuation of FTX SBF officially handed over Alameda CEO role to co-CEO's Caroline Ellison and Sam Trabucco.\nOct 2022 FTX raised USD 1.9bn in Series C funding from investors at a valuation of USD 32bn.\nJan Terra USD (UST), an algorithmic stablecoin de-pegged from the USD, with subsequent market crash in cryptocurrencies resulting in the collapse of Three Arrows Capital (a crypto fund) and Voyager Digital (a crypto lender).\nMar/Jul SBF/FTX offered bailouts to struggling crypto platforms including: Voyager Digital, Celsius and BlockFi.\nJul Sam Trabucco stepped down as co-CEO of Alameda citing work-life-balance and other priorities. Caroline Ellison continues as sole CEO.",
+      "original_explanation": "Source says SBF handed over Alameda CEO role to Caroline Ellison and Sam Trabucco, implying they were co-CEOs.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0006:source-43bc2ad54dde90f4:1",
+      "claim_id": "claim-0006",
+      "claim_text": "Alameda Research 的前联合 CEO 包括 Sam Trabucco 和 Caroline Ellison。",
+      "evidence_quote": "FTX began within Alameda Research, a trading firm founded by Bankman-Fried, Caroline Ellison, and other former employees of Jane Street in 2017, in Berkeley, California.",
+      "original_explanation": "Source identifies Alameda Research as founded by Bankman-Fried, Caroline Ellison, and others; later text calls Ellison Alameda CEO, and mentions Sam Trabucco elsewhere in the source context is absent, so this claim is only partly evidenced? Wait insufficient.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0007:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0007",
+      "claim_text": "Caroline Ellison 在 2022 年 7 月成为唯一 CEO，直至 FTX 崩塌。",
+      "evidence_quote": "Jul Sam Trabucco stepped down as co-CEO of Alameda citing work-life-balance and other priorities. Caroline Ellison continues as sole CEO.",
+      "original_explanation": "Source states that in Jul 2022 Sam Trabucco stepped down and Caroline Ellison continued as sole CEO.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0008:source-43bc2ad54dde90f4:0",
+      "claim_id": "claim-0008",
+      "claim_text": "2022 年 11 月崩盘过程中，SBF 辞去 FTX CEO 职务。",
+      "evidence_quote": "Bankman-Fried resigned as CEO and was replaced by John J. Ray III, a corporate restructuring specialist who'd previously overseen the liquidation of Enron.",
+      "original_explanation": "Source says Bankman-Fried resigned as CEO on November 11, 2022 during the collapse.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0009:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0009",
+      "claim_text": "John J. Ray III 继任 FTX CEO 职务。",
+      "evidence_quote": "Bankman-Fried resigned as CEO and was replaced with John J. Ray III, who steered disgraced energy company Enron through bankruptcy proceedings in the 2000s.",
+      "original_explanation": "Source states Bankman-Fried resigned as CEO and was replaced by John J. Ray III.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0010:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0010",
+      "claim_text": "John J. Ray III 曾主导 2000 年代能源巨头 Enron 破产处理，成为破产重组专家。",
+      "evidence_quote": "6. November 17, 2022: John Ray III, the new CEO of FTX who presided over the Enron bankruptcy, makes the following statement: “Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information..”",
+      "original_explanation": "Source says John Ray III presided over the Enron bankruptcy and the article frames him as the new CEO handling FTX's bankruptcy.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0011:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0011",
+      "claim_text": "FTX 定位为服务专业交易员的加密期货交易所，提供包括各类加密资产衍生品交易。",
+      "evidence_quote": "In 2019, SBF founded FTX, an crypto futures exchange built to meet the needs of serious traders (“by traders, for traders”).",
+      "original_explanation": "Source describes FTX as an crypto futures exchange built for serious traders.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0012:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0012",
+      "claim_text": "便捷的界面和高流动性是 FTX 吸引用户的核心竞争力。",
+      "evidence_quote": "By 2021, FTX had become one of the largest and most popular exchanges for professional traders due to its fast listing of tokens, user-interface, and high liquidity (driving tighter spreads between bid and ask prices).",
+      "original_explanation": "Source attributes FTX’s popularity to its fast listings, user-interface, and high liquidity.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0013:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0013",
+      "claim_text": "FTX 的独特清算引擎能够在发生大规模清算时吸纳抛售资产，避免价格暴跌。",
+      "evidence_quote": "FTX’s market leading liquidity was in part due to its unique liquidation engine which effectively acquired holdings from sellers in the event of a large liquidation event – thus preventing collapse of prices.",
+      "original_explanation": "Source says the liquidation engine acquired holdings from sellers during large liquidations, preventing price collapse.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0014:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0014",
+      "claim_text": "Alameda Research 是该清算引擎的资金支持者。",
+      "evidence_quote": "The backstop for this liquidation engine was Alameda.",
+      "original_explanation": "Source explicitly states Alameda was the backstop for the liquidation engine.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0015:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0015",
+      "claim_text": "FTX 推出了本身的原生代币 FTT。",
+      "evidence_quote": "FTX launched it’s own token, “FTT”.",
+      "original_explanation": "Source says FTX launched its own token, FTT.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0016:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0016",
+      "claim_text": "FTT 代币被用作 Alameda 进行杠杆交易的抵押品。",
+      "evidence_quote": "Alameda used tokens, such as FTT as collateral for loans.",
+      "original_explanation": "Source states Alameda used tokens such as FTT as collateral for loans, consistent with leveraged trading collateral.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0017:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0017",
+      "claim_text": "FTT 的价值高度依赖于 FTX 的继续运营。",
+      "evidence_quote": "FTT’s value was dependent on FTX being a going concern.",
+      "original_explanation": "Source says FTT’s value was dependent on FTX being a going concern.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0018:source-43bc2ad54dde90f4:0",
+      "claim_id": "claim-0018",
+      "claim_text": "2022 年 11 月初，形势急转直下。",
+      "evidence_quote": "Crisis begins: Binance FTT sale, sell-off, and withdrawn rescue bid\nSeveral days after the publication of the CoinDesk article, on November 6, Binance CEO Changpeng Zhao said on Twitter that his firm intended to sell all its holdings of FTT. Binance had received FTT from FTX in 2021 during a transaction in which FTX bought back Binance's equity stake in FTX. Zhao cited \"recent revelations that came to light\" as the motivation for selling FTT. Bloomberg and TechCrunch reported that any sale by Binance would likely have an outsized impact on FTT's price, given the token's low trading volume. The announcement by Zhao of the pending sale and disputes between Zhao and Bankman-Fried on Twitter led to a decline in the price of FTT and other cryptocurrencies, resulting in a three-day depositor sell-off, like a bank run, of an estimated $6 billion that sent FTX into crisis.",
+      "original_explanation": "Source describes the days after the CoinDesk report as the start of the crisis, with a three-day depositor sell-off sending FTX into crisis in early November 2022.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0019:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0019",
+      "claim_text": "2022 年 11 月 2 日，CoinDesk 报道指出 Alameda Research 的资产中含有大量 FTT 代币。",
+      "evidence_quote": "2 – The collapse of FTX centers in part on the cryptocurrency exchange's close relationship with Alameda Research, a crypto hedge fund also founded by Bankman-Fried.\nMajor concerns about FTX started when news outlet CoinDesk published an article that found a significant portion of Alameda Research's assets consisted of FTT, a token created by FTX that allows users of the exchange to access discounted trading fees.\nBecause FTT cannot be easily exchanged for cash, the report stoked fears about the capital reserves at Alameda Research and thus FTX.",
+      "original_explanation": "Source says on Nov. 2 CoinDesk published an article finding a significant portion of Alameda Research's assets consisted of FTT.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0019:source-43bc2ad54dde90f4:1",
+      "claim_id": "claim-0019",
+      "claim_text": "2022 年 11 月 2 日，CoinDesk 报道指出 Alameda Research 的资产中含有大量 FTT 代币。",
+      "evidence_quote": "Several months after Bloomberg's initial report on the relationship between the two firms, on November 2, 2022, CoinDesk reported that a significant portion of Alameda Research's assets were held in FTT, the exchange token issued by FTX.",
+      "original_explanation": "Source says CoinDesk reported on November 2, 2022 that a significant portion of Alameda's assets were held in FTT.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0020:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0020",
+      "claim_text": "Alameda 的资产中持有大比例的 FTT，且许多 FTT 并非锁定状态，流动性有限。",
+      "evidence_quote": "Major concerns about FTX started when news outlet CoinDesk published an article that found a significant portion of Alameda Research's assets consisted of FTT, a token created by FTX that allows users of the exchange to access discounted trading fees.\nBecause FTT cannot be easily exchanged for cash, the report stoked fears about the capital reserves at Alameda Research and thus FTX.",
+      "original_explanation": "Source says Alameda had a significant portion of assets in FTT and that FTT could not be easily exchanged for cash.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0021:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0021",
+      "claim_text": "FTX 的最大竞争对手 Binance CEO Changpeng Zhao（CZ）于 11 月 6 日宣布将逐步出售其约 5.8 亿美元的 FTT 持仓。",
+      "evidence_quote": "Nov. 6 – In response to the article, Changpeng Zhao, the CEO of rival crypto exchange Binance, often referred to as \"CZ,\" said he would sell all of the company's holdings in FTT, which amount to $580 million worth of the token.",
+      "original_explanation": "Source says on Nov. 6 CZ said he would sell all of Binance's FTT holdings, worth $580 million.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0022:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0022",
+      "claim_text": "Binance CEO Changpeng Zhao（CZ）于 11 月 6 日宣布将逐步出售其约 5.8 亿美元的 FTT 持仓，引发市场恐慌性抛售。",
+      "evidence_quote": "Nov. 6 – In response to the article, Changpeng Zhao, the CEO of rival crypto exchange Binance, often referred to as \"CZ,\" said he would sell all of the company's holdings in FTT, which amount to $580 million worth of the token.\nThe major exit from a crypto heavyweight triggered a wider selloff, akin to a bank run, placing immense pressure on FTX to meet the sudden demand for customer withdrawals.",
+      "original_explanation": "Source says CZ's planned FTT sale triggered a wider selloff, like a bank run.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0022:source-cbcb8fb3f1a83fa9:1",
+      "claim_id": "claim-0022",
+      "claim_text": "Binance CEO Changpeng Zhao（CZ）于 11 月 6 日宣布将逐步出售其约 5.8 亿美元的 FTT 持仓，引发市场恐慌性抛售。",
+      "evidence_quote": "2 Nov 2022 Binance CEO Changpeng Zhao said his firm would liquidate its ~USD 584m holdings of FTT, due to recent revelations.",
+      "original_explanation": "Source states CZ said on 2 Nov Binance would liquidate about USD 584m of FTT holdings, triggering market speculation and later price fallout.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0023:source-fbe9e95d75eb0b0b:0",
+      "claim_id": "claim-0023",
+      "claim_text": "短短三天内，FTX 遭遇了数十亿美元的资金外流，类似银行挤兑，导致流动性紧张。",
+      "evidence_quote": "Shortly thereafter, according to one report, FTX experienced $5 billion of withdrawals on November 6. Around the same time, Changpeng Zhao, the CEO of rival exchange Binance, tweeted that his exchange would sell its roughly $2.1 billion of FTT, essentially sparking a run on FTX. After FTX initially denied solvency issues, FTX and Binance tweeted days later that Binance signed a non-binding letter of intent to help FTX solve its “significant liquidity crunch.”",
+      "original_explanation": "Source says FTX experienced $5 billion of withdrawals on November 6 and that this sparked a run on FTX, creating a significant liquidity crunch.",
+      "original_verdict": "supports",
+      "source_id": "source-fbe9e95d75eb0b0b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "11eee8974d27a06a7a954038a5f71057747e916d251159e187802cb959868624",
+      "url": "https://www.congress.gov/crs_external_products/IN/PDF/IN12047/IN12047.1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0024:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0024",
+      "claim_text": "随后 Binance 宣布原计划收购 FTX 的意向破裂。",
+      "evidence_quote": "Binance announced non-binding letter of intent to buy FTX, subject to due diligence.\n8 Nov 2022 CoinDesk reported 40% of Alameda assets were in FTX’s FTT token.",
+      "original_explanation": "Source says Binance announced a non-binding intent to buy FTX, and later FTX and Binance’s relationship ended, with the intent not proceeding.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0025:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0025",
+      "claim_text": "原因包括监管调查以及客户资金管理问题。",
+      "evidence_quote": "6Nov 2022 Binance terminated their interest in FTX, citing “the issues are beyond our control or ability to help” and “reports regarding mishandled customer funds and alleged U.S. agency investigations” as concerns.",
+      "original_explanation": "Source says Binance cited mishandled customer funds and alleged U.S. agency investigations as concerns.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0026:source-fbe9e95d75eb0b0b:0",
+      "claim_id": "claim-0026",
+      "claim_text": "11 月 11 日，FTX 及其附属公司正式提交美国特拉华州破产保护申请。",
+      "evidence_quote": "November 17, 2022 On Friday, November 11, FTX Trading Ltd. (FTX)—one of the world’s largest and most well-known cryptocurrency exchanges—announced that it had “commenced voluntary proceedings under Chapter 11 of the United States Bankruptcy Code” in Delaware. Included in the proceedings were FTX US and Alameda Research, a crypto trading company closely affiliated with FTX.",
+      "original_explanation": "Source states that on Friday, November 11, FTX commenced voluntary proceedings under Chapter 11 in Delaware, and included FTX US and Alameda Research.",
+      "original_verdict": "supports",
+      "source_id": "source-fbe9e95d75eb0b0b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "11eee8974d27a06a7a954038a5f71057747e916d251159e187802cb959868624",
+      "url": "https://www.congress.gov/crs_external_products/IN/PDF/IN12047/IN12047.1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0027:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0027",
+      "claim_text": "同日，SBF 辞去 CEO，由 John J. Ray III 接任。",
+      "evidence_quote": "11 – FTX filed for Chapter 11 bankruptcy protections as it assesses the value of its remaining assets, a company announcement said.\nBankman-Fried resigned as CEO and was replaced with John J. Ray III, who steered disgraced energy company Enron through bankruptcy proceedings in the 2000s.",
+      "original_explanation": "Source says FTX filed for Chapter 11 on Nov. 11 and Bankman-Fried resigned as CEO, replaced by John J. Ray III.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0027:source-43bc2ad54dde90f4:1",
+      "claim_id": "claim-0027",
+      "claim_text": "同日，SBF 辞去 CEO，由 John J. Ray III 接任。",
+      "evidence_quote": "Bankman-Fried resigned as CEO and was replaced by John J. Ray III, a corporate restructuring specialist who'd previously overseen the liquidation of Enron.",
+      "original_explanation": "Source says Bankman-Fried resigned as CEO and was replaced by John J. Ray III.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0028:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0028",
+      "claim_text": "John J. Ray III 公开指出 FTX 公司存在前所未有的管理漏洞和财务信息缺失。",
+      "evidence_quote": "6. November 17, 2022: John Ray III, the new CEO of FTX who presided over the Enron bankruptcy, makes the following statement: “Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information..”",
+      "original_explanation": "It quotes Ray saying he had never seen such a complete failure of corporate controls and absence of trustworthy financial information.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0029:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0029",
+      "claim_text": "FTX 将数十亿美元客户资金非法借贷给 Alameda Research。",
+      "evidence_quote": "(1/2) Commingling of company and customer funds FTX appears to have lent billions of dollars in customer funds to Alameda Research. Commingling customer funds with counterparties and trading them without consent is illegal according to US securities law and violates FTX’s terms of service.",
+      "original_explanation": "Source states FTX appears to have lent billions of dollars in customer funds to Alameda Research.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0029:source-5ebb914ff3bee76b:1",
+      "claim_id": "claim-0029",
+      "claim_text": "FTX 将数十亿美元客户资金非法借贷给 Alameda Research。",
+      "evidence_quote": "The most notable factor is using customer funds to cover risky trades made by its sister company, Alameda Research.\nWhat was the relationship between FTX and Alameda Research?\nAlameda Research was a trading firm owned by FTX’s CEO Sam Bankman-Fried.\nAlameda Research was given the ability to use FTX customer funds to make risky trades — showing how both companies lacked internal controls and risk management practices.",
+      "original_explanation": "The article says FTX used customer funds and gave Alameda Research the ability to use them for risky trades.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0029:source-43bc2ad54dde90f4:2",
+      "claim_id": "claim-0029",
+      "claim_text": "FTX 将数十亿美元客户资金非法借贷给 Alameda Research。",
+      "evidence_quote": "According to anonymous sources cited by The Wall Street Journal, FTX had lent $10 billion of its customers' assets to Alameda Research in 2022. Alameda CEO Caroline Ellison disclosed to other Alameda employees that she, Sam Bankman-Fried, Gary Wang, and Nishad Singh knew about that decision. An anonymous source cited by The New York Times said the same. According to the sources cited by The Wall Street Journal, Ellison said the funds were used in part to pay back loans Alameda had taken to make investments. Ray said that FTX used software to conceal the misuse of customer funds.",
+      "original_explanation": "Source says FTX lent $10 billion of customers' assets to Alameda Research and that client deposits were transferred from FTX to Alameda.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0030:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0030",
+      "claim_text": "这些客户资金被用于抵押、投资及覆盖亏损。",
+      "evidence_quote": "As majority owner of both FTX and Alameda, and given the central role Alameda played in FTX’s competitiveness – it would have been in SBF’s interest to use customer funds to bail-out Alameda. Use of native tokens as collateral FTX’s native FTT token was used as collateral by Alameda for leveraged trading.\nFTT’s value was dependent on FTX being a going concern. When the price of FTT fell below USD 22, Alameda’s loans were liquidated as they could not repay their debts.",
+      "original_explanation": "Source says customer funds were used to bail out Alameda and discusses collateralization, with Alameda loans liquidated when FTT fell.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0031:source-5ebb914ff3bee76b:1",
+      "claim_id": "claim-0031",
+      "claim_text": "这种客户资金被用于高风险交易。",
+      "evidence_quote": "The most notable factor is using customer funds to cover risky trades made by its sister company, Alameda Research.\nWhat was the relationship between FTX and Alameda Research?\nAlameda Research was a trading firm owned by FTX’s CEO Sam Bankman-Fried.\nAlameda Research was given the ability to use FTX customer funds to make risky trades — showing how both companies lacked internal controls and risk management practices.",
+      "original_explanation": "The source explicitly says customer funds were used to cover risky trades made by Alameda Research.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0032:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0032",
+      "claim_text": "SBF 同时控股并管理 FTX 与 Alameda。",
+      "evidence_quote": "The FTX OTC desk was powered by Alameda and SBF was the CEO of both businesses.",
+      "original_explanation": "Source says SBF was CEO of both businesses, meaning he controlled both FTX and Alameda.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0033:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0033",
+      "claim_text": "SBF 同时控股并管理 FTX 与 Alameda，存在明显利益输送。",
+      "evidence_quote": "As majority owner of both FTX and Alameda, and given the central role Alameda played in FTX’s competitiveness – it would have been in SBF’s interest to use customer funds to bail-out Alameda.",
+      "original_explanation": "Source states SBF was majority owner of both FTX and Alameda and that using customer funds to bail out Alameda would be in his interest, indicating a conflict of interest.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0034:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0034",
+      "claim_text": "Alameda 利用 FTX 原生代币 FTT 进行高杠杆操作。",
+      "evidence_quote": "Dec 2021 Alameda moved away from delta-neutral strategies and began to take large directional risks on leverage.\nAlameda used tokens, such as FTT as collateral for loans.",
+      "original_explanation": "Source says Alameda took large directional risks on leverage and used tokens such as FTT as collateral for loans.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0035:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0035",
+      "claim_text": "Alameda 利用 FTX 原生代币 FTT 进行高杠杆操作，导致资产价值高度依赖 FTX 的正常运营。",
+      "evidence_quote": "Dec 2021 Alameda moved away from delta-neutral strategies and began to take large directional risks on leverage.\nAlameda used tokens, such as FTT as collateral for loans.",
+      "original_explanation": "The source links Alameda’s leveraged use of FTT with risk-taking and later notes FTT’s value depended on FTX being a going concern, implying dependence on FTX’s normal operation.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0036:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0036",
+      "claim_text": "FTT 作为难以流通的原生代币。",
+      "evidence_quote": "Token concentration and valuation In addition to making venture investments in private companies, balance sheet disclosures show FTX had a high concentration of holdings (reported value USD 5.4bn) in low float, high fully diluted value (FDV) tokens – including FTT and Serum where the fair value in a liquidation scenario is significantly below the reported value.",
+      "original_explanation": "The source describes FTT as a low float token with high FDV and specifically calls it native FTT token; this supports it being a native token with limited liquidity.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0039:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0039",
+      "claim_text": "公司缺乏有效的内部控制和风险管理体系。",
+      "evidence_quote": "The FTX bankruptcy is still ongoing.",
+      "original_explanation": "The key takeaways state FTX collapsed due to a lack of internal controls and risk management.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0040:source-fbe9e95d75eb0b0b:0",
+      "claim_id": "claim-0040",
+      "claim_text": "崩溃时，FTX 报告的资产约为 9000 万美元。",
+      "evidence_quote": "According to one news report that had seen FTX investment materials from the day before the bankruptcy announcement, the company held $900 million in “easily sellable assets” compared to $9 billion in liabilities.",
+      "original_explanation": "Source reports FTX held $900 million in easily sellable assets.",
+      "original_verdict": "supports",
+      "source_id": "source-fbe9e95d75eb0b0b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "11eee8974d27a06a7a954038a5f71057747e916d251159e187802cb959868624",
+      "url": "https://www.congress.gov/crs_external_products/IN/PDF/IN12047/IN12047.1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0041:source-fbe9e95d75eb0b0b:0",
+      "claim_id": "claim-0041",
+      "claim_text": "FTX 的负债接近 90-100 亿美元。",
+      "evidence_quote": "According to one news report that had seen FTX investment materials from the day before the bankruptcy announcement, the company held $900 million in “easily sellable assets” compared to $9 billion in liabilities. According to the bankruptcy filing, it had over 100,000 creditors and between $10 billion and $50 billion in liabilities.",
+      "original_explanation": "Source says FTX had $9 billion in liabilities, and another filing estimate put liabilities between $10 billion and $50 billion.",
+      "original_verdict": "supports",
+      "source_id": "source-fbe9e95d75eb0b0b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "11eee8974d27a06a7a954038a5f71057747e916d251159e187802cb959868624",
+      "url": "https://www.congress.gov/crs_external_products/IN/PDF/IN12047/IN12047.1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0042:source-fbe9e95d75eb0b0b:1",
+      "claim_id": "claim-0042",
+      "claim_text": "巨大的资产缺口表明存在大量资金缺失、可能包括挪用和巨额亏损。",
+      "evidence_quote": "According to one news report that had seen FTX investment materials from the day before the bankruptcy announcement, the company held $900 million in “easily sellable assets” compared to $9 billion in liabilities. According to the bankruptcy filing, it had over 100,000 creditors and between $10 billion and $50 billion in liabilities. Exactly what FTX did internally to cause its failure is unclear. However, the chain of events leading to the public loss of confidence and bankruptcy began with a November 2 report by CoinDesk, which reported that two of Alameda Research’s three largest assets (representing nearly 40% of its total assets) were the FTX-related token FTT. (FTX issued FTT tokens to provide discounts on trading fees. FTT had been worth $22 per token, fell precipitously throughout the FTX ordeal, and is currently trading at $1.65.) Shortly thereafter, according to one report, FTX experienced $5 billion of withdrawals on November 6. Around the same time, Changpeng Zhao, the CEO of rival exchange Binance, tweeted that his exchange would sell its roughly $2.1 billion of FTT, essentially sparking a run on FTX. After FTX initially denied solvency issues, FTX and Binance tweeted days later that Binance signed a non-binding letter of intent to help FTX solve its “significant liquidity crunch.” By Thursday, November 10, the deal was off. Congressional Research Service IN12047 Congressional Research Service 2 For some, the vast quantity of FTT on the balance sheet of Alameda was suspect. Since CoinDesk’s initial report, various media outlets have reported that an Alameda Research executive said FTX had transferred customer funds to prop up Alameda.",
+      "original_explanation": "Source shows a large gap between assets and liabilities and notes reports that customer funds were transferred to prop up Alameda, which is consistent with missing funds and losses.",
+      "original_verdict": "supports",
+      "source_id": "source-fbe9e95d75eb0b0b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "11eee8974d27a06a7a954038a5f71057747e916d251159e187802cb959868624",
+      "url": "https://www.congress.gov/crs_external_products/IN/PDF/IN12047/IN12047.1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0043:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0043",
+      "claim_text": "FTX 曾获得多家著名风投机构和个人的投资。",
+      "evidence_quote": "The company boasted prestigious investors like the venture capital firm Sequoia and even had ads with prominent celebrities like Steph Curry, Tom Brady (who also invested in the company), and Larry David.",
+      "original_explanation": "The article says FTX boasted prestigious investors like Sequoia and had ads with celebrities who also invested.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0044:source-e58218c6f4b6c3a0:0",
+      "claim_id": "claim-0044",
+      "claim_text": "FTX 的融资总额超过 18 亿美元，估值高达 320 亿美元。",
+      "evidence_quote": "The company was able to raise an immense amount of funds from investors, including most recently $400 million in January 2022 at a valuation of $32 billion. This brought the company’s total equity raise to $1.8 billion to that point.",
+      "original_explanation": "Source says FTX raised $400 million in January 2022 at a $32 billion valuation and that total equity raise reached $1.8 billion.",
+      "original_verdict": "supports",
+      "source_id": "source-e58218c6f4b6c3a0",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "51ea38ad30e0c2a3b8c8daecb9dae6d10ed198f6ca94032350cdae57109c4f79",
+      "url": "https://blog.volkovlaw.com/2022/12/the-fall-of-ftx-the-legal-ramifications-of-the-collapse-of-sam-bankman-frieds-cryptocurrency-empire-i-of-iv"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0045:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0045",
+      "claim_text": "Sequoia Capital 在崩溃前持有约 2.1 亿美元股份。",
+      "evidence_quote": "Sequoia Capital, a top venture firm, wrote down its roughly $210 million stake in FTX to $0.",
+      "original_explanation": "Source says Sequoia wrote down its roughly $210 million stake in FTX to $0, matching the claim of about $210 million.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0046:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0046",
+      "claim_text": "Sequoia Capital 的股权价值在崩溃后归零。",
+      "evidence_quote": "Sequoia Capital, a top venture firm, wrote down its roughly $210 million stake in FTX to $0.",
+      "original_explanation": "Source says Sequoia's roughly $210 million stake in FTX was written down to $0.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0047:source-43bc2ad54dde90f4:0",
+      "claim_id": "claim-0047",
+      "claim_text": "Binance 是早期重要投资者，曾持有约 20% 股权。",
+      "evidence_quote": "Changpeng Zhao of Binance purchased a 20% stake in FTX for approximately $100 million, six months after Bankman-Fried and Wang started the firm.\nIn August 2020, FTX acquired Blockfolio, a cryptocurrency portfolio tracking app, for $150 million. In July 2021, the venture raised $900 million at an $18 billion valuation from over 60 investors, including Softbank, Sequoia Capital, and other firms. Bankman-Fried bought out Zhao's stake for approximately $2 billion.",
+      "original_explanation": "Source says Zhao of Binance purchased a 20% stake in FTX.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0048:source-43bc2ad54dde90f4:0",
+      "claim_id": "claim-0048",
+      "claim_text": "Binance 之后被 SBF 以约 20 亿美元回购。",
+      "evidence_quote": "Changpeng Zhao of Binance purchased a 20% stake in FTX for approximately $100 million, six months after Bankman-Fried and Wang started the firm.\nIn August 2020, FTX acquired Blockfolio, a cryptocurrency portfolio tracking app, for $150 million. In July 2021, the venture raised $900 million at an $18 billion valuation from over 60 investors, including Softbank, Sequoia Capital, and other firms. Bankman-Fried bought out Zhao's stake for approximately $2 billion.",
+      "original_explanation": "Source says Bankman-Fried bought out Zhao's 20% stake for approximately $2 billion.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0049:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0049",
+      "claim_text": "汤姆·布雷迪、斯蒂芬·库里等名人参与投资 FTX。",
+      "evidence_quote": "The company boasted prestigious investors like the venture capital firm Sequoia and even had ads with prominent celebrities like Steph Curry, Tom Brady (who also invested in the company), and Larry David.",
+      "original_explanation": "It names Steph Curry and Tom Brady as celebrities associated with FTX, and says Brady invested in the company.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0050:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0050",
+      "claim_text": "汤姆·布雷迪、斯蒂芬·库里等名人为 FTX 推广，提升品牌影响力。",
+      "evidence_quote": "The company boasted prestigious investors like the venture capital firm Sequoia and even had ads with prominent celebrities like Steph Curry, Tom Brady (who also invested in the company), and Larry David.\nFTX’s platform and its marketing helped the exchange have a meteoric rise — going from $20 million of revenue in 2019 to $1 billion in 2021.",
+      "original_explanation": "The source says FTX had ads with prominent celebrities like Steph Curry and Tom Brady, which helped its meteoric rise.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0051:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0051",
+      "claim_text": "包括多家著名投资方参与了 FTX 的融资。",
+      "evidence_quote": "The company boasted prestigious investors like the venture capital firm Sequoia and even had ads with prominent celebrities like Steph Curry, Tom Brady (who also invested in the company), and Larry David.",
+      "original_explanation": "It says the company boasted prestigious investors like Sequoia.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0052:source-e58218c6f4b6c3a0:0",
+      "claim_id": "claim-0052",
+      "claim_text": "FTX 总部设于巴哈马。",
+      "evidence_quote": "Cryptocurrency on Mobile App\nFor some background, FTX was a cryptocurrency exchange headquartered in The Bahamas. It had a significant number of subsidiaries spread out across various jurisdictions, including a prominent one in the US named FTX US.",
+      "original_explanation": "Source explicitly states FTX was headquartered in The Bahamas.",
+      "original_verdict": "supports",
+      "source_id": "source-e58218c6f4b6c3a0",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "51ea38ad30e0c2a3b8c8daecb9dae6d10ed198f6ca94032350cdae57109c4f79",
+      "url": "https://blog.volkovlaw.com/2022/12/the-fall-of-ftx-the-legal-ramifications-of-the-collapse-of-sam-bankman-frieds-cryptocurrency-empire-i-of-iv"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0052:source-9e1abb1c93ecfdec:1",
+      "claim_id": "claim-0052",
+      "claim_text": "FTX 总部设于巴哈马。",
+      "evidence_quote": "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas.",
+      "original_explanation": "The source says FTX is headquartered in the Bahamas.",
+      "original_verdict": "supports",
+      "source_id": "source-9e1abb1c93ecfdec",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "60324ca8303ee997bacfb98823e6ab6019a1fe7455e0ffa9976a08bc0f2f0279",
+      "url": "https://www.americanactionforum.org/insight/the-collapse-of-ftx"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0053:source-9e1abb1c93ecfdec:0",
+      "claim_id": "claim-0053",
+      "claim_text": "FTX 注册地为安提瓜和巴布达。",
+      "evidence_quote": "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas.",
+      "original_explanation": "The source says FTX is incorporated in Antigua and Barbuda.",
+      "original_verdict": "supports",
+      "source_id": "source-9e1abb1c93ecfdec",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "60324ca8303ee997bacfb98823e6ab6019a1fe7455e0ffa9976a08bc0f2f0279",
+      "url": "https://www.americanactionforum.org/insight/the-collapse-of-ftx"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0054:source-e58218c6f4b6c3a0:0",
+      "claim_id": "claim-0054",
+      "claim_text": "FTX 旗下包括在美国注册的 FTX US 交易所。",
+      "evidence_quote": "Cryptocurrency on Mobile App\nFor some background, FTX was a cryptocurrency exchange headquartered in The Bahamas. It had a significant number of subsidiaries spread out across various jurisdictions, including a prominent one in the US named FTX US.",
+      "original_explanation": "Source says FTX had a prominent U.S. subsidiary named FTX US.",
+      "original_verdict": "supports",
+      "source_id": "source-e58218c6f4b6c3a0",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "51ea38ad30e0c2a3b8c8daecb9dae6d10ed198f6ca94032350cdae57109c4f79",
+      "url": "https://blog.volkovlaw.com/2022/12/the-fall-of-ftx-the-legal-ramifications-of-the-collapse-of-sam-bankman-frieds-cryptocurrency-empire-i-of-iv"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0055:source-fbe9e95d75eb0b0b:0",
+      "claim_id": "claim-0055",
+      "claim_text": "2022 年崩溃后，FTX 进入美国特拉华州联邦破产法庭接受 Chapter 11 破产保护。",
+      "evidence_quote": "November 17, 2022 On Friday, November 11, FTX Trading Ltd. (FTX)—one of the world’s largest and most well-known cryptocurrency exchanges—announced that it had “commenced voluntary proceedings under Chapter 11 of the United States Bankruptcy Code” in Delaware. Included in the proceedings were FTX US and Alameda Research, a crypto trading company closely affiliated with FTX.",
+      "original_explanation": "Source states that on November 11 FTX commenced voluntary proceedings under Chapter 11 of the United States Bankruptcy Code in Delaware, including FTX US and Alameda Research.",
+      "original_verdict": "supports",
+      "source_id": "source-fbe9e95d75eb0b0b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "11eee8974d27a06a7a954038a5f71057747e916d251159e187802cb959868624",
+      "url": "https://www.congress.gov/crs_external_products/IN/PDF/IN12047/IN12047.1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0056:source-e58218c6f4b6c3a0:0",
+      "claim_id": "claim-0056",
+      "claim_text": "该跨国运营结构使得监管复杂。",
+      "evidence_quote": "Cryptocurrency on Mobile App\nFor some background, FTX was a cryptocurrency exchange headquartered in The Bahamas. It had a significant number of subsidiaries spread out across various jurisdictions, including a prominent one in the US named FTX US.",
+      "original_explanation": "The source describes FTX as having subsidiaries across various jurisdictions, which indicates a cross-jurisdiction structure.",
+      "original_verdict": "supports",
+      "source_id": "source-e58218c6f4b6c3a0",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "51ea38ad30e0c2a3b8c8daecb9dae6d10ed198f6ca94032350cdae57109c4f79",
+      "url": "https://blog.volkovlaw.com/2022/12/the-fall-of-ftx-the-legal-ramifications-of-the-collapse-of-sam-bankman-frieds-cryptocurrency-empire-i-of-iv"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0056:source-9e1abb1c93ecfdec:1",
+      "claim_id": "claim-0056",
+      "claim_text": "该跨国运营结构使得监管复杂。",
+      "evidence_quote": "FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas. Binance has no formal headquarters, and not being based in the United States allowed the two firms to engage in and permit trading that is not legal in the United States (but both have U.S.-based arms that comply with U.S. regulations).",
+      "original_explanation": "The source explains FTX is incorporated in Antigua and Barbuda and headquartered in the Bahamas, and notes this non-U.S. structure affected regulatory/legal trading constraints, indicating a complex cross-border setup.",
+      "original_verdict": "supports",
+      "source_id": "source-9e1abb1c93ecfdec",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "60324ca8303ee997bacfb98823e6ab6019a1fe7455e0ffa9976a08bc0f2f0279",
+      "url": "https://www.americanactionforum.org/insight/the-collapse-of-ftx"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0057:source-fbe9e95d75eb0b0b:0",
+      "claim_id": "claim-0057",
+      "claim_text": "巴哈马和美国监管机构均介入调查 FTX 对客户资金的处理及整体经营违规情况",
+      "evidence_quote": "U.S. and Bahamian regulators are reportedly investigating FTX.",
+      "original_explanation": "Source says U.S. and Bahamian regulators are reportedly investigating FTX.",
+      "original_verdict": "supports",
+      "source_id": "source-fbe9e95d75eb0b0b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "11eee8974d27a06a7a954038a5f71057747e916d251159e187802cb959868624",
+      "url": "https://www.congress.gov/crs_external_products/IN/PDF/IN12047/IN12047.1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0058:source-43bc2ad54dde90f4:0",
+      "claim_id": "claim-0058",
+      "claim_text": "FTX 崩溃伴随大规模客户赎回请求和流动性枯竭",
+      "evidence_quote": "Following this revelation, rival exchange Binance's CEO Changpeng Zhao announced that Binance would sell its holdings of the token, which was quickly followed by a spike in customer withdrawals from FTX.\nFTX was unable to meet the demand for customer withdrawals.",
+      "original_explanation": "Source says the announcement led to a three-day depositor sell-off and FTX was unable to meet withdrawal demand.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0059:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0059",
+      "claim_text": "据公开资料显示，FTX 将大量客户存款挪用至 Alameda Research 或用于其他投资与覆盖亏损",
+      "evidence_quote": "(1/2) Commingling of company and customer funds FTX appears to have lent billions of dollars in customer funds to Alameda Research. Commingling customer funds with counterparties and trading them without consent is illegal according to US securities law and violates FTX’s terms of service.",
+      "original_explanation": "It states FTX appears to have lent billions of dollars in customer funds to Alameda Research, matching the claim of diverting customer deposits to Alameda.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0059:source-5ebb914ff3bee76b:1",
+      "claim_id": "claim-0059",
+      "claim_text": "据公开资料显示，FTX 将大量客户存款挪用至 Alameda Research 或用于其他投资与覆盖亏损",
+      "evidence_quote": "The most notable factor is using customer funds to cover risky trades made by its sister company, Alameda Research.\nWhat was the relationship between FTX and Alameda Research?\nAlameda Research was a trading firm owned by FTX’s CEO Sam Bankman-Fried.\nAlameda Research was given the ability to use FTX customer funds to make risky trades — showing how both companies lacked internal controls and risk management practices.",
+      "original_explanation": "The source says FTX used customer funds to cover risky trades made by Alameda Research and that Alameda was given access to those funds.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0060:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0060",
+      "claim_text": "实际可用于客户提现的资金大幅不足",
+      "evidence_quote": "When FTX went bankrupt, customers suddenly lost access to their funds.",
+      "original_explanation": "It states that when FTX went bankrupt, customers suddenly lost access to their funds.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0061:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0061",
+      "claim_text": "11 月 6 日起，用户提现被临时停止",
+      "evidence_quote": "Nov. 6 – In response to the article, Changpeng Zhao, the CEO of rival crypto exchange Binance, often referred to as \"CZ,\" said he would sell all of the company's holdings in FTT, which amount to $580 million worth of the token.\nThe major exit from a crypto heavyweight triggered a wider selloff, akin to a bank run, placing immense pressure on FTX to meet the sudden demand for customer withdrawals. Due to a lack of funds, FTX halted customer withdrawals altogether.",
+      "original_explanation": "Source says on Nov. 6 CZ announced the FTT sale and FTX then halted customer withdrawals altogether.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0062:source-9e1abb1c93ecfdec:0",
+      "claim_id": "claim-0062",
+      "claim_text": "随后宣布破产",
+      "evidence_quote": "On November 11, FTX, Alameda Research, and a number of other Bankman-Fried vehicles pled for bankruptcy in Delaware and Bankman-Fried stood down as CEO, with prices and market value having fallen between 80–90 percent.",
+      "original_explanation": "The source states that on November 11 FTX and related entities filed for bankruptcy.",
+      "original_verdict": "supports",
+      "source_id": "source-9e1abb1c93ecfdec",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "60324ca8303ee997bacfb98823e6ab6019a1fe7455e0ffa9976a08bc0f2f0279",
+      "url": "https://www.americanactionforum.org/insight/the-collapse-of-ftx"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0063:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0063",
+      "claim_text": "客户资金被锁定",
+      "evidence_quote": "November 8, 2022: FTX halts customer withdrawals due to a lack of liquidity.",
+      "original_explanation": "The timeline says FTX halted customer withdrawals due to a lack of liquidity, which implies customer funds were locked from withdrawal.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0064:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0064",
+      "claim_text": "数十亿美元客户资产面临风险",
+      "evidence_quote": "Much of Alameda Research’s (and by extension, FTX’s) liquidity was tied to FTT, an asset with little value outside of FTX. While FTT was promoted as a liquid and valuable asset, it lacked the backing or demand necessary to maintain such a high valuation.",
+      "original_explanation": "The source says much of Alameda’s and by extension FTX’s liquidity was tied to FTT and that FTT lacked backing, indicating substantial customer assets at risk.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0065:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0065",
+      "claim_text": "John J. Ray III 领导破产管理团队。",
+      "evidence_quote": "6. November 17, 2022: John Ray III, the new CEO of FTX who presided over the Enron bankruptcy, makes the following statement: “Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information..”",
+      "original_explanation": "The source identifies John Ray III as the new CEO of FTX after bankruptcy, i.e. leading the bankruptcy process.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0067:source-5ebb914ff3bee76b:1",
+      "claim_id": "claim-0067",
+      "claim_text": "由于混合使用和资金缺失，客户损失惨重。",
+      "evidence_quote": "The most notable factor is using customer funds to cover risky trades made by its sister company, Alameda Research.\nWhat was the relationship between FTX and Alameda Research?\nAlameda Research was a trading firm owned by FTX’s CEO Sam Bankman-Fried.\nAlameda Research was given the ability to use FTX customer funds to make risky trades — showing how both companies lacked internal controls and risk management practices.",
+      "original_explanation": "It states customer funds were used for risky trades and that both companies lacked controls, supporting severe losses to customers.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0068:source-9e1abb1c93ecfdec:0",
+      "claim_id": "claim-0068",
+      "claim_text": "FTX 于 2022 年崩溃。",
+      "evidence_quote": "The collapse of FTX, at one point valued at $32 billion, is the most high-profile and significant casualty of crypto’s wavering fortunes both on the market and in Washington.",
+      "original_explanation": "The source states the collapse of FTX occurred in 2022 and frames the article around that collapse.",
+      "original_verdict": "supports",
+      "source_id": "source-9e1abb1c93ecfdec",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "60324ca8303ee997bacfb98823e6ab6019a1fe7455e0ffa9976a08bc0f2f0279",
+      "url": "https://www.americanactionforum.org/insight/the-collapse-of-ftx"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0069:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0069",
+      "claim_text": "FTX 崩溃的背后是企业内部严重治理失败。",
+      "evidence_quote": "What went wrong? (2/2) Absence of corporate governance No 3rd party investors had seats on FTX’s board. Concentration of control in “…a very small group of inexperienced, unsophisticated and potentially compromised individuals,” Ray said.\nLack of records Inadequate financial reporting systems infrastructure and corporate controls resulted in unavailability of trustworthy financial information Incomplete records of payments, employees hired and assets purchased, etc.\nFTX is reported to have no accounting function or CFO.\nLimited diligence by 3rd party investors Given recent disclosures regarding the absence of corporate controls and financial information it appears prominent investors acquired holdings in FTX with limited due diligence.\nWell known private equity, venture capital, pension and sovereign wealth funds have publicly disclosed they have now written-off these investments. Lack of risk management policies and framework FTX and Alameda lacked robust asset-liability and liquidity risk management policies. Putting customer deposits into illiquid investments and using those investments as collateral resulted in high leverage which appears to have been misunderstood by SBF.\nI have over 40 years of legal and restructuring experience. I have been the Chief Restructuring Offices or Chief Executive Officer in several of the largest corporate failures in history… Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information as occurred here.”",
+      "original_explanation": "The source highlights absence of corporate governance, lack of records, and lack of risk management policies as major problems behind the collapse.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0070:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0070",
+      "claim_text": "FTX 崩溃的背后是资金混用和极具风险的财务操作。",
+      "evidence_quote": "(1/2) Commingling of company and customer funds FTX appears to have lent billions of dollars in customer funds to Alameda Research. Commingling customer funds with counterparties and trading them without consent is illegal according to US securities law and violates FTX’s terms of service. Conflicts of interest The collapse of Tera/Luna and UST in May 2021, is likely to have led to trading losses for Alameda either due to its role as backstop to FTX’s Liquidation Engine or due to losses on investments impacted by the market collapse.\nAs majority owner of both FTX and Alameda, and given the central role Alameda played in FTX’s competitiveness – it would have been in SBF’s interest to use customer funds to bail-out Alameda. Use of native tokens as collateral FTX’s native FTT token was used as collateral by Alameda for leveraged trading.\nFTT’s value was dependent on FTX being a going concern. When the price of FTT fell below USD 22, Alameda’s loans were liquidated as they could not repay their debts.",
+      "original_explanation": "The source explicitly identifies commingling of customer and company funds, and also notes risky use of native tokens as collateral.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0071:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0071",
+      "claim_text": "以 Sam Bankman-Fried 为首的管理团队未能维持合规和风险控制。",
+      "evidence_quote": "Concentration of control in “…a very small group of inexperienced, unsophisticated and potentially compromised individuals,” Ray said.\nLack of records Inadequate financial reporting systems infrastructure and corporate controls resulted in unavailability of trustworthy financial information Incomplete records of payments, employees hired and assets purchased, etc.\nFTX is reported to have no accounting function or CFO.\nLimited diligence by 3rd party investors Given recent disclosures regarding the absence of corporate controls and financial information it appears prominent investors acquired holdings in FTX with limited due diligence.\nWell known private equity, venture capital, pension and sovereign wealth funds have publicly disclosed they have now written-off these investments. Lack of risk management policies and framework FTX and Alameda lacked robust asset-liability and liquidity risk management policies. Putting customer deposits into illiquid investments and using those investments as collateral resulted in high leverage which appears to have been misunderstood by SBF.",
+      "original_explanation": "The source says control was concentrated in a small group and that FTX and Alameda lacked robust risk management policies, indicating management failure on compliance and risk control.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0073:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0073",
+      "claim_text": "崩盘时间主要集中在 2022 年 11 月初，从媒体公开 Alameda 持有大量 FTT 至 Binance 宣布出售 FTT 持仓，引发流动性危机，迅速演变为破产事件。",
+      "evidence_quote": "2 – The collapse of FTX centers in part on the cryptocurrency exchange's close relationship with Alameda Research, a crypto hedge fund also founded by Bankman-Fried.\nMajor concerns about FTX started when news outlet CoinDesk published an article that found a significant portion of Alameda Research's assets consisted of FTT, a token created by FTX that allows users of the exchange to access discounted trading fees.\nBecause FTT cannot be easily exchanged for cash, the report stoked fears about the capital reserves at Alameda Research and thus FTX.\nNov. 6 – In response to the article, Changpeng Zhao, the CEO of rival crypto exchange Binance, often referred to as \"CZ,\" said he would sell all of the company's holdings in FTT, which amount to $580 million worth of the token.\nThe major exit from a crypto heavyweight triggered a wider selloff, akin to a bank run, placing immense pressure on FTX to meet the sudden demand for customer withdrawals. Due to a lack of funds, FTX halted customer withdrawals altogether.",
+      "original_explanation": "Source traces the collapse from early-November CoinDesk reporting on Alameda's FTT exposure to CZ's FTT sale and the resulting withdrawal halt.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "04a82046648fb1a0a5a62b891d7a279c3ba56d307c6794cc002bfcc80dfc9422",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0073:source-43bc2ad54dde90f4:1",
+      "claim_id": "claim-0073",
+      "claim_text": "崩盘时间主要集中在 2022 年 11 月初，从媒体公开 Alameda 持有大量 FTT 至 Binance 宣布出售 FTT 持仓，引发流动性危机，迅速演变为破产事件。",
+      "evidence_quote": "Several months after Bloomberg's initial report on the relationship between the two firms, on November 2, 2022, CoinDesk reported that a significant portion of Alameda Research's assets were held in FTT, the exchange token issued by FTX. It said that there were $5.1 billion worth of FTT tokens in circulation, and that Alameda's balance sheet held $3.66 billion of \"unlocked FTT\", $2.16 billion of \"FTT collateral\", and $292 million of \"locked FTT\". In the weeks immediately preceding the publication of the story by CoinDesk, Bankman-Fried was characterized by anonymous sources cited by Bloomberg as \"desperately\" attempting to raise money for FTX. Additionally, Bankman-Fried had been publicly \"dueling\" with Changpeng Zhao on Twitter in the months preceding the CoinDesk article, in part due to disagreements stemming from their differing views on the regulation of cryptocurrency.\nCrisis begins: Binance FTT sale, sell-off, and withdrawn rescue bid\nSeveral days after the publication of the CoinDesk article, on November 6, Binance CEO Changpeng Zhao said on Twitter that his firm intended to sell all its holdings of FTT. Binance had received FTT from FTX in 2021 during a transaction in which FTX bought back Binance's equity stake in FTX. Zhao cited \"recent revelations that came to light\" as the motivation for selling FTT. Bloomberg and TechCrunch reported that any sale by Binance would likely have an outsized impact on FTT's price, given the token's low trading volume. The announcement by Zhao of the pending sale and disputes between Zhao and Bankman-Fried on Twitter led to a decline in the price of FTT and other cryptocurrencies, resulting in a three-day depositor sell-off, like a bank run, of an estimated $6 billion that sent FTX into crisis.",
+      "original_explanation": "Source shows the sequence from the Nov. 2 CoinDesk report through Binance's Nov. 6 FTT sale announcement leading to a sell-off and crisis, in early November 2022.",
+      "original_verdict": "supports",
+      "source_id": "source-43bc2ad54dde90f4",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "bd0e2f4c918b99896a07b8579357c0a2375c50321693539dd0b58efa1222547a",
+      "url": "https://en.wikipedia.org/wiki/FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-18:post_edit:claim-0075:source-5ebb914ff3bee76b:0",
+      "claim_id": "claim-0075",
+      "claim_text": "FTX 崩溃成为加密货币行业内最为轰动的金融事件之一。",
+      "evidence_quote": "How did the collapse of FTX impact the wider crypto ecosystem?\nThe collapse of FTX was one factor that led to the bear market in cryptocurrency. FTX’s demise caused investors to lose access to millions of dollars, and caused many more investors to lose faith in cryptocurrency entirely.",
+      "original_explanation": "The source says FTX's collapse was one factor in the bear market and caused investors to lose access to millions, showing it was a major event in crypto.",
+      "original_verdict": "supports",
+      "source_id": "source-5ebb914ff3bee76b",
+      "source_run_id": "finance-18",
+      "source_text_sha256": "fa526f553dd295234432f2abf04344f46c5073b33d832be46d7c7fc2ab99673b",
+      "url": "https://coinledger.io/learn/the-ftx-collapse"
+    }
+  ],
+  "cases_sha256": "b15bc254aaa7d704440e48175761d004650cb81e898b39291ee0fa5a19ca761d",
+  "gold": [
+    {
+      "case_id": "finance-18:post_edit:claim-0001:source-43bc2ad54dde90f4:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0002:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0003:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0003:source-43bc2ad54dde90f4:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0004:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0005:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0006:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0006:source-43bc2ad54dde90f4:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0007:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0008:source-43bc2ad54dde90f4:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0009:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0010:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0011:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0012:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0013:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0014:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0015:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0016:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0017:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0018:source-43bc2ad54dde90f4:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0019:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0019:source-43bc2ad54dde90f4:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0020:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0021:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0022:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0022:source-cbcb8fb3f1a83fa9:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0023:source-fbe9e95d75eb0b0b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0024:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0025:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0026:source-fbe9e95d75eb0b0b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0027:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0027:source-43bc2ad54dde90f4:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0028:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0029:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0029:source-5ebb914ff3bee76b:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0029:source-43bc2ad54dde90f4:2",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0030:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0031:source-5ebb914ff3bee76b:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0032:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0033:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0034:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0035:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0036:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0039:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0040:source-fbe9e95d75eb0b0b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0041:source-fbe9e95d75eb0b0b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0042:source-fbe9e95d75eb0b0b:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0043:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0044:source-e58218c6f4b6c3a0:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0045:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0046:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0047:source-43bc2ad54dde90f4:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0048:source-43bc2ad54dde90f4:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0049:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0050:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0051:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0052:source-e58218c6f4b6c3a0:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0052:source-9e1abb1c93ecfdec:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0053:source-9e1abb1c93ecfdec:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0054:source-e58218c6f4b6c3a0:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0055:source-fbe9e95d75eb0b0b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0056:source-e58218c6f4b6c3a0:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0056:source-9e1abb1c93ecfdec:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0057:source-fbe9e95d75eb0b0b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0058:source-43bc2ad54dde90f4:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0059:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0059:source-5ebb914ff3bee76b:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0060:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0061:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0062:source-9e1abb1c93ecfdec:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0063:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0064:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0065:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0067:source-5ebb914ff3bee76b:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0068:source-9e1abb1c93ecfdec:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0069:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0070:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0071:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0073:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0073:source-43bc2ad54dde90f4:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-18:post_edit:claim-0075:source-5ebb914ff3bee76b:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    }
+  ],
+  "schema_version": "verifier-challenge-review-v1",
+  "source_audit": "harness_runs/finance-18/audit.json",
+  "source_audit_sha256": "bc2a54987fc43ea48c02c627bfcd91a986a5321c84244aae92c22b8ebf6c8ba7"
+}

@@ -4,8 +4,9 @@ import pytest
 from pydantic import ValidationError
 
 from open_deep_research.harness.stages import (
-    MANDATORY_PUBLICATION_STAGES,
+    MANDATORY_PIPELINE_STAGES,
     PostDraftExecutionAudit,
+    QualityReviewStatus,
     StageExecutionRecord,
     StageExecutionStatus,
     StageScope,
@@ -23,7 +24,7 @@ def complete(unit: str, count: int) -> StageExecutionRecord:
 
 
 def all_mandatory_complete() -> dict[str, StageExecutionRecord]:
-    return {name: complete("claim", 3) for name in MANDATORY_PUBLICATION_STAGES}
+    return {name: complete("claim", 3) for name in MANDATORY_PIPELINE_STAGES}
 
 
 def test_a_stage_that_never_ran_keeps_its_denominator():
@@ -119,12 +120,11 @@ def test_scope_units_must_match():
         )
 
 
-def test_publication_eligibility_is_derived_not_asserted():
-    """A caller must not be able to declare its own output publishable.
+def test_pipeline_completion_is_derived_not_asserted():
+    """A caller cannot declare execution complete against its stage ledger.
 
-    The banner and the filename are both easy to get wrong or to ignore. The
-    eligibility flag is the mechanical gate, so it has to be impossible to set
-    it to a value the stage ledger does not support.
+    This is only a workflow fact.  It deliberately says nothing about report
+    correctness or publication quality, which require a separate review.
     """
 
     stages = all_mandatory_complete()
@@ -138,12 +138,12 @@ def test_publication_eligibility_is_derived_not_asserted():
     with pytest.raises(ValidationError):
         PostDraftExecutionAudit(
             stages=stages,
-            publication_eligible=True,
-            publication_reason="looks fine to me",
+            pipeline_complete=True,
+            pipeline_completion_reason="looks complete to me",
         )
 
 
-def test_one_incomplete_mandatory_stage_blocks_publication():
+def test_one_incomplete_mandatory_stage_blocks_pipeline_completion():
     stages = all_mandatory_complete()
     stages["initial_verification"] = StageExecutionRecord(
         status=StageExecutionStatus.PARTIAL,
@@ -154,17 +154,23 @@ def test_one_incomplete_mandatory_stage_blocks_publication():
 
     audit = publication_audit(stages)
 
+    assert audit.pipeline_complete is False
+    assert audit.quality_review_passed is None
     assert audit.publication_eligible is False
-    assert "initial_verification" in audit.publication_reason
+    assert "initial_verification" in audit.pipeline_completion_reason
 
 
-def test_a_fully_complete_tail_is_publishable():
+def test_a_fully_complete_tail_is_not_an_independent_quality_review():
     audit = publication_audit(all_mandatory_complete())
 
-    assert audit.publication_eligible is True
-    assert audit.publication_reason == (
+    assert audit.pipeline_complete is True
+    assert audit.pipeline_completion_reason == (
         "all mandatory post-draft stages completed"
     )
+    assert audit.quality_review_status is QualityReviewStatus.NOT_REVIEWED
+    assert audit.quality_review_passed is None
+    assert audit.publication_eligible is False
+    assert "independent" in audit.quality_review_reason
 
 
 def test_a_missing_mandatory_stage_is_refused_rather_than_assumed():
@@ -176,12 +182,12 @@ def test_a_missing_mandatory_stage_is_refused_rather_than_assumed():
     with pytest.raises(ValidationError):
         PostDraftExecutionAudit(
             stages=stages,
-            publication_eligible=False,
-            publication_reason="missing a stage",
+            pipeline_complete=False,
+            pipeline_completion_reason="missing a stage",
         )
 
 
-def test_optional_enhancement_passes_do_not_gate_publication():
+def test_optional_enhancement_passes_do_not_gate_pipeline_completion():
     """Gap and disagreement are enhancements, not part of the evidence tail."""
 
     stages = all_mandatory_complete()
@@ -192,7 +198,33 @@ def test_optional_enhancement_passes_do_not_gate_publication():
         status=StageExecutionStatus.NOT_RUN, reason="budget exhausted"
     )
 
-    assert publication_audit(stages).publication_eligible is True
+    audit = publication_audit(stages)
+    assert audit.pipeline_complete is True
+    assert audit.quality_review_passed is None
+
+
+def test_historical_publication_shape_is_read_but_not_reemitted():
+    """Old audits remain readable without reviving their over-strong claim."""
+
+    audit = PostDraftExecutionAudit.model_validate(
+        {
+            "stages": {
+                name: record.model_dump(mode="json")
+                for name, record in all_mandatory_complete().items()
+            },
+            "mandatory_publication_stages": list(MANDATORY_PIPELINE_STAGES),
+            "publication_eligible": True,
+            "publication_reason": "all old mandatory stages completed",
+        }
+    )
+
+    assert audit.pipeline_complete is True
+    assert audit.quality_review_passed is None
+    assert audit.publication_eligible is False
+    emitted = audit.model_dump(mode="json")
+    assert "publication_eligible" not in emitted
+    assert "publication_reason" not in emitted
+    assert "mandatory_publication_stages" not in emitted
 
 
 def test_an_ineligible_bundle_carries_no_footnote_definitions():
