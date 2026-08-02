@@ -21,7 +21,11 @@ from open_deep_research.harness.claims import (
 )
 from open_deep_research.harness.notes import (
     NoteLocationStatus,
+    QuoteSpan,
     create_note,
+)
+from open_deep_research.harness.numeric_consistency import (
+    NumericConsistencyStatus,
 )
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
@@ -29,6 +33,7 @@ from open_deep_research.harness.verify import (
     VerificationRecordStatus,
     VerificationSettings,
     VerificationVerdict,
+    VerifiedSourceRelation,
     verify_attributions,
 )
 
@@ -554,6 +559,129 @@ def test_finance07_style_cleaned_source_artifact_is_copied_by_code() -> None:
     assert relation.source_quote == source
     assert source[relation.span.start_char : relation.span.end_char] == source
     assert relation.is_formal_supporting_evidence is True
+
+
+def test_finance18_tenfold_currency_mismatch_cannot_become_formal_support() -> None:
+    """Regression for a real false-positive verifier result from finance-18.
+
+    The model called the relation supports and selected a real Congressional
+    Research Service passage, but the report claimed 90 million dollars while
+    the source says 900 million.  Quote location therefore remains successful;
+    only formal evidence admission must fail.
+    """
+
+    claim = _claim(
+        "claim-0040",
+        "崩溃时，FTX 报告的资产约为 9000 万美元。",
+    )
+    url = "https://www.congress.gov/crs_external_products/IN/PDF/IN12047/IN12047.1.pdf"
+    source = (
+        "The company held $900 million in easily sellable assets compared "
+        "to $9 billion in liabilities."
+    )
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S000001", "S000001"),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(
+                        claim=claim,
+                        url=url,
+                        note_id="note-congress-0001",
+                    ),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    verified = result.claims[0]
+    relation = verified.relations[0]
+    assert relation.status is VerificationRecordStatus.COMPLETED
+    assert relation.semantic_verdict is VerificationVerdict.SUPPORTS
+    assert relation.source_quote == source
+    assert relation.numeric_consistency_status is NumericConsistencyStatus.MISMATCH
+    assert "90000000" in (relation.numeric_consistency_detail or "")
+    assert "900000000" in (relation.numeric_consistency_detail or "")
+    assert relation.is_formal_supporting_evidence is False
+    assert verified.formal_supporting_evidence_count == 0
+    assert verified.state is ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT
+
+
+def test_matching_currency_range_can_remain_formal_evidence() -> None:
+    claim = _claim(
+        "claim-numeric-range",
+        "负债接近 90-100 亿美元。",
+    )
+    url = "https://numeric.example/report"
+    source = "The report listed approximately $9 billion in liabilities."
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S000001", "S000001"),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(
+                        claim=claim,
+                        url=url,
+                        note_id="note-numeric-range",
+                    ),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.numeric_consistency_status is NumericConsistencyStatus.ALIGNED
+    assert relation.is_formal_supporting_evidence is True
+    assert result.claims[0].state is ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+
+
+def test_numeric_mismatch_cannot_be_constructed_as_formal_evidence() -> None:
+    """The formal-support invariant holds even outside verifier orchestration."""
+
+    with pytest.raises(ValidationError, match="non-mismatching numeric"):
+        VerifiedSourceRelation(
+            claim_id="claim-0040",
+            source_id="source-congress",
+            url="https://www.congress.gov/example",
+            publisher_domain_proxy="congress.gov",
+            candidate_note_ids=("note-congress-0001",),
+            candidate_source_ids=("source-congress",),
+            status=VerificationRecordStatus.COMPLETED,
+            semantic_verdict=VerificationVerdict.SUPPORTS,
+            source_quote="$900 million in liquid assets.",
+            span=QuoteSpan(start_char=0, end_char=32),
+            location_status=NoteLocationStatus.LOCATABLE,
+            numeric_consistency_status=NumericConsistencyStatus.MISMATCH,
+            is_formal_supporting_evidence=True,
+        )
 
 
 def test_verifier_range_crosses_adjacent_units_but_stays_contiguous() -> None:

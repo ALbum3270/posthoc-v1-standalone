@@ -42,6 +42,10 @@ from open_deep_research.harness.note_span_policy import (
     SourceSpanCapacityError,
     enforce_source_span_capacity,
 )
+from open_deep_research.harness.numeric_consistency import (
+    NumericConsistencyStatus,
+    assess_numeric_consistency,
+)
 from open_deep_research.harness.source_spans import (
     SourceSpanRegistry,
     build_source_span_registry,
@@ -176,6 +180,10 @@ class VerifiedSourceRelation(BaseModel):
     repair_method: QuoteRepairMethod | None = None
     quote_failure_reason: QuoteFailureReason | None = None
     error: str | None = None
+    numeric_consistency_status: NumericConsistencyStatus = (
+        NumericConsistencyStatus.NOT_APPLICABLE
+    )
+    numeric_consistency_detail: str | None = None
     is_formal_supporting_evidence: bool = False
 
     @model_validator(mode="after")
@@ -204,6 +212,10 @@ class VerifiedSourceRelation(BaseModel):
                 raise ValueError("formal evidence requires supports verdict")
             if not usable:
                 raise ValueError("formal evidence requires a located quote")
+            if self.numeric_consistency_status is NumericConsistencyStatus.MISMATCH:
+                raise ValueError(
+                    "formal evidence requires non-mismatching numeric surfaces"
+                )
         if self.status != VerificationRecordStatus.QUOTE_UNLOCATABLE:
             if self.quote_failure_reason is not None:
                 raise ValueError(
@@ -586,6 +598,11 @@ def _completed_relation(
         raise AssertionError(
             "verifier pointer quote must equal authoritative source slice"
         )
+    numeric_assessment = (
+        assess_numeric_consistency(task.claim.claim_text, authoritative_quote)
+        if entry.verdict is VerificationVerdict.SUPPORTS
+        else None
+    )
     return VerifiedSourceRelation(
         **base,
         status=VerificationRecordStatus.COMPLETED,
@@ -600,8 +617,20 @@ def _completed_relation(
         source_text_sha256=span_registry.source_text_sha256,
         segmentation_version=span_registry.segmentation_version,
         location_status=NoteLocationStatus.LOCATABLE,
+        numeric_consistency_status=(
+            numeric_assessment.status
+            if numeric_assessment is not None
+            else NumericConsistencyStatus.NOT_APPLICABLE
+        ),
+        numeric_consistency_detail=(
+            numeric_assessment.detail
+            if numeric_assessment is not None
+            else None
+        ),
         is_formal_supporting_evidence=(
             entry.verdict is VerificationVerdict.SUPPORTS
+            and numeric_assessment is not None
+            and numeric_assessment.status is not NumericConsistencyStatus.MISMATCH
         ),
     )
 
@@ -628,10 +657,17 @@ def _aggregate_state(
         for relation in relations
         if relation.semantic_verdict is not None
     }
-    if (
-        VerificationVerdict.SUPPORTS in semantic
-        and VerificationVerdict.CONTRADICTS in semantic
-    ):
+    has_located_contradiction = any(
+        relation.semantic_verdict is VerificationVerdict.CONTRADICTS
+        and relation.status is VerificationRecordStatus.COMPLETED
+        and relation.location_status
+        in {
+            NoteLocationStatus.LOCATABLE,
+            NoteLocationStatus.REPAIRED_LOCATABLE,
+        }
+        for relation in relations
+    )
+    if formal and has_located_contradiction:
         return ClaimEvidenceState.CONFLICTING_EVIDENCE, len(formal), publishers
 
     failed_statuses = {
@@ -660,6 +696,14 @@ def _aggregate_state(
             len(formal),
             publishers,
         )
+    if any(
+        relation.semantic_verdict is VerificationVerdict.SUPPORTS
+        and relation.status is VerificationRecordStatus.COMPLETED
+        and relation.numeric_consistency_status
+        is NumericConsistencyStatus.MISMATCH
+        for relation in relations
+    ):
+        return ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT, 0, ()
     if VerificationVerdict.SUPPORTS in semantic:
         return (
             ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE,
