@@ -97,9 +97,9 @@ def _verified(
     return ClaimVerification(
         claim=claim,
         state=(
-            ClaimEvidenceState.CORROBORATED
+            ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
             if len(proxies) > 1
-            else ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+            else ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY
         ),
         corroboration_target=2,
         relations=tuple(relations),

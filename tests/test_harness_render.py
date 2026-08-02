@@ -12,6 +12,11 @@ from open_deep_research.harness.claims import (
     SourceResolution,
 )
 from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
+from open_deep_research.harness.source_provenance import (
+    SourceLineageAssessment,
+    SourceLineageStatus,
+    SourceRole,
+)
 from open_deep_research.harness.render import (
     InitialCollectionSnapshot,
     render_verified_report,
@@ -57,7 +62,27 @@ def _support(
     source_quote: str = "Exact source-authored evidence.",
     model_quote: str = "MODEL WORDING MUST NEVER BE RENDERED",
     url: str = "https://source.example/article",
+    lineage_id: str | None = None,
 ) -> VerifiedSourceRelation:
+    lineage = (
+        SourceLineageAssessment(
+            source_id=source_id,
+            url=url,
+            status=SourceLineageStatus.CONFIRMED,
+            source_role=SourceRole.INDEPENDENT_REPORTING,
+            originating_organization=lineage_id,
+            lineage_id=lineage_id,
+            independence_eligible=True,
+            evaluator="independent-reviewer",
+            rationale="Synthetic confirmed lineage.",
+            source_text_sha256="0" * 64,
+            basis_quote=source_quote,
+            basis_start_char=0,
+            basis_end_char=len(source_quote),
+        )
+        if lineage_id is not None
+        else None
+    )
     return VerifiedSourceRelation(
         claim_id=claim_id,
         source_id=source_id,
@@ -72,6 +97,7 @@ def _support(
         span=QuoteSpan(start_char=10, end_char=41),
         location_status=NoteLocationStatus.LOCATABLE,
         is_formal_supporting_evidence=True,
+        source_lineage=lineage,
     )
 
 
@@ -101,6 +127,24 @@ def _verified(
         ),
         publisher_domain_proxy_count=len(publishers),
         publisher_domain_proxies=publishers,
+        independent_lineage_count=len(
+            {
+                relation.source_lineage.lineage_id
+                for relation in relations
+                if relation.source_lineage is not None
+                and relation.source_lineage.establishes_independence
+            }
+        ),
+        independent_lineage_ids=tuple(
+            sorted(
+                {
+                    relation.source_lineage.lineage_id
+                    for relation in relations
+                    if relation.source_lineage is not None
+                    and relation.source_lineage.establishes_independence
+                }
+            )
+        ),
     )
 
 
@@ -141,18 +185,22 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
     assert (
         rendered.evidence_legend_line
         == "> 图例：带脚注且无额外状态标签 = "
-        "单一发布方提供了可定位支持引文"
+        "至少一个来源提供了可定位支持引文；"
+        "域名代理数量不表示来源独立"
     )
-    assert "单一发布方支持 2" in rendered.evidence_summary_line
-    assert "多发布方交叉支持 0" in rendered.evidence_summary_line
-    assert "零发布方支持 0" in rendered.evidence_summary_line
+    assert "单一域名代理支持 2" in rendered.evidence_summary_line
+    assert "多个域名代理支持（不表示来源独立） 0" in (
+        rendered.evidence_summary_line
+    )
+    assert "经来源谱系评估的交叉支持 0" in rendered.evidence_summary_line
+    assert "无可定位支持引文 0" in rendered.evidence_summary_line
     assert "1/2" not in rendered.markdown
     assert "充分支持" not in rendered.evidence_summary_line
     assert "已核实" not in rendered.evidence_summary_line
     assert rendered.summary.claims_with_located_support == 2
     assert rendered.summary.single_publisher_support == 2
     assert rendered.summary.multi_publisher_support == 0
-    assert rendered.summary.zero_publisher_support == 0
+    assert rendered.summary.zero_located_support == 0
     assert "Exact source-authored evidence." not in rendered.markdown
     assert "Exact source-authored evidence." in rendered.sources_markdown
     assert "MODEL WORDING MUST NEVER BE RENDERED" not in rendered.markdown
@@ -333,7 +381,7 @@ def test_support_label_rule_does_not_adapt_to_single_publisher_prevalence() -> N
             entries.append(
                 _verified(
                     claim,
-                    ClaimEvidenceState.CORROBORATED,
+                    ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
                     first,
                     second,
                 )
@@ -372,11 +420,9 @@ def test_support_label_rule_does_not_adapt_to_single_publisher_prevalence() -> N
                 )
             else:
                 assert annotation.evidence_state == (
-                    ClaimEvidenceState.CORROBORATED
+                    ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
                 )
-                assert annotation.rendered_suffix.endswith(
-                    "〔多发布方交叉支持〕"
-                )
+                assert "交叉支持" not in annotation.rendered_suffix
 
 
 def test_same_sentence_claims_keep_distinct_evidence_states() -> None:
@@ -391,7 +437,7 @@ def test_same_sentence_claims_keep_distinct_evidence_states() -> None:
         claims=(
             _verified(
                 supported,
-                ClaimEvidenceState.CORROBORATED,
+                ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
                 _support("claim-supported"),
                 required=1,
             ),
@@ -405,7 +451,7 @@ def test_same_sentence_claims_keep_distinct_evidence_states() -> None:
     rendered = render_verified_report(draft, verification)
 
     assert (
-        "Alpha happened[^1]〔多发布方交叉支持〕, while "
+        "Alpha happened[^1], while "
         "Beta remained open〔未找到候选来源〕."
     ) in rendered.markdown
     assert [annotation.claim_id for annotation in rendered.annotations] == [
@@ -415,9 +461,47 @@ def test_same_sentence_claims_keep_distinct_evidence_states() -> None:
     assert {
         annotation.evidence_state for annotation in rendered.annotations
     } == {
-        ClaimEvidenceState.CORROBORATED,
+        ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
         ClaimEvidenceState.NO_CANDIDATE_SOURCE,
     }
+
+
+def test_confirmed_lineage_corroboration_is_explicitly_labeled() -> None:
+    draft = "The independently supported event occurred."
+    claim = _claim(draft, "claim-corroborated", draft)
+    first = _support(
+        claim.claim_id,
+        source_id="source-one",
+        url="https://host-one.example/article",
+        lineage_id="newsroom-one",
+    ).model_copy(update={"publisher_domain_proxy": "host-one.example"})
+    second = _support(
+        claim.claim_id,
+        source_id="source-two",
+        source_quote="A second exact source passage.",
+        url="https://host-two.example/article",
+        lineage_id="newsroom-two",
+    ).model_copy(
+        update={
+            "publisher_domain_proxy": "host-two.example",
+            "span": QuoteSpan(start_char=50, end_char=79),
+        }
+    )
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                claim,
+                ClaimEvidenceState.CORROBORATED,
+                first,
+                second,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(draft, verification)
+
+    assert "〔经来源谱系评估的交叉支持〕" in rendered.markdown
+    assert "经来源谱系评估的交叉支持 1" in rendered.evidence_summary_line
 
 
 def test_conflict_and_unverified_reasons_are_visible_at_claim_anchors() -> None:
@@ -677,7 +761,7 @@ def test_zero_formal_support_explains_coverage_without_rewriting_counts() -> Non
     )
     assert "初次采集阶段未取得任何原文" in rendered.evidence_status_line
     assert rendered.summary.external_claims == 1
-    assert rendered.summary.zero_publisher_support == 1
+    assert rendered.summary.zero_located_support == 1
     status_at = rendered.markdown.index("证据状态：")
     summary_at = rendered.markdown.index("证据摘要：")
     checklist_at = rendered.markdown.index(

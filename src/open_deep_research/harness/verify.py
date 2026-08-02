@@ -52,13 +52,18 @@ from open_deep_research.harness.source_spans import (
     render_segmented_source,
     resolve_source_span,
 )
+from open_deep_research.harness.source_provenance import (
+    SourceLineageAssessment,
+    SourceLineageStatus,
+    assessment_matches_source,
+)
 
 _HARD_MAX_CLAIMS_PER_BATCH = 20
-_INDEPENDENCE_METHOD = "publisher_domain_proxy"
+_INDEPENDENCE_METHOD = "confirmed_source_lineage_v1"
 _INDEPENDENCE_LIMITATIONS = (
-    "common_ownership_not_resolved",
-    "syndicated_or_republished_content_not_resolved",
-    "cross_domain_brand_identity_not_resolved",
+    "lineage_assessments_are_semantic_and_can_be_wrong",
+    "unresolved_or_model_proposed_lineage_never_establishes_independence",
+    "shared_upstream_evidence_can_limit_substantive_independence",
 )
 
 
@@ -86,9 +91,12 @@ class ClaimEvidenceState(str, Enum):
     """Non-optimistic aggregate state for one atomic claim."""
 
     CORROBORATED = "corroborated"
-    SUPPORTED_SINGLE_PUBLISHER = "supported_single_publisher"
+    SUPPORTED_MULTIPLE_DOMAIN_PROXIES = "supported_multiple_domain_proxies"
+    SUPPORTED_SINGLE_DOMAIN_PROXY = "supported_single_domain_proxy"
+    # Source compatibility for callers using former Python member names.
+    SUPPORTED_SINGLE_PUBLISHER = "supported_single_domain_proxy"
     # Source compatibility for callers using the former Python member name.
-    SUPPORTED_BELOW_REQUIREMENT = "supported_single_publisher"
+    SUPPORTED_BELOW_REQUIREMENT = "supported_single_domain_proxy"
     SUPPORT_QUOTE_UNLOCATABLE = "support_quote_unlocatable"
     CONFLICTING_EVIDENCE = "conflicting_evidence"
     REFUTED = "refuted"
@@ -103,8 +111,8 @@ class ClaimEvidenceState(str, Enum):
     def _missing_(cls, value: object) -> ClaimEvidenceState | None:
         """Read historical audit values without re-emitting deficit language."""
 
-        if value == "supported_below_requirement":
-            return cls.SUPPORTED_SINGLE_PUBLISHER
+        if value in {"supported_below_requirement", "supported_single_publisher"}:
+            return cls.SUPPORTED_SINGLE_DOMAIN_PROXY
         return None
 
 
@@ -185,6 +193,8 @@ class VerifiedSourceRelation(BaseModel):
     )
     numeric_consistency_detail: str | None = None
     is_formal_supporting_evidence: bool = False
+    source_lineage: SourceLineageAssessment | None = None
+    source_lineage_error: str | None = None
 
     @model_validator(mode="after")
     def _formal_evidence_is_mechanical(self) -> VerifiedSourceRelation:
@@ -228,17 +238,32 @@ class VerifiedSourceRelation(BaseModel):
             VerificationRecordStatus.SOURCE_MISSING_FROM_CACHE,
         } and self.semantic_verdict is not None:
             raise ValueError("unrun or failed verification has no verdict")
+        if self.source_lineage is not None:
+            if self.source_lineage.source_id != self.source_id:
+                raise ValueError("source lineage must belong to relation source_id")
+            if self.source_lineage.url != self.url:
+                raise ValueError("source lineage must belong to relation URL")
+            if self.source_lineage_error is not None:
+                raise ValueError(
+                    "accepted source lineage cannot also carry a lineage error"
+                )
         return self
 
 
 class PublisherIndependenceAudit(BaseModel):
-    """The reproducible but deliberately limited publisher proxy."""
+    """Independence semantics, separate from domain-proxy disclosure.
+
+    The historical class name is retained for audit compatibility.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     method: str = _INDEPENDENCE_METHOD
     is_strict_independence_determination: bool = False
     limitations: tuple[str, ...] = _INDEPENDENCE_LIMITATIONS
+    confirmed_assessment_count: int = Field(default=0, ge=0)
+    proposed_assessment_count: int = Field(default=0, ge=0)
+    unresolved_relation_count: int = Field(default=0, ge=0)
 
 
 class ClaimVerification(BaseModel):
@@ -259,6 +284,31 @@ class ClaimVerification(BaseModel):
     formal_supporting_evidence_count: int = Field(ge=0)
     publisher_domain_proxy_count: int = Field(ge=0)
     publisher_domain_proxies: tuple[str, ...] = ()
+    independent_lineage_count: int = Field(default=0, ge=0)
+    independent_lineage_ids: tuple[str, ...] = ()
+    lineage_assessment_complete: bool = False
+    historical_domain_proxy_corroboration_reclassified: bool = False
+
+    @model_validator(mode="after")
+    def _aggregate_counts_match_evidence_state(self) -> ClaimVerification:
+        if self.publisher_domain_proxy_count != len(
+            self.publisher_domain_proxies
+        ):
+            raise ValueError("domain proxy count must match proxy IDs")
+        if self.independent_lineage_count != len(self.independent_lineage_ids):
+            raise ValueError("lineage count must match lineage IDs")
+        if (
+            self.state is ClaimEvidenceState.CORROBORATED
+            and self.independent_lineage_count < 2
+        ):
+            raise ValueError("corroborated requires two confirmed lineages")
+        if (
+            self.state
+            is ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
+            and self.publisher_domain_proxy_count < 2
+        ):
+            raise ValueError("multi-domain support requires two domain proxies")
+        return self
 
     @property
     def required_independent_sources(self) -> int:
@@ -278,6 +328,50 @@ class VerificationResult(BaseModel):
     independence: PublisherIndependenceAudit = Field(
         default_factory=PublisherIndependenceAudit
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reclassify_historical_domain_proxy_corroboration(
+        cls,
+        value: Any,
+    ) -> Any:
+        """Read old audits without preserving their over-strong semantics."""
+
+        if not isinstance(value, Mapping):
+            return value
+        independence = value.get("independence")
+        if not isinstance(independence, Mapping):
+            return value
+        if independence.get("method") != "publisher_domain_proxy":
+            return value
+        copied = dict(value)
+        migrated_claims: list[Any] = []
+        for raw in value.get("claims", ()):
+            if not isinstance(raw, Mapping) or raw.get("state") != "corroborated":
+                migrated_claims.append(raw)
+                continue
+            claim = dict(raw)
+            claim["state"] = "supported_multiple_domain_proxies"
+            claim["historical_domain_proxy_corroboration_reclassified"] = True
+            migrated_claims.append(claim)
+        copied["claims"] = migrated_claims
+        copied["independence"] = {
+            "method": _INDEPENDENCE_METHOD,
+            "is_strict_independence_determination": False,
+            "limitations": _INDEPENDENCE_LIMITATIONS,
+            "confirmed_assessment_count": 0,
+            "proposed_assessment_count": 0,
+            "unresolved_relation_count": len(
+                {
+                    (relation.get("source_id"), relation.get("url"))
+                    for claim in migrated_claims
+                    if isinstance(claim, Mapping)
+                    for relation in claim.get("relations", ())
+                    if isinstance(relation, Mapping)
+                }
+            ),
+        }
+        return copied
 
     @property
     def total_tokens(self) -> int:
@@ -350,6 +444,8 @@ class _VerificationTask(BaseModel):
     publisher_domain_proxy: str
     candidate_note_ids: tuple[str, ...]
     candidate_source_ids: tuple[str, ...]
+    source_lineage: SourceLineageAssessment | None = None
+    source_lineage_error: str | None = None
 
 
 _VERIFICATION_PROMPT = """\
@@ -445,6 +541,8 @@ def _publisher_proxy(url: str, fallback: str) -> str:
 
 def _tasks_by_url(
     attributions: Sequence[ClaimAttribution],
+    *,
+    source_lineage_assessments: Mapping[str, SourceLineageAssessment] | None = None,
 ) -> tuple[dict[str, list[_VerificationTask]], dict[str, AtomicClaim]]:
     claims = {entry.claim.claim_id: entry.claim for entry in attributions}
     grouped_candidates: dict[tuple[str, str], list[Any]] = defaultdict(list)
@@ -455,6 +553,7 @@ def _tasks_by_url(
             )
 
     tasks_by_url: dict[str, list[_VerificationTask]] = defaultdict(list)
+    lineage_by_url = dict(source_lineage_assessments or {})
     for (claim_id, url), candidates in grouped_candidates.items():
         note_ids = tuple(sorted({candidate.note_id for candidate in candidates}))
         source_ids = tuple(
@@ -469,6 +568,7 @@ def _tasks_by_url(
                 publisher_domain_proxy=publisher,
                 candidate_note_ids=note_ids,
                 candidate_source_ids=source_ids,
+                source_lineage=lineage_by_url.get(url),
             )
         )
     for tasks in tasks_by_url.values():
@@ -580,6 +680,17 @@ def _completed_relation(
     span_registry: SourceSpanRegistry,
     settings: VerificationSettings,
 ) -> VerifiedSourceRelation:
+    source_lineage = task.source_lineage
+    source_lineage_error = task.source_lineage_error
+    if source_lineage is not None and source_lineage_error is None:
+        matches, source_lineage_error = assessment_matches_source(
+            source_lineage,
+            source_id=task.source_id,
+            url=task.url,
+            source_text=source_text,
+        )
+        if not matches:
+            source_lineage = None
     base = {
         "claim_id": task.claim.claim_id,
         "source_id": task.source_id,
@@ -590,6 +701,8 @@ def _completed_relation(
         "semantic_verdict": entry.verdict,
         "explanation": entry.explanation,
         "model_quote": None,
+        "source_lineage": source_lineage,
+        "source_lineage_error": source_lineage_error,
     }
     if entry.start_segment_id is None or entry.end_segment_id is None:
         return VerifiedSourceRelation(
@@ -671,7 +784,13 @@ def _completed_relation(
 def _aggregate_state(
     claim: AtomicClaim,
     relations: Sequence[VerifiedSourceRelation],
-) -> tuple[ClaimEvidenceState, int, tuple[str, ...]]:
+) -> tuple[
+    ClaimEvidenceState,
+    int,
+    tuple[str, ...],
+    tuple[str, ...],
+    bool,
+]:
     formal = [
         relation
         for relation in relations
@@ -680,10 +799,45 @@ def _aggregate_state(
     publishers = tuple(
         sorted({relation.publisher_domain_proxy for relation in formal})
     )
+    independent_lineages = tuple(
+        sorted(
+            {
+                relation.source_lineage.lineage_id
+                for relation in formal
+                if relation.source_lineage is not None
+                and relation.source_lineage.establishes_independence
+            }
+        )
+    )
+    lineage_complete = bool(formal) and all(
+        relation.source_lineage is not None
+        and relation.source_lineage.status is SourceLineageStatus.CONFIRMED
+        for relation in formal
+    )
+
+    def aggregate(
+        state: ClaimEvidenceState,
+        count: int | None = None,
+        proxies: tuple[str, ...] | None = None,
+    ) -> tuple[
+        ClaimEvidenceState,
+        int,
+        tuple[str, ...],
+        tuple[str, ...],
+        bool,
+    ]:
+        return (
+            state,
+            len(formal) if count is None else count,
+            publishers if proxies is None else proxies,
+            independent_lineages,
+            lineage_complete,
+        )
+
     if claim.normalization_status is ClaimNormalizationStatus.NORMALIZATION_FAILED:
-        return ClaimEvidenceState.NORMALIZATION_FAILED, len(formal), publishers
+        return aggregate(ClaimEvidenceState.NORMALIZATION_FAILED)
     if not relations:
-        return ClaimEvidenceState.NO_CANDIDATE_SOURCE, 0, ()
+        return aggregate(ClaimEvidenceState.NO_CANDIDATE_SOURCE, 0, ())
 
     semantic = {
         relation.semantic_verdict
@@ -701,7 +855,7 @@ def _aggregate_state(
         for relation in relations
     )
     if formal and has_located_contradiction:
-        return ClaimEvidenceState.CONFLICTING_EVIDENCE, len(formal), publishers
+        return aggregate(ClaimEvidenceState.CONFLICTING_EVIDENCE)
 
     failed_statuses = {
         VerificationRecordStatus.VERIFICATION_NOT_RUN_BUDGET,
@@ -711,24 +865,18 @@ def _aggregate_state(
     }
     failed = [relation for relation in relations if relation.status in failed_statuses]
     if len(failed) == len(relations):
-        return ClaimEvidenceState.VERIFICATION_NOT_RUN, len(formal), publishers
+        return aggregate(ClaimEvidenceState.VERIFICATION_NOT_RUN)
     if failed:
-        return (
-            ClaimEvidenceState.VERIFICATION_INCOMPLETE,
-            len(formal),
-            publishers,
-        )
-    # Corroboration is a factual multi-publisher condition. The separate
-    # corroboration target may prioritize a later gap pass, but cannot turn
-    # one publisher into corroboration.
+        return aggregate(ClaimEvidenceState.VERIFICATION_INCOMPLETE)
+    # Domains remain a reproducible disclosure proxy.  They do not establish
+    # editorial origin or independence.  Only separately confirmed, eligible
+    # lineage assessments can promote a claim to corroborated.
+    if len(independent_lineages) >= 2:
+        return aggregate(ClaimEvidenceState.CORROBORATED)
     if len(publishers) >= 2:
-        return ClaimEvidenceState.CORROBORATED, len(formal), publishers
+        return aggregate(ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES)
     if formal:
-        return (
-            ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
-            len(formal),
-            publishers,
-        )
+        return aggregate(ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY)
     if any(
         relation.semantic_verdict is VerificationVerdict.SUPPORTS
         and relation.status is VerificationRecordStatus.COMPLETED
@@ -736,16 +884,12 @@ def _aggregate_state(
         is NumericConsistencyStatus.MISMATCH
         for relation in relations
     ):
-        return ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT, 0, ()
+        return aggregate(ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT, 0, ())
     if VerificationVerdict.SUPPORTS in semantic:
-        return (
-            ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE,
-            0,
-            (),
-        )
+        return aggregate(ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE, 0, ())
     if VerificationVerdict.CONTRADICTS in semantic:
-        return ClaimEvidenceState.REFUTED, 0, ()
-    return ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT, 0, ()
+        return aggregate(ClaimEvidenceState.REFUTED, 0, ())
+    return aggregate(ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT, 0, ())
 
 
 def build_claim_verification(
@@ -767,7 +911,7 @@ def build_claim_verification(
             ),
         )
     )
-    state, formal_count, publishers = _aggregate_state(
+    state, formal_count, publishers, lineage_ids, lineage_complete = _aggregate_state(
         claim,
         ordered_relations,
     )
@@ -784,6 +928,9 @@ def build_claim_verification(
         formal_supporting_evidence_count=formal_count,
         publisher_domain_proxy_count=len(publishers),
         publisher_domain_proxies=publishers,
+        independent_lineage_count=len(lineage_ids),
+        independent_lineage_ids=lineage_ids,
+        lineage_assessment_complete=lineage_complete,
     )
 
 
@@ -832,6 +979,7 @@ async def verify_attributions(
     required_independent_sources: Mapping[str, int] | None = None,
     estimate_input_tokens: Callable[[str], int] | None = None,
     estimate_cost_usd: Callable[[str], float] | None = None,
+    source_lineage_assessments: Mapping[str, SourceLineageAssessment] | None = None,
 ) -> VerificationResult:
     """Verify URL-grouped candidates with full cached sources and strict audit."""
 
@@ -850,7 +998,10 @@ async def verify_attributions(
         if corroboration_targets is not None
         else (required_independent_sources or {})
     )
-    tasks_by_url, claims_by_id = _tasks_by_url(attributions)
+    tasks_by_url, claims_by_id = _tasks_by_url(
+        attributions,
+        source_lineage_assessments=source_lineage_assessments,
+    )
     if len(claims_by_id) != len(attributions):
         raise ValueError("verification requires unique claim_id values")
     for claim_id, count in required.items():
@@ -1035,8 +1186,30 @@ async def verify_attributions(
             )
         )
 
+    unique_relations = {
+        (relation.source_id, relation.url): relation
+        for claim in claim_results
+        for relation in claim.relations
+    }
+    confirmed = sum(
+        relation.source_lineage is not None
+        and relation.source_lineage.status is SourceLineageStatus.CONFIRMED
+        for relation in unique_relations.values()
+    )
+    proposed = sum(
+        relation.source_lineage is not None
+        and relation.source_lineage.status is SourceLineageStatus.PROPOSED
+        for relation in unique_relations.values()
+    )
     return VerificationResult(
         claims=tuple(claim_results),
         usage=tuple(usage),
         diagnostics=tuple(diagnostics),
+        independence=PublisherIndependenceAudit(
+            confirmed_assessment_count=confirmed,
+            proposed_assessment_count=proposed,
+            unresolved_relation_count=(
+                len(unique_relations) - confirmed - proposed
+            ),
+        ),
     )

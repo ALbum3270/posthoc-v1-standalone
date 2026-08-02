@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 
@@ -31,10 +32,16 @@ from open_deep_research.harness.notes import (
 from open_deep_research.harness.numeric_consistency import (
     NumericConsistencyStatus,
 )
+from open_deep_research.harness.source_provenance import (
+    SourceLineageAssessment,
+    SourceLineageStatus,
+    SourceRole,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     VerificationBudget,
     VerificationRecordStatus,
+    VerificationResult,
     VerificationSettings,
     VerificationVerdict,
     VerifiedSourceRelation,
@@ -174,6 +181,32 @@ def _candidate(
         url=url,
         location_status=location_status,
         resolution=SourceResolution.DIRECT,
+    )
+
+
+def _lineage(
+    *,
+    source_id: str,
+    url: str,
+    source_text: str,
+    lineage_id: str,
+    status: SourceLineageStatus = SourceLineageStatus.CONFIRMED,
+    independence_eligible: bool = True,
+) -> SourceLineageAssessment:
+    return SourceLineageAssessment(
+        source_id=source_id,
+        url=url,
+        status=status,
+        source_role=SourceRole.INDEPENDENT_REPORTING,
+        originating_organization=lineage_id,
+        lineage_id=lineage_id,
+        independence_eligible=independence_eligible,
+        evaluator="independent-reviewer",
+        rationale="The exact page identifies its originating newsroom.",
+        source_text_sha256=hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
+        basis_quote=source_text,
+        basis_start_char=0,
+        basis_end_char=len(source_text),
     )
 
 
@@ -339,7 +372,7 @@ def test_groups_by_url_sorts_claim_ids_and_never_exceeds_twenty() -> None:
     )
     assert all(
         claim.model_dump(mode="json")["state"]
-        == "supported_single_publisher"
+        == "supported_single_domain_proxy"
         for claim in result.claims
     )
     assert (
@@ -532,7 +565,7 @@ def test_pointer_gate_and_unlocatable_note_history() -> None:
     assert by_url[failed_url].is_formal_supporting_evidence is False
     assert verified.formal_supporting_evidence_count == 3
     assert verified.publisher_domain_proxy_count == 3
-    assert verified.state == ClaimEvidenceState.CORROBORATED
+    assert verified.state == ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
     assert historical_note.model_dump(mode="json") == historical_snapshot
 
 
@@ -1010,7 +1043,7 @@ def test_attribution_error_is_not_laundered_into_no_candidate_source() -> None:
     )
 
 
-def test_publisher_count_is_disclosed_as_a_proxy_not_strict_independence() -> None:
+def test_domain_count_is_disclosed_but_cannot_establish_independence() -> None:
     claim = _claim("claim-publishers")
     first_url = "https://bbc.com/a"
     second_url = "https://bbc.co.uk/b"
@@ -1055,10 +1088,275 @@ def test_publisher_count_is_disclosed_as_a_proxy_not_strict_independence() -> No
     )
 
     assert result.claims[0].publisher_domain_proxy_count == 2
-    assert result.claims[0].state == ClaimEvidenceState.CORROBORATED
-    assert result.independence.method == "publisher_domain_proxy"
+    assert result.claims[0].state == (
+        ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
+    )
+    assert result.claims[0].independent_lineage_count == 0
+    assert result.independence.method == "confirmed_source_lineage_v1"
     assert result.independence.is_strict_independence_determination is False
-    assert "common_ownership_not_resolved" in result.independence.limitations
-    assert "cross_domain_brand_identity_not_resolved" in (
+    assert "unresolved_or_model_proposed_lineage_never_establishes_independence" in (
         result.independence.limitations
     )
+    assert result.independence.unresolved_relation_count == 2
+
+
+def test_two_confirmed_source_lineages_can_establish_corroboration() -> None:
+    claim = _claim("claim-confirmed-lineage")
+    first_url = "https://host-one.example/a"
+    second_url = "https://host-two.example/b"
+    first_text = "Newsroom One independently reports the event."
+    second_text = "Newsroom Two independently reports the event."
+    first_source_id = _candidate(
+        claim=claim,
+        url=first_url,
+        note_id="note-one",
+    ).source_id
+    second_source_id = _candidate(
+        claim=claim,
+        url=second_url,
+        note_id="note-two",
+    ).source_id
+    model = ScriptedVerificationModel(
+        {"results": [_result(claim.claim_id, "supports", ("S000001", "S000001"))]},
+        {"results": [_result(claim.claim_id, "supports", ("S000001", "S000001"))]},
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=first_url, note_id="note-one"),
+                    _candidate(claim=claim, url=second_url, note_id="note-two"),
+                )
+            ],
+            source_cache={first_url: first_text, second_url: second_text},
+            model_client=model,
+            source_lineage_assessments={
+                first_url: _lineage(
+                    source_id=first_source_id,
+                    url=first_url,
+                    source_text=first_text,
+                    lineage_id="newsroom-one",
+                ),
+                second_url: _lineage(
+                    source_id=second_source_id,
+                    url=second_url,
+                    source_text=second_text,
+                    lineage_id="newsroom-two",
+                ),
+            },
+        )
+    )
+
+    verified = result.claims[0]
+    assert verified.state is ClaimEvidenceState.CORROBORATED
+    assert verified.independent_lineage_ids == ("newsroom-one", "newsroom-two")
+    assert verified.lineage_assessment_complete is True
+    assert result.independence.confirmed_assessment_count == 2
+
+
+def test_same_host_can_corroborate_when_confirmed_lineages_are_distinct() -> None:
+    claim = _claim("claim-shared-host-distinct-lineages")
+    first_url = "https://archive.example/newsroom-one"
+    second_url = "https://archive.example/newsroom-two"
+    first_text = "Newsroom One identifies itself as the originating publisher."
+    second_text = "Newsroom Two identifies itself as the originating publisher."
+    first = _candidate(claim=claim, url=first_url, note_id="note-one")
+    second = _candidate(claim=claim, url=second_url, note_id="note-two")
+    model = ScriptedVerificationModel(
+        {"results": [_result(claim.claim_id, "supports", ("S000001", "S000001"))]},
+        {"results": [_result(claim.claim_id, "supports", ("S000001", "S000001"))]},
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, first, second)],
+            source_cache={first_url: first_text, second_url: second_text},
+            model_client=model,
+            source_lineage_assessments={
+                first_url: _lineage(
+                    source_id=first.source_id,
+                    url=first_url,
+                    source_text=first_text,
+                    lineage_id="newsroom-one",
+                ),
+                second_url: _lineage(
+                    source_id=second.source_id,
+                    url=second_url,
+                    source_text=second_text,
+                    lineage_id="newsroom-two",
+                ),
+            },
+        )
+    )
+
+    verified = result.claims[0]
+    assert verified.publisher_domain_proxy_count == 1
+    assert verified.independent_lineage_count == 2
+    assert verified.state is ClaimEvidenceState.CORROBORATED
+
+
+def test_distinct_hosts_do_not_corroborate_when_lineage_is_shared() -> None:
+    claim = _claim("claim-distinct-hosts-shared-lineage")
+    first_url = "https://host-one.example/syndicated"
+    second_url = "https://host-two.example/republished"
+    first_text = "This page republishes the wire report."
+    second_text = "This page also republishes the wire report."
+    first = _candidate(claim=claim, url=first_url, note_id="note-one")
+    second = _candidate(claim=claim, url=second_url, note_id="note-two")
+    model = ScriptedVerificationModel(
+        {"results": [_result(claim.claim_id, "supports", ("S000001", "S000001"))]},
+        {"results": [_result(claim.claim_id, "supports", ("S000001", "S000001"))]},
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, first, second)],
+            source_cache={first_url: first_text, second_url: second_text},
+            model_client=model,
+            source_lineage_assessments={
+                first_url: _lineage(
+                    source_id=first.source_id,
+                    url=first_url,
+                    source_text=first_text,
+                    lineage_id="shared-wire-service",
+                ),
+                second_url: _lineage(
+                    source_id=second.source_id,
+                    url=second_url,
+                    source_text=second_text,
+                    lineage_id="shared-wire-service",
+                ),
+            },
+        )
+    )
+
+    verified = result.claims[0]
+    assert verified.publisher_domain_proxy_count == 2
+    assert verified.independent_lineage_count == 1
+    assert verified.state is ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
+
+
+def test_model_proposed_lineage_is_retained_but_cannot_corroborate() -> None:
+    claim = _claim("claim-proposed-lineage")
+    url = "https://host.example/a"
+    source_text = "A page identifies the originating newsroom."
+    candidate = _candidate(claim=claim, url=url, note_id="note-proposed")
+    model = ScriptedVerificationModel(
+        {"results": [_result(claim.claim_id, "supports", ("S000001", "S000001"))]}
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, candidate)],
+            source_cache={url: source_text},
+            model_client=model,
+            source_lineage_assessments={
+                url: _lineage(
+                    source_id=candidate.source_id,
+                    url=url,
+                    source_text=source_text,
+                    lineage_id="newsroom-proposed",
+                    status=SourceLineageStatus.PROPOSED,
+                )
+            },
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.source_lineage is not None
+    assert relation.source_lineage.status is SourceLineageStatus.PROPOSED
+    assert result.claims[0].independent_lineage_count == 0
+    assert result.claims[0].state is ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY
+    assert result.independence.proposed_assessment_count == 1
+
+
+def test_ungrounded_lineage_degrades_to_audited_unresolved_not_failure() -> None:
+    claim = _claim("claim-bad-lineage-basis")
+    url = "https://host.example/a"
+    source_text = "The actual cached page text."
+    candidate = _candidate(claim=claim, url=url, note_id="note-bad-basis")
+    bad_assessment = _lineage(
+        source_id=candidate.source_id,
+        url=url,
+        source_text="Different bytes used by the assessor.",
+        lineage_id="newsroom-untrusted",
+    )
+    model = ScriptedVerificationModel(
+        {"results": [_result(claim.claim_id, "supports", ("S000001", "S000001"))]}
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, candidate)],
+            source_cache={url: source_text},
+            model_client=model,
+            source_lineage_assessments={url: bad_assessment},
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.is_formal_supporting_evidence is True
+    assert relation.source_lineage is None
+    assert relation.source_lineage_error == (
+        "lineage source text hash does not match cache"
+    )
+    assert result.claims[0].state is ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY
+    assert result.independence.unresolved_relation_count == 1
+
+
+def test_historical_domain_proxy_corroboration_is_explicitly_reclassified() -> None:
+    claim = _claim("claim-historical")
+    first = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id="source-one",
+        url="https://one.example/a",
+        publisher_domain_proxy="one.example",
+        candidate_note_ids=("note-one",),
+        candidate_source_ids=("source-one",),
+        status=VerificationRecordStatus.COMPLETED,
+        semantic_verdict=VerificationVerdict.SUPPORTS,
+        source_quote="First support.",
+        span=QuoteSpan(start_char=0, end_char=14),
+        location_status=NoteLocationStatus.LOCATABLE,
+        is_formal_supporting_evidence=True,
+    )
+    second = first.model_copy(
+        update={
+            "source_id": "source-two",
+            "url": "https://two.example/b",
+            "publisher_domain_proxy": "two.example",
+            "candidate_note_ids": ("note-two",),
+            "candidate_source_ids": ("source-two",),
+        }
+    )
+    payload = {
+        "claims": [
+            {
+                "claim": claim.model_dump(mode="json"),
+                "state": "corroborated",
+                "required_independent_sources": 2,
+                "relations": [
+                    first.model_dump(mode="json"),
+                    second.model_dump(mode="json"),
+                ],
+                "formal_supporting_evidence_count": 2,
+                "publisher_domain_proxy_count": 2,
+                "publisher_domain_proxies": ["one.example", "two.example"],
+            }
+        ],
+        "independence": {
+            "method": "publisher_domain_proxy",
+            "is_strict_independence_determination": False,
+            "limitations": ["common_ownership_not_resolved"],
+        },
+    }
+
+    migrated = VerificationResult.model_validate(payload)
+
+    verified = migrated.claims[0]
+    assert verified.state is ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
+    assert verified.historical_domain_proxy_corroboration_reclassified is True
+    assert verified.independent_lineage_count == 0
+    assert migrated.independence.method == "confirmed_source_lineage_v1"

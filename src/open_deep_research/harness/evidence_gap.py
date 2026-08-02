@@ -67,7 +67,8 @@ from open_deep_research.harness.verify import (
 
 _TARGET_STATES = {
     ClaimEvidenceState.NO_CANDIDATE_SOURCE,
-    ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+    ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
+    ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
     ClaimEvidenceState.CONFLICTING_EVIDENCE,
 }
 
@@ -265,6 +266,10 @@ class EvidenceGapInformationAudit(BaseModel):
     new_publisher_domain_proxies: tuple[str, ...] = ()
     new_claim_publisher_relation_count: int = Field(default=0, ge=0)
     claims_newly_corroborated: int = Field(default=0, ge=0)
+    claims_newly_supported_by_multiple_domain_proxies: int = Field(
+        default=0,
+        ge=0,
+    )
     claims_newly_conflicting: int = Field(default=0, ge=0)
 
 
@@ -304,12 +309,15 @@ class EvidenceGapResult(BaseModel):
     stop_detail: str
     claim_registry_unchanged: bool = True
     canonical_draft_unchanged: bool = True
-    independence_method: str = "model_screen_then_publisher_domain_proxy"
+    independence_method: str = (
+        "retrieval_model_screen_then_publisher_domain_proxy_deduplication"
+    )
     independence_is_strict: bool = False
     independence_limitations: tuple[str, ...] = (
         "model_screening_can_misidentify_common_ownership",
         "syndicated_or_republished_content_can_be_missed",
-        "final_counts_still_use_publisher_domain_proxy",
+        "retrieval screening does not establish final source independence",
+        "final corroboration requires separately confirmed source lineage",
     )
     query_planning_method: str = (
         "model_routes_with_code_derived_capacity_deferrals_and_bounded_salvage"
@@ -1765,6 +1773,13 @@ def _information_yield(
             is not ClaimEvidenceState.CORROBORATED
             for claim in final.claims
         ),
+        claims_newly_supported_by_multiple_domain_proxies=sum(
+            claim.state
+            is ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
+            and initial_states.get(claim.claim.claim_id)
+            is not ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
+            for claim in final.claims
+        ),
         claims_newly_conflicting=sum(
             claim.state is ClaimEvidenceState.CONFLICTING_EVIDENCE
             and initial_states.get(claim.claim.claim_id)
@@ -1967,7 +1982,10 @@ async def run_evidence_gap_round(
                 and result.state in _TARGET_STATES
                 and (
                     result.state
-                    is not ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+                    not in {
+                        ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
+                        ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
+                    }
                     or result.publisher_domain_proxy_count
                     < result.corroboration_target
                 )

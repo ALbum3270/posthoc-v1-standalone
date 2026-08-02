@@ -985,7 +985,7 @@ def test_single_publisher_target_one_does_not_enter_gap_round() -> None:
     assert gap_model.prompts == []
 
 
-def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
+def test_cached_unused_source_adds_multi_domain_support_without_corroborating():
     report = "# Report\n\nThe event occurred."
     claim = _claim(report)
     ledger = ResearchLedger(topic="A neutral topic")
@@ -1079,7 +1079,7 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
     assert result.searches == ()
     assert len(result.cached_candidate_hints) == 1
     assert result.final_verification.claims[0].state == (
-        ClaimEvidenceState.CORROBORATED
+        ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
     )
     assert result.final_verification.claims[0].publisher_domain_proxy_count == 2
     assert len(verifier.prompts) == 1
@@ -1093,7 +1093,12 @@ def test_cached_unused_source_is_checked_before_network_and_can_corroborate():
     assert result.verification_merge.completed_relation_count_non_decreasing is True
     assert result.information_yield.new_completed_relation_count == 1
     assert result.information_yield.new_completed_verdict_counts["supports"] == 1
-    assert result.information_yield.claims_newly_corroborated == 1
+    assert result.information_yield.claims_newly_corroborated == 0
+    assert (
+        result.information_yield
+        .claims_newly_supported_by_multiple_domain_proxies
+        == 1
+    )
     assert result.information_yield.claims_newly_conflicting == 0
     assert result.verification_reserve is not None
     assert result.verification_reserve.cached_hint_batch_count == 1

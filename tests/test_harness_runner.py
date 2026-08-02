@@ -1331,7 +1331,8 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     assert "〔单一发布方支持〕" not in markdown
     assert (
         "> 图例：带脚注且无额外状态标签 = "
-        "单一发布方提供了可定位支持引文"
+        "至少一个来源提供了可定位支持引文；"
+        "域名代理数量不表示来源独立"
     ) in markdown
     assert markdown.count("[^1]:") == 1
     assert "ExactSourceEvidence 2026" not in markdown
@@ -1428,7 +1429,7 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
         "state"
     ] == "cited_sources_do_not_support"
     assert posthoc["verification"]["claims"][0]["state"] == (
-        "supported_single_publisher"
+        "supported_single_domain_proxy"
     )
     assert posthoc["editorial_revision"]["committed_after_reaudit"] is True
     stages = posthoc["stage_execution"]["stages"]

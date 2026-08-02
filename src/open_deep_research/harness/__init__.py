@@ -217,6 +217,12 @@ from open_deep_research.harness.source_spans import (
     render_segmented_source,
     resolve_source_span,
 )
+from open_deep_research.harness.source_provenance import (
+    SourceLineageAssessment,
+    SourceLineageStatus,
+    SourceRole,
+    assessment_matches_source,
+)
 from open_deep_research.harness.render import (
     ClaimRenderAnnotation,
     EvidenceBundleValidation,
@@ -444,6 +450,9 @@ __all__ = [
     "SourceSpanCapacityError",
     "SourceSpanCapacityReason",
     "SourceSpanRegistry",
+    "SourceLineageAssessment",
+    "SourceLineageStatus",
+    "SourceRole",
     "SOURCE_SEGMENTATION_VERSION",
     "ReportDraft",
     "ReportSurfaceSpan",
@@ -496,6 +505,7 @@ __all__ = [
     "attribute_claims",
     "audit_domain_proxy_concentration",
     "audit_editorial_admission",
+    "assessment_matches_source",
     "build_attribution_prompt",
     "build_checklist_prompt",
     "build_claim_verification",

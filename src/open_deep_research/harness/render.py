@@ -8,7 +8,7 @@ import re
 from collections import defaultdict
 from collections.abc import Sequence
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 from open_deep_research.harness.claims import (
     CitationRequirement,
@@ -42,7 +42,7 @@ _SOURCE_REFERENCE_DEFINITION = re.compile(
 )
 _EVIDENCE_LEGEND_LINE = (
     "> 图例：带脚注且无额外状态标签 = "
-    "单一发布方提供了可定位支持引文"
+    "至少一个来源提供了可定位支持引文；域名代理数量不表示来源独立"
 )
 _FOOTNOTE_FORMAT_LINE = (
     "> 脚注格式：`域名代理` · 语义关系 · 逐字证据 · 原文。"
@@ -181,9 +181,27 @@ class EvidenceSummary(BaseModel):
 
     external_claims: int = Field(ge=0)
     claims_with_located_support: int = Field(ge=0)
-    single_publisher_support: int = Field(ge=0)
-    multi_publisher_support: int = Field(ge=0)
-    zero_publisher_support: int = Field(ge=0)
+    single_domain_proxy_support: int = Field(
+        ge=0,
+        validation_alias=AliasChoices(
+            "single_domain_proxy_support",
+            "single_publisher_support",
+        ),
+    )
+    multiple_domain_proxy_support: int = Field(
+        ge=0,
+        validation_alias=AliasChoices(
+            "multiple_domain_proxy_support",
+            "multi_publisher_support",
+        ),
+    )
+    zero_located_support: int = Field(
+        ge=0,
+        validation_alias=AliasChoices(
+            "zero_located_support",
+            "zero_publisher_support",
+        ),
+    )
     corroborated: int = Field(ge=0)
     conflicting: int = Field(ge=0)
     refuted: int = Field(ge=0)
@@ -221,22 +239,40 @@ class EvidenceSummary(BaseModel):
                 "unverified must equal its reader-facing component counts"
             )
         if (
-            self.single_publisher_support
-            + self.multi_publisher_support
-            + self.zero_publisher_support
+            self.single_domain_proxy_support
+            + self.multiple_domain_proxy_support
+            + self.zero_located_support
             != self.external_claims
         ):
             raise ValueError(
                 "publisher-support distribution must cover external claims"
             )
         if self.claims_with_located_support != (
-            self.single_publisher_support
-            + self.multi_publisher_support
+            self.single_domain_proxy_support
+            + self.multiple_domain_proxy_support
         ):
             raise ValueError(
                 "located-support total must match publisher-support counts"
             )
         return self
+
+    @property
+    def single_publisher_support(self) -> int:
+        """Read historical callers without re-emitting publisher semantics."""
+
+        return self.single_domain_proxy_support
+
+    @property
+    def multi_publisher_support(self) -> int:
+        """Read historical callers without re-emitting publisher semantics."""
+
+        return self.multiple_domain_proxy_support
+
+    @property
+    def zero_publisher_support(self) -> int:
+        """Read historical callers without re-emitting publisher semantics."""
+
+        return self.zero_located_support
 
 
 class RenderedReport(BaseModel):
@@ -560,8 +596,11 @@ def _unverified_reasons(verification: ClaimVerification) -> tuple[str, ...]:
 def _warning_label(verification: ClaimVerification) -> str:
     state = verification.state
     if state == ClaimEvidenceState.CORROBORATED:
-        return "〔多发布方交叉支持〕"
-    if state == ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER:
+        return "〔经来源谱系评估的交叉支持〕"
+    if state in {
+        ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
+        ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
+    }:
         return ""
     if state == ClaimEvidenceState.CONFLICTING_EVIDENCE:
         return "〔来源冲突〕"
@@ -626,26 +665,26 @@ def _summary(
         ClaimEvidenceState.NORMALIZATION_FAILED
     )
     attribution_error = count(ClaimEvidenceState.ATTRIBUTION_ERROR)
-    single_publisher_support = sum(
+    single_domain_proxy_support = sum(
         verification.publisher_domain_proxy_count == 1
         for verification in external
     )
-    multi_publisher_support = sum(
+    multiple_domain_proxy_support = sum(
         verification.publisher_domain_proxy_count >= 2
         for verification in external
     )
-    zero_publisher_support = sum(
+    zero_located_support = sum(
         verification.publisher_domain_proxy_count == 0
         for verification in external
     )
     return EvidenceSummary(
         external_claims=len(external),
         claims_with_located_support=(
-            single_publisher_support + multi_publisher_support
+            single_domain_proxy_support + multiple_domain_proxy_support
         ),
-        single_publisher_support=single_publisher_support,
-        multi_publisher_support=multi_publisher_support,
-        zero_publisher_support=zero_publisher_support,
+        single_domain_proxy_support=single_domain_proxy_support,
+        multiple_domain_proxy_support=multiple_domain_proxy_support,
+        zero_located_support=zero_located_support,
         corroborated=count(ClaimEvidenceState.CORROBORATED),
         conflicting=count(ClaimEvidenceState.CONFLICTING_EVIDENCE),
         refuted=count(ClaimEvidenceState.REFUTED),
@@ -786,9 +825,11 @@ def _summary_line(
         f"{claim_scope}外部可核验断言 {summary.external_claims}；"
         f"其中 {summary.claims_with_located_support} 条有至少一条"
         "可定位的支持引文；"
-        f"单一发布方支持 {summary.single_publisher_support}；"
-        f"多发布方交叉支持 {summary.multi_publisher_support}；"
-        f"零发布方支持 {summary.zero_publisher_support}；"
+        f"单一域名代理支持 {summary.single_domain_proxy_support}；"
+        "多个域名代理支持（不表示来源独立） "
+        f"{summary.multiple_domain_proxy_support}；"
+        f"经来源谱系评估的交叉支持 {summary.corroborated}；"
+        f"无可定位支持引文 {summary.zero_located_support}；"
         f"{conflict}；"
         f"所检来源反驳 {summary.refuted}；"
         f"所检来源未支持 {summary.inspected_not_supporting}；"
