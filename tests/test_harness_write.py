@@ -50,6 +50,20 @@ def test_write_report_passes_all_material_once_without_report_template() -> None
     assert "Do not add evidence, grounding, confidence" in model.prompts[0]
 
 
+def test_write_prompt_keeps_report_language_bound_to_the_research_topic() -> None:
+    assembled = "# Assembled research notes\n\nMostly English source material."
+    topic = "FTX 客户资金去了哪里？"
+    model = FakeWriteModel("# 报告\n\n正文。")
+
+    asyncio.run(write_report(assembled, model_client=model, topic=topic))
+
+    assert f"Research topic:\n{topic}" in model.prompts[0]
+    assert "same primary natural language as the research topic" in (
+        model.prompts[0]
+    )
+    assert "does not require covering" in model.prompts[0]
+
+
 def test_parse_report_citations_returns_exact_triples_and_reports_issues() -> None:
     markdown = """\
 # A model-chosen report

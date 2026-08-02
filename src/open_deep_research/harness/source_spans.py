@@ -10,7 +10,7 @@ from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SOURCE_SEGMENTATION_VERSION = "markdown-aware-source-segments-v2"
+SOURCE_SEGMENTATION_VERSION = "markdown-aware-source-segments-v3"
 
 # End a sentence only where terminal punctuation is followed by whitespace or
 # the end of its Markdown paragraph. Quotation marks and closing brackets stay
@@ -22,6 +22,12 @@ _SETEXT_HEADING = re.compile(r"^[ ]{0,3}(?:=+|-+)[ \t]*$")
 _LIST_ITEM = re.compile(r"^[ \t]{0,3}(?:[-+*]|\d+[.)])[ \t]+")
 _FENCE = re.compile(r"^[ ]{0,3}(?P<marks>`{3,}|~{3,})")
 _TABLE_DELIMITER_CELL = re.compile(r"^:?-{3,}:?$")
+_SINGLE_INITIAL_BEFORE_BOUNDARY = re.compile(
+    r"(?:^|[\s(\[{\"'“‘])(?P<initial>[A-Z])$"
+)
+_CAPITALIZED_TOKEN_AFTER_BOUNDARY = re.compile(
+    r"\s+[A-Z](?:[A-Za-z'’\-]*|\.)(?=\s|$)"
+)
 
 
 class SourceSegmentKind(str, Enum):
@@ -116,6 +122,18 @@ def _natural_language_segment_bounds(
     relative_start = 0
     block_text = source_text[block.start_char : block.end_char]
     for match in _SENTENCE_END.finditer(block_text):
+        # A single-letter personal-name initial is not a sentence boundary:
+        # ``John J. Ray`` and ``J. R. R. Tolkien`` must remain selectable as
+        # one span. This is a structural punctuation rule, not a name list.
+        if (
+            _SINGLE_INITIAL_BEFORE_BOUNDARY.search(
+                block_text[: match.start()]
+            )
+            and _CAPITALIZED_TOKEN_AFTER_BOUNDARY.match(
+                block_text[match.end() :]
+            )
+        ):
+            continue
         relative_end = match.end()
         trimmed = _trimmed_bounds(
             source_text,

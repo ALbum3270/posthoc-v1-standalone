@@ -71,6 +71,14 @@ Write the best possible canonical Markdown narrative draft from all of the
 assembled research material below. You alone decide the draft's content,
 structure, length, and headings.
 
+Research topic:
+{topic}
+
+Write the report in the same primary natural language as the research topic.
+Proper nouns, document titles, and other source-specific terms may remain in
+their original language. This language requirement does not require covering
+an item for which the assembled material contains no evidence.
+
 This is the drafting stage of a post-hoc attribution pipeline. Return narrative
 body text only:
 - Do not add footnotes, citations, reference markers, source lists, or URLs.
@@ -93,22 +101,38 @@ _REFERENCE_MARKER = re.compile(r"\[\^([A-Za-z0-9_-]+)\]")
 _LIST_PREFIX = re.compile(r"^\s*(?:[-+*]|\d+[.)])\s+")
 
 
-def build_write_prompt(assembled_notes: str) -> str:
+def build_write_prompt(
+    assembled_notes: str,
+    *,
+    topic: str | None = None,
+) -> str:
     """Build the one-pass writing prompt without imposing a report template."""
 
     if not isinstance(assembled_notes, str):
         raise TypeError("assembled_notes must be text")
-    return WRITE_PROMPT.format(assembled_notes=assembled_notes)
+    normalized_topic = topic.strip() if isinstance(topic, str) else ""
+    if not normalized_topic:
+        # Historical/direct callers already embed the topic in assembled
+        # notes. Keep that interface compatible, while the runner supplies an
+        # explicit topic so the language contract is not buried in evidence.
+        normalized_topic = "(use the Topic field in the assembled material)"
+    return WRITE_PROMPT.format(
+        topic=normalized_topic,
+        assembled_notes=assembled_notes,
+    )
 
 
 async def write_report(
     assembled_notes: str,
     *,
     model_client: WriteModelClient,
+    topic: str | None = None,
 ) -> ReportDraft:
     """Ask one model call to turn the complete assembled material into a report."""
 
-    response = model_client.generate(build_write_prompt(assembled_notes))
+    response = model_client.generate(
+        build_write_prompt(assembled_notes, topic=topic)
+    )
     if inspect.isawaitable(response):
         response = await response
     try:

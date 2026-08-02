@@ -914,6 +914,7 @@ async def run_harness(
     report = await write_report(
         assembled,
         model_client=budgeted_write_model,
+        topic=topic,
     )
 
     # From this point onward a canonical draft exists. A controlled cost cutoff

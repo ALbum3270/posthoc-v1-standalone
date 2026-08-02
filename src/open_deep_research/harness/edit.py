@@ -63,6 +63,7 @@ class EditorialSettings(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     block_batch_size: int = Field(default=6, ge=1, le=20)
+    block_correction_attempts: int = Field(default=1, ge=0, le=1)
 
 
 class EditorialDecision(BaseModel):
@@ -633,6 +634,25 @@ def build_editorial_prompt(
     )
 
 
+def _build_editorial_correction_prompt(
+    blocks: Sequence[MarkdownBlock],
+    *,
+    verification: VerificationResult,
+    diagnostics: Sequence[str],
+) -> str:
+    """Request one complete replacement for only rejected blocks."""
+
+    return (
+        build_editorial_prompt(blocks, verification=verification)
+        + "\n\nMECHANICAL BLOCK VALIDATION REJECTED THE PRIOR RESPONSE. "
+        "This is the only correction attempt. Return complete replacements "
+        "for exactly the blocks shown above, not a patch. If a decision is "
+        "remove or qualify, replacement_text must differ byte-for-byte from "
+        "original_text. Validation feedback:\n"
+        + json.dumps(tuple(diagnostics), ensure_ascii=False, sort_keys=True)
+    )
+
+
 async def _call_model(
     client: EditorialModelClient,
     prompt: str,
@@ -855,6 +875,81 @@ async def revise_audited_draft(
                 outcome=("completed" if not batch_diagnostics else "partial"),
                 token_count=tokens,
                 cost_usd=cost,
+            )
+        )
+        accepted_block_ids = {edit.block_id for edit in batch_edits}
+        correction_blocks = tuple(
+            block for block in batch if block.block_id not in accepted_block_ids
+        )
+        if (
+            not correction_blocks
+            or not batch_diagnostics
+            or active_settings.block_correction_attempts == 0
+        ):
+            continue
+
+        correction_prompt = _build_editorial_correction_prompt(
+            correction_blocks,
+            verification=verification,
+            diagnostics=batch_diagnostics,
+        )
+        (
+            correction_content,
+            correction_tokens,
+            correction_cost,
+            correction_error,
+        ) = await _call_model(model_client, correction_prompt)
+        correction_number = len(usage) + 1
+        correction_ids = tuple(block.block_id for block in correction_blocks)
+        if correction_error is not None:
+            diagnostics.append(
+                f"editorial_correction_failed[{correction_number}]: "
+                f"{correction_error}"
+            )
+            usage.append(
+                EditorialCallUsage(
+                    batch_number=correction_number,
+                    block_ids=correction_ids,
+                    outcome="correction_failed",
+                    token_count=correction_tokens,
+                    cost_usd=correction_cost,
+                )
+            )
+            continue
+
+        correction_block_map = {
+            block.block_id: block for block in correction_blocks
+        }
+        correction_targets = {
+            block_id: targets[block_id] for block_id in correction_ids
+        }
+        corrected_edits, correction_diagnostics = _parse_batch(
+            correction_content,
+            blocks=correction_block_map,
+            targets=correction_targets,
+        )
+        edits.extend(corrected_edits)
+        corrected_ids = {edit.block_id for edit in corrected_edits}
+        diagnostics.extend(
+            f"correction[{correction_number}]: {message}"
+            for message in correction_diagnostics
+        )
+        diagnostics.extend(
+            f"editorial_block_recovered: {block_id}"
+            for block_id in correction_ids
+            if block_id in corrected_ids
+        )
+        usage.append(
+            EditorialCallUsage(
+                batch_number=correction_number,
+                block_ids=correction_ids,
+                outcome=(
+                    "correction_completed"
+                    if len(corrected_ids) == len(correction_ids)
+                    else "correction_partial"
+                ),
+                token_count=correction_tokens,
+                cost_usd=correction_cost,
             )
         )
 

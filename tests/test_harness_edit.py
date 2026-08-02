@@ -148,6 +148,94 @@ class ScriptedEditor:
         }
 
 
+class SequencedEditor:
+    def __init__(self, *contents):
+        self.contents = list(contents)
+        self.prompts = []
+
+    async def generate(self, prompt):
+        self.prompts.append(prompt)
+        return {
+            "content": json.dumps(self.contents.pop(0)),
+            "token_count": 17,
+            "cost_usd": 0.02,
+        }
+
+
+def test_noop_remove_gets_one_block_local_correction_attempt():
+    """Regression for finance-13/16's claimed edit with unchanged bytes."""
+
+    draft = "# Report\n\nA precise but unsupported amount was recovered."
+    block = parse_markdown_blocks(draft)[1]
+    claim = _claim(
+        "claim-0040", block, block.text, block.start_char, block.end_char
+    )
+    verification = VerificationResult(
+        claims=(
+            _verification(
+                claim,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (_relation(claim.claim_id, VerificationVerdict.DOES_NOT_SUPPORT),),
+            ),
+        )
+    )
+    first_noop = {
+        "blocks": [
+            {
+                "block_id": block.block_id,
+                "replacement_text": block.text,
+                "decisions": [
+                    {
+                        "claim_id": claim.claim_id,
+                        "action": "remove",
+                        "reason": "The inspected source did not support it.",
+                    }
+                ],
+            }
+        ]
+    }
+    corrected = {
+        "blocks": [
+            {
+                "block_id": block.block_id,
+                "replacement_text": "",
+                "decisions": [
+                    {
+                        "claim_id": claim.claim_id,
+                        "action": "remove",
+                        "reason": "The inspected source did not support it.",
+                    }
+                ],
+            }
+        ]
+    }
+    model = SequencedEditor(first_noop, corrected)
+
+    result = asyncio.run(
+        revise_audited_draft(
+            draft,
+            blocks=parse_markdown_blocks(draft),
+            verification=verification,
+            model_client=model,
+        )
+    )
+
+    assert len(model.prompts) == 2
+    assert "MECHANICAL BLOCK VALIDATION REJECTED" in model.prompts[1]
+    assert result.status is EditorialRevisionStatus.COMPLETE
+    assert result.evaluated_claim_ids == (claim.claim_id,)
+    assert result.edited_draft == "# Report\n\n"
+    assert result.changes_applied is True
+    assert [record.outcome for record in result.usage] == [
+        "partial",
+        "correction_completed",
+    ]
+    assert any(
+        diagnostic == f"editorial_block_recovered: {block.block_id}"
+        for diagnostic in result.diagnostics
+    )
+
+
 def test_finance_shape_is_edited_by_block_and_keeps_the_original_audit():
     """Reproduce finance-08's real shape: two claims share one long anchor.
 
