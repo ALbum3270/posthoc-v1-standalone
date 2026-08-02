@@ -1404,7 +1404,7 @@ def test_grouped_read_rejects_only_claim_with_existing_publisher():
     )
 
 
-def test_finance_14_read_prerequisite_is_not_starved_by_tail_reserve():
+def test_read_selection_is_not_reserved_against_unknown_source_length():
     report = "# Report\n\nThe event occurred."
     claim = _claim(report)
     ledger = ResearchLedger(topic="A neutral topic")
@@ -1463,10 +1463,15 @@ def test_finance_14_read_prerequisite_is_not_starved_by_tail_reserve():
     )
 
     assert result.verification_reserve is not None
-    assert result.verification_reserve.estimated_tokens == 6
-    assert result.verification_reserve.prerequisite_stage == "read_selection"
-    assert result.verification_reserve.prerequisite_estimated_tokens == 5
-    assert result.verification_reserve.reserved_tokens == 5
+    # Before a selected URL has been read, source length is unknown.  An
+    # unrelated cached page must not become a synthetic future-source reserve.
+    pre_read_reserve = result.verification_reserve_history[0]
+    assert pre_read_reserve.estimated_tokens == 0
+    assert pre_read_reserve.prerequisite_stage == "read_selection"
+    assert pre_read_reserve.prerequisite_estimated_tokens == 5
+    assert pre_read_reserve.reserved_tokens == 0
+    assert result.verification_reserve.estimated_tokens == 0
+    assert result.verification_reserve.admitted_read_source_urls == ()
     assert result.stop_reason == EvidenceGapStopReason.COMPLETED
     assert network.search_calls == 1
     assert network.extract_calls == 0
@@ -1476,6 +1481,189 @@ def test_finance_14_read_prerequisite_is_not_starved_by_tail_reserve():
     ]
     assert not any(
         entry.get("stage") == "read_selection"
+        and "preserving the verification reserve" in entry.get("error", "")
+        for entry in result.rejected_entries
+    )
+
+
+def test_large_selected_source_releases_reserve_so_later_small_source_can_finish():
+    """Finance-18 shape: an oversized read cannot starve a later real source."""
+
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    # This cache entry has no candidate relation.  The legacy implementation
+    # used it as the synthetic maximum for every future web result.
+    ledger.cache_source("https://unrelated.example/large", "x" * 20_000)
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    large_url = "https://large.example/report"
+    small_url = "https://small.example/report"
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "independent account",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": large_url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "large",
+                    "independence_rationale": "different publisher",
+                },
+                {
+                    "url": small_url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "small",
+                    "independence_rationale": "different publisher",
+                },
+            ]
+        },
+    )
+
+    class TwoReadNetwork:
+        async def search(self, query, **kwargs):
+            return {
+                "results": [
+                    {"title": "Large", "url": large_url, "content": "a"},
+                    {"title": "Small", "url": small_url, "content": "b"},
+                ]
+            }
+
+        async def extract(self, urls, **kwargs):
+            return {
+                "results": [
+                    {
+                        "url": url,
+                        "raw_content": (
+                            "large source " * 2_000
+                            if url == large_url
+                            else "The event occurred."
+                        ),
+                    }
+                    for url in urls
+                ]
+            }
+
+    note_model = ScriptedModel(
+        {
+            "notes": [
+                {
+                    "item_id": "what-1",
+                    "finding": "The event occurred.",
+                    "quote": "The event occurred.",
+                }
+            ]
+        }
+    )
+
+    class AttributeNewNote:
+        async def generate(self, prompt):
+            note = ledger.notes[-1]
+            return {
+                "content": {
+                    "action": "attribute",
+                    "claims": [
+                        {
+                            "claim_id": claim.claim_id,
+                            "candidates": [
+                                {
+                                    "note_ref": _note_reference(note),
+                                    "inherited_from_claim_id": None,
+                                }
+                            ],
+                        }
+                    ],
+                },
+                "token_count": 5,
+                "cost_usd": 0.005,
+            }
+
+    verifier = ScriptedModel(
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "the source states the event",
+                }
+            ]
+        }
+    )
+
+    def dynamic_estimate(client, prompt):
+        if client is verifier:
+            return 30 if large_url in prompt else 5
+        if client is note_model:
+            return 35 if large_url in prompt else 3
+        return 1
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=note_model,
+            attribution_model=AttributeNewNote(),
+            verification_model=verifier,
+            tavily_client=TwoReadNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=40,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=2,
+            ),
+            estimate_input_tokens=dynamic_estimate,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.BUDGET_EXHAUSTED
+    assert [entry.outcome for entry in result.acquisitions] == [
+        "note_extraction_not_run_budget_after_actual_read",
+        "notes_created",
+    ]
+    assert large_url not in note_model.prompts[0]
+    assert small_url in note_model.prompts[0]
+    assert result.information_yield.new_completed_relation_count == 1
+    assert result.final_verification.claims[0].state is (
+        ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+    )
+    assert result.verification_reserve is not None
+    assert result.verification_reserve.admitted_read_source_urls == (small_url,)
+    assert all(
+        large_url not in reserve.admitted_read_source_urls
+        for reserve in result.verification_reserve_history[2:]
+    )
+    large_acquisition = result.acquisitions[0]
+    assert large_acquisition.source_chars > 20_000
+    assert any(
+        entry.get("stage") == "note_extraction"
+        and entry.get("url") == large_url
+        # The read helper normalizes trailing whitespace.  Audit the length
+        # of that canonical cached text, not the pre-cleaning fixture input.
+        and entry.get("source_chars") == large_acquisition.source_chars
+        and "actual source could not be admitted" in entry.get("error", "")
         and "preserving the verification reserve" in entry.get("error", "")
         for entry in result.rejected_entries
     )

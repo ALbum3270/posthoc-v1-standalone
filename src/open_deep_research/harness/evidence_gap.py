@@ -220,17 +220,22 @@ class VerificationMergeAudit(BaseModel):
 
 
 class VerificationReserveAudit(BaseModel):
-    """Pre-read admission reserve for later full-source verification."""
+    """Admission reserve for downstream verification of known source groups.
+
+    A web result has no reliable source length until it has been read.  This
+    audit consequently records only cached candidates and sources whose exact
+    text was already read in the current pass; it never extrapolates from the
+    largest unrelated cache entry.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    method: str = (
-        "planned_claim_groups_against_largest_cached_source_after_"
-        "prerequisite_allowance"
-    )
+    method: str = "actual_cached_and_read_source_groups_after_prerequisite_allowance"
     reference_source_url: str | None = None
     reference_source_chars: int = Field(default=0, ge=0)
     cached_hint_batch_count: int = Field(default=0, ge=0)
+    admitted_read_source_batch_count: int = Field(default=0, ge=0)
+    admitted_read_source_urls: tuple[str, ...] = ()
     web_read_slots: int = Field(default=0, ge=0)
     planned_query_count: int = Field(default=0, ge=0)
     planned_query_claim_count: int = Field(default=0, ge=0)
@@ -242,8 +247,8 @@ class VerificationReserveAudit(BaseModel):
     reserved_tokens: int = Field(default=0, ge=0)
     reserved_cost_usd: float = Field(default=0.0, ge=0.0)
     limitations: tuple[str, ...] = (
-        "future source length is unknown before network reads",
-        "web reserve uses the largest source already present in cache",
+        "future source length is unknown until its free network read completes",
+        "a source rejected before note extraction creates no verification reserve",
         "later reattribution can create relations outside planned query groups",
         "admission estimates do not predict model output tokens exactly",
     )
@@ -285,6 +290,7 @@ class EvidenceGapResult(BaseModel):
     added_source_urls: tuple[str, ...] = ()
     added_note_ids: tuple[str, ...] = ()
     verification_reserve: VerificationReserveAudit | None = None
+    verification_reserve_history: tuple[VerificationReserveAudit, ...] = ()
     planning_attempt_count: int = Field(default=0, ge=0)
     selected_planning_attempt: int | None = Field(default=None, ge=1)
     planning_contract_complete: bool = False
@@ -410,6 +416,12 @@ class EvidenceGapResult(BaseModel):
             if self.planning_degraded == self.planning_contract_complete:
                 raise ValueError(
                     "a selected plan must be exactly complete or degraded"
+                )
+        if self.verification_reserve_history:
+            if self.verification_reserve != self.verification_reserve_history[-1]:
+                raise ValueError(
+                    "current verification reserve must equal the final "
+                    "recorded reserve snapshot"
                 )
         return self
 
@@ -985,8 +997,18 @@ def _reserve_verification_budget(
     prerequisite_stage: str | None = None,
     prerequisite_estimated_tokens: int = 0,
     prerequisite_estimated_cost_usd: float = 0.0,
+    admitted_read_source_claims: (
+        Mapping[str, Sequence[AtomicClaim]] | None
+    ) = None,
 ) -> VerificationReserveAudit:
-    """Reserve a pre-read estimate without starving the next required call."""
+    """Reserve only verification work whose exact source text is known.
+
+    Cache hints are already grounded in a concrete source.  A newly read URL
+    joins the reserve only immediately before its note extraction and stays
+    only after it produces at least one note.  This releases the tail reserve
+    for a zero-note or too-large source before the next selected URL is
+    considered, rather than using an unrelated cache maximum as a proxy.
+    """
 
     claim_by_id = {target.claim.claim_id: target.claim for target in targets}
     note_by_id = {str(note.note_id): note for note in notes}
@@ -997,14 +1019,27 @@ def _reserve_verification_budget(
             claim_by_id[hint.claim_id]
         )
 
+    admitted_claims_by_url: dict[str, dict[str, AtomicClaim]] = {}
+    for url, claims in (admitted_read_source_claims or {}).items():
+        for claim in claims:
+            admitted_claims_by_url.setdefault(url, {})[claim.claim_id] = claim
+
+    claim_groups_by_url: dict[str, dict[str, AtomicClaim]] = {
+        url: dict(claims_by_id)
+        for url, claims_by_id in hint_claims_by_url.items()
+    }
+    for url, claims_by_id in admitted_claims_by_url.items():
+        claim_groups_by_url.setdefault(url, {}).update(claims_by_id)
+
     cached_batch_count = 0
     estimated_tokens = 0
     estimated_cost = 0.0
-    for url in sorted(hint_claims_by_url):
+    admitted_read_source_batch_count = 0
+    for url in sorted(claim_groups_by_url):
         source_text = source_cache.get(url)
         if source_text is None:
             continue
-        claims = tuple(hint_claims_by_url[url].values())
+        claims = tuple(claim_groups_by_url[url].values())
         batches, tokens, cost = _estimate_verification_group(
             claims=claims,
             url=url,
@@ -1013,37 +1048,12 @@ def _reserve_verification_budget(
             tracker=tracker,
             verification_model=verification_model,
         )
-        cached_batch_count += batches
+        if url in hint_claims_by_url:
+            cached_batch_count += batches
+        if url in admitted_claims_by_url:
+            admitted_read_source_batch_count += batches
         estimated_tokens += tokens
         estimated_cost += cost
-
-    reference_url: str | None = None
-    reference_text = ""
-    if source_cache:
-        reference_url, reference_text = max(
-            sorted(source_cache.items()),
-            key=lambda item: len(item[1]),
-        )
-
-    web_read_slots = max_reads if queries else 0
-    if reference_url is not None and web_read_slots:
-        per_query_estimates: list[tuple[int, float]] = []
-        for query in queries:
-            claims = tuple(claim_by_id[claim_id] for claim_id in query.claim_ids)
-            _, tokens, cost = _estimate_verification_group(
-                claims=claims,
-                url=reference_url,
-                source_text=reference_text,
-                batch_size=verification_settings.batch_size,
-                tracker=tracker,
-                verification_model=verification_model,
-            )
-            per_query_estimates.append((tokens, cost))
-        if per_query_estimates:
-            largest_tokens = max(tokens for tokens, _ in per_query_estimates)
-            largest_cost = max(cost for _, cost in per_query_estimates)
-            estimated_tokens += largest_tokens * web_read_slots
-            estimated_cost += largest_cost * web_read_slots
 
     reserved_tokens, reserved_cost = tracker.reserve_verification(
         tokens=estimated_tokens,
@@ -1052,10 +1062,12 @@ def _reserve_verification_budget(
         prerequisite_cost_usd=prerequisite_estimated_cost_usd,
     )
     return VerificationReserveAudit(
-        reference_source_url=reference_url,
-        reference_source_chars=len(reference_text),
+        reference_source_url=None,
+        reference_source_chars=0,
         cached_hint_batch_count=cached_batch_count,
-        web_read_slots=web_read_slots,
+        admitted_read_source_batch_count=admitted_read_source_batch_count,
+        admitted_read_source_urls=tuple(sorted(admitted_claims_by_url)),
+        web_read_slots=0,
         planned_query_count=len(queries),
         planned_query_claim_count=len(
             {
@@ -2010,6 +2022,7 @@ async def run_evidence_gap_round(
     hints: tuple[CachedCandidateHint, ...] = ()
     deferred_targets: tuple[DeferredGapTarget, ...] = ()
     verification_reserve: VerificationReserveAudit | None = None
+    verification_reserve_history: list[VerificationReserveAudit] = []
     plan_attempt_count = 0
     selected_planning_attempt: int | None = None
     plan_contract_complete = False
@@ -2239,6 +2252,7 @@ async def run_evidence_gap_round(
             prerequisite_estimated_tokens=prerequisite_tokens,
             prerequisite_estimated_cost_usd=prerequisite_cost,
         )
+        verification_reserve_history.append(verification_reserve)
         ledger.record_evidence_gap(
             event=ledger_event("cache_review"),
             result_summary=json.dumps(
@@ -2306,6 +2320,12 @@ async def run_evidence_gap_round(
         target_claim_by_id = {
             target.claim.claim_id: target.claim for target in targets
         }
+        # Only sources that actually produced notes remain in this mapping.
+        # Before each note call, the current newly read source is added
+        # provisionally so its own downstream verification can be protected.
+        # A zero-note, model-error, or budget-rejected source is omitted on
+        # the next iteration and therefore cannot keep starving smaller URLs.
+        admitted_read_source_claims: dict[str, tuple[AtomicClaim, ...]] = {}
         for selection in selections:
             existing = ledger.get_source(selection.url)
             cache_hit = existing is not None
@@ -2374,16 +2394,42 @@ async def run_evidence_gap_round(
                 )
                 continue
 
+            selection_claims = tuple(
+                target_claim_by_id[claim_id]
+                for claim_id in selection.claim_ids
+            )
+            prospective_sources = dict(admitted_read_source_claims)
+            existing_group = {
+                claim.claim_id: claim
+                for claim in prospective_sources.get(selection.url, ())
+            }
+            existing_group.update(
+                {claim.claim_id: claim for claim in selection_claims}
+            )
+            prospective_sources[selection.url] = tuple(
+                existing_group.values()
+            )
+            verification_reserve = _reserve_verification_budget(
+                tracker=tracker,
+                queries=queries,
+                hints=hints,
+                targets=targets,
+                notes=ledger.notes,
+                source_cache=ledger.source_cache,
+                max_reads=budget.max_reads,
+                verification_model=verification_model,
+                verification_settings=active_verification_settings,
+                admitted_read_source_claims=prospective_sources,
+            )
+            verification_reserve_history.append(verification_reserve)
+
             try:
                 note_response = await tracker.call(
                     note_model,
                     build_evidence_gap_note_prompt(
                         url=selection.url,
                         source_text=source_text,
-                        claims=[
-                            target_claim_by_id[claim_id]
-                            for claim_id in selection.claim_ids
-                        ],
+                        claims=selection_claims,
                         checklist=checklist,
                     ),
                     stage="note_extraction",
@@ -2392,6 +2438,10 @@ async def run_evidence_gap_round(
             except _GapBudgetExhausted as exc:
                 stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
                 stop_detail = str(exc)
+                actual_read_error = (
+                    "actual source could not be admitted for note extraction; "
+                    f"source_chars={len(source_text)}; {exc}"
+                )
                 acquisitions.append(
                     GapSourceAcquisition(
                         url=selection.url,
@@ -2399,18 +2449,25 @@ async def run_evidence_gap_round(
                         publisher_identity=selection.publisher_identity,
                         cache_hit=cache_hit,
                         source_chars=len(source_text),
-                        outcome="note_extraction_not_run_budget",
-                        error=str(exc),
+                        outcome=(
+                            "note_extraction_not_run_budget_after_actual_read"
+                        ),
+                        error=actual_read_error,
                     )
                 )
                 rejected.append(
                     {
                         "stage": "note_extraction",
                         "url": selection.url,
-                        "error": str(exc),
+                        "source_chars": len(source_text),
+                        "error": actual_read_error,
                     }
                 )
-                break
+                # This source has no admitted note work, so its provisional
+                # verification reserve is intentionally released before the
+                # next selected URL.  Do not let one large page turn a
+                # bounded pass into a silent all-or-nothing stop.
+                continue
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
                 acquisitions.append(
@@ -2486,6 +2543,10 @@ async def run_evidence_gap_round(
                     outcome="notes_created" if created_ids else "zero_notes",
                 )
             )
+            if created_ids:
+                admitted_read_source_claims[selection.url] = tuple(
+                    prospective_sources[selection.url]
+                )
             ledger.record_evidence_gap(
                 event=ledger_event("source_acquired"),
                 url=selection.url,
@@ -2501,6 +2562,22 @@ async def run_evidence_gap_round(
                     sort_keys=True,
                 ),
             )
+
+        # Release any reserve held for a final failed/zero-note candidate and
+        # retain only sources that actually created note input for the tail.
+        verification_reserve = _reserve_verification_budget(
+            tracker=tracker,
+            queries=queries,
+            hints=hints,
+            targets=targets,
+            notes=ledger.notes,
+            source_cache=ledger.source_cache,
+            max_reads=budget.max_reads,
+            verification_model=verification_model,
+            verification_settings=active_verification_settings,
+            admitted_read_source_claims=admitted_read_source_claims,
+        )
+        verification_reserve_history.append(verification_reserve)
 
         target_claims = [target.claim for target in targets]
         if added_note_ids:
@@ -2727,6 +2804,7 @@ async def run_evidence_gap_round(
         added_source_urls=tuple(added_source_urls),
         added_note_ids=tuple(added_note_ids),
         verification_reserve=verification_reserve,
+        verification_reserve_history=tuple(verification_reserve_history),
         information_yield=information_yield,
         usage=tuple(tracker.usage),
         stop_reason=stop_reason,
