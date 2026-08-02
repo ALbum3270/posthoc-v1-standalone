@@ -972,9 +972,56 @@ def _locate_context_spans(
     report: str,
     proposals: Sequence[ContextSpanProposal],
     blocks: Sequence[MarkdownBlock],
+    *,
+    target_block: MarkdownBlock,
 ) -> tuple[tuple[ContextSpan, ...], str | None]:
     spans: list[ContextSpan] = []
+    target_text = report[target_block.start_char : target_block.end_char]
     for proposal in proposals:
+        # The selection stage already binds this claim to one Markdown block.
+        # Prefer that mechanical boundary before asking whether a short name or
+        # date is unique across the whole report.  This prevents a repeated
+        # entity in another section from making local pronoun resolution
+        # impossible, without guessing when the same text is repeated inside
+        # the actual claim block.
+        local_occurrences = _unique_occurrences(target_text, proposal.text)
+        if len(local_occurrences) > 1:
+            return (), "context_span_not_unique"
+        if local_occurrences:
+            start = target_block.start_char + local_occurrences[0]
+            end = start + len(proposal.text)
+            source_text = proposal.text
+            spans.append(
+                ContextSpan(text=source_text, start_char=start, end_char=end)
+            )
+            continue
+
+        local_repaired = locate_verification_quote(target_text, proposal.text)
+        if (
+            local_repaired.location_status
+            == NoteLocationStatus.REPAIRED_LOCATABLE
+            and local_repaired.span is not None
+            and local_repaired.source_quote is not None
+        ):
+            start = target_block.start_char + local_repaired.span.start_char
+            end = target_block.start_char + local_repaired.span.end_char
+            spans.append(
+                ContextSpan(
+                    text=local_repaired.source_quote,
+                    start_char=start,
+                    end_char=end,
+                )
+            )
+            continue
+        if (
+            local_repaired.failure_reason
+            == QuoteFailureReason.AMBIGUOUS_FORMAT_MATCH
+        ):
+            return (), "context_span_not_unique"
+
+        # A decontextualization may legitimately use the preceding narrative
+        # unit. Preserve the old whole-report path only when the target block
+        # contains no exact or conservatively repaired match.
         occurrences = _unique_occurrences(report, proposal.text)
         if len(occurrences) > 1:
             return (), "context_span_not_unique"
@@ -1079,6 +1126,7 @@ async def decompose_claims(
 
     active_settings = settings or ClaimDecompositionSettings()
     blocks = parse_markdown_blocks(report)
+    block_by_id = {block.block_id: block for block in blocks}
     report_span_registry = build_source_span_registry(report)
     diagnostics: list[str] = []
     batch_records: list[ClaimBatchRecord] = []
@@ -1253,6 +1301,7 @@ async def decompose_claims(
                 report,
                 decontext.context_spans,
                 blocks,
+                target_block=block_by_id[str(claim["block_id"])],
             )
             if context_error is not None:
                 diagnostics.append(f"{context_error}: {claim_id}")
@@ -1394,7 +1443,6 @@ async def decompose_claims(
 
     extraction_usage = _sum_usage(extraction_usages)
 
-    block_by_id = {block.block_id: block for block in blocks}
     claims: list[AtomicClaim] = []
     for seed in seed_claims:
         claim_id = str(seed["claim_id"])

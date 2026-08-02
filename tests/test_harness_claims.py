@@ -824,6 +824,163 @@ def test_context_span_uses_conservative_repair_within_one_markdown_unit() -> Non
     assert "**" in claim.context_spans[0].text
 
 
+def test_context_span_is_scoped_to_claim_block_before_global_uniqueness() -> None:
+    """Regression for finance-17's repeated names in separate report blocks."""
+
+    report = (
+        "Sam Bankman-Fried founded the company.\n\n"
+        "- **Sam Bankman-Fried**：创始人。他后来辞去CEO职务。"
+    )
+    blocks = parse_markdown_blocks(report)
+    target = blocks[1]
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "context only",
+                    "assertions": [],
+                },
+                {
+                    "block_id": target.block_id,
+                    "rationale": "one contextual assertion",
+                    "assertions": [
+                        {
+                            "selected_text": "他后来辞去CEO职务。",
+                            "citation_requirement": "external",
+                        }
+                    ],
+                },
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "Sam Bankman-Fried后来辞去CEO职务。",
+                    "context_spans": ["Sam Bankman-Fried"],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    **_pointer(report, target.text),
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert report.count("Sam Bankman-Fried") == 2
+    assert target.text.count("Sam Bankman-Fried") == 1
+    assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
+    assert claim.context_spans[0].start_char == target.start_char + 4
+    assert report[
+        claim.context_spans[0].start_char : claim.context_spans[0].end_char
+    ] == "Sam Bankman-Fried"
+
+
+def test_context_span_repeated_inside_claim_block_remains_ambiguous() -> None:
+    report = "Sam acted. Sam stopped."
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "one contextual assertion",
+                    "assertions": [
+                        {
+                            "selected_text": "He stopped.",
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "Sam stopped.",
+                    "context_spans": ["Sam"],
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status is (
+        ClaimNormalizationStatus.NORMALIZATION_FAILED
+    )
+    assert claim.normalization_failure == "context_span_not_unique"
+    assert len(model.prompts) == 2
+
+
+def test_markdown_date_context_repairs_inside_its_own_list_item() -> None:
+    """Regression for finance-17's repeated bold timeline dates."""
+
+    report = (
+        "- **11月11日**：FTX申请破产保护。\n"
+        "- **11月11日**：John J. Ray III接任CEO。"
+    )
+    blocks = parse_markdown_blocks(report)
+    target = blocks[1]
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "context only",
+                    "assertions": [],
+                },
+                {
+                    "block_id": target.block_id,
+                    "rationale": "one timeline assertion",
+                    "assertions": [
+                        {
+                            "selected_text": "11月11日：John J. Ray III接任CEO。",
+                            "citation_requirement": "external",
+                        }
+                    ],
+                },
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "John J. Ray III于11月11日接任CEO。",
+                    "context_spans": ["11月11日："],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    **_pointer(report, target.text),
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
+    assert claim.context_span_proposals[0].text == "11月11日："
+    assert claim.context_spans[0].text == "11月11日"
+    assert target.start_char <= claim.context_spans[0].start_char
+    assert claim.context_spans[0].end_char <= target.end_char
+
+
 def test_context_repair_cannot_cross_markdown_units() -> None:
     report = "# Context\n\nA group acted.\n\nIt stopped."
     blocks = parse_markdown_blocks(report)
