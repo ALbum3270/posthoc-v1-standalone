@@ -2,6 +2,9 @@ import asyncio
 import hashlib
 import json
 
+import pytest
+from pydantic import ValidationError
+
 from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
@@ -12,6 +15,10 @@ from open_deep_research.harness.claims import (
 )
 from open_deep_research.harness.edit import (
     EditorialAction,
+    EditorialDecision,
+    EditorialPreservationContext,
+    EditorialPreservationImpact,
+    EditorialResearchQuestion,
     EditorialRevisionStatus,
     audit_editorial_admission,
     revise_audited_draft,
@@ -234,6 +241,91 @@ def test_noop_remove_gets_one_block_local_correction_attempt():
         diagnostic == f"editorial_block_recovered: {block.block_id}"
         for diagnostic in result.diagnostics
     )
+
+
+def test_editor_receives_answer_context_and_records_semantic_preservation_judgement():
+    """P4: answer preservation is model-judged and audit-visible, not gated."""
+
+    draft = "# Report\n\nA disputed recovery amount was reported."
+    block = parse_markdown_blocks(draft)[1]
+    claim = _claim(
+        "claim-0040", block, block.text, block.start_char, block.end_char
+    )
+    verification = VerificationResult(
+        claims=(
+            _verification(
+                claim,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (_relation(claim.claim_id, VerificationVerdict.DOES_NOT_SUPPORT),),
+            ),
+        )
+    )
+    context = EditorialPreservationContext(
+        topic="What happened to customer funds?",
+        research_questions=(
+            EditorialResearchQuestion(
+                item_id="where-01",
+                question="What funds were recovered and distributed?",
+            ),
+        ),
+    )
+    model = ScriptedEditor(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "replacement_text": (
+                        "Recovery remained under review; the audited amount "
+                        "is not stated here."
+                    ),
+                    "decisions": [
+                        {
+                            "claim_id": claim.claim_id,
+                            "action": "qualify",
+                            "reason": "The inspected source does not support the amount.",
+                            "preservation_impact": "narrowed_with_evidence",
+                            "preservation_rationale": (
+                                "The revised sentence keeps the funds-recovery "
+                                "answer while removing an unsupported amount."
+                            ),
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        revise_audited_draft(
+            draft,
+            blocks=parse_markdown_blocks(draft),
+            verification=verification,
+            model_client=model,
+            preservation_context=context,
+        )
+    )
+
+    decision = result.block_edits[0].decisions[0]
+    assert result.preservation_context == context
+    assert decision.preservation_impact is (
+        EditorialPreservationImpact.NARROWED_WITH_EVIDENCE
+    )
+    assert "keeps the funds-recovery answer" in decision.preservation_rationale
+    assert "What happened to customer funds?" in model.prompts[0]
+    assert "What funds were recovered and distributed?" in model.prompts[0]
+    assert "may_reduce_answer_coverage" in model.prompts[0]
+
+
+def test_recorded_editorial_preservation_impact_needs_a_rationale():
+    with pytest.raises(ValidationError, match="preservation rationale"):
+        EditorialDecision(
+            claim_id="claim-0040",
+            action=EditorialAction.QUALIFY,
+            reason="The evidence does not support the amount.",
+            preservation_impact=(
+                EditorialPreservationImpact.MAY_REDUCE_ANSWER_COVERAGE
+            ),
+        )
 
 
 def test_finance_shape_is_edited_by_block_and_keeps_the_original_audit():

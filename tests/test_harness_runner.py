@@ -1400,6 +1400,8 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
     assert result.publication_eligible is False
     assert result.editorial_revision is not None
     assert result.editorial_revision.committed_after_reaudit is True
+    assert result.editorial_revision.preservation_context is not None
+    assert result.editorial_revision.preservation_context.topic == "A topic"
     assert result.report.canonical_draft == (
         "# Report\n\nA narrower supported fact."
     )
@@ -1408,6 +1410,7 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
     )
     assert verifier.calls == 2
     assert len(editor.prompts) == 1
+    assert '"topic": "A topic"' in editor.prompts[0]
     # Three claim calls plus one advisory diagnostic call for the first draft,
     # then the changed bytes receive a completely new three-stage
     # decomposition *and* a new evaluative-diagnostic call. Reusing the first

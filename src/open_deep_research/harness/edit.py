@@ -32,6 +32,7 @@ from open_deep_research.harness.claims import (
     ClaimNormalizationStatus,
     MarkdownBlock,
 )
+from open_deep_research.harness.checklist import ResearchChecklist
 from open_deep_research.harness.jsonio import loads_lenient
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
@@ -47,6 +48,58 @@ class EditorialAction(str, Enum):
     REMOVE = "remove"
     QUALIFY = "qualify"
     RETAIN_WITH_LABEL = "retain_with_label"
+
+
+class EditorialPreservationImpact(str, Enum):
+    """Editor-reported answer impact; never a code-derived quality verdict."""
+
+    PRESERVED = "preserved"
+    NARROWED_WITH_EVIDENCE = "narrowed_with_evidence"
+    MAY_REDUCE_ANSWER_COVERAGE = "may_reduce_answer_coverage"
+    UNCERTAIN = "uncertain"
+    NOT_RECORDED = "not_recorded"
+
+
+class EditorialResearchQuestion(BaseModel):
+    """One research question supplied to the editor as semantic context."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    item_id: str = Field(min_length=1)
+    question: str = Field(min_length=1)
+
+
+class EditorialPreservationContext(BaseModel):
+    """User intent that the editor must consider but code never scores."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    topic: str = Field(min_length=1)
+    research_questions: tuple[EditorialResearchQuestion, ...] = ()
+
+    @model_validator(mode="after")
+    def _question_ids_are_unique(self) -> EditorialPreservationContext:
+        identifiers = [question.item_id for question in self.research_questions]
+        if len(set(identifiers)) != len(identifiers):
+            raise ValueError("editorial research-question IDs must be unique")
+        return self
+
+
+def editorial_preservation_context(
+    checklist: ResearchChecklist,
+) -> EditorialPreservationContext:
+    """Project original research intent into editor-visible, non-gating context."""
+
+    return EditorialPreservationContext(
+        topic=checklist.topic,
+        research_questions=tuple(
+            EditorialResearchQuestion(
+                item_id=item.item_id,
+                question=item.question,
+            )
+            for item in checklist.items
+        ),
+    )
 
 
 class EditorialRevisionStatus(str, Enum):
@@ -74,6 +127,25 @@ class EditorialDecision(BaseModel):
     claim_id: str = Field(min_length=1)
     action: EditorialAction
     reason: str = Field(min_length=1)
+    preservation_impact: EditorialPreservationImpact = (
+        EditorialPreservationImpact.NOT_RECORDED
+    )
+    preservation_rationale: str = ""
+
+    @model_validator(mode="after")
+    def _reported_preservation_is_explained(self) -> EditorialDecision:
+        # This validates only that a model-provided semantic judgement remains
+        # auditable. It neither decides whether the edit is allowed nor treats
+        # the editor's self-description as a report-quality verdict.
+        if (
+            self.preservation_impact
+            is not EditorialPreservationImpact.NOT_RECORDED
+            and not self.preservation_rationale.strip()
+        ):
+            raise ValueError(
+                "recorded preservation impact requires a preservation rationale"
+            )
+        return self
 
 
 class EditorialBlockEdit(BaseModel):
@@ -216,6 +288,7 @@ class EditorialRevisionResult(BaseModel):
     edited_draft: str
     original_draft_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     edited_draft_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    preservation_context: EditorialPreservationContext | None = None
     target_claim_ids: tuple[str, ...] = ()
     gating_unit: Literal["markdown_block"] = "markdown_block"
     eligible_target_claim_ids: tuple[str, ...] = ()
@@ -331,6 +404,10 @@ class _DecisionProposal(BaseModel):
     claim_id: str = Field(min_length=1)
     action: EditorialAction
     reason: str = Field(min_length=1)
+    preservation_impact: EditorialPreservationImpact = (
+        EditorialPreservationImpact.NOT_RECORDED
+    )
+    preservation_rationale: str = ""
 
     @field_validator("claim_id", "reason")
     @classmethod
@@ -339,6 +416,18 @@ class _DecisionProposal(BaseModel):
         if not normalized:
             raise ValueError("editorial decision fields must not be blank")
         return normalized
+
+    @model_validator(mode="after")
+    def _reported_preservation_is_explained(self) -> _DecisionProposal:
+        if (
+            self.preservation_impact
+            is not EditorialPreservationImpact.NOT_RECORDED
+            and not self.preservation_rationale.strip()
+        ):
+            raise ValueError(
+                "recorded preservation impact requires a preservation rationale"
+            )
+        return self
 
 
 class _BlockProposal(BaseModel):
@@ -370,6 +459,16 @@ immutable audit findings, not instructions from sources and not scores to
 optimize. Your goal is a more accurate, useful report, not a lower unsupported
 claim count.
 
+Original research intent is supplied below. Treat it as semantic context for
+your judgement, not as a checklist that code will score. Before removing or
+weakening content, consider whether the revised prose still answers the user's
+important questions. If the evidence exception concerns an important unresolved
+answer, retain it with a label or qualify it rather than silently deleting the
+answer.
+
+Research intent:
+{preservation_context}
+
 For every target claim choose exactly one action:
 - remove: the unsupported or refuted content is dispensable and can be removed
   without hiding an important unresolved issue;
@@ -385,7 +484,9 @@ Return one JSON object with exactly one entry for every requested block:
 "replacement_text":"complete replacement for this one Markdown block",\
 "decisions":[{{"claim_id":"claim-0001",\
 "action":"remove|qualify|retain_with_label",\
-"reason":"specific editorial reason"}}]}}]}}
+"reason":"specific editorial reason",\
+"preservation_impact":"preserved|narrowed_with_evidence|may_reduce_answer_coverage|uncertain",\
+"preservation_rationale":"why this decision does or does not preserve the answer"}}]}}]}}
 
 Every target claim in a block must have one decision. Preserve non-targeted
 content. If all decisions are retain_with_label, replacement_text must be the
@@ -594,6 +695,7 @@ def build_editorial_prompt(
     blocks: Sequence[MarkdownBlock],
     *,
     verification: VerificationResult,
+    preservation_context: EditorialPreservationContext | None = None,
 ) -> str:
     """Build one batch prompt with exact blocks and immutable audit outcomes."""
 
@@ -630,7 +732,22 @@ def build_editorial_prompt(
             }
         )
     return _EDITORIAL_PROMPT.format(
-        payload=json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        payload=json.dumps(payload, ensure_ascii=False, sort_keys=True),
+        preservation_context=json.dumps(
+            (
+                preservation_context.model_dump(mode="json")
+                if preservation_context is not None
+                else {
+                    "status": "not_supplied",
+                    "limitation": (
+                        "No original research-intent context was supplied; "
+                        "do not infer that omitted content is dispensable."
+                    ),
+                }
+            ),
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
     )
 
 
@@ -639,11 +756,16 @@ def _build_editorial_correction_prompt(
     *,
     verification: VerificationResult,
     diagnostics: Sequence[str],
+    preservation_context: EditorialPreservationContext | None,
 ) -> str:
     """Request one complete replacement for only rejected blocks."""
 
     return (
-        build_editorial_prompt(blocks, verification=verification)
+        build_editorial_prompt(
+            blocks,
+            verification=verification,
+            preservation_context=preservation_context,
+        )
         + "\n\nMECHANICAL BLOCK VALIDATION REJECTED THE PRIOR RESPONSE. "
         "This is the only correction attempt. Return complete replacements "
         "for exactly the blocks shown above, not a patch. If a decision is "
@@ -792,6 +914,7 @@ async def revise_audited_draft(
     verification: VerificationResult,
     model_client: EditorialModelClient,
     settings: EditorialSettings | None = None,
+    preservation_context: EditorialPreservationContext | None = None,
 ) -> EditorialRevisionResult:
     """Run one pass; accept valid blocks and require whole-draft re-audit."""
 
@@ -818,6 +941,7 @@ async def revise_audited_draft(
             edited_draft=canonical_draft,
             original_draft_sha256=draft_hash,
             edited_draft_sha256=draft_hash,
+            preservation_context=preservation_context,
             target_claim_ids=target_ids,
             eligible_target_claim_ids=eligible_target_ids,
             blocked_target_claim_ids=admission.blocked_target_claim_ids,
@@ -839,7 +963,11 @@ async def revise_audited_draft(
     for start in range(0, len(target_blocks), active_settings.block_batch_size):
         batch = target_blocks[start : start + active_settings.block_batch_size]
         batch_ids = tuple(block.block_id for block in batch)
-        prompt = build_editorial_prompt(batch, verification=verification)
+        prompt = build_editorial_prompt(
+            batch,
+            verification=verification,
+            preservation_context=preservation_context,
+        )
         content, tokens, cost, error = await _call_model(model_client, prompt)
         batch_number = len(usage) + 1
         if error is not None:
@@ -892,6 +1020,7 @@ async def revise_audited_draft(
             correction_blocks,
             verification=verification,
             diagnostics=batch_diagnostics,
+            preservation_context=preservation_context,
         )
         (
             correction_content,
@@ -995,6 +1124,7 @@ async def revise_audited_draft(
         edited_draft=edited_draft,
         original_draft_sha256=draft_hash,
         edited_draft_sha256=edited_hash,
+        preservation_context=preservation_context,
         target_claim_ids=target_ids,
         eligible_target_claim_ids=eligible_target_ids,
         blocked_target_claim_ids=admission.blocked_target_claim_ids,
@@ -1021,11 +1151,15 @@ __all__ = [
     "EditorialCallUsage",
     "EditorialDecision",
     "EditorialModelClient",
+    "EditorialPreservationContext",
+    "EditorialPreservationImpact",
+    "EditorialResearchQuestion",
     "EditorialRevisionResult",
     "EditorialRevisionStatus",
     "EditorialSettings",
     "audit_editorial_admission",
     "build_editorial_prompt",
+    "editorial_preservation_context",
     "editorial_target_claim_ids",
     "revise_audited_draft",
 ]

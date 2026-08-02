@@ -78,6 +78,7 @@ from open_deep_research.harness.edit import (
     EditorialRevisionStatus,
     EditorialSettings,
     audit_editorial_admission,
+    editorial_preservation_context,
     revise_audited_draft,
 )
 from open_deep_research.harness.evaluative import (
@@ -1972,6 +1973,9 @@ async def run_harness(
                 verification=pre_edit_verification,
                 model_client=budgeted_editor_model,
                 settings=editorial_settings,
+                preservation_context=editorial_preservation_context(
+                    loop_result.checklist
+                ),
             )
         except RunCostCapReached as error:
             stage_records["audit_editing"] = _scope_record(
