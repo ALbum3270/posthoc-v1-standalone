@@ -11,8 +11,10 @@ from open_deep_research.harness.claims import (
     BlockDisposition,
     BlockSelection,
     CitationRequirement,
+    ClaimDerivationStatus,
     ClaimDecompositionSettings,
     ClaimNormalizationStatus,
+    ClaimRepresentationVersion,
     MarkdownBlockKind,
     SelectedAssertion,
     SourceResolution,
@@ -295,6 +297,14 @@ It expanded the facility in 2022.
     claim = result.claims[0]
     assert claim.claim_text == "The group expanded the facility in 2022."
     assert claim.claim_text not in report
+    assert claim.representation_version is ClaimRepresentationVersion.LAYERED_V2
+    assert claim.report_surface is not None
+    assert claim.report_surface.text == "It expanded the facility in 2022."
+    assert report[
+        claim.report_surface.start_char : claim.report_surface.end_char
+    ] == claim.report_surface.text
+    assert claim.derivation is not None
+    assert claim.derivation.status is ClaimDerivationStatus.NOT_EVALUATED
     assert claim.anchor_text_proposal is None
     assert claim.anchor_text == "It expanded the facility in 2022."
     assert claim.anchor_start_segment_id == anchor_pointer["start_segment_id"]
@@ -453,6 +463,12 @@ def test_selection_pointer_derives_verbatim_finance_19_text_without_rewrite() ->
     assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
     assert claim.selected_text == report
     assert claim.anchor_text == report
+    assert claim.report_surface is not None
+    assert claim.report_surface.text == report
+    assert claim.report_surface.start_char == 0
+    assert claim.report_surface.end_char == len(report)
+    assert claim.derivation is not None
+    assert claim.derivation.status is ClaimDerivationStatus.NOT_EVALUATED
     assert assertion.selected_text == report
     assert assertion.selection_start_segment_id == (
         selection_pointer["start_segment_id"]
@@ -538,6 +554,24 @@ def test_textual_selection_is_rejected_even_when_it_happens_to_be_verbatim() -> 
         and "Extra inputs are not permitted" in diagnostic
         for diagnostic in result.diagnostics
     )
+
+
+def test_historical_pointer_selection_without_new_offsets_remains_readable() -> None:
+    """Layered-v2 adds bounds without invalidating already persisted audits."""
+
+    assertion = SelectedAssertion(
+        selected_text="A historical exact span.",
+        citation_requirement=CitationRequirement.EXTERNAL,
+        selection_start_segment_id="S000001",
+        selection_end_segment_id="S000001",
+        selection_span_registry_id="registry-old",
+        selection_report_text_sha256="0" * 64,
+        selection_segmentation_version="markdown-aware-source-segments-v4",
+    )
+
+    assert assertion.selection_start_char is None
+    assert assertion.selection_end_char is None
+    assert assertion.selection_start_segment_id == "S000001"
 
 
 def test_selection_omission_is_retained_as_failed_disposition() -> None:

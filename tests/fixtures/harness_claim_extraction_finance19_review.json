@@ -1,0 +1,595 @@
+{
+  "cases": [
+    {
+      "addressable_spans": [
+        {
+          "end_char": 56,
+          "start_char": 0,
+          "text": "FTX交易所由Sam Bankman-Fried（简称SBF）创办并担任CEO，直至2022年11月11日辞职。"
+        },
+        {
+          "end_char": 147,
+          "start_char": 56,
+          "text": "其所关联的Alameda Research是一家由SBF共同创立的交易公司，Alameda持有大量FTX发行的交易代币FTT，两者实际关系紧密，员工常共同办公，内部并无有效隔离机制。"
+        },
+        {
+          "end_char": 229,
+          "start_char": 147,
+          "text": "Alameda的CEO为Caroline Ellison，她曾与SBF有亲密关系，且在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0003",
+      "block_text": "FTX交易所由Sam Bankman-Fried（简称SBF）创办并担任CEO，直至2022年11月11日辞职。其所关联的Alameda Research是一家由SBF共同创立的交易公司，Alameda持有大量FTX发行的交易代币FTT，两者实际关系紧密，员工常共同办公，内部并无有效隔离机制。Alameda的CEO为Caroline Ellison，她曾与SBF有亲密关系，且在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪。",
+      "case_id": "finance-19:post_edit:claim-0009",
+      "observed_claim_text": "Caroline Ellison在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "她在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪。",
+      "original_claim_id": "claim-0009",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 54,
+          "start_char": 0,
+          "text": "破产申请后，法院任命了经验丰富的资深重组主管John J. Ray III接替CEO职位，负责管理破产过程。"
+        },
+        {
+          "end_char": 97,
+          "start_char": 54,
+          "text": "他曾主持著名的Enron破产重组，并针对FTX的管理混乱与缺乏财务透明发表了严厉批评。"
+        },
+        {
+          "end_char": 145,
+          "start_char": 97,
+          "text": "此外，FTX董事会成员极少，主要由SBF及其亲信组成，缺少独立外部董事，且整体岗位缺乏专业管控。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0004",
+      "block_text": "破产申请后，法院任命了经验丰富的资深重组主管John J. Ray III接替CEO职位，负责管理破产过程。他曾主持著名的Enron破产重组，并针对FTX的管理混乱与缺乏财务透明发表了严厉批评。此外，FTX董事会成员极少，主要由SBF及其亲信组成，缺少独立外部董事，且整体岗位缺乏专业管控。",
+      "case_id": "finance-19:post_edit:claim-0012",
+      "observed_claim_text": "John J. Ray III针对FTX的管理混乱与缺乏财务透明发表了严厉批评。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "他针对FTX的管理混乱与缺乏财务透明发表了严厉批评。",
+      "original_claim_id": "claim-0012",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 84,
+          "start_char": 0,
+          "text": "在事件中，诸多高知名度投资者及推广者也受到牵连，如运动员Tom Brady及超模Gisele Bündchen被指出参与推广未经监管的FTX证券产品，并被纳入集体诉讼。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0005",
+      "block_text": "在事件中，诸多高知名度投资者及推广者也受到牵连，如运动员Tom Brady及超模Gisele Bündchen被指出参与推广未经监管的FTX证券产品，并被纳入集体诉讼。",
+      "case_id": "finance-19:post_edit:claim-0018",
+      "observed_claim_text": "Tom Brady及超模Gisele Bündchen被纳入集体诉讼。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "他们被纳入集体诉讼。",
+      "original_claim_id": "claim-0018",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 72,
+          "start_char": 0,
+          "text": "2022年11月2日，CoinDesk报道称Alameda Research持有大量FTT代币，该代币价值随即暴跌，触发FTX用户大规模提现潮。"
+        },
+        {
+          "end_char": 98,
+          "start_char": 72,
+          "text": "用户提现需求激增暴露了FTX约80亿美元的资金缺口。"
+        },
+        {
+          "end_char": 121,
+          "start_char": 98,
+          "text": "随后，FTX停止响应提现请求，用户资金被锁定。"
+        },
+        {
+          "end_char": 170,
+          "start_char": 121,
+          "text": "Binance最初计划收购拯救FTX，但在知晓财务和法律风险后于11月6日宣布退出谈判，加剧危机。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0007",
+      "block_text": "2022年11月2日，CoinDesk报道称Alameda Research持有大量FTT代币，该代币价值随即暴跌，触发FTX用户大规模提现潮。用户提现需求激增暴露了FTX约80亿美元的资金缺口。随后，FTX停止响应提现请求，用户资金被锁定。Binance最初计划收购拯救FTX，但在知晓财务和法律风险后于11月6日宣布退出谈判，加剧危机。",
+      "case_id": "finance-19:post_edit:claim-0026",
+      "observed_claim_text": "Binance在知晓财务和法律风险后于11月6日宣布退出谈判。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "Binance在知晓财务和法律风险后于11月6日宣布退出谈判。",
+      "original_claim_id": "claim-0026",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 29,
+          "start_char": 0,
+          "text": "破产调查发现，FTX存在严重的公司治理缺失和财务管理漏洞。"
+        },
+        {
+          "end_char": 68,
+          "start_char": 29,
+          "text": "公司没有独立的首席财务官和完善的会计体系，缺乏有效风险管理和资产负债控制机制。"
+        },
+        {
+          "end_char": 107,
+          "start_char": 68,
+          "text": "公司运作更像“封建王朝”，决策集中在少数圈内人手中，且优先考虑忠诚度而非能力。"
+        },
+        {
+          "end_char": 144,
+          "start_char": 107,
+          "text": "内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0008",
+      "block_text": "破产调查发现，FTX存在严重的公司治理缺失和财务管理漏洞。公司没有独立的首席财务官和完善的会计体系，缺乏有效风险管理和资产负债控制机制。公司运作更像“封建王朝”，决策集中在少数圈内人手中，且优先考虑忠诚度而非能力。内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为。",
+      "case_id": "finance-19:post_edit:claim-0030",
+      "observed_claim_text": "FTX公司没有完善的会计体系。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "公司没有完善的会计体系。",
+      "original_claim_id": "claim-0030",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 29,
+          "start_char": 0,
+          "text": "破产调查发现，FTX存在严重的公司治理缺失和财务管理漏洞。"
+        },
+        {
+          "end_char": 68,
+          "start_char": 29,
+          "text": "公司没有独立的首席财务官和完善的会计体系，缺乏有效风险管理和资产负债控制机制。"
+        },
+        {
+          "end_char": 107,
+          "start_char": 68,
+          "text": "公司运作更像“封建王朝”，决策集中在少数圈内人手中，且优先考虑忠诚度而非能力。"
+        },
+        {
+          "end_char": 144,
+          "start_char": 107,
+          "text": "内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0008",
+      "block_text": "破产调查发现，FTX存在严重的公司治理缺失和财务管理漏洞。公司没有独立的首席财务官和完善的会计体系，缺乏有效风险管理和资产负债控制机制。公司运作更像“封建王朝”，决策集中在少数圈内人手中，且优先考虑忠诚度而非能力。内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为。",
+      "case_id": "finance-19:post_edit:claim-0036",
+      "observed_claim_text": "FTX内部软件、用以保管密钥的电子邮件账户安全不足，这助长了客户资金被挪用的行为。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "这助长了客户资金被挪用的行为。",
+      "original_claim_id": "claim-0036",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 60,
+          "start_char": 0,
+          "text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反美国证券法及FTX自身的服务条款。"
+        },
+        {
+          "end_char": 94,
+          "start_char": 60,
+          "text": "Alameda将这些客户资产用作抵押借款，应对自身爆发的保证金追缴。"
+        },
+        {
+          "end_char": 127,
+          "start_char": 94,
+          "text": "整体操作缺乏透明度，客户资产被非法挪用，大幅削弱FTX自身流动性。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0009",
+      "block_text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反美国证券法及FTX自身的服务条款。Alameda将这些客户资产用作抵押借款，应对自身爆发的保证金追缴。整体操作缺乏透明度，客户资产被非法挪用，大幅削弱FTX自身流动性。",
+      "case_id": "finance-19:post_edit:claim-0039",
+      "observed_claim_text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反FTX自身的服务条款。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反FTX自身的服务条款",
+      "original_claim_id": "claim-0039",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 47,
+          "start_char": 0,
+          "text": "- **2022年11月6日**：Binance宣布终止收购意向，称已无法控制和解决相关问题。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0013",
+      "block_text": "- **2022年11月6日**：Binance宣布终止收购意向，称已无法控制和解决相关问题。",
+      "case_id": "finance-19:post_edit:claim-0050",
+      "observed_claim_text": "Binance称已无法控制和解决相关问题。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "Binance称已无法控制和解决相关问题",
+      "original_claim_id": "claim-0050",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 46,
+          "start_char": 0,
+          "text": "- 美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0027",
+      "block_text": "- 美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动。",
+      "case_id": "finance-19:post_edit:claim-0072",
+      "observed_claim_text": "美国联邦贸易委员会（FTC）对相关加密借贷平台和关联公司发起执法行动",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "美国联邦贸易委员会（FTC）对相关加密借贷平台和关联公司发起执法行动",
+      "original_claim_id": "claim-0072",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 46,
+          "start_char": 0,
+          "text": "- 美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0027",
+      "block_text": "- 美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动。",
+      "case_id": "finance-19:post_edit:claim-0073",
+      "observed_claim_text": "纽约总检察长对相关加密借贷平台和关联公司发起执法行动。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "纽约总检察长对相关加密借贷平台和关联公司发起执法行动",
+      "original_claim_id": "claim-0073",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 36,
+          "start_char": 0,
+          "text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者。"
+        },
+        {
+          "end_char": 62,
+          "start_char": 36,
+          "text": "顶级债权人超过50家，合计超过30亿美元债务未偿付。"
+        },
+        {
+          "end_char": 122,
+          "start_char": 62,
+          "text": "大型机构投资者如Sequoia Capital、Paradigm、SoftBank Vision Fund等均遭受损失。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0030",
+      "block_text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者。顶级债权人超过50家，合计超过30亿美元债务未偿付。大型机构投资者如Sequoia Capital、Paradigm、SoftBank Vision Fund等均遭受损失。",
+      "case_id": "finance-19:post_edit:claim-0076",
+      "observed_claim_text": "FTX倒闭影响超过一百万用户。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "FTX倒闭影响超过一百万用户",
+      "original_claim_id": "claim-0076",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 36,
+          "start_char": 0,
+          "text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者。"
+        },
+        {
+          "end_char": 62,
+          "start_char": 36,
+          "text": "顶级债权人超过50家，合计超过30亿美元债务未偿付。"
+        },
+        {
+          "end_char": 122,
+          "start_char": 62,
+          "text": "大型机构投资者如Sequoia Capital、Paradigm、SoftBank Vision Fund等均遭受损失。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0030",
+      "block_text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者。顶级债权人超过50家，合计超过30亿美元债务未偿付。大型机构投资者如Sequoia Capital、Paradigm、SoftBank Vision Fund等均遭受损失。",
+      "case_id": "finance-19:post_edit:claim-0077",
+      "observed_claim_text": "FTX倒闭影响数百家机构投资者。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "FTX倒闭影响数百家机构投资者",
+      "original_claim_id": "claim-0077",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 60,
+          "start_char": 0,
+          "text": "此外，涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼，反映出该事件对加密货币生态内外部的广泛冲击。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0031",
+      "block_text": "此外，涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼，反映出该事件对加密货币生态内外部的广泛冲击。",
+      "case_id": "finance-19:post_edit:claim-0081",
+      "observed_claim_text": "涉及FTX推广的多位明星名人因参与销售未经注册的证券产品而卷入诉讼",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "涉及FTX推广的多位明星名人因参与销售未经注册的证券产品而卷入诉讼",
+      "original_claim_id": "claim-0081",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 60,
+          "start_char": 0,
+          "text": "此外，涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼，反映出该事件对加密货币生态内外部的广泛冲击。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0031",
+      "block_text": "此外，涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼，反映出该事件对加密货币生态内外部的广泛冲击。",
+      "case_id": "finance-19:post_edit:claim-0082",
+      "observed_claim_text": "该事件对加密货币生态内外部产生了广泛冲击",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "该事件对加密货币生态内外部产生了广泛冲击",
+      "original_claim_id": "claim-0082",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 41,
+          "start_char": 0,
+          "text": "随着司法程序推进，FTX的创办人及高管被指控并定罪，破产重组持续努力追回客户资产。"
+        },
+        {
+          "end_char": 80,
+          "start_char": 41,
+          "text": "此事件令人深刻警示加密市场须加强监管、提升透明度与治理水平，以防类似灾难重演。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0034",
+      "block_text": "随着司法程序推进，FTX的创办人及高管被指控并定罪，破产重组持续努力追回客户资产。此事件令人深刻警示加密市场须加强监管、提升透明度与治理水平，以防类似灾难重演。",
+      "case_id": "finance-19:post_edit:claim-0092",
+      "observed_claim_text": "随着司法程序推进，FTX的创办人及高管被定罪。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "随着司法程序推进，FTX的创办人及高管被定罪。",
+      "original_claim_id": "claim-0092",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 41,
+          "start_char": 0,
+          "text": "随着司法程序推进，FTX的创办人及高管被指控并定罪，破产重组持续努力追回客户资产。"
+        },
+        {
+          "end_char": 80,
+          "start_char": 41,
+          "text": "此事件令人深刻警示加密市场须加强监管、提升透明度与治理水平，以防类似灾难重演。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0034",
+      "block_text": "随着司法程序推进，FTX的创办人及高管被指控并定罪，破产重组持续努力追回客户资产。此事件令人深刻警示加密市场须加强监管、提升透明度与治理水平，以防类似灾难重演。",
+      "case_id": "finance-19:post_edit:claim-0095",
+      "observed_claim_text": "为防类似灾难重演。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "为防类似灾难重演。",
+      "original_claim_id": "claim-0095",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    }
+  ],
+  "cases_sha256": "56d873274cc58c39ebc31115ca222136c59f77f5e68566ee9fa5cff050a125e9",
+  "gold": [
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0009",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0012",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0018",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0026",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0030",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0036",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0039",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0050",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0072",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0073",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0076",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0077",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0081",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0082",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0092",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    },
+    {
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "case_id": "finance-19:post_edit:claim-0095",
+      "necessary_context": [],
+      "preferred_atomic_claims": [],
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verifiable_elements": []
+    }
+  ],
+  "schema_version": "claim-extraction-review-v1",
+  "source_audit": "harness_runs/finance-19/audit.json",
+  "source_audit_sha256": "7cfcb5235541804498d7b967bf47fe75cfb97211bac01317e921f45b92967cf3"
+}

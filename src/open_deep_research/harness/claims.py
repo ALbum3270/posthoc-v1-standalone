@@ -68,10 +68,32 @@ class BlockDisposition(str, Enum):
 
 
 class ClaimNormalizationStatus(str, Enum):
-    """Whether a selected claim has a mechanically valid report anchor."""
+    """Whether a selected claim has a mechanically valid report anchor.
+
+    This is deliberately not a faithfulness or entailment verdict.  A located
+    semantic claim can still be a bad derivation of its report surface span;
+    that separate relation is represented by :class:`ClaimDerivation`.
+    """
 
     LOCATED = "located"
     NORMALIZATION_FAILED = "normalization_failed"
+
+
+class ClaimRepresentationVersion(str, Enum):
+    """Version the report-surface/semantic-claim boundary explicitly."""
+
+    LEGACY_FLAT_V1 = "legacy_flat_v1"
+    LAYERED_V2 = "layered_v2"
+
+
+class ClaimDerivationStatus(str, Enum):
+    """Independent assessment of report-surface -> semantic-claim fidelity."""
+
+    NOT_EVALUATED = "not_evaluated"
+    ENTAILED = "entailed"
+    NOT_ENTAILED = "not_entailed"
+    AMBIGUOUS = "ambiguous"
+    FAILED = "failed"
 
 
 class MarkdownBlock(BaseModel):
@@ -137,6 +159,62 @@ class ContextSpanProposal(BaseModel):
         return value
 
 
+class ReportSurfaceSpan(BaseModel):
+    """A code-owned, byte-stable slice of the canonical report.
+
+    Exact matching applies here, at the report-side surface boundary.  It does
+    not apply to the semantic ``claim_text`` derived from this span.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    block_id: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    start_char: int = Field(ge=0)
+    end_char: int = Field(ge=0)
+    start_segment_id: str = Field(min_length=1)
+    end_segment_id: str = Field(min_length=1)
+    span_registry_id: str = Field(min_length=1)
+    report_text_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    segmentation_version: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _surface_bounds_match_text(self) -> ReportSurfaceSpan:
+        if self.end_char <= self.start_char:
+            raise ValueError("report surface end_char must exceed start_char")
+        if self.end_char - self.start_char != len(self.text):
+            raise ValueError("report surface bounds must match text length")
+        return self
+
+
+class ClaimDerivation(BaseModel):
+    """Audit the semantic relation without pretending it has been judged.
+
+    Claim generation and claim-quality evaluation are intentionally separate,
+    following Claimify's entailment/coverage/decontextualization evaluation
+    boundary.  The live extractor therefore records ``not_evaluated``.  A
+    frozen evaluation or later reviewer may create a new assessed record; the
+    generator never promotes its own output to ``entailed``.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: ClaimDerivationStatus = ClaimDerivationStatus.NOT_EVALUATED
+    evaluator: str | None = None
+    rationale: str | None = None
+
+    @model_validator(mode="after")
+    def _assessment_metadata_matches_status(self) -> ClaimDerivation:
+        if self.status is ClaimDerivationStatus.NOT_EVALUATED:
+            if self.evaluator is not None or self.rationale is not None:
+                raise ValueError(
+                    "not_evaluated derivations cannot carry assessment metadata"
+                )
+        elif self.evaluator is None:
+            raise ValueError("evaluated derivations require an evaluator")
+        return self
+
+
 class SelectedAssertion(BaseModel):
     """A code-resolved, exact assertion selected from one report block.
 
@@ -150,6 +228,8 @@ class SelectedAssertion(BaseModel):
 
     selected_text: str = Field(min_length=1)
     citation_requirement: CitationRequirement
+    selection_start_char: int | None = Field(default=None, ge=0)
+    selection_end_char: int | None = Field(default=None, ge=0)
     selection_start_segment_id: str | None = None
     selection_end_segment_id: str | None = None
     selection_span_registry_id: str | None = None
@@ -179,6 +259,26 @@ class SelectedAssertion(BaseModel):
             raise ValueError(
                 "selection segment pointers require complete registry binding"
             )
+        bounds = (self.selection_start_char, self.selection_end_char)
+        if any(value is not None for value in bounds) and not all(
+            value is not None for value in bounds
+        ):
+            raise ValueError("selection character bounds must be complete")
+        if self.selection_start_char is not None:
+            if not all(value is not None for value in pointer):
+                raise ValueError(
+                    "selection character bounds require a bound segment pointer"
+                )
+            assert self.selection_end_char is not None
+            if self.selection_end_char <= self.selection_start_char:
+                raise ValueError("selection end_char must exceed start_char")
+            if (
+                self.selection_end_char - self.selection_start_char
+                != len(self.selected_text)
+            ):
+                raise ValueError(
+                    "selection bounds must match selected_text length"
+                )
         return self
 
 
@@ -267,8 +367,13 @@ class AtomicClaim(BaseModel):
 
     claim_id: str
     block_id: str
+    representation_version: ClaimRepresentationVersion = (
+        ClaimRepresentationVersion.LEGACY_FLAT_V1
+    )
+    report_surface: ReportSurfaceSpan | None = None
     selected_text: str
     claim_text: str | None
+    derivation: ClaimDerivation | None = None
     anchor_text: str | None
     anchor_text_proposal: str | None = None
     anchor_start_segment_id: str | None = None
@@ -287,6 +392,25 @@ class AtomicClaim(BaseModel):
 
     @model_validator(mode="after")
     def _location_fields_match_status(self) -> AtomicClaim:
+        if self.representation_version is ClaimRepresentationVersion.LAYERED_V2:
+            if self.report_surface is None:
+                raise ValueError(
+                    "layered claims require a code-owned report_surface"
+                )
+            if self.report_surface.block_id != self.block_id:
+                raise ValueError("report_surface must belong to claim block")
+            if self.report_surface.text != self.selected_text:
+                raise ValueError(
+                    "selected_text must mirror the layered report_surface"
+                )
+            if self.claim_text is None and self.derivation is not None:
+                raise ValueError(
+                    "claims without semantic text cannot carry a derivation"
+                )
+            if self.claim_text is not None and self.derivation is None:
+                raise ValueError(
+                    "layered semantic claims require a derivation record"
+                )
         pointer = (
             self.anchor_start_segment_id,
             self.anchor_end_segment_id,
@@ -994,6 +1118,8 @@ def _selection_for_every_block(
                     SelectedAssertion(
                         selected_text=resolved.source_quote,
                         citation_requirement=assertion.citation_requirement,
+                        selection_start_char=resolved.start_char,
+                        selection_end_char=resolved.end_char,
                         selection_start_segment_id=resolved.start_segment_id,
                         selection_end_segment_id=resolved.end_segment_id,
                         selection_span_registry_id=span_registry.registry_id,
@@ -1067,6 +1193,8 @@ def _claim_seed(
                     "claim_id": f"claim-{len(claims) + 1:04d}",
                     "block_id": selection.block_id,
                     "selected_text": assertion.selected_text,
+                    "selection_start_char": assertion.selection_start_char,
+                    "selection_end_char": assertion.selection_end_char,
                     "selection_start_segment_id": (
                         assertion.selection_start_segment_id
                     ),
@@ -1263,11 +1391,15 @@ def _normalization_failure(
     anchor_segmentation_version: str | None = None,
     reason: str,
 ) -> AtomicClaim:
+    report_surface = _report_surface_from_claim_seed(claim)
     return AtomicClaim(
         claim_id=str(claim["claim_id"]),
         block_id=str(claim["block_id"]),
+        representation_version=ClaimRepresentationVersion.LAYERED_V2,
+        report_surface=report_surface,
         selected_text=str(claim["selected_text"]),
         claim_text=claim_text,
+        derivation=(ClaimDerivation() if claim_text is not None else None),
         anchor_text_proposal=anchor_text_proposal,
         anchor_text=anchor_text,
         anchor_start_segment_id=anchor_start_segment_id,
@@ -1283,6 +1415,43 @@ def _normalization_failure(
         source_resolution=SourceResolution.UNRESOLVED,
         normalization_status=ClaimNormalizationStatus.NORMALIZATION_FAILED,
         normalization_failure=reason,
+    )
+
+
+def _report_surface_from_claim_seed(
+    claim: Mapping[str, Any],
+) -> ReportSurfaceSpan:
+    """Build the report-side layer from a live pointer-resolved selection."""
+
+    required = {
+        "selection_start_char": claim.get("selection_start_char"),
+        "selection_end_char": claim.get("selection_end_char"),
+        "selection_start_segment_id": claim.get("selection_start_segment_id"),
+        "selection_end_segment_id": claim.get("selection_end_segment_id"),
+        "selection_span_registry_id": claim.get("selection_span_registry_id"),
+        "selection_report_text_sha256": claim.get(
+            "selection_report_text_sha256"
+        ),
+        "selection_segmentation_version": claim.get(
+            "selection_segmentation_version"
+        ),
+    }
+    missing = tuple(name for name, value in required.items() if value is None)
+    if missing:
+        raise AssertionError(
+            "live claim seed lacks code-owned report surface fields: "
+            + ", ".join(missing)
+        )
+    return ReportSurfaceSpan(
+        block_id=str(claim["block_id"]),
+        text=str(claim["selected_text"]),
+        start_char=int(required["selection_start_char"]),
+        end_char=int(required["selection_end_char"]),
+        start_segment_id=str(required["selection_start_segment_id"]),
+        end_segment_id=str(required["selection_end_segment_id"]),
+        span_registry_id=str(required["selection_span_registry_id"]),
+        report_text_sha256=str(required["selection_report_text_sha256"]),
+        segmentation_version=str(required["selection_segmentation_version"]),
     )
 
 
@@ -1826,8 +1995,11 @@ async def decompose_claims(
             AtomicClaim(
                 claim_id=claim_id,
                 block_id=str(seed["block_id"]),
+                representation_version=ClaimRepresentationVersion.LAYERED_V2,
+                report_surface=_report_surface_from_claim_seed(seed),
                 selected_text=str(seed["selected_text"]),
                 claim_text=claim_text,
+                derivation=ClaimDerivation(),
                 anchor_text_proposal=None,
                 anchor_text=anchor_text,
                 anchor_start_segment_id=extraction.start_segment_id,
