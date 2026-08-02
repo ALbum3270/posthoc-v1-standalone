@@ -355,7 +355,13 @@ class _BlockSelectionProposal(BaseModel):
 
 
 class AtomicClaim(BaseModel):
-    """One retained atomic claim and its distinct model/report representations.
+    """One retained verification unit and its model/report representations.
+
+    The historical class name is retained for audit and API compatibility.  A
+    live verification unit is not promised to be logically atomic: splitting
+    a sentence can destroy shared scope, attribution, causality, or temporal
+    relations.  Those semantic choices belong to the model and later quality
+    review, while exact report-surface ownership remains code-enforced.
 
     The segment IDs identify the model-selected addressable *container*.
     ``anchor_text`` and its character bounds are independently narrowed by
@@ -851,12 +857,15 @@ def source_inheritance_allowed(
 _SELECTION_PROMPT = """\
 Stage 1 of 3 — selection.
 
-Apply the frozen atomic-v1 rule: one assertion is one independently
-truth-valued event or state. If either coordinated clause could be true while
-the other is false, select them separately. Preserve every entity, time,
-place, quantity, negation, modality, and attribution qualifier that affects
-truth. The report text is authoritative: do not paraphrase it, resolve a
-pronoun, add an omitted subject, or copy text into the response.
+Select the smallest sufficient verification units that preserve the report's
+meaning. A unit may contain more than one proposition when their shared
+attribution, modality, comparison, cause, time sequence, or other relation is
+part of what the report says. Split coordinated material only when each part
+can be checked independently without losing or changing those truth
+conditions. Preserve every entity, time, place, quantity, negation, modality,
+reporting marker, and attribution qualifier that affects truth. The report
+text is authoritative: do not paraphrase it, resolve a pronoun, add an omitted
+subject, or copy text into the response.
 
 Each block exposes stable addressable source segments as <S000001>. For every
 assertion, select one shortest continuous start_segment_id/end_segment_id
@@ -866,11 +875,11 @@ context, or stitching fragments, select the larger exact segment range rather
 than reconstructing a smaller assertion. Do not return selected_text or
 character offsets.
 
-For every supplied block_id, return exactly one block entry. Put every
-independently truth-valued assertion in its assertions array. Return an empty
-assertions array when there is no assertion to select. Do not return a
-disposition: code mechanically derives claims_selected from a non-empty array
-and no_verifiable_claims from an empty array.
+For every supplied block_id, return exactly one block entry. Put each chosen
+verification unit in its assertions array. Return an empty assertions array
+when there is no factual or report-internal assertion to check. Normative
+advice, a rhetorical transition, or a statement of writing intent alone is
+not an external factual assertion. Do not return a disposition: code mechanically derives claims_selected from a non-empty array and no_verifiable_claims from an empty array.
 
 Classify each selected assertion independently on the orthogonal evidence
 dimension:
@@ -884,9 +893,9 @@ been found. Return JSON only:
 "assertions":[{{"start_segment_id":"S000001",\
 "end_segment_id":"S000001","citation_requirement":"external|internal|none"}}]}}]}}
 
-Purely structural example: a block saying that an object changed twice may
-contain two independently truth-valued assertions; return two assertions
-instead of joining them.
+Purely structural examples: two unrelated dated events may be two units. By
+contrast, "a witness said A caused B" may remain one unit when splitting it
+would turn attributed speech into direct assertion or erase the causal link.
 
 Markdown blocks:
 {blocks}

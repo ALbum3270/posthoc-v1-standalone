@@ -15,7 +15,7 @@ from __future__ import annotations
 from enum import Enum
 from statistics import fmean
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 
 class ClaimReviewStatus(str, Enum):
@@ -38,6 +38,20 @@ class ClaimAmbiguityLabel(str, Enum):
 
     UNAMBIGUOUS = "unambiguous"
     RESOLVED_FROM_CONTEXT = "resolved_from_context"
+    CANNOT_DISAMBIGUATE = "cannot_disambiguate"
+
+
+class ClaimGoldDisposition(str, Enum):
+    """Human judgement about whether the frozen text has factual work.
+
+    This is deliberately not inferred from whether a system happened to emit
+    a claim.  In particular, ``no_verifiable_claims`` gives reviewers an
+    honest representation for normative or purely rhetorical text instead of
+    forcing them to invent a preferred decomposition.
+    """
+
+    VERIFICATION_UNITS = "verification_units"
+    NO_VERIFIABLE_CLAIMS = "no_verifiable_claims"
     CANNOT_DISAMBIGUATE = "cannot_disambiguate"
 
 
@@ -97,11 +111,24 @@ class ClaimExtractionGold(BaseModel):
 
     case_id: str = Field(min_length=1)
     review_status: ClaimReviewStatus
+    gold_disposition: ClaimGoldDisposition | None = None
     acceptable_surface_spans: tuple[FrozenSurfaceSpan, ...] = ()
     ambiguity: ClaimAmbiguityLabel | None = None
-    verifiable_elements: tuple[str, ...] = ()
+    truth_conditional_elements: tuple[str, ...] = Field(
+        default=(),
+        validation_alias=AliasChoices(
+            "truth_conditional_elements",
+            "verifiable_elements",
+        ),
+    )
     necessary_context: tuple[str, ...] = ()
-    preferred_atomic_claims: tuple[str, ...] = ()
+    preferred_verification_units: tuple[str, ...] = Field(
+        default=(),
+        validation_alias=AliasChoices(
+            "preferred_verification_units",
+            "preferred_atomic_claims",
+        ),
+    )
     reviewer: str | None = None
     rationale: str | None = None
 
@@ -110,23 +137,70 @@ class ClaimExtractionGold(BaseModel):
         if self.review_status is ClaimReviewStatus.PENDING_REVIEW:
             if any(
                 (
+                    self.gold_disposition,
                     self.acceptable_surface_spans,
-                    self.verifiable_elements,
+                    self.truth_conditional_elements,
                     self.necessary_context,
-                    self.preferred_atomic_claims,
+                    self.preferred_verification_units,
                 )
             ) or any((self.ambiguity, self.reviewer, self.rationale)):
                 raise ValueError("pending gold cannot contain guessed annotations")
             return self
-        if self.ambiguity is None or self.reviewer is None:
-            raise ValueError("reviewed gold requires ambiguity and reviewer")
+        if self.gold_disposition is None or self.reviewer is None:
+            raise ValueError(
+                "reviewed gold requires gold_disposition and reviewer"
+            )
         if not self.rationale:
             raise ValueError("reviewed gold requires a rationale")
-        if (
-            self.ambiguity is not ClaimAmbiguityLabel.CANNOT_DISAMBIGUATE
-            and not self.preferred_atomic_claims
+        if self.gold_disposition is ClaimGoldDisposition.VERIFICATION_UNITS:
+            if self.ambiguity is None:
+                raise ValueError(
+                    "verification-unit gold requires an ambiguity label"
+                )
+            if self.ambiguity is ClaimAmbiguityLabel.CANNOT_DISAMBIGUATE:
+                raise ValueError(
+                    "usable verification units cannot be cannot_disambiguate"
+                )
+            if not self.acceptable_surface_spans:
+                raise ValueError(
+                    "verification-unit gold requires a report surface span"
+                )
+            if not self.truth_conditional_elements:
+                raise ValueError(
+                    "verification-unit gold requires truth-conditional elements"
+                )
+            if not self.preferred_verification_units:
+                raise ValueError(
+                    "verification-unit gold requires preferred units"
+                )
+            return self
+
+        if any(
+            (
+                self.acceptable_surface_spans,
+                self.truth_conditional_elements,
+                self.preferred_verification_units,
+            )
         ):
-            raise ValueError("usable reviewed gold requires atomic claims")
+            raise ValueError(
+                "gold without verification units cannot contain guessed units"
+            )
+        if (
+            self.gold_disposition
+            is ClaimGoldDisposition.CANNOT_DISAMBIGUATE
+            and self.ambiguity is not ClaimAmbiguityLabel.CANNOT_DISAMBIGUATE
+        ):
+            raise ValueError(
+                "cannot_disambiguate disposition requires matching ambiguity"
+            )
+        if (
+            self.gold_disposition
+            is ClaimGoldDisposition.NO_VERIFIABLE_CLAIMS
+            and self.ambiguity is ClaimAmbiguityLabel.CANNOT_DISAMBIGUATE
+        ):
+            raise ValueError(
+                "no_verifiable_claims must not masquerade as ambiguity"
+            )
         return self
 
 
@@ -137,7 +211,13 @@ class ExtractedClaimJudgement(BaseModel):
 
     claim_text: str = Field(min_length=1)
     entailment: ClaimEntailmentLabel
-    atomic: bool
+    verification_unit_appropriate: bool = Field(
+        validation_alias=AliasChoices(
+            "verification_unit_appropriate",
+            "atomic",
+        )
+    )
+    preserves_truth_conditions: bool
     decontextualized: bool
     covered_element_ids: tuple[int, ...] = ()
     extraneous_element_count: int = Field(default=0, ge=0)
@@ -188,7 +268,16 @@ class ClaimExtractionMetrics(BaseModel):
     pending_case_ids: tuple[str, ...]
     surface_binding_accuracy: float | None = Field(default=None, ge=0, le=1)
     entailment_rate: float | None = Field(default=None, ge=0, le=1)
-    atomicity_rate: float | None = Field(default=None, ge=0, le=1)
+    verification_unit_appropriateness_rate: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+    )
+    truth_condition_preservation_rate: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+    )
     decontextualization_rate: float | None = Field(default=None, ge=0, le=1)
     element_precision: float | None = Field(default=None, ge=0, le=1)
     element_recall: float | None = Field(default=None, ge=0, le=1)
@@ -265,7 +354,8 @@ def evaluate_claim_extraction(
 
     surface_scores: list[float] = []
     entailment_scores: list[float] = []
-    atomicity_scores: list[float] = []
+    verification_unit_scores: list[float] = []
+    preservation_scores: list[float] = []
     decontext_scores: list[float] = []
     precision_scores: list[float] = []
     recall_scores: list[float] = []
@@ -295,10 +385,13 @@ def evaluate_claim_extraction(
             entailment_scores.append(
                 float(claim.entailment is ClaimEntailmentLabel.ENTAILED)
             )
-            atomicity_scores.append(float(claim.atomic))
+            verification_unit_scores.append(
+                float(claim.verification_unit_appropriate)
+            )
+            preservation_scores.append(float(claim.preserves_truth_conditions))
             decontext_scores.append(float(claim.decontextualized))
 
-        element_total = len(gold_item.verifiable_elements)
+        element_total = len(gold_item.truth_conditional_elements)
         covered = {
             index
             for claim in judged.claims
@@ -329,7 +422,14 @@ def evaluate_claim_extraction(
         pending_case_ids=pending_ids,
         surface_binding_accuracy=fmean(surface_scores),
         entailment_rate=(fmean(entailment_scores) if entailment_scores else None),
-        atomicity_rate=(fmean(atomicity_scores) if atomicity_scores else None),
+        verification_unit_appropriateness_rate=(
+            fmean(verification_unit_scores)
+            if verification_unit_scores
+            else None
+        ),
+        truth_condition_preservation_rate=(
+            fmean(preservation_scores) if preservation_scores else None
+        ),
         decontextualization_rate=(
             fmean(decontext_scores) if decontext_scores else None
         ),
@@ -350,7 +450,8 @@ def compare_claim_extraction(
     metric_names = (
         "surface_binding_accuracy",
         "entailment_rate",
-        "atomicity_rate",
+        "verification_unit_appropriateness_rate",
+        "truth_condition_preservation_rate",
         "decontextualization_rate",
         "element_precision",
         "element_recall",

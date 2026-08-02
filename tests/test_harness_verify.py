@@ -16,7 +16,11 @@ from open_deep_research.harness.attribution import (
 from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
+    ClaimDerivation,
     ClaimNormalizationStatus,
+    ClaimRepresentationVersion,
+    ContextSpan,
+    ReportSurfaceSpan,
     SourceResolution,
 )
 from open_deep_research.harness.notes import (
@@ -34,6 +38,7 @@ from open_deep_research.harness.verify import (
     VerificationSettings,
     VerificationVerdict,
     VerifiedSourceRelation,
+    build_verification_prompt,
     verify_attributions,
 )
 
@@ -109,6 +114,49 @@ def _claim(claim_id: str, text: str | None = None) -> AtomicClaim:
     )
 
 
+def _layered_claim(
+    claim_id: str,
+    *,
+    report_surface_text: str,
+    retrieval_gloss: str,
+    necessary_context: tuple[str, ...] = (),
+) -> AtomicClaim:
+    context_spans = tuple(
+        ContextSpan(
+            text=text,
+            start_char=index * 100,
+            end_char=index * 100 + len(text),
+        )
+        for index, text in enumerate(necessary_context, start=1)
+    )
+    return AtomicClaim(
+        claim_id=claim_id,
+        block_id=f"block-{claim_id}",
+        representation_version=ClaimRepresentationVersion.LAYERED_V2,
+        report_surface=ReportSurfaceSpan(
+            block_id=f"block-{claim_id}",
+            text=report_surface_text,
+            start_char=0,
+            end_char=len(report_surface_text),
+            start_segment_id="S000001",
+            end_segment_id="S000001",
+            span_registry_id="report-registry",
+            report_text_sha256="0" * 64,
+            segmentation_version="test-v1",
+        ),
+        selected_text=report_surface_text,
+        claim_text=retrieval_gloss,
+        derivation=ClaimDerivation(),
+        anchor_text=report_surface_text,
+        start_char=0,
+        end_char=len(report_surface_text),
+        context_spans=context_spans,
+        citation_requirement=CitationRequirement.EXTERNAL,
+        source_resolution=SourceResolution.DIRECT,
+        normalization_status=ClaimNormalizationStatus.LOCATED,
+    )
+
+
 def _candidate(
     *,
     claim: AtomicClaim,
@@ -127,6 +175,85 @@ def _candidate(
         location_status=location_status,
         resolution=SourceResolution.DIRECT,
     )
+
+
+def test_verifier_judges_exact_report_surface_not_model_retrieval_gloss() -> None:
+    claim = _layered_claim(
+        "claim-qualified",
+        report_surface_text="两人被指出参与推广，并被纳入集体诉讼。",
+        retrieval_gloss="两人参与推广并被纳入集体诉讼。",
+        necessary_context=("报道讨论了两位代言人。",),
+    )
+
+    prompt = build_verification_prompt(
+        url="https://example.test/source",
+        source_text="A cached source.",
+        claims=(claim,),
+    )
+
+    match = re.search(
+        r"Claims:\n(.*?)\n\nBEGIN COMPLETE CACHED SOURCE WITH",
+        prompt,
+        flags=re.DOTALL,
+    )
+    assert match is not None
+    payload = json.loads(match.group(1))
+    assert payload == [
+        {
+            "claim_id": "claim-qualified",
+            "necessary_context": ["报道讨论了两位代言人。"],
+            "report_surface_text": "两人被指出参与推广，并被纳入集体诉讼。",
+            "retrieval_gloss": "两人参与推广并被纳入集体诉讼。",
+        }
+    ]
+    assert "report_surface_text" in prompt
+    assert "authoritative statement" in prompt
+    assert "must not strengthen, weaken, or replace" in prompt
+
+
+def test_numeric_gate_uses_report_surface_instead_of_lossy_retrieval_gloss() -> None:
+    claim = _layered_claim(
+        "claim-layered-numeric",
+        report_surface_text="崩溃时，FTX 报告的资产约为 9000 万美元。",
+        retrieval_gloss="FTX held about 900 million dollars in assets.",
+    )
+    url = "https://www.congress.gov/example"
+    source = "The company held $900 million in liquid assets."
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(
+                    claim.claim_id,
+                    "supports",
+                    ("S000001", "S000001"),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(
+                        claim=claim,
+                        url=url,
+                        note_id="note-layered-numeric",
+                    ),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.semantic_verdict is VerificationVerdict.SUPPORTS
+    assert relation.numeric_consistency_status is NumericConsistencyStatus.MISMATCH
+    assert "90000000" in (relation.numeric_consistency_detail or "")
+    assert "900000000" in (relation.numeric_consistency_detail or "")
+    assert relation.is_formal_supporting_evidence is False
 
 
 def _attribution(

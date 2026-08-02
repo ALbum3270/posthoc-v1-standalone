@@ -1697,6 +1697,14 @@ def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
     assert '"selected_text"' not in selection
     assert '"addressable_text"' in selection
     assert "<S000001>" in selection
+    assert "atomic-v1" not in selection
+    assert "independently truth-valued" not in selection
+    assert "smallest sufficient verification units" in selection
+    assert all(
+        relation in selection
+        for relation in ("attribution", "modality", "cause", "time sequence")
+    )
+    assert "reporting marker" in selection
     assert all("json" in prompt.lower() for prompt in (
         selection,
         decontext,

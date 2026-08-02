@@ -11,6 +11,7 @@ from open_deep_research.harness.claim_quality import (
     ClaimEntailmentLabel,
     ClaimExtractionGold,
     ClaimExtractionSystemJudgement,
+    ClaimGoldDisposition,
     ClaimReviewStatus,
     ExtractedClaimJudgement,
     FrozenClaimExtractionCase,
@@ -130,11 +131,12 @@ def _reviewed_inputs(
     gold = ClaimExtractionGold(
         case_id=case.case_id,
         review_status=ClaimReviewStatus.REVIEWED,
+        gold_disposition=ClaimGoldDisposition.VERIFICATION_UNITS,
         acceptable_surface_spans=(surface,),
         ambiguity=ClaimAmbiguityLabel.RESOLVED_FROM_CONTEXT,
-        verifiable_elements=("the facility expanded", "in 2022"),
+        truth_conditional_elements=("the facility expanded", "in 2022"),
         necessary_context=("A facility was opened.",),
-        preferred_atomic_claims=("The facility expanded in 2022.",),
+        preferred_verification_units=("The facility expanded in 2022.",),
         reviewer="human-1",
         rationale="The preceding sentence uniquely resolves 'it'.",
     )
@@ -151,7 +153,8 @@ def _reviewed_inputs(
                     if entailed
                     else ClaimEntailmentLabel.NOT_ENTAILED
                 ),
-                atomic=True,
+                verification_unit_appropriate=True,
+                preserves_truth_conditions=entailed,
                 decontextualized=True,
                 covered_element_ids=(0, 1) if entailed else (0,),
                 extraneous_element_count=0 if entailed else 1,
@@ -183,6 +186,8 @@ def test_paired_metrics_use_identical_cases_and_separate_quality_axes() -> None:
     assert baseline.entailment_rate == 0.0
     assert candidate.entailment_rate == 1.0
     assert candidate.surface_binding_accuracy == 1.0
+    assert baseline.truth_condition_preservation_rate == 0.0
+    assert candidate.truth_condition_preservation_rate == 1.0
     assert comparison.metric_deltas["entailment_rate"] == 1.0
     assert comparison.metric_deltas["element_recall"] == 0.5
     assert "success_score" not in comparison.model_dump(mode="json")
@@ -202,5 +207,59 @@ def test_pending_records_cannot_smuggle_in_guessed_gold() -> None:
         ClaimExtractionGold(
             case_id="case-1",
             review_status=ClaimReviewStatus.PENDING_REVIEW,
-            preferred_atomic_claims=("A guessed claim.",),
+            preferred_verification_units=("A guessed claim.",),
+        )
+
+
+def test_reviewed_gold_can_confirm_that_a_block_has_no_verifiable_claims() -> None:
+    block = "This report now turns to its conclusion."
+    case = FrozenClaimExtractionCase(
+        case_id="case-no-claim",
+        source_run_id="fixture",
+        audit_view="post_edit",
+        original_claim_id="claim-observed-but-invalid",
+        block_id="block-0001",
+        report_text_sha256="0" * 64,
+        block_text=block,
+        observed_selected_text=block,
+        observed_claim_text="The report has a conclusion.",
+        observed_failure="normative_or_rhetorical_text_selected",
+        addressable_spans=(),
+    )
+    gold = ClaimExtractionGold(
+        case_id=case.case_id,
+        review_status=ClaimReviewStatus.REVIEWED,
+        gold_disposition=ClaimGoldDisposition.NO_VERIFIABLE_CLAIMS,
+        ambiguity=ClaimAmbiguityLabel.UNAMBIGUOUS,
+        reviewer="human-1",
+        rationale="This is a transition, not a truth claim about the world.",
+    )
+    judgement = ClaimExtractionSystemJudgement(
+        case_id=case.case_id,
+        system_id="candidate",
+        review_status=ClaimReviewStatus.REVIEWED,
+        reviewer="human-1",
+    )
+
+    metrics = evaluate_claim_extraction((case,), (gold,), (judgement,))
+
+    assert metrics.reviewed_cases == 1
+    assert metrics.surface_binding_accuracy == 1.0
+    assert metrics.element_precision == 1.0
+    assert metrics.element_recall == 1.0
+    assert metrics.entailment_rate is None
+    assert metrics.verification_unit_appropriateness_rate is None
+    assert metrics.truth_condition_preservation_rate is None
+
+
+def test_no_verifiable_claim_gold_cannot_hide_guessed_verification_units() -> None:
+    with pytest.raises(ValueError, match="cannot contain guessed units"):
+        ClaimExtractionGold(
+            case_id="case-1",
+            review_status=ClaimReviewStatus.REVIEWED,
+            gold_disposition=ClaimGoldDisposition.NO_VERIFIABLE_CLAIMS,
+            ambiguity=ClaimAmbiguityLabel.UNAMBIGUOUS,
+            preferred_verification_units=("A guessed claim.",),
+            reviewer="human-1",
+            rationale="There should be no verification unit.",
         )
