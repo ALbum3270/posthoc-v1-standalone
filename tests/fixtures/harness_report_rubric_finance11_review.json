@@ -1,0 +1,172 @@
+{
+  "case": {
+    "baseline_report_sha256": "a8d2bc9ae7c7cf105b132ce7a35e05247c830efb0dfd3851600d8dfd7fc6c60b",
+    "baseline_report_text": "# FTX交易所2022年崩溃的原因、时间线与客户资金去向\n\n## 崩溃的主要原因\n\nFTX交易所在2022年崩溃，主要源自严重的管理失误和金融操作不当。核心问题在于FTX与其关联交易公司Alameda Research之间的资金混用。Alameda Research被允许使用FTX客户资金进行高风险交易，却没有有效的内部控制和风险管理措施。Alameda研究的大部分流动性依赖于FTX发行的原生代币FTT，而FTT本身在FTX之外几乎没有实际价值和有效支撑，这造成了严重的流动性风险。\n\n此外，FTX的管理层通过使用客户投资的FTT股份支持Alameda运营，应对投资者提出的超20亿美元的提现要求，加剧了流动性问题。FTT价值的崩溃最终由币安在2022年11月宣布清仓其价值约5.29亿美元的FTT持仓引发，引发市场恐慌，导致大量FTT持有者抛售，Alameda和FTX面临巨大保证金追缴，无力偿付最终陷入破产。\n\nFTX在内部管理与治理方面更是出现严重缺失：缺乏审计的财务报表、未加密的私钥和热钱包资产的安全隐患、多重认证措施缺失，以及公司间交易无正式记录和监督，导致交易所财务状况极度混乱。公司内部没有经验丰富的财务、风险管理与审计人员，致使资金去向不明、风险隐患累积。\n\n更严重的是，FTX高管团队，包括创始人兼CEO山姆·班克曼-弗里德（Sam Bankman-Fried），涉嫌挪用客户资金至少80亿美元，用以支付Alameda亏损、购买豪华房地产、支付政治捐款和慈善基金等私人用途。这种行为被称为“老式挪用公款”，且几乎没有留下任何交易记录。\n\n## 崩溃的时间线\n\nFTX的崩溃发生在2022年11月的短短10天内。11月6日，币安宣布出售其持有的FTT代币，引发市场信心崩溃。第二天，FTX开始面临客户大量提款请求，约60亿美元资金被要求提取。山姆·班克曼-弗里德尝试安抚投资者并寻求币安救助。\n\n11月11日，FTX正式申请美国破产保护（Chapter 11）。随后，公司新任CEO约翰·J·雷（John J. Ray III）被任命接管，开始着手破产重组与资产回收。2023年初，FTX宣布停止运营主交易平台，转入清算进程。\n\n## 关键个人与受影响对象\n\n主导并负主要责任的是FTX创始人兼前CEO山姆·班克曼-弗里德。他不仅因金融欺诈及洗钱等重罪被判处25年监禁，其多项违法行为也涉及政治资金违规。Alameda Research前CEO Caroline Ellison及FTX联合创始人Gary Wang均参与相关犯罪案件，部分与检方合作寻求减刑。\n\n受影响最大的群体是FTX客户和投资者。客户损失约80亿美元，而机构和个人投资者损失约17亿美元。\n\n## 资金去向与当前状态\n\n在崩溃过程中，FTX的客户存款大量被挪用。破产管理人John J. Ray III验资后发现，最初账面显示Alameda持有大约113亿美元客户资金，但实际上仅找到约23亿美元，剩余资金流向各类私人和不透明用途。客户资金被用于支持Alameda风险投资、购买房地产、支付奢华消费及政治和慈善捐款。\n\n2024年初，FTX恢复信心后宣布将偿还客户所欠资金，受益于加密货币市场从破产时起的反弹上涨。至2024年5月，FTX已通过出售控股权、清算数字资产和法律追缴等多渠道筹措资金。\n\n目前，FTX重组信托基金已陆续通过第三方金融服务商BitGo、Kraken和Payoneer分配资产。截至2024年底，已向债权人分发逾71亿美元，预期给不同债权人按债权类别分配不同偿还比例。\n\n## 监管失败与管理根源\n\nFTX利用其设在巴哈马的总部规避了美国严格的监管制度，避免了财务透明和投资者保护的严格要求。巴哈马的法律环境使FTX未受强制审计，内部管理和控制缺失长期未被公开质疑。美国内部对加密交易所的监管权责不清，商品期货交易委员会和证券交易委员会之间产生管辖分歧。国会两项拟议的加密资产监管法案均于2022年底前失效，使监管空白加剧。\n\nFTX作为一家私营公司，未公开财务报表且无审计，降低了风险监测的透明度。内部报告文件混乱导致管理层对真实财务状况认知严重不足，借助夸大FTT估值粉饰资产负债表，试图掩盖流动性缺口。\n\n## 总结\n\nFTX交易所的破产是多层次管理失败、内部控制缺失和金融犯罪的叠加结果。山姆·班克曼-弗里德及其团队利用关联公司Alameda Research的资金混用，隐藏交易所流动性风险，进行高风险赌博，并以客户资金支付个人奢侈和政治捐赠。\n\n时间紧凑的崩溃由币安清仓FTT引发，导致市场恐慌和提款潮，迅速摧毁了FTX的资金链。破产重组工作已取得进展，通过资产回收和法律追缴，客户和投资者有望部分乃至全部收回损失。这场事件暴露出数字资产领域监管体系的巨大漏洞，推动全球加强对加密交易所的合规监管呼声。",
+    "case_id": "finance-11:original-report",
+    "checklist_questions": [
+      {
+        "item_id": "who-involved-key-players",
+        "question": "Who were the key individuals and organizations involved in the management and operation of FTX before and during the 2022 collapse?"
+      },
+      {
+        "item_id": "who-affected-customers",
+        "question": "Who were the main groups of customers and investors impacted by the collapse of FTX in 2022?"
+      },
+      {
+        "item_id": "what-collapse-causes",
+        "question": "What were the primary causes and contributing factors that led to the collapse of the FTX exchange in 2022?"
+      },
+      {
+        "item_id": "what-customer-funds-status",
+        "question": "What is the current status and distribution of customer funds following the FTX collapse?"
+      },
+      {
+        "item_id": "when-collapse-timeline",
+        "question": "When did key events occur during the timeline of the FTX exchange collapse in 2022?"
+      },
+      {
+        "item_id": "when-recovery-efforts",
+        "question": "When were recovery and legal efforts initiated to address the fallout of the FTX collapse and recover assets?"
+      },
+      {
+        "item_id": "where-funds-allocated",
+        "question": "Where have the customer funds and assets been allocated or moved during and after the FTX collapse?"
+      },
+      {
+        "item_id": "where-ftx-operations",
+        "question": "Where were FTX's main operational hubs located prior to the collapse, and how did jurisdiction affect the collapse handling?"
+      },
+      {
+        "item_id": "why-collapse-happened",
+        "question": "Why did the internal management and financial practices at FTX fail leading to the 2022 collapse?"
+      },
+      {
+        "item_id": "why-regulation-impact",
+        "question": "Why did regulatory frameworks and oversight fail to prevent or mitigate the FTX collapse?"
+      },
+      {
+        "item_id": "how-collapse-unfolded",
+        "question": "How did the sequence of events and decisions lead to the FTX exchange’s collapse in 2022?"
+      },
+      {
+        "item_id": "how-funds-traced",
+        "question": "How have investigators and stakeholders traced the movement and current status of customer funds post-collapse?"
+      }
+    ],
+    "source_audit_path": "harness_runs/finance-11/audit.json",
+    "source_audit_sha256": "e461e5f0411cceaf9d5207792e43af6afd14ca24a2f3c01972e9145595dd379d",
+    "source_run_id": "finance-11",
+    "topic": "FTX 交易所 2022 年崩溃的原因、时间线与客户资金去向"
+  },
+  "gold": {
+    "case_id": "finance-11:original-report",
+    "keypoints": [
+      {
+        "importance": "core",
+        "keypoint_id": "kp-commingling",
+        "rationale": "对应 what-collapse-causes / why-collapse-happened。标题问的三件事之一是「原因」，资金混用是全部其他后果的上游，缺此项则原因段落只剩表象。",
+        "requirement": "说明 FTX 客户存款被转移给关联公司 Alameda Research 使用，并指出这一资金混用是崩溃的核心机制而非事后的次要情节"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-ftt-circular",
+        "rationale": "对应 why-collapse-happened。这是「为什么价格一跌就无法平仓」的机制，只写「流动性风险」而不写循环抵押等于没有回答 why。",
+        "requirement": "说明 Alameda 的抵押品主要是 FTX 自行发行的 FTT，该代币在 FTX 体系外缺乏有效市场支撑，因而抵押具有循环自我支撑的性质"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-trigger-binance-selloff",
+        "rationale": "对应 when-collapse-timeline / how-collapse-unfolded。时间线的起点。",
+        "requirement": "指出币安公开宣布抛售其 FTT 持仓这一触发事件，并说明它如何引发挤兑"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-binance-loi-withdrawn",
+        "rationale": "对应 how-collapse-unfolded。这是崩溃从「可能被救」转为「必然破产」的分水岭，缺失会让时间线出现无法解释的跳跃。finance-11 的编辑器删掉了它。",
+        "requirement": "提及币安曾签署收购意向书、随后撤销收购这一转折"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-withdrawal-run-scale",
+        "rationale": "对应 when-collapse-timeline。规模决定了流动性缺口的严重程度。要求标注口径是因为不同来源对「提现请求」与「实际提出」计法不同。",
+        "requirement": "给出挤兑期间客户提现请求的量级，并标明该数字的口径与时点"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-chapter11-date",
+        "rationale": "对应 when-collapse-timeline。时间线上最硬的一个锚点。",
+        "requirement": "给出 FTX 申请美国破产保护（Chapter 11）的具体日期"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-shortfall-scale",
+        "rationale": "对应 what-customer-funds-status。标题直接问「客户资金去向」。要求标注口径来源，是因为账面数与实际找到数差异极大，混用会产生量级错误。",
+        "requirement": "给出客户资金缺口或被挪用规模的量级，并标明该数字来自哪一方口径（破产管理人核查、检方指控、或公司账面）"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-funds-destination",
+        "rationale": "对应 where-funds-allocated。这是标题第三问的正面回答；只写「去向不明」等于把检索失败呈现为事实结论。",
+        "requirement": "列举被挪用客户资金的具体去向类别（如 Alameda 亏损、风险投资、房地产、政治捐款等），而不只是笼统称「用途不透明」"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-recovery-progress",
+        "rationale": "对应 when-recovery-efforts / what-customer-funds-status。用户关心的「钱还能不能拿回来」的一半答案。finance-11 的编辑器删掉了它。",
+        "requirement": "给出破产程序中已追回资产的规模及其时点"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-repayment-ratio-plan",
+        "rationale": "对应 what-customer-funds-status。另一半答案。要求标注「计划」状态，是因为偿付比例在破产程序中反复变动，写成既成事实会误导。finance-11 的编辑器删掉了它。",
+        "requirement": "说明债权人的预期偿付比例或分配计划，并标明其为计划/预期而非已完成事实"
+      },
+      {
+        "importance": "core",
+        "keypoint_id": "kp-responsible-individuals",
+        "rationale": "对应 who-involved-key-players / why-collapse-happened。责任归属是「原因」问题的人事面。",
+        "requirement": "点明 Sam Bankman-Fried 的角色与司法结果，并提及其他被追责的高管"
+      },
+      {
+        "importance": "supporting",
+        "keypoint_id": "kp-affected-groups",
+        "rationale": "对应 who-affected-customers。两类主体的求偿地位不同，合并叙述会掩盖分配顺位差异。",
+        "requirement": "区分受影响的客户与投资者两类群体，并给出各自的损失量级或规模"
+      },
+      {
+        "importance": "supporting",
+        "keypoint_id": "kp-creditor-count",
+        "rationale": "对应 who-affected-customers。规模感知所需，但不影响对三个主问题的回答。finance-11 的编辑器删掉了它。",
+        "requirement": "给出受影响债权人的数量级"
+      },
+      {
+        "importance": "supporting",
+        "keypoint_id": "kp-bankruptcy-administration",
+        "rationale": "对应 when-recovery-efforts。追回与分配数字的责任主体，是这些数字的出处依据。",
+        "requirement": "说明破产接管方（John J. Ray III）及重组主体的角色"
+      },
+      {
+        "importance": "supporting",
+        "keypoint_id": "kp-jurisdiction",
+        "rationale": "对应 where-ftx-operations。",
+        "requirement": "说明 FTX 的主要运营地与注册管辖（巴哈马），以及管辖如何影响破产处理"
+      },
+      {
+        "importance": "supporting",
+        "keypoint_id": "kp-regulatory-failure",
+        "rationale": "对应 why-regulation-impact。",
+        "requirement": "说明监管为何未能阻止，包括美国监管机构之间的管辖分歧或立法空白"
+      },
+      {
+        "importance": "supporting",
+        "keypoint_id": "kp-tracing-method",
+        "rationale": "对应 how-funds-traced。这是唯一一个问「方法」的问题，容易被答成结论。",
+        "requirement": "说明调查方与破产管理人通过何种手段追踪资金流向，而不只给出结论数字"
+      }
+    ],
+    "rationale": "keypoint 由 topic 与冻结的 12 个 checklist 问题推导，不从基线报告反推——若从基线反推，基线按构造即满分，前后对照就只能显示退化。core 与 supporting 的划分依据是：标题明确问的三件事（原因、时间线、客户资金去向）所必需的答案点记为 core，其余为 supporting。\n\n边界：这是覆盖与保全的尺子，不是事实正确性的尺子。它能判断某个答案点在编辑前后是否丢失，判断不了留下来的数字是否正确——finance-18 的 $900M/$90M 十倍错误和撤款时点错误都不在此尺覆盖范围内，需由数值一致性证伪器与人工核对处理。\n\n标注人是 claude-pm（模型），不是人类标注者。SAFE 报告自动判定与人工标注约 72% 一致，故此 gold 应被视为待人类复核的初版，不可当作最终 ground truth。",
+    "review_status": "reviewed",
+    "reviewer": "claude-pm"
+  },
+  "schema_version": "report-preservation-review-v1"
+}
