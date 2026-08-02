@@ -10,13 +10,19 @@ from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SOURCE_SEGMENTATION_VERSION = "markdown-aware-source-segments-v3"
+SOURCE_SEGMENTATION_VERSION = "markdown-aware-source-segments-v4"
 
-# End a sentence only where terminal punctuation is followed by whitespace or
-# the end of its Markdown paragraph. Quotation marks and closing brackets stay
-# with the sentence. Exact extraction does not depend on this heuristic being
-# linguistically perfect: it only determines the selectable granularity.
-_SENTENCE_END = re.compile(r"[.!?。！？]+(?:[\"'”’）)\]}]+)?(?=\s|$)")
+# Latin terminal punctuation requires following whitespace (or paragraph end)
+# so initials such as ``John J. Ray`` remain within one selectable segment.
+# Chinese terminal punctuation has no corresponding whitespace convention:
+# ``第一句。第二句。`` contains two sentences.  Treat it as a direct boundary
+# while preserving trailing quote/bracket characters with the sentence.
+# Exact extraction does not depend on a perfect linguistic parser; this is the
+# deterministic selectable granularity that prevents one CJK paragraph from
+# becoming a single, label-scale anchor.
+_SENTENCE_END = re.compile(
+    r"(?:[。！？]+(?:[\"'”’）)\]}]+)?|[.!?]+(?:[\"'”’）)\]}]+)?(?=\s|$))"
+)
 _ATX_HEADING = re.compile(r"^[ ]{0,3}#{1,6}[ \t]+.*$")
 _SETEXT_HEADING = re.compile(r"^[ ]{0,3}(?:=+|-+)[ \t]*$")
 _LIST_ITEM = re.compile(r"^[ \t]{0,3}(?:[-+*]|\d+[.)])[ \t]+")

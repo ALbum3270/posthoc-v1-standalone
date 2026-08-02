@@ -203,7 +203,13 @@ class _BlockSelectionProposal(BaseModel):
 
 
 class AtomicClaim(BaseModel):
-    """One retained atomic claim and its distinct model/report representations."""
+    """One retained atomic claim and its distinct model/report representations.
+
+    The segment IDs identify the model-selected addressable *container*.
+    ``anchor_text`` and its character bounds are independently narrowed by
+    code to the selected assertion inside that container.  They therefore do
+    not promise that the complete segment range itself is the render anchor.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -737,14 +743,15 @@ _EXTRACTION_PROMPT = """\
 Stage 3 of 3 — extraction.
 
 For each claim_id, identify the shortest continuous segment range in the
-canonical report that expresses the selected assertion. Return only its
+canonical report that contains the selected assertion. Return only its
 start_segment_id and end_segment_id. The range must stay inside that claim's
 supplied block_id. Do not copy anchor text or calculate character offsets. Do
 not join noncontiguous fragments.
 
 Code resolves the IDs against a registry bound to the exact report bytes,
-copies anchor_text from report[start_char:end_char], and rejects unknown,
-reversed, cross-unit, or wrong-block ranges instead of guessing.
+then derives the final anchor independently from the selection-stage text
+inside that range. It rejects unknown, reversed, cross-unit, wrong-block, or
+non-containing ranges instead of guessing.
 
 Return exactly one entry per claim_id as JSON only:
 {{"claims":[{{"claim_id":"claim-0001",\
@@ -1109,6 +1116,48 @@ def _normalization_failure(
         normalization_status=ClaimNormalizationStatus.NORMALIZATION_FAILED,
         normalization_failure=reason,
     )
+
+
+def _selected_assertion_bounds(
+    report: str,
+    *,
+    block: MarkdownBlock,
+    selected_text: str,
+) -> tuple[int | None, int | None, str | None]:
+    """Resolve the selection-stage assertion within its one declared block.
+
+    Selection names the assertion; extraction only selects its containing
+    addressable range.  The final render anchor is therefore code-narrowed to
+    the exact selected assertion rather than inheriting an over-broad model
+    segment range.  A missing or repeated selection text has no safe offset,
+    so it becomes a visible normalization failure instead of a paragraph-wide
+    annotation.
+    """
+
+    block_text = report[block.start_char : block.end_char]
+    occurrences = _unique_occurrences(block_text, selected_text)
+    if len(occurrences) == 1:
+        start = block.start_char + occurrences[0]
+        return start, start + len(selected_text), None
+    if len(occurrences) > 1:
+        return None, None, "selected_assertion_not_unique_in_block"
+
+    # Selection should be verbatim, but it may omit Markdown-only formatting
+    # such as ``**`` around a date.  Reuse the established conservative
+    # formatter repair only inside the declared block; it must still resolve
+    # to one contiguous authoritative report slice.  A semantic rewrite does
+    # not pass this path and remains an explicit normalization failure.
+    repaired = locate_verification_quote(block_text, selected_text)
+    if (
+        repaired.location_status == NoteLocationStatus.REPAIRED_LOCATABLE
+        and repaired.span is not None
+    ):
+        start = block.start_char + repaired.span.start_char
+        end = block.start_char + repaired.span.end_char
+        return start, end, None
+    if repaired.failure_reason == QuoteFailureReason.AMBIGUOUS_FORMAT_MATCH:
+        return None, None, "selected_assertion_not_unique_in_block"
+    return None, None, "selected_assertion_not_verbatim_in_block"
 
 
 async def decompose_claims(
@@ -1477,22 +1526,41 @@ async def decompose_claims(
 
         block = block_by_id[str(seed["block_id"])]
         reason: str | None = None
+        selected_start, selected_end, selected_error = _selected_assertion_bounds(
+            report,
+            block=block,
+            selected_text=str(seed["selected_text"]),
+        )
+        if selected_error is not None:
+            reason = selected_error
         anchor_start: int | None = None
         anchor_end: int | None = None
         anchor_text: str | None = None
-        try:
-            resolved_anchor = resolve_source_span(
-                report,
-                report_span_registry,
-                start_segment_id=extraction.start_segment_id,
-                end_segment_id=extraction.end_segment_id,
-            )
-        except ValueError:
-            reason = "anchor_pointer_invalid"
-        else:
-            anchor_start = resolved_anchor.start_char
-            anchor_end = resolved_anchor.end_char
-            anchor_text = resolved_anchor.source_quote
+        if reason is None:
+            try:
+                resolved_anchor = resolve_source_span(
+                    report,
+                    report_span_registry,
+                    start_segment_id=extraction.start_segment_id,
+                    end_segment_id=extraction.end_segment_id,
+                )
+            except ValueError:
+                reason = "anchor_pointer_invalid"
+            else:
+                if (
+                    selected_start is None
+                    or selected_end is None
+                    or selected_start < resolved_anchor.start_char
+                    or selected_end > resolved_anchor.end_char
+                ):
+                    reason = "anchor_does_not_cover_selected_assertion"
+                else:
+                    # The model points to an addressable container.  Code owns
+                    # the final exact bounds and refuses to inherit unrelated
+                    # neighbouring assertions from that container.
+                    anchor_start = selected_start
+                    anchor_end = selected_end
+                    anchor_text = report[anchor_start:anchor_end]
         if reason is None and anchor_start is not None and anchor_end is not None:
             if report[anchor_start:anchor_end] != anchor_text:
                 raise AssertionError("code-owned anchor bounds must round-trip")

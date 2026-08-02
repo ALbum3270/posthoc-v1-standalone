@@ -67,7 +67,7 @@ def test_contiguous_sentence_range_in_one_paragraph_returns_exact_source_slice()
     assert source[resolved.start_char : resolved.end_char] == resolved.source_quote
 
 
-def test_v3_splits_prose_inside_one_list_item_but_preserves_its_unit():
+def test_v4_splits_prose_inside_one_list_item_but_preserves_its_unit():
     source = (
         "- First sentence in one list item. "
         "Second sentence in the same list item."
@@ -75,7 +75,7 @@ def test_v3_splits_prose_inside_one_list_item_but_preserves_its_unit():
 
     registry = build_source_span_registry(source)
 
-    assert registry.segmentation_version.endswith("-v3")
+    assert registry.segmentation_version.endswith("-v4")
     assert [segment.text for segment in registry.segments] == [
         "- First sentence in one list item.",
         "Second sentence in the same list item.",
@@ -93,6 +93,23 @@ def test_v3_splits_prose_inside_one_list_item_but_preserves_its_unit():
     )
     assert resolved.source_quote == source
     assert resolved.segment_count == 2
+
+
+def test_v4_splits_adjacent_cjk_sentences_without_whitespace():
+    """Regression for finance-18's paragraph-wide claim annotations."""
+
+    source = (
+        "- **内部管理失控和风险失察**：SBF 的管理风格被员工形容为鲁莽且不负责任。"
+        "公司缺乏有效的内部控制和风险管理体系。"
+    )
+
+    registry = build_source_span_registry(source)
+
+    assert registry.segmentation_version.endswith("-v4")
+    assert [segment.text for segment in registry.segments] == [
+        "- **内部管理失控和风险失察**：SBF 的管理风格被员工形容为鲁莽且不负责任。",
+        "公司缺乏有效的内部控制和风险管理体系。",
+    ]
 
 
 def test_single_letter_name_initial_does_not_end_report_segment():

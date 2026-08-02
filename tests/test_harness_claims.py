@@ -1034,10 +1034,10 @@ def test_context_repair_cannot_cross_markdown_units() -> None:
     )
 
 
-def test_anchor_pointer_uses_authoritative_report_segment() -> None:
+def test_anchor_pointer_narrows_to_exact_selected_assertion() -> None:
     report = "The event happened, affecting others."
     blocks = parse_markdown_blocks(report)
-    proposed_anchor = "The event happened."
+    selected_assertion = "The event happened, affecting others."
     model = ScriptedClaimModel(
         {
             "blocks": [
@@ -1047,7 +1047,7 @@ def test_anchor_pointer_uses_authoritative_report_segment() -> None:
                     "rationale": "one assertion",
                     "assertions": [
                         {
-                            "selected_text": proposed_anchor,
+                            "selected_text": selected_assertion,
                             "citation_requirement": "external",
                         }
                     ],
@@ -1058,7 +1058,7 @@ def test_anchor_pointer_uses_authoritative_report_segment() -> None:
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "claim_text": proposed_anchor,
+                    "claim_text": selected_assertion,
                     "context_spans": [],
                 }
             ]
@@ -1078,7 +1078,7 @@ def test_anchor_pointer_uses_authoritative_report_segment() -> None:
     claim = result.claims[0]
     assert claim.normalization_status == ClaimNormalizationStatus.LOCATED
     assert claim.anchor_text_proposal is None
-    assert claim.anchor_text == report
+    assert claim.anchor_text == selected_assertion
     assert report[claim.start_char : claim.end_char] == claim.anchor_text
     assert result.anchor_proposal_count == 1
     assert result.anchor_copied_from_selection_count == 0
@@ -1088,7 +1088,7 @@ def test_anchor_pointer_uses_authoritative_report_segment() -> None:
 def test_invalid_anchor_pointer_remains_failed_without_clamping() -> None:
     report = "A person, a visible figure, led the group."
     blocks = parse_markdown_blocks(report)
-    rewritten = "The person was a visible figure."
+    selected_assertion = report
     model = ScriptedClaimModel(
         {
             "blocks": [
@@ -1098,7 +1098,7 @@ def test_invalid_anchor_pointer_remains_failed_without_clamping() -> None:
                     "rationale": "one assertion",
                     "assertions": [
                         {
-                            "selected_text": rewritten,
+                            "selected_text": selected_assertion,
                             "citation_requirement": "external",
                         }
                     ],
@@ -1109,7 +1109,7 @@ def test_invalid_anchor_pointer_remains_failed_without_clamping() -> None:
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    "claim_text": rewritten,
+                    "claim_text": selected_assertion,
                     "context_spans": [],
                 }
             ]
@@ -1140,8 +1140,8 @@ def test_invalid_anchor_pointer_remains_failed_without_clamping() -> None:
     assert claim.end_char is None
 
 
-def test_finance07_style_rewritten_selection_uses_report_pointer_not_copy() -> None:
-    """A paraphrased selection no longer becomes the report anchor proposal."""
+def test_finance07_style_rewritten_selection_is_not_given_a_broader_anchor() -> None:
+    """A semantic selection rewrite must not inherit a nearby report span."""
 
     report = (
         "- **Milestone**  \n"
@@ -1189,12 +1189,13 @@ def test_finance07_style_rewritten_selection_uses_report_pointer_not_copy() -> N
     result = asyncio.run(decompose_claims(report, model_client=model))
 
     claim = result.claims[0]
-    assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
-    assert claim.anchor_text == (
-        "On day two, the plan was reversed after a review."
+    assert claim.normalization_status is (
+        ClaimNormalizationStatus.NORMALIZATION_FAILED
     )
-    assert claim.anchor_text != claim.selected_text
-    assert report[claim.start_char : claim.end_char] == claim.anchor_text
+    assert claim.normalization_failure == "selected_assertion_not_verbatim_in_block"
+    assert claim.anchor_text is None
+    assert claim.start_char is None
+    assert claim.end_char is None
 
 
 def test_anchor_pointer_outside_selected_block_is_still_rejected() -> None:
@@ -1245,7 +1246,120 @@ def test_anchor_pointer_outside_selected_block_is_still_rejected() -> None:
     assert claim.normalization_status is (
         ClaimNormalizationStatus.NORMALIZATION_FAILED
     )
-    assert claim.normalization_failure == "anchor_outside_selected_block"
+    assert claim.normalization_failure == "anchor_does_not_cover_selected_assertion"
+
+
+def test_finance18_style_broad_pointer_is_narrowed_to_atomic_claim_anchor() -> None:
+    """A CJK list-item pointer cannot attach one claim's label to two facts."""
+
+    selected_assertion = "SBF 的管理风格被员工形容为鲁莽且不负责任。"
+    report = (
+        "- **内部管理失控和风险失察**："
+        f"{selected_assertion}"
+        "公司缺乏有效的内部控制和风险管理体系。"
+    )
+    blocks = parse_markdown_blocks(report)
+    registry = build_source_span_registry(report)
+    assert len(registry.segments) == 2
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "one atomic assertion",
+                    "assertions": [
+                        {
+                            "selected_text": selected_assertion,
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": selected_assertion,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    # Simulate finance-18: extraction points at the entire
+                    # CJK list item rather than the one selected assertion.
+                    "start_segment_id": registry.segments[0].segment_id,
+                    "end_segment_id": registry.segments[1].segment_id,
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
+    assert claim.anchor_text == selected_assertion
+    assert claim.start_char == report.index(selected_assertion)
+    assert claim.end_char == claim.start_char + len(selected_assertion)
+    assert claim.anchor_end_segment_id == registry.segments[1].segment_id
+    assert report[claim.start_char : claim.end_char] == selected_assertion
+    assert "公司缺乏有效" not in claim.anchor_text
+
+
+def test_selection_rewrite_is_visible_failure_not_a_guess_at_offsets() -> None:
+    report = "The plan was reversed after a review."
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "one assertion",
+                    "assertions": [
+                        {
+                            "selected_text": "The plan changed.",
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": "The plan changed.",
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    **_pointer(report, report),
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status is (
+        ClaimNormalizationStatus.NORMALIZATION_FAILED
+    )
+    assert claim.normalization_failure == "selected_assertion_not_verbatim_in_block"
+    assert claim.anchor_text is None
+    assert claim.start_char is None
+    assert claim.end_char is None
+    assert "selected_assertion_not_verbatim_in_block: claim-0001" in (
+        result.diagnostics
+    )
 
 
 def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
