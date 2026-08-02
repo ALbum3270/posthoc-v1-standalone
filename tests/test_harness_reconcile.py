@@ -185,6 +185,9 @@ def test_semantic_dispositions_require_code_located_report_references() -> None:
     assert '"item_id":"what-1"' in model.prompts[0]
     assert '"claim_id":"claim-1"' in model.prompts[0]
     assert "do not rewrite the report or checklist" in model.prompts[0]
+    assert "nearby facts or endpoints alone may be partial coverage" in (
+        model.prompts[0]
+    )
 
     rendered = render_verified_report(
         draft,

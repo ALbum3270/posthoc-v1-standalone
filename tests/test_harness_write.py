@@ -48,6 +48,12 @@ def test_write_report_passes_all_material_once_without_report_template() -> None
         model.prompts[0]
     )
     assert "Do not add evidence, grounding, confidence" in model.prompts[0]
+    assert "semantic research\nintent, not as a required heading template" in (
+        model.prompts[0]
+    )
+    assert "Nearby endpoint facts do not automatically answer a\nrelationship" in (
+        model.prompts[0]
+    )
 
 
 def test_write_prompt_keeps_report_language_bound_to_the_research_topic() -> None:

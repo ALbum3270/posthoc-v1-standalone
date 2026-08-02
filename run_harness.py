@@ -316,7 +316,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("topic", help="research topic")
     parser.add_argument("--max-rounds", type=int, default=25)
-    parser.add_argument("--max-tokens", type=int, default=100_000)
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=150_000,
+        help=(
+            "hard collection token cap, independent of the dollar cap; it "
+            "limits provider work but does not decide when research is enough"
+        ),
+    )
     parser.add_argument(
         "--max-cost-usd",
         type=float,
@@ -400,6 +408,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=8,
         help="number of note summaries returned by inspect_notes",
+    )
+    parser.add_argument(
+        "--source-link-page-size",
+        type=int,
+        default=64,
+        help=(
+            "number of mechanically captured link identities returned by "
+            "inspect_source_links"
+        ),
     )
     parser.add_argument(
         "--max-recalled-notes",
@@ -547,6 +564,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
             loop_settings=LoopSettings(
                 decision_source_char_limit=args.source_char_limit,
                 note_page_size=args.note_page_size,
+                source_link_page_size=args.source_link_page_size,
                 max_recalled_notes=args.max_recalled_notes,
             ),
             output_dir=args.output_dir,

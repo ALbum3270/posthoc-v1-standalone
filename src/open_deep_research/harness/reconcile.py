@@ -211,6 +211,13 @@ Judge semantic coverage:
 - not_covered: the report does not answer the item. Merely adjacent subject
   matter is not coverage.
 
+Read each question for the material relationships it asks for. A causal,
+temporal, comparative, actor, scale, or current-status question is only covered
+when the report substantively supplies the relationship the question requests;
+nearby facts or endpoints alone may be partial coverage. Decide what is
+material from the item's own wording and the report. Do not apply a fixed topic
+event list or a numeric coverage threshold.
+
 For covered or partially_covered, cite one or more claim_id values from the
 registry that actually carry the answer. Reusing a claim_id is allowed.
 For not_covered, return an empty claim_ids list and explain what is absent.

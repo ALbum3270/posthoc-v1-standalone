@@ -1698,6 +1698,8 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
 
     assert args.max_cost_usd == 0.28
     assert args.collection_max_cost_usd == 0.09
+    assert args.max_tokens == 150_000
+    assert args.source_link_page_size == 64
     assert args.verification_cost_reserve_usd == 0.10
     assert args.evidence_gap_max_searches == 6
     assert args.evidence_gap_max_tokens == 60_000

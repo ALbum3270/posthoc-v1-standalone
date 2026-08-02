@@ -11,7 +11,9 @@ from open_deep_research.harness.checklist import (
 )
 from open_deep_research.harness.ledger import (
     ResearchLedger,
+    SourceLinkCaptureAudit,
     SourceLinkCaptureStatus,
+    SourceLinkRecord,
 )
 from open_deep_research.harness.loop import (
     LoopBudget,
@@ -281,6 +283,7 @@ def test_decision_prompt_leaves_source_assessment_and_stopping_to_the_model():
         "code does\nnot classify sources or impose a source-quality threshold"
         in prompt
     )
+    assert LoopBudget().max_tokens == 150_000
 
 
 def test_malformed_actions_are_billed_and_stop_at_the_consecutive_limit():
@@ -569,6 +572,8 @@ def test_note_prompt_has_two_bounded_channels_without_changing_active_pass():
     assert "cross_item_seeds" in prompt
     assert "at most\n3 different items" in prompt
     assert "not a quality threshold" in prompt
+    assert "material relationship" in prompt
+    assert "not a fixed event list or a source-quality rule" in prompt
     assert "Every entry's\nitem_id must equal the active item_id" in prompt
     assert (
         'Active item:\n{"item_id": "what-1", "question": "Question 0?"}'
@@ -595,6 +600,89 @@ def test_note_prompt_has_two_bounded_channels_without_changing_active_pass():
         term not in prompt.casefold()
         for term in ("receivership", "regulators", "asset_flow")
     )
+
+
+def test_model_can_inspect_captured_source_links_then_read_a_selected_target():
+    active = checklist(second=False)
+    ledger = ResearchLedger(topic=active.topic)
+    parent_url = "https://secondary.example/overview"
+    target_url = "https://records.example/filing.pdf"
+    ledger.cache_source(
+        parent_url,
+        "A secondary overview that links to a filing.",
+        source_links=(
+            SourceLinkRecord(
+                target_url=target_url,
+                label="Linked filing",
+            ),
+        ),
+        link_capture=SourceLinkCaptureAudit(
+            status=SourceLinkCaptureStatus.CAPTURED,
+            captured_link_count=1,
+        ),
+    )
+    decisions = [
+        envelope(
+            {
+                "action": "inspect_source_links",
+                "item_id": "what-1",
+                "url": parent_url,
+                "cursor": None,
+            }
+        ),
+        envelope(
+            {
+                "action": "read",
+                "item_id": "what-1",
+                "url": target_url,
+            }
+        ),
+        envelope({"action": "settle", "item_id": "what-1"}),
+    ]
+    notes = [
+        envelope(
+            {
+                "active_notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "The filing supplies the requested fact.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000001",
+                    }
+                ],
+                "cross_item_seeds": [],
+            }
+        )
+    ]
+
+    result, decision_model, _, client = run_loop(
+        decisions,
+        notes=notes,
+        active_checklist=active,
+        active_ledger=ledger,
+        tavily=FakeTavily(raw_text="The filing supplies the requested fact."),
+        settings=LoopSettings(source_link_page_size=1),
+    )
+
+    initial_prompt = decision_model.prompts[0]
+    assert parent_url in initial_prompt
+    assert '"captured_link_count": 1' in initial_prompt
+    assert target_url not in initial_prompt
+
+    inspected_prompt = decision_model.prompts[1]
+    assert '"inspected_source_link_page"' in inspected_prompt
+    assert target_url in inspected_prompt
+    assert "Linked filing" in inspected_prompt
+    assert "lead, not evidence or a source-role classification" in (
+        inspected_prompt
+    )
+
+    assert [call[0] for call in client.extract_calls] == [[target_url], [target_url]]
+    first_audit = json.loads(ledger.rounds[0].result_summary)
+    assert first_audit["returned_target_urls"] == [target_url]
+    assert first_audit["next_cursor"] is None
+    assert [note.url for note in ledger.notes] == [target_url]
+    assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
 
 
 def test_note_channels_parse_entries_independently_and_cross_does_not_reset_failure():

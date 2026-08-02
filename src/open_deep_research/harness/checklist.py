@@ -241,6 +241,11 @@ Create a research checklist for the supplied topic.
 
 Use all six topic-neutral dimensions: who, what, when, where, why, and how.
 Write concrete questions that together support a thorough investigation.
+Treat the topic itself as a semantic research specification: when materially
+present, distinguish its entities, events, time spans, causal or temporal
+relationships, comparisons, and requested effects instead of letting one broad
+question silently stand in for them all. Use your own judgement about what is
+material to this topic; do not invent a fixed event list or a report gate.
 Set priority to a positive integer where a smaller number means earlier work.
 Set corroboration_target to 1 or 2. It is a later evidence-gap resource
 priority signal, not a truth threshold or a report-quality label.

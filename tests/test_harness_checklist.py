@@ -55,6 +55,8 @@ def test_model_generated_checklist_is_parsed_and_prompt_is_topic_neutral():
     assert checklist.items == (item(),)
     assert checklist.items[0].corroboration_target == 1
     assert "who, what, when, where, why, and how" in model.prompts[0]
+    assert "semantic research specification" in model.prompts[0]
+    assert "fixed event list or a report gate" in model.prompts[0]
     assert "corroboration_target" in model.prompts[0]
     assert "required_source_count" not in model.prompts[0]
     assert model.prompts[0].endswith("Topic:\nA topic supplied at runtime\n")

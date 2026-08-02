@@ -79,6 +79,15 @@ Proper nouns, document titles, and other source-specific terms may remain in
 their original language. This language requirement does not require covering
 an item for which the assembled material contains no evidence.
 
+Treat the checklist questions in the assembled material as semantic research
+intent, not as a required heading template or a mechanical content gate. Before
+drafting, make your own coverage judgement about whether the narrative conveys
+each material relationship a question asks for--such as a causal account,
+sequence of turning points, actor role, scale, comparison, or qualification--
+when the notes support it. Nearby endpoint facts do not automatically answer a
+relationship. Keep your chosen structure, and never turn an absence in the
+assembled material into a conclusion about the world.
+
 This is the drafting stage of a post-hoc attribution pipeline. Return narrative
 body text only:
 - Do not add footnotes, citations, reference markers, source lists, or URLs.

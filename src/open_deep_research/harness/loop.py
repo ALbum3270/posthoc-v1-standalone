@@ -91,7 +91,11 @@ class LoopBudget(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     max_rounds: int = Field(default=25, ge=0)
-    max_tokens: int = Field(default=100_000, ge=0)
+    # Real collection runs repeatedly reached the former 100k default while
+    # their independent dollar cap still had room.  Keep a hard token boundary
+    # (input size is a real resource), but leave enough capacity for a model to
+    # follow a newly discovered source chain before that boundary intervenes.
+    max_tokens: int = Field(default=150_000, ge=0)
     max_cost_usd: float = Field(default=10.0, ge=0.0)
     writing_token_reserve: int = Field(default=0, ge=0)
     writing_cost_reserve_usd: float = Field(default=0.0, ge=0.0)
@@ -143,6 +147,7 @@ class LoopSettings(BaseModel):
 
     decision_source_char_limit: int = Field(default=100_000, ge=0)
     note_page_size: int = Field(default=8, ge=1, le=50)
+    source_link_page_size: int = Field(default=64, ge=1, le=200)
     max_recalled_notes: int = Field(default=8, ge=1, le=50)
     # This is a capacity bound on cross-item discovery, not an evidence-quality
     # threshold. Keep it fixed during the first comparison run.
@@ -292,6 +297,32 @@ class InspectNotesAction(_ItemAction):
         return normalized
 
 
+class InspectSourceLinksAction(_ItemAction):
+    """Page through links mechanically captured from one cached source."""
+
+    action: Literal["inspect_source_links"]
+    url: str = Field(min_length=1)
+    cursor: str | None = None
+
+    @field_validator("url")
+    @classmethod
+    def _url_is_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("source-link URL must not be blank")
+        return normalized
+
+    @field_validator("cursor")
+    @classmethod
+    def _cursor_is_not_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("cursor must be null or a non-blank string")
+        return normalized
+
+
 class RecallNotesAction(_ItemAction):
     """Recall full details for explicitly selected stable note IDs."""
 
@@ -348,6 +379,7 @@ LoopAction = Annotated[
     | DismissCandidatesAction
     | RecallAction
     | InspectNotesAction
+    | InspectSourceLinksAction
     | RecallNotesAction
     | SettleAction
     | MarkExhaustedAction
@@ -363,6 +395,7 @@ PrimaryAction = Annotated[
     | DismissCandidatesAction
     | RecallAction
     | InspectNotesAction
+    | InspectSourceLinksAction
     | RecallNotesAction
     | StopAction,
     Field(discriminator="action"),
@@ -489,7 +522,7 @@ Return this JSON shape:
 {{"status_updates":[
   {{"item_id":"...","status":"settled","reason":"..."}},
   {{"item_id":"...","status":"exhausted_not_found","reason":"..."}}
-],"action":{{"action":"search|read|reanalyze|dismiss_candidates|recall|stop", ...}}}}
+],"action":{{"action":"search|read|reanalyze|dismiss_candidates|recall|inspect_notes|inspect_source_links|recall_notes|stop", ...}}}}
 
 status_updates may contain any number of distinct checklist items. Give every
 update its own reason. status_updates accepts terminal judgements only:
@@ -522,6 +555,7 @@ The optional action is one of:
 ]}}
 {{"action":"recall","item_id":"...","url":"..."}}
 {{"action":"inspect_notes","item_id":"...","cursor":null}}
+{{"action":"inspect_source_links","item_id":"...","url":"...","cursor":null}}
 {{"action":"recall_notes","item_id":"...","note_ids":["note-000001"]}}
 {{"action":"stop"}}
 
@@ -554,6 +588,14 @@ The default state contains only a compact note index. Use inspect_notes to page
 through one item's note summaries. Use the returned next_cursor to continue.
 Use recall_notes when you need full quote and span details for selected note IDs.
 
+source_link_index records links mechanically captured from a cached source's
+provider Markdown. Use inspect_source_links to page through the exact target
+URLs and labels for one cached source, then read a target URL if you judge that
+following the source's own lead would help the active question. A captured link
+is a lead, not evidence or a source-role classification; capture can also be
+incomplete or unavailable. Code does not decide which links are relevant or
+what kind of record they identify.
+
 Return JSON only.
 
 Current collection state:
@@ -573,6 +615,14 @@ checklist items that this source directly answers. Select at most
 each. A seed only makes useful cross-item material visible; it is not a full
 extraction for that item. Return an empty list when no other item is directly
 answered.
+
+When another item is directly answered through a material relationship (for
+example a sequence or turning point, an actor's role, a causal link, a
+comparison, or a scale), preserve a compact seed for that item when you judge
+it belongs among the bounded seeds. Do not let a source read for one question
+make its directly answerable relationship to another question invisible to the
+downstream draft. You decide what is material from the item wording and source;
+this is not a fixed event list or a source-quality rule.
 
 The cross-item limit is a fixed output-capacity bound, not a quality threshold.
 Only item_id values listed under eligible_cross_item_targets may appear in
@@ -1051,6 +1101,25 @@ def _compact_note_index(
     }
 
 
+def _source_link_index(ledger: ResearchLedger | None) -> list[dict[str, Any]]:
+    """Expose capture facts without interpreting any linked document."""
+
+    if ledger is None:
+        return []
+    return [
+        {
+            "source_url": source_url,
+            "capture_status": capture.status.value,
+            "captured_link_count": capture.captured_link_count,
+            "capture_completeness_guaranteed": (
+                capture.completeness_guaranteed
+            ),
+            "can_inspect": source_url in ledger.source_links,
+        }
+        for source_url, capture in sorted(ledger.source_link_capture.items())
+    ]
+
+
 def _inspect_notes_page(
     ledger: ResearchLedger,
     *,
@@ -1081,6 +1150,44 @@ def _inspect_notes_page(
         "notes": [_inspect_note_summary(note) for note in page_notes],
         "returned_count": len(page_notes),
         "total_count": len(item_notes),
+        "next_cursor": next_cursor,
+    }, None
+
+
+def _inspect_source_links_page(
+    ledger: ResearchLedger,
+    *,
+    url: str,
+    cursor: str | None,
+    page_size: int,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Return captured link identities for one cached source without ranking."""
+
+    if url not in ledger.source_cache:
+        return None, "source-link inspection requires a URL in the source cache"
+    if url not in ledger.source_links:
+        return None, "no source-link capture is available for this cached URL"
+    if cursor is None:
+        offset = 0
+    elif cursor.isdigit():
+        offset = int(cursor)
+    else:
+        return None, "cursor must be a non-negative decimal offset"
+
+    links = ledger.source_links[url]
+    if offset > len(links):
+        return None, f"cursor {offset} is past the captured link count {len(links)}"
+    page_links = links[offset : offset + page_size]
+    next_offset = offset + len(page_links)
+    next_cursor = str(next_offset) if next_offset < len(links) else None
+    capture = ledger.source_link_capture[url]
+    return {
+        "source_url": url,
+        "cursor": cursor,
+        "capture": capture.model_dump(mode="json"),
+        "links": [link.model_dump(mode="json") for link in page_links],
+        "returned_count": len(page_links),
+        "total_count": len(links),
         "next_cursor": next_cursor,
     }, None
 
@@ -1189,6 +1296,7 @@ def _build_decision_prompt(
     recalled_urls: Sequence[str] = (),
     candidates: Mapping[str, dict[str, Any]] | None = None,
     inspected_note_page: Mapping[str, Any] | None = None,
+    inspected_source_link_page: Mapping[str, Any] | None = None,
     recalled_notes: Sequence[Mapping[str, Any]] = (),
     acquisition_attempts: Mapping[str, Mapping[str, int]] | None = None,
 ) -> tuple[str, dict[str, Any]]:
@@ -1215,10 +1323,13 @@ def _build_decision_prompt(
         ),
         "acquisition_attempts": _acquisition_attempt_state(attempt_state),
         "note_index": _compact_note_index(checklist, notes),
+        "source_link_index": _source_link_index(ledger),
         "quote_quality": quote_quality_metrics(notes),
     }
     if inspected_note_page is not None:
         state["inspected_note_page"] = inspected_note_page
+    if inspected_source_link_page is not None:
+        state["inspected_source_link_page"] = inspected_source_link_page
     if recalled_notes:
         state["recalled_notes"] = list(recalled_notes)
     if sources:
@@ -1243,6 +1354,7 @@ def build_decision_prompt(
     recalled_urls: Sequence[str] = (),
     candidates: Mapping[str, dict[str, Any]] | None = None,
     inspected_note_page: Mapping[str, Any] | None = None,
+    inspected_source_link_page: Mapping[str, Any] | None = None,
     recalled_notes: Sequence[Mapping[str, Any]] = (),
     acquisition_attempts: Mapping[str, Mapping[str, int]] | None = None,
 ) -> str:
@@ -1261,6 +1373,7 @@ def build_decision_prompt(
         recalled_urls=recalled_urls,
         candidates=candidates,
         inspected_note_page=inspected_note_page,
+        inspected_source_link_page=inspected_source_link_page,
         recalled_notes=recalled_notes,
         acquisition_attempts=acquisition_attempts,
     )
@@ -2229,6 +2342,7 @@ async def run_research_loop(
     consecutive_malformed = 0
     recalled: list[str] = []
     inspected_note_page: dict[str, Any] | None = None
+    inspected_source_link_page: dict[str, Any] | None = None
     recalled_note_details: list[dict[str, Any]] = []
     candidates: dict[str, dict[str, Any]] = {}
     acquisition_attempts = _new_acquisition_attempt_state(
@@ -2254,6 +2368,7 @@ async def run_research_loop(
             recalled_urls=recalled,
             candidates=candidates,
             inspected_note_page=inspected_note_page,
+            inspected_source_link_page=inspected_source_link_page,
             recalled_notes=recalled_note_details,
             acquisition_attempts=acquisition_attempts,
         )
@@ -2694,6 +2809,34 @@ async def run_research_loop(
                         "inspected": True,
                         "returned_note_ids": [
                             note["note_id"] for note in page["notes"]
+                        ],
+                        "returned_count": page["returned_count"],
+                        "total_count": page["total_count"],
+                        "next_cursor": page["next_cursor"],
+                    }
+
+            elif isinstance(action, InspectSourceLinksAction):
+                page, page_error = _inspect_source_links_page(
+                    ledger,
+                    url=action.url,
+                    cursor=action.cursor,
+                    page_size=context_settings.source_link_page_size,
+                )
+                if page is None:
+                    summary = {
+                        "url": action.url,
+                        "cursor": action.cursor,
+                        "inspected": False,
+                        "detail": page_error,
+                    }
+                else:
+                    inspected_source_link_page = page
+                    summary = {
+                        "url": action.url,
+                        "cursor": action.cursor,
+                        "inspected": True,
+                        "returned_target_urls": [
+                            link["target_url"] for link in page["links"]
                         ],
                         "returned_count": page["returned_count"],
                         "total_count": page["total_count"],
