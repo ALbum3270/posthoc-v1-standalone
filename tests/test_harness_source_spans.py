@@ -112,6 +112,34 @@ def test_v4_splits_adjacent_cjk_sentences_without_whitespace():
     ]
 
 
+def test_v4_keeps_cjk_closing_quotes_and_titles_with_their_sentence():
+    """CJK punctuation must not strand a closing quote in the next segment."""
+
+    source = "她说：‘第一句。第二句。’随后引用《第三句。》"
+
+    registry = build_source_span_registry(source)
+
+    assert [segment.text for segment in registry.segments] == [
+        "她说：‘第一句。",
+        "第二句。’",
+        "随后引用《第三句。》",
+    ]
+    assert all(
+        not segment.text.startswith(("’", "」", "》"))
+        for segment in registry.segments
+    )
+
+
+def test_v4_does_not_split_cjk_punctuation_inside_a_code_block():
+    source = '```json\n{"message": "第一句。第二句。"}\n```'
+
+    registry = build_source_span_registry(source)
+
+    assert len(registry.segments) == 1
+    assert registry.segments[0].kind is SourceSegmentKind.CODE_BLOCK
+    assert registry.segments[0].text == source
+
+
 def test_single_letter_name_initial_does_not_end_report_segment():
     source = (
         "He was replaced by John J. Ray III during the proceedings. "

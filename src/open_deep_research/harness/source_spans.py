@@ -21,7 +21,7 @@ SOURCE_SEGMENTATION_VERSION = "markdown-aware-source-segments-v4"
 # deterministic selectable granularity that prevents one CJK paragraph from
 # becoming a single, label-scale anchor.
 _SENTENCE_END = re.compile(
-    r"(?:[。！？]+(?:[\"'”’）)\]}]+)?|[.!?]+(?:[\"'”’）)\]}]+)?(?=\s|$))"
+    r"(?:[。！？]+(?:[\"'”’）)\]}」』】》〕〉]+)?|[.!?]+(?:[\"'”’）)\]}」』】》〕〉]+)?(?=\s|$))"
 )
 _ATX_HEADING = re.compile(r"^[ ]{0,3}#{1,6}[ \t]+.*$")
 _SETEXT_HEADING = re.compile(r"^[ ]{0,3}(?:=+|-+)[ \t]*$")

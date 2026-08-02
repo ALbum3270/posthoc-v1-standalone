@@ -1198,6 +1198,58 @@ def test_finance07_style_rewritten_selection_is_not_given_a_broader_anchor() -> 
     assert claim.end_char is None
 
 
+def test_repeated_selected_assertion_in_one_block_is_not_arbitrarily_anchored():
+    """Code must reject ambiguity rather than choose the first duplicate."""
+
+    selected_assertion = "The transaction failed."
+    report = f"{selected_assertion} {selected_assertion}"
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "one repeated assertion",
+                    "assertions": [
+                        {
+                            "selected_text": selected_assertion,
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": selected_assertion,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    **_pointer(report, selected_assertion),
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assert claim.normalization_status is (
+        ClaimNormalizationStatus.NORMALIZATION_FAILED
+    )
+    assert claim.normalization_failure == "selected_assertion_not_unique_in_block"
+    assert claim.anchor_text is None
+    assert claim.start_char is None
+    assert claim.end_char is None
+
+
 def test_anchor_pointer_outside_selected_block_is_still_rejected() -> None:
     report = "First statement.\n\nSecond statement."
     blocks = parse_markdown_blocks(report)
