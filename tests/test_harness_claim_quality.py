@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -40,7 +41,7 @@ def _load_fixture() -> tuple[
     )
 
 
-def test_finance19_claim_extraction_inputs_are_frozen_but_gold_is_pending() -> None:
+def test_finance19_claim_extraction_inputs_are_frozen_and_gold_is_reviewed() -> None:
     payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
     canonical_cases = json.dumps(
         payload["cases"],
@@ -72,12 +73,46 @@ def test_finance19_claim_extraction_inputs_are_frozen_but_gold_is_pending() -> N
         "claim-0092",
         "claim-0095",
     }
-    assert all(item.review_status is ClaimReviewStatus.PENDING_REVIEW for item in gold)
+    # The frozen inputs above must never move. The gold below was annotated by
+    # a human reviewer after the schema gained a disposition that can say "no
+    # verifiable claim here" -- before that, annotating would have locked the
+    # ruler to atomic-v1's discarded target.
     assert all(
-        case.block_text[span.start_char : span.end_char] == span.text
-        for case in cases
-        for span in case.addressable_spans
+        entry.review_status is ClaimReviewStatus.REVIEWED for entry in gold
     )
+    by_case = {entry.case_id: entry for entry in gold}
+    dispositions = Counter(entry.gold_disposition for entry in gold)
+    assert dispositions[ClaimGoldDisposition.VERIFICATION_UNITS] == 14
+    assert dispositions[ClaimGoldDisposition.NO_VERIFIABLE_CLAIMS] == 2
+    assert all(entry.reviewer and entry.rationale for entry in gold)
+
+    # Every surface span the reviewer accepted is verbatim in its own block.
+    blocks = {case.case_id: case.block_text for case in cases}
+    for entry in gold:
+        for span in entry.acceptable_surface_spans:
+            block = blocks[entry.case_id]
+            assert block[span.start_char : span.end_char] == span.text
+
+    # Two verification units may share one surface span: the FTC and the New
+    # York attorney general are separate subjects of one coordinated sentence.
+    shared = [
+        entry
+        for entry in gold
+        if entry.acceptable_surface_spans
+        and entry.acceptable_surface_spans[0].text.startswith(
+            "美国联邦贸易委员会"
+        )
+    ]
+    assert len(shared) == 2
+
+    # A causal assertion stays whole: "A 助长 B" must not become two units.
+    causal = next(
+        entry
+        for entry in gold
+        if entry.acceptable_surface_spans
+        and "助长了客户资金被挪用" in entry.acceptable_surface_spans[0].text
+    )
+    assert len(causal.preferred_verification_units) == 1
 
 
 def test_pending_human_review_cannot_be_reported_as_a_semantic_score() -> None:

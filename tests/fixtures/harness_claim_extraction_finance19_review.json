@@ -413,180 +413,407 @@
   "cases_sha256": "56d873274cc58c39ebc31115ca222136c59f77f5e68566ee9fa5cff050a125e9",
   "gold": [
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0009",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "且在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪",
+          "start_char": 188,
+          "end_char": 228
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=Caroline Ellison",
+        "时间锚=FTX破产时",
+        "事件=面临法律诉讼",
+        "事件=认罪",
+        "并列主体=Gary Wang",
+        "Gary Wang 的身份=联合创始人"
+      ],
+      "necessary_context": [
+        "「她」在前文指 Alameda 的 CEO Caroline Ellison"
+      ],
+      "preferred_verification_units": [
+        "Caroline Ellison 在 FTX 破产时面临法律诉讼并认罪。",
+        "联合创始人 Gary Wang 在 FTX 破产时面临法律诉讼并认罪。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "原句用「且」承接前文主语，模型补主语是必要的去指代；但表面切片必须是原文「且在…认罪」。两名主体的法律状态可能需要不同来源，故拆为两个核验单元；「面临诉讼」与「认罪」是同一主体同一司法进程的连续状态，拆开会丢失关系，保留在同一单元内。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0012",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "并针对FTX的管理混乱与缺乏财务透明发表了严厉批评",
+          "start_char": 71,
+          "end_char": 96
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=John J. Ray III",
+        "言论对象=FTX 的管理混乱",
+        "言论对象=缺乏财务透明",
+        "行为=发表严厉批评"
+      ],
+      "necessary_context": [
+        "「他」指前句的 John J. Ray III"
+      ],
+      "preferred_verification_units": [
+        "John J. Ray III 针对 FTX 的管理混乱与缺乏财务透明发表了严厉批评。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "原文是并列谓语的后半，表面切片保留「并」字。批评的两个对象出自同一次表态，拆开会制造两条实际同源的断言，保留为一个单元。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0018",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "并被纳入集体诉讼",
+          "start_char": 75,
+          "end_char": 83
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=Tom Brady",
+        "主体=Gisele Bündchen",
+        "事件=被纳入集体诉讼",
+        "转述标记=被指出（作用于前半分句）"
+      ],
+      "necessary_context": [
+        "「他们」指前文的 Tom Brady 及 Gisele Bündchen",
+        "前半分句「被指出参与推广」带转述标记，本切片的「被纳入集体诉讼」不在该标记作用域内，需据原文判断作用域边界"
+      ],
+      "preferred_verification_units": [
+        "Tom Brady 被纳入与 FTX 推广相关的集体诉讼。",
+        "Gisele Bündchen 被纳入与 FTX 推广相关的集体诉讼。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "关键案例：原句前半有转述标记「被指出」，模型产出的 claim 丢失了它。经审阅，「被指出」在原文中修饰的是「参与推广未经监管的FTX证券产品」，「并被纳入集体诉讼」是并列的直陈分句，故本切片不受该标记约束——但这一判断必须由人给出，不能由代码推断。两名被告的诉讼状态需分别核验。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0026",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "但在知晓财务和法律风险后于11月6日宣布退出谈判",
+          "start_char": 140,
+          "end_char": 164
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=Binance",
+        "日期=11月6日",
+        "事件=宣布退出谈判",
+        "前置条件=在知晓财务和法律风险后",
+        "被退出的对象=收购FTX的计划"
+      ],
+      "necessary_context": [
+        "「Binance最初计划收购拯救FTX」提供了「谈判」所指的对象"
+      ],
+      "preferred_verification_units": [
+        "Binance 在知晓财务和法律风险后于 2022 年 11 月 6 日宣布退出收购 FTX 的谈判。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "日期与事件必须留在同一核验单元——分开会让「11月6日」失去它标注的事件。注意：外部事实核查显示 Binance 放弃收购实为 11 月 9 日，11 月 6 日是 CZ 宣布抛售 FTT；但 gold 标注的是「该表面切片的真值条件是什么」，事实对错由核验层判定，不在本标注范围。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0030",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "公司没有独立的首席财务官和完善的会计体系",
+          "start_char": 29,
+          "end_char": 49
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=FTX",
+        "缺失项=独立的首席财务官",
+        "缺失项=完善的会计体系",
+        "否定=没有（作用于两个并列宾语）"
+      ],
+      "necessary_context": [
+        "「公司」指前文破产调查所述的 FTX"
+      ],
+      "preferred_verification_units": [
+        "FTX 没有独立的首席财务官。",
+        "FTX 没有完善的会计体系。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "并列宾语受同一否定词辖域。拆分是合理的（两项可能由不同来源证实），但每个单元都必须重述否定词，否则辖域丢失。模型原产出「公司没有完善的会计体系」已正确保留否定，问题只在表面切片非逐字。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0036",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为",
+          "start_char": 107,
+          "end_char": 143
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=FTX",
+        "缺陷=内部软件安全不足",
+        "缺陷=用以保管密钥的电子邮件账户安全不足",
+        "后果=客户资金被挪用",
+        "关系=助长（因果）"
+      ],
+      "necessary_context": [
+        "主语 FTX 由段首「FTX存在严重的公司治理缺失」提供"
+      ],
+      "preferred_verification_units": [
+        "FTX 的内部软件与用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "不可拆。「A 助长 B」是因果断言，拆成「A 安全不足」与「B 被挪用」两条会丢失因果关系，且两条分别为真并不蕴含原句为真。这正是 Codex 所说「因果、比较、转折、时序应作为整体保留」的实例。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0039",
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反美国证券法及FTX自身的服务条款",
+          "start_char": 0,
+          "end_char": 59
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=FTX",
+        "行为=利用客户资金提供资金支持",
+        "受方=Alameda Research（关联交易方）",
+        "定性=非法",
+        "违反对象=美国证券法",
+        "违反对象=FTX 自身的服务条款"
+      ],
       "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "preferred_verification_units": [
+        "FTX 利用客户资金为其关联交易方 Alameda Research 提供资金支持，违反美国证券法。",
+        "FTX 利用客户资金为其关联交易方 Alameda Research 提供资金支持，违反 FTX 自身的服务条款。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "模型只取了「违反FTX自身的服务条款」而丢掉「美国证券法」——这是并列宾语的选择性遗漏，属真值条件丢失。两个违反对象需要不同性质的证据（法律认定 vs 合同条款），故拆为两个单元，但共同的行为描述必须在每个单元内重述。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0050",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "Binance宣布终止收购意向，称已无法控制和解决相关问题",
+          "start_char": 17,
+          "end_char": 46
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=Binance",
+        "日期=2022年11月6日",
+        "事件=宣布终止收购意向",
+        "转述=称已无法控制和解决相关问题"
+      ],
+      "necessary_context": [
+        "日期 2022年11月6日 来自该列表项的加粗前缀，不在句子本体内"
+      ],
+      "preferred_verification_units": [
+        "Binance 于 2022 年 11 月 6 日宣布终止收购 FTX 的意向，理由是称已无法控制和解决相关问题。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "「称」是转述标记，其后内容是 Binance 的主张而非已证实事实，必须保留在核验单元中——核验的是「Binance 是否这样说」而非「问题是否真的无法解决」。日期在列表项前缀里，去语境化时必须补入。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0072",
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动",
+          "start_char": 2,
+          "end_char": 45
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=美国联邦贸易委员会（FTC）",
+        "主体=纽约总检察长",
+        "行为=发起执法行动",
+        "对象=相关加密借贷平台和关联公司",
+        "递进标记=也"
+      ],
       "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "preferred_verification_units": [
+        "美国联邦贸易委员会（FTC）对相关加密借贷平台和关联公司发起执法行动。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "并列主语拆分。两个机构的执法行动是独立事件、需分别核验，拆分成立。但「也」标示这是在前述监管行动之外的追加，拆分后该递进关系丢失——这是可接受的损失（不影响单条真值），须在此记录。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0073",
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动",
+          "start_char": 2,
+          "end_char": 45
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=纽约总检察长",
+        "行为=发起执法行动",
+        "对象=相关加密借贷平台和关联公司",
+        "递进标记=也"
+      ],
       "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "preferred_verification_units": [
+        "纽约总检察长对相关加密借贷平台和关联公司发起执法行动。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "与 claim-0072 共享同一表面切片。这证明一个表面切片可对应多个核验单元，schema 必须允许该多对一关系。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0076",
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者",
+          "start_char": 0,
+          "end_char": 35
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=FTX 倒闭",
+        "影响范围=超过一百万用户",
+        "影响范围=数百家机构投资者",
+        "量级词=超过/数百"
+      ],
       "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "preferred_verification_units": [
+        "FTX 倒闭影响超过一百万用户。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "并列宾语拆分，两个量级数字可能来自不同统计口径与来源，需分别核验。量级词「超过」「数百」是真值条件的一部分，去掉会改变断言强度。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0077",
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者",
+          "start_char": 0,
+          "end_char": 35
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=FTX 倒闭",
+        "影响范围=数百家机构投资者",
+        "量级词=数百"
+      ],
       "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "preferred_verification_units": [
+        "FTX 倒闭影响数百家机构投资者。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "与 claim-0076 共享同一表面切片，同样是多对一关系。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0081",
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼",
+          "start_char": 3,
+          "end_char": 37
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=涉及 FTX 推广的多位明星名人",
+        "原因=参与销售未经注册的证券产品",
+        "结果=卷入诉讼",
+        "定性=未经注册"
+      ],
       "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "preferred_verification_units": [
+        "涉及 FTX 推广的多位明星名人因参与销售未经注册的证券产品而卷入诉讼。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "「因…而…」是因果结构，不可拆。「未经注册」是对证券产品的法律定性，是真值条件的核心，不能省略。"
     },
     {
-      "acceptable_surface_spans": [],
-      "ambiguity": null,
       "case_id": "finance-19:post_edit:claim-0082",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
-    },
-    {
+      "review_status": "reviewed",
+      "gold_disposition": "no_verifiable_claims",
       "acceptable_surface_spans": [],
       "ambiguity": null,
+      "truth_conditional_elements": [],
+      "necessary_context": [],
+      "preferred_verification_units": [],
+      "reviewer": "claude-pm",
+      "rationale": "这是作者对前述事实的解释性评述（「反映出…」），不是可独立外部核验的事实断言。它的真假取决于对「广泛冲击」的界定，没有客观真值可供来源核对。应记为无事实核验单元，原表面切片仍保留在报告与 selection 审计中，但不进入 external factual denominator。"
+    },
+    {
       "case_id": "finance-19:post_edit:claim-0092",
-      "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "review_status": "reviewed",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "FTX的创办人及高管被指控并定罪",
+          "start_char": 9,
+          "end_char": 25
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=FTX 的创办人",
+        "主体=FTX 的高管",
+        "事件=被指控",
+        "事件=被定罪",
+        "时序标记=随着司法程序推进"
+      ],
+      "necessary_context": [
+        "「随着司法程序推进」提供了时间框架，本身不是可核验的独立断言"
+      ],
+      "preferred_verification_units": [
+        "FTX 的创办人被指控并定罪。",
+        "FTX 的高管被指控并定罪。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "「被指控并定罪」是同一司法进程的两个连续阶段，保留在同一单元内；创办人与高管是不同主体、判决时间与罪名不同，需分别核验故拆为两条。注意报告写作时（对应 2022 年末视角）与实际司法进展存在时效差，但那是内容问题不是抽取问题。"
     },
     {
+      "case_id": "finance-19:post_edit:claim-0095",
+      "review_status": "reviewed",
+      "gold_disposition": "no_verifiable_claims",
       "acceptable_surface_spans": [],
       "ambiguity": null,
-      "case_id": "finance-19:post_edit:claim-0095",
+      "truth_conditional_elements": [],
       "necessary_context": [],
-      "preferred_atomic_claims": [],
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verifiable_elements": []
+      "preferred_verification_units": [],
+      "reviewer": "claude-pm",
+      "rationale": "这是规范性/劝诫性表述（「此事件令人深刻警示…以防类似灾难重演」的目的状语），根本不是事实断言，没有真值。它被当作外部可核验断言进入分母，会虚增零支持率。应在 selection 层判为无事实核验单元。"
     }
   ],
   "schema_version": "claim-extraction-review-v1",
