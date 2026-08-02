@@ -43,6 +43,9 @@ class DisagreementStopReason(str, Enum):
     NO_ELIGIBLE_CLAIMS = "no_eligible_claims"
     NO_SELECTION = "no_selection"
     COMPLETED = "completed"
+    SINGLE_PASS_ENDED_WITH_UNATTEMPTED_SELECTIONS = (
+        "single_pass_ended_with_unattempted_selections"
+    )
     BUDGET_EXHAUSTED = "budget_exhausted"
     MODEL_ERROR = "model_error"
 
@@ -297,9 +300,11 @@ not_enough_information are equally valid outcomes.
 
 You have at most {max_queries} web queries. This is an upper bound, not a
 target. One focused query may serve several claims when their alternative
-check genuinely overlaps. While selected claims remain unrouted, allocate
-every available query slot. Zero queries is valid only when max_queries is
-zero or accepted cached candidates already route every selected claim.
+check genuinely overlaps. Decide whether a cached candidate or query is useful
+for each selected claim; the code does not require every query slot to be used
+or decide what source would be informative. A selected claim with no accepted
+route remains explicitly unattempted, which is not a conclusion about whether
+disagreement exists.
 
 Return only accepted cached candidates and proposed queries. Do not return
 deferred_targets. Code records every unrouted selected claim as
@@ -861,7 +866,26 @@ async def run_disagreement_detection(
         ),
         EvidenceGapStopReason.DISABLED: DisagreementStopReason.DISABLED,
     }[acquisition.stop_reason]
-    if mapped_stop is DisagreementStopReason.COMPLETED:
+    attempted_ids = {attempt.claim_id for attempt in attempts}
+    unattempted_ids = tuple(
+        selection.claim_id
+        for selection in selections
+        if selection.claim_id not in attempted_ids
+    )
+    if (
+        mapped_stop is DisagreementStopReason.COMPLETED
+        and unattempted_ids
+    ):
+        mapped_stop = (
+            DisagreementStopReason.SINGLE_PASS_ENDED_WITH_UNATTEMPTED_SELECTIONS
+        )
+        stop_detail = (
+            "the only bounded disagreement pass ended with selected claims "
+            "that received neither an accepted cached candidate nor an issued "
+            "search route: "
+            + ", ".join(unattempted_ids)
+        )
+    elif mapped_stop is DisagreementStopReason.COMPLETED:
         stop_detail = (
             f"single bounded pass attempted {len(attempts)} claim(s); "
             f"new completed relations={sum(counts.values())}; "

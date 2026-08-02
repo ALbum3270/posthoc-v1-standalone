@@ -315,6 +315,75 @@ def test_zero_conflicts_is_normal_and_each_attempt_is_audited() -> None:
     assert result.canonical_draft_unchanged
 
 
+def test_unrouted_selected_claims_are_partial_not_completed() -> None:
+    """A bounded plan may be sparse, but it cannot call an unchecked claim done."""
+
+    report = "# Report\n\nA measured value was reported."
+    first = _claim(report)
+    second = _claim(report, claim_id="claim-0002")
+    attribution, verification = _initial((first, second))
+    model = ScriptedModel(
+        {
+            "claims": [
+                {
+                    "claim_id": first.claim_id,
+                    "reason": "An alternative measurement is informative.",
+                },
+                {
+                    "claim_id": second.claim_id,
+                    "reason": "An alternative account is informative.",
+                },
+            ]
+        },
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [first.claim_id],
+                    "item_id": "what-1",
+                    "query": "alternative measurement account",
+                }
+            ],
+        },
+    )
+    network = EmptySearch()
+
+    result = asyncio.run(
+        run_disagreement_detection(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=attribution,
+            initial_verification=verification,
+            selection_model=model,
+            note_model=UnusedModel(),
+            attribution_model=UnusedModel(),
+            verification_model=UnusedModel(),
+            tavily_client=network,
+            budget=DisagreementBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_selected_claims=2,
+                max_search_queries=2,
+                max_reads=0,
+            ),
+            estimate_input_tokens=_tokens,
+            estimate_cost_usd=_cost,
+        )
+    )
+
+    assert network.queries == ["alternative measurement account"]
+    assert result.stop_reason is (
+        DisagreementStopReason.SINGLE_PASS_ENDED_WITH_UNATTEMPTED_SELECTIONS
+    )
+    assert [
+        attempt.claim_id for attempt in result.disagreement_search_attempted
+    ] == [first.claim_id]
+    assert second.claim_id in result.stop_detail
+    assert "does not require every query slot" in model.prompts[1]
+
+
 def test_all_four_verdicts_are_information_not_a_conflict_score() -> None:
     report = "# Report\n\nA measured value was reported."
     claim = _claim(report)

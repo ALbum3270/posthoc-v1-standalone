@@ -9,6 +9,13 @@ import pytest
 
 import run_harness as harness_cli
 from open_deep_research.harness.claims import parse_markdown_blocks
+from open_deep_research.harness.disagreement import (
+    DisagreementBudget,
+    DisagreementResult,
+    DisagreementSearchAttempt,
+    DisagreementSelection,
+    DisagreementStopReason,
+)
 from open_deep_research.harness.evidence_gap import EvidenceGapBudget
 from open_deep_research.harness.loop import LoopBudget, StopReason
 from open_deep_research.harness.recovery import EvidenceRecoveryStopReason
@@ -2015,6 +2022,94 @@ def test_an_ineligible_run_still_writes_its_bundle(tmp_path):
     # And the reader is told, in the report itself, that it is incomplete.
     report = (tmp_path / "ineligible-run" / "report.md").read_text("utf-8")
     assert "不完整运行产物" in report
+
+
+def test_scope_invariant_downgrade_writes_auditable_bundle(
+    tmp_path,
+    monkeypatch,
+):
+    """A false complete record must become partial, never erase the run.
+
+    This simulates the finance-21 shape at the runner boundary: the
+    disagreement pass says its bounded control flow completed, but one of two
+    selected claims has no actual cache/search attempt.  The test uses the
+    stale upstream state deliberately to prove the runner's mechanical
+    backstop degrades it and keeps the paid-for artifacts.
+    """
+
+    async def stale_completed_disagreement(**kwargs):
+        return DisagreementResult(
+            selected_claims=(
+                DisagreementSelection(
+                    claim_id="claim-0001",
+                    reason="Alternative measurement is informative.",
+                ),
+                DisagreementSelection(
+                    claim_id="claim-0002",
+                    reason="Alternative account is informative.",
+                ),
+            ),
+            disagreement_search_attempted=(
+                DisagreementSearchAttempt(
+                    claim_id="claim-0001",
+                    selection_reason="Alternative measurement is informative.",
+                    methods=("web_search",),
+                ),
+            ),
+            stop_reason=DisagreementStopReason.COMPLETED,
+            stop_detail="stale control-flow completion",
+            final_attribution=kwargs["initial_attribution"],
+            final_verification=kwargs["initial_verification"],
+        )
+
+    monkeypatch.setattr(
+        "open_deep_research.harness.runner.run_disagreement_detection",
+        stale_completed_disagreement,
+    )
+    events = []
+    draft = "# Report\n\nThe model wrote this report."
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=DecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=WriteModel(events),
+            claim_model=ClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=AttributionModel(events),
+            verification_model=UnusedVerificationModel(),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            disagreement_budget=DisagreementBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+            ),
+            output_dir=tmp_path,
+            run_id="scope-downgrade",
+        )
+    )
+
+    bundle = tmp_path / "scope-downgrade"
+    assert result.audit_path == bundle / "audit.json"
+    assert (bundle / "report.md").is_file()
+    assert (bundle / "sources.md").is_file()
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    disagreement = audit["posthoc_evidence"]["stage_execution"]["stages"][
+        "disagreement"
+    ]
+    assert disagreement["status"] == "partial"
+    assert disagreement["expected_scope"] == {
+        "unit": "selected_claim",
+        "count": 2,
+    }
+    assert disagreement["evaluated_scope"] == {
+        "unit": "selected_claim",
+        "count": 1,
+    }
+    assert disagreement["unevaluated_ids"] == ["claim-0002"]
+    assert "complete_requires_full_expected_scope" in disagreement["reason"]
 
 
 def test_a_cap_that_bites_after_the_draft_still_writes_an_honest_bundle(

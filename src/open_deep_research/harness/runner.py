@@ -395,6 +395,15 @@ def _scope_record(
     evaluated_count: int | None = None,
     unevaluated_ids: tuple[str, ...] = (),
 ) -> StageExecutionRecord:
+    """Construct an honest scope record, degrading a false complete state.
+
+    ``StageExecutionRecord`` remains the final mechanical backstop.  At this
+    runner boundary, however, a known scope mismatch must produce a durable
+    partial bundle rather than let a validation exception erase work already
+    paid for.  The reason and ``unevaluated_ids`` retain the exact invariant
+    and affected IDs for audit.
+    """
+
     expected = (
         StageScope(unit=unit, count=expected_count)
         if unit is not None and expected_count is not None
@@ -405,6 +414,22 @@ def _scope_record(
         if expected is not None and evaluated_count is not None
         else None
     )
+    if (
+        status is StageExecutionStatus.COMPLETE
+        and expected is not None
+        and (
+            evaluated is None
+            or evaluated.count != expected.count
+            or unevaluated_ids
+        )
+    ):
+        status = StageExecutionStatus.PARTIAL
+        reason = (
+            "mechanical scope invariant "
+            "complete_requires_full_expected_scope was not satisfied; "
+            "recorded partial instead. "
+            + reason
+        )
     return StageExecutionRecord(
         status=status,
         reason=reason,
@@ -446,6 +471,49 @@ def _evidence_gap_execution_record(
         expected_count=expected_count,
         evaluated_count=evaluated_count,
         unevaluated_ids=result.unrouted_target_claim_ids,
+    )
+
+
+def _disagreement_execution_record(
+    result: DisagreementResult,
+) -> StageExecutionRecord:
+    """Record checks actually attempted, never merely selected.
+
+    A disagreement pass may complete its bounded control flow while its plan
+    leaves selected claims without a cache or search route.  That is a partial
+    scope, not a completed disagreement check and not evidence of agreement.
+    """
+
+    selected_ids = tuple(selection.claim_id for selection in result.selected_claims)
+    attempted_ids = {
+        attempt.claim_id for attempt in result.disagreement_search_attempted
+    }
+    evaluated_ids = tuple(
+        claim_id for claim_id in selected_ids if claim_id in attempted_ids
+    )
+    unevaluated_ids = tuple(
+        claim_id for claim_id in selected_ids if claim_id not in attempted_ids
+    )
+    if result.stop_reason in {
+        DisagreementStopReason.COMPLETED,
+        DisagreementStopReason.NO_ELIGIBLE_CLAIMS,
+        DisagreementStopReason.NO_SELECTION,
+    }:
+        status = StageExecutionStatus.COMPLETE
+    elif result.stop_reason in {
+        DisagreementStopReason.BUDGET_EXHAUSTED,
+        DisagreementStopReason.SINGLE_PASS_ENDED_WITH_UNATTEMPTED_SELECTIONS,
+    }:
+        status = StageExecutionStatus.PARTIAL
+    else:
+        status = StageExecutionStatus.FAILED
+    return _scope_record(
+        status=status,
+        reason=result.stop_detail,
+        unit="selected_claim",
+        expected_count=len(selected_ids),
+        evaluated_count=len(evaluated_ids),
+        unevaluated_ids=unevaluated_ids,
     )
 
 
@@ -1667,35 +1735,8 @@ async def run_harness(
                     "stop_reason": DisagreementStopReason.BUDGET_EXHAUSTED,
                 }
             )
-        stage_records["disagreement"] = _scope_record(
-            status=(
-                StageExecutionStatus.COMPLETE
-                if disagreement.stop_reason
-                in {
-                    DisagreementStopReason.COMPLETED,
-                    DisagreementStopReason.NO_ELIGIBLE_CLAIMS,
-                    DisagreementStopReason.NO_SELECTION,
-                }
-                else (
-                    StageExecutionStatus.PARTIAL
-                    if disagreement.stop_reason
-                    is DisagreementStopReason.BUDGET_EXHAUSTED
-                    else StageExecutionStatus.FAILED
-                )
-            ),
-            reason=disagreement.stop_detail,
-            unit="selected_claim",
-            expected_count=len(disagreement.selected_claims),
-            evaluated_count=len(disagreement.disagreement_search_attempted),
-            unevaluated_ids=tuple(
-                selection.claim_id
-                for selection in disagreement.selected_claims
-                if selection.claim_id
-                not in {
-                    attempt.claim_id
-                    for attempt in disagreement.disagreement_search_attempted
-                }
-            ),
+        stage_records["disagreement"] = _disagreement_execution_record(
+            disagreement
         )
     attribution = disagreement.final_attribution
     verification = disagreement.final_verification
