@@ -54,6 +54,7 @@ from open_deep_research.harness.concentration import (
     audit_domain_proxy_concentration,
 )
 from open_deep_research.harness.disagreement import (
+    allocate_posthoc_retrieval_budget,
     DisagreementBudget,
     DisagreementResult,
     DisagreementStopReason,
@@ -1465,23 +1466,12 @@ async def run_harness(
             estimate_complete=True,
         )
 
-    effective_evidence_gap_budget = evidence_gap_budget
-    if (
-        evidence_gap_budget is not None
-        and posthoc_retrieval_budget is not None
-    ):
-        effective_evidence_gap_budget = evidence_gap_budget.model_copy(
-            update={
-                "max_tokens": min(
-                    evidence_gap_budget.max_tokens,
-                    posthoc_retrieval_budget.max_tokens,
-                ),
-                "max_cost_usd": min(
-                    evidence_gap_budget.max_cost_usd,
-                    posthoc_retrieval_budget.max_cost_usd,
-                ),
-            }
-        )
+    posthoc_allocation = allocate_posthoc_retrieval_budget(
+        shared_budget=posthoc_retrieval_budget,
+        evidence_gap_budget=evidence_gap_budget,
+        disagreement_budget=disagreement_budget,
+    )
+    effective_evidence_gap_budget = posthoc_allocation.evidence_gap_budget
     run_gap_remaining = run_cost.remaining_cost_usd
     if (
         effective_evidence_gap_budget is not None
@@ -1693,6 +1683,22 @@ async def run_harness(
         evidence_gap_cost_usd=evidence_gap.total_cost_usd,
         disagreement_tokens=disagreement.total_tokens,
         disagreement_cost_usd=disagreement.total_cost_usd,
+        disagreement_reserved_tokens=(
+            posthoc_allocation.disagreement_reserved_tokens
+        ),
+        disagreement_reserved_cost_usd=(
+            posthoc_allocation.disagreement_reserved_cost_usd
+        ),
+        evidence_gap_admission_max_tokens=(
+            effective_evidence_gap_budget.max_tokens
+            if effective_evidence_gap_budget is not None
+            else 0
+        ),
+        evidence_gap_admission_max_cost_usd=(
+            effective_evidence_gap_budget.max_cost_usd
+            if effective_evidence_gap_budget is not None
+            else 0.0
+        ),
     )
 
     # A recovery pass is deliberately separate from both the ordinary gap

@@ -475,30 +475,34 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--posthoc-retrieval-max-tokens",
         type=int,
-        default=60_000,
+        default=110_000,
         help=(
             "shared token cap across evidence-gap and disagreement passes; "
-            "the default equals the former evidence-gap cap"
+            "the default is the sum of both independent pass caps, so "
+            "reserving disagreement capacity does not reduce evidence-gap "
+            "capacity"
         ),
     )
     parser.add_argument(
         "--posthoc-retrieval-max-cost-usd",
         type=float,
-        default=0.10,
+        default=0.16,
         help=(
             "shared cost cap across evidence-gap and disagreement passes; "
-            "the default equals the former evidence-gap cap"
+            "the default is the sum of both independent pass caps, so "
+            "reserving disagreement capacity does not reduce evidence-gap "
+            "capacity"
         ),
     )
     parser.add_argument(
         "--disagreement-max-tokens",
         type=int,
-        default=30_000,
+        default=50_000,
     )
     parser.add_argument(
         "--disagreement-max-cost-usd",
         type=float,
-        default=0.05,
+        default=0.06,
     )
     parser.add_argument("--disagreement-max-claims", type=int, default=6)
     parser.add_argument("--disagreement-max-searches", type=int, default=3)

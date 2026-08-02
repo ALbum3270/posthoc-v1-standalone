@@ -1657,6 +1657,12 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
     assert args.collection_max_cost_usd == 0.09
     assert args.verification_cost_reserve_usd == 0.10
     assert args.evidence_gap_max_searches == 6
+    assert args.evidence_gap_max_tokens == 60_000
+    assert args.evidence_gap_max_cost_usd == 0.10
+    assert args.disagreement_max_tokens == 50_000
+    assert args.disagreement_max_cost_usd == 0.06
+    assert args.posthoc_retrieval_max_tokens == 110_000
+    assert args.posthoc_retrieval_max_cost_usd == 0.16
     assert args.evidence_recovery_max_tokens == 12_345
     assert args.evidence_recovery_max_cost_usd == 0.07
     assert args.evidence_recovery_max_searches == 2
@@ -1676,6 +1682,8 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
     assert "independent token cap for the one bounded evidence-" in help_text
     assert "target claim set is frozen before retrieval" in help_text
     assert "never starts an automatic second round" in help_text
+    assert "sum of both independent pass caps" in help_text
+    assert "does not reduce evidence-gap capacity" in help_text
 
 
 def test_cli_constructs_a_separate_strong_verification_model(monkeypatch):

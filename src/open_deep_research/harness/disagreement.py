@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping, Sequence
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from open_deep_research.harness.attribution import (
     AttributionModelClient,
@@ -48,12 +48,14 @@ class DisagreementStopReason(str, Enum):
 
 
 class DisagreementBudget(BaseModel):
-    """Pass-level cap inside the shared post-hoc retrieval envelope."""
+    """Independent pass cap inside the shared post-hoc envelope."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    max_tokens: int = Field(default=30_000, ge=0)
-    max_cost_usd: float = Field(default=0.05, ge=0.0)
+    # The former 30k cap was below the 35.9k/44.2k completion estimates
+    # observed in finance-15/16.  This is a capacity cap, not a spend target.
+    max_tokens: int = Field(default=50_000, ge=0)
+    max_cost_usd: float = Field(default=0.06, ge=0.0)
     max_selected_claims: int = Field(default=6, ge=0, le=20)
     max_search_queries: int = Field(default=3, ge=0, le=20)
     max_reads: int = Field(default=3, ge=0, le=20)
@@ -65,8 +67,68 @@ class PosthocRetrievalBudget(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    max_tokens: int = Field(default=60_000, ge=0)
-    max_cost_usd: float = Field(default=0.10, ge=0.0)
+    # The default is the sum of the two independent defaults: evidence gap
+    # 60k/$0.10 plus disagreement 50k/$0.06.  The old 60k/$0.10 value merely
+    # preserved the pre-disagreement gap cap and had no empirical basis; it
+    # made the two quality passes compete by default.
+    max_tokens: int = Field(default=110_000, ge=0)
+    max_cost_usd: float = Field(default=0.16, ge=0.0)
+
+
+class PosthocRetrievalAllocation(BaseModel):
+    """Code-owned reservation before either post-hoc pass executes."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    evidence_gap_budget: EvidenceGapBudget | None
+    disagreement_reserved_tokens: int = Field(ge=0)
+    disagreement_reserved_cost_usd: float = Field(ge=0.0)
+
+
+def allocate_posthoc_retrieval_budget(
+    *,
+    shared_budget: PosthocRetrievalBudget | None,
+    evidence_gap_budget: EvidenceGapBudget | None,
+    disagreement_budget: DisagreementBudget | None,
+) -> PosthocRetrievalAllocation:
+    """Reserve disagreement capacity before admitting evidence-gap work."""
+
+    if shared_budget is None:
+        return PosthocRetrievalAllocation(
+            evidence_gap_budget=evidence_gap_budget,
+            disagreement_reserved_tokens=0,
+            disagreement_reserved_cost_usd=0.0,
+        )
+    reserved_tokens = (
+        min(shared_budget.max_tokens, disagreement_budget.max_tokens)
+        if disagreement_budget is not None
+        else 0
+    )
+    reserved_cost = (
+        min(shared_budget.max_cost_usd, disagreement_budget.max_cost_usd)
+        if disagreement_budget is not None
+        else 0.0
+    )
+    if evidence_gap_budget is None:
+        admitted_gap_budget = None
+    else:
+        admitted_gap_budget = evidence_gap_budget.model_copy(
+            update={
+                "max_tokens": min(
+                    evidence_gap_budget.max_tokens,
+                    max(0, shared_budget.max_tokens - reserved_tokens),
+                ),
+                "max_cost_usd": min(
+                    evidence_gap_budget.max_cost_usd,
+                    max(0.0, shared_budget.max_cost_usd - reserved_cost),
+                ),
+            }
+        )
+    return PosthocRetrievalAllocation(
+        evidence_gap_budget=admitted_gap_budget,
+        disagreement_reserved_tokens=reserved_tokens,
+        disagreement_reserved_cost_usd=reserved_cost,
+    )
 
 
 class DisagreementCallUsage(BaseModel):
@@ -118,11 +180,15 @@ class PosthocRetrievalBudgetAudit(BaseModel):
     evidence_gap_cost_usd: float = Field(ge=0.0)
     disagreement_tokens: int = Field(ge=0)
     disagreement_cost_usd: float = Field(ge=0.0)
+    disagreement_reserved_tokens: int = Field(default=0, ge=0)
+    disagreement_reserved_cost_usd: float = Field(default=0.0, ge=0.0)
+    evidence_gap_admission_max_tokens: int = Field(default=0, ge=0)
+    evidence_gap_admission_max_cost_usd: float = Field(default=0.0, ge=0.0)
     remaining_tokens: int = Field(ge=0)
     remaining_cost_usd: float = Field(ge=0.0)
     within_shared_budget: bool
     allocation_method: str = (
-        "evidence_gap_then_disagreement_from_shared_remainder"
+        "reserve_disagreement_then_admit_evidence_gap"
     )
     enforcement_limitations: tuple[str, ...] = (
         "calls are admitted using calibrated estimates before provider usage "
@@ -130,6 +196,28 @@ class PosthocRetrievalBudgetAudit(BaseModel):
         "measured usage can exceed an estimate and is reported rather than "
         "silently discarded",
     )
+
+    @model_validator(mode="after")
+    def _reservation_fits_shared_cap(self) -> PosthocRetrievalBudgetAudit:
+        if not self.configured:
+            return self
+        if self.disagreement_reserved_tokens > self.max_tokens:
+            raise ValueError("disagreement token reserve exceeds shared cap")
+        if self.disagreement_reserved_cost_usd > self.max_cost_usd:
+            raise ValueError("disagreement cost reserve exceeds shared cap")
+        if (
+            self.evidence_gap_admission_max_tokens
+            + self.disagreement_reserved_tokens
+            > self.max_tokens
+        ):
+            raise ValueError("post-hoc token allocations exceed shared cap")
+        if (
+            self.evidence_gap_admission_max_cost_usd
+            + self.disagreement_reserved_cost_usd
+            > self.max_cost_usd + 1e-12
+        ):
+            raise ValueError("post-hoc cost allocations exceed shared cap")
+        return self
 
 
 class DisagreementResult(BaseModel):
@@ -816,6 +904,10 @@ def shared_posthoc_budget_audit(
     evidence_gap_cost_usd: float,
     disagreement_tokens: int,
     disagreement_cost_usd: float,
+    disagreement_reserved_tokens: int = 0,
+    disagreement_reserved_cost_usd: float = 0.0,
+    evidence_gap_admission_max_tokens: int = 0,
+    evidence_gap_admission_max_cost_usd: float = 0.0,
 ) -> PosthocRetrievalBudgetAudit:
     """Prove two individually bounded passes also respect their shared cap."""
 
@@ -831,6 +923,12 @@ def shared_posthoc_budget_audit(
         evidence_gap_cost_usd=evidence_gap_cost_usd,
         disagreement_tokens=disagreement_tokens,
         disagreement_cost_usd=disagreement_cost_usd,
+        disagreement_reserved_tokens=disagreement_reserved_tokens,
+        disagreement_reserved_cost_usd=disagreement_reserved_cost_usd,
+        evidence_gap_admission_max_tokens=evidence_gap_admission_max_tokens,
+        evidence_gap_admission_max_cost_usd=(
+            evidence_gap_admission_max_cost_usd
+        ),
         remaining_tokens=max(0, max_tokens - total_tokens),
         remaining_cost_usd=max(0.0, max_cost - total_cost),
         within_shared_budget=(

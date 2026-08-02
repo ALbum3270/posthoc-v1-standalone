@@ -19,6 +19,7 @@ from open_deep_research.harness.claims import (
     parse_markdown_blocks,
 )
 from open_deep_research.harness.disagreement import (
+    allocate_posthoc_retrieval_budget,
     DisagreementBudget,
     DisagreementSelection,
     DisagreementStopReason,
@@ -30,6 +31,7 @@ from open_deep_research.harness.disagreement import (
 )
 from open_deep_research.harness.evidence_gap import (
     CachedCandidateHint,
+    EvidenceGapBudget,
     EvidenceGapResult,
     EvidenceGapStopReason,
 )
@@ -417,9 +419,81 @@ def test_shared_budget_caps_the_sum_without_combining_success_metrics() -> None:
         evidence_gap_cost_usd=0.08,
         disagreement_tokens=8_000,
         disagreement_cost_usd=0.02,
+        disagreement_reserved_tokens=8_000,
+        disagreement_reserved_cost_usd=0.02,
+        evidence_gap_admission_max_tokens=52_000,
+        evidence_gap_admission_max_cost_usd=0.08,
     )
 
     assert audit.within_shared_budget
     assert audit.remaining_tokens == 0
     assert audit.remaining_cost_usd == 0
     assert audit.evidence_gap_tokens + audit.disagreement_tokens == 60_000
+    assert audit.allocation_method == (
+        "reserve_disagreement_then_admit_evidence_gap"
+    )
+
+
+def test_explicit_small_shared_cap_trades_gap_for_disagreement_capacity() -> None:
+    allocation = allocate_posthoc_retrieval_budget(
+        shared_budget=PosthocRetrievalBudget(
+            max_tokens=60_000,
+            max_cost_usd=0.10,
+        ),
+        evidence_gap_budget=EvidenceGapBudget(
+            max_tokens=60_000,
+            max_cost_usd=0.10,
+        ),
+        disagreement_budget=DisagreementBudget(
+            max_tokens=30_000,
+            max_cost_usd=0.05,
+        ),
+    )
+
+    assert allocation.disagreement_reserved_tokens == 30_000
+    assert allocation.disagreement_reserved_cost_usd == 0.05
+    assert allocation.evidence_gap_budget is not None
+    assert allocation.evidence_gap_budget.max_tokens == 30_000
+    assert allocation.evidence_gap_budget.max_cost_usd == 0.05
+
+
+def test_default_shared_envelope_preserves_both_independent_pass_caps() -> None:
+    gap_budget = EvidenceGapBudget()
+    disagreement_budget = DisagreementBudget()
+    shared_budget = PosthocRetrievalBudget()
+
+    allocation = allocate_posthoc_retrieval_budget(
+        shared_budget=shared_budget,
+        evidence_gap_budget=gap_budget,
+        disagreement_budget=disagreement_budget,
+    )
+
+    assert shared_budget.max_tokens == (
+        gap_budget.max_tokens + disagreement_budget.max_tokens
+    )
+    assert shared_budget.max_cost_usd == (
+        gap_budget.max_cost_usd + disagreement_budget.max_cost_usd
+    )
+    assert allocation.disagreement_reserved_tokens == 50_000
+    assert allocation.disagreement_reserved_cost_usd == 0.06
+    assert allocation.evidence_gap_budget == gap_budget
+
+
+def test_shared_cap_still_limits_gap_when_disagreement_is_disabled() -> None:
+    allocation = allocate_posthoc_retrieval_budget(
+        shared_budget=PosthocRetrievalBudget(
+            max_tokens=60_000,
+            max_cost_usd=0.10,
+        ),
+        evidence_gap_budget=EvidenceGapBudget(
+            max_tokens=90_000,
+            max_cost_usd=0.20,
+        ),
+        disagreement_budget=None,
+    )
+
+    assert allocation.disagreement_reserved_tokens == 0
+    assert allocation.disagreement_reserved_cost_usd == 0.0
+    assert allocation.evidence_gap_budget is not None
+    assert allocation.evidence_gap_budget.max_tokens == 60_000
+    assert allocation.evidence_gap_budget.max_cost_usd == 0.10
