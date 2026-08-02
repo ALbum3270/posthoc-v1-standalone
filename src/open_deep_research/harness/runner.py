@@ -116,6 +116,9 @@ from open_deep_research.harness.recovery import (
     summarize_evidence_recovery,
     triage_evidence_recovery,
 )
+from open_deep_research.harness.source_spans import (
+    build_source_span_registry,
+)
 from open_deep_research.harness.tools import TavilyClient
 from open_deep_research.harness.verify import (
     VerificationBudget,
@@ -940,8 +943,15 @@ async def run_harness(
         if claim_settings is not None
         else ClaimDecompositionSettings().batch_size
     )
+    selection_span_registry = build_source_span_registry(
+        report.canonical_draft
+    )
     selection_prompts = tuple(
-        build_selection_prompt(parsed_blocks[index : index + claim_batch_size])
+        build_selection_prompt(
+            report.canonical_draft,
+            parsed_blocks[index : index + claim_batch_size],
+            span_registry=selection_span_registry,
+        )
         for index in range(0, len(parsed_blocks), claim_batch_size)
     )
     selection_estimates = tuple(

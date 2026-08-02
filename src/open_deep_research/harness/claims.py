@@ -138,12 +138,23 @@ class ContextSpanProposal(BaseModel):
 
 
 class SelectedAssertion(BaseModel):
-    """An atomic assertion selected from one report block."""
+    """A code-resolved, exact assertion selected from one report block.
+
+    ``selected_text`` is always the authoritative report slice retained for
+    downstream decomposition.  When selection used the pointer protocol, the
+    optional registry binding records the model's addressable container; the
+    model never supplied ``selected_text`` itself.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     selected_text: str = Field(min_length=1)
     citation_requirement: CitationRequirement
+    selection_start_segment_id: str | None = None
+    selection_end_segment_id: str | None = None
+    selection_span_registry_id: str | None = None
+    selection_report_text_sha256: str | None = None
+    selection_segmentation_version: str | None = None
 
     @field_validator("selected_text")
     @classmethod
@@ -152,6 +163,23 @@ class SelectedAssertion(BaseModel):
         if not normalized:
             raise ValueError("selected_text must not be blank")
         return normalized
+
+    @model_validator(mode="after")
+    def _selection_pointer_is_completely_bound(self) -> SelectedAssertion:
+        pointer = (
+            self.selection_start_segment_id,
+            self.selection_end_segment_id,
+            self.selection_span_registry_id,
+            self.selection_report_text_sha256,
+            self.selection_segmentation_version,
+        )
+        if any(value is not None for value in pointer) and not all(
+            value is not None for value in pointer
+        ):
+            raise ValueError(
+                "selection segment pointers require complete registry binding"
+            )
+        return self
 
 
 class BlockSelection(BaseModel):
@@ -181,6 +209,30 @@ class BlockSelection(BaseModel):
         return self
 
 
+class _SelectedAssertionProposal(BaseModel):
+    """Model selection proposal before code owns the exact report text.
+
+    Only the span-pointer form is accepted at runtime. Historical audits hold
+    the already code-resolved :class:`SelectedAssertion` records, so replaying
+    them does not require keeping a model-controlled textual-selection escape
+    hatch in the live protocol.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    citation_requirement: CitationRequirement
+    start_segment_id: str = Field(min_length=1)
+    end_segment_id: str = Field(min_length=1)
+
+    @field_validator("start_segment_id", "end_segment_id")
+    @classmethod
+    def _segment_id_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("selection segment ID must not be blank")
+        return normalized
+
+
 class _BlockSelectionProposal(BaseModel):
     """Model-owned assertion proposal; disposition is code-owned.
 
@@ -194,7 +246,7 @@ class _BlockSelectionProposal(BaseModel):
 
     block_id: str
     rationale: str = ""
-    assertions: tuple[SelectedAssertion, ...] = ()
+    assertions: tuple[_SelectedAssertionProposal, ...] = ()
     proposed_disposition: BlockDisposition | None = Field(
         default=None,
         validation_alias="disposition",
@@ -679,7 +731,16 @@ Apply the frozen atomic-v1 rule: one assertion is one independently
 truth-valued event or state. If either coordinated clause could be true while
 the other is false, select them separately. Preserve every entity, time,
 place, quantity, negation, modality, and attribution qualifier that affects
-truth.
+truth. The report text is authoritative: do not paraphrase it, resolve a
+pronoun, add an omitted subject, or copy text into the response.
+
+Each block exposes stable addressable source segments as <S000001>. For every
+assertion, select one shortest continuous start_segment_id/end_segment_id
+range inside that block. Code, not the model, copies the final selected_text
+from that range. If isolating a sub-clause would require rewriting, omitting
+context, or stitching fragments, select the larger exact segment range rather
+than reconstructing a smaller assertion. Do not return selected_text or
+character offsets.
 
 For every supplied block_id, return exactly one block entry. Put every
 independently truth-valued assertion in its assertions array. Return an empty
@@ -696,8 +757,8 @@ dimension:
 Do not omit a block. Selection is independent of whether a source has already
 been found. Return JSON only:
 {{"blocks":[{{"block_id":"block-0001","rationale":"...",\
-"assertions":[{{"selected_text":"...","citation_requirement":"external|\
-internal|none"}}]}}]}}
+"assertions":[{{"start_segment_id":"S000001",\
+"end_segment_id":"S000001","citation_requirement":"external|internal|none"}}]}}]}}
 
 Purely structural example: a block saying that an object changed twice may
 contain two independently truth-valued assertions; return two assertions
@@ -765,12 +826,62 @@ Decontextualized claims:
 """
 
 
-def build_selection_prompt(
-    blocks: Sequence[MarkdownBlock],
-) -> str:
-    """Build the complete block-selection prompt."""
+def _render_selection_block(
+    report: str,
+    *,
+    block: MarkdownBlock,
+    registry: SourceSpanRegistry,
+) -> Mapping[str, Any]:
+    """Render one block with only code-owned, in-block segment addresses."""
 
-    payload = [block.model_dump(mode="json") for block in blocks]
+    contained = tuple(
+        segment
+        for segment in registry.segments
+        if (
+            block.start_char <= segment.start_char
+            and segment.end_char <= block.end_char
+        )
+    )
+    overlapping = tuple(
+        segment
+        for segment in registry.segments
+        if segment.start_char < block.end_char and block.start_char < segment.end_char
+    )
+    if not contained or contained != overlapping:
+        raise ValueError(
+            "selection block must contain complete addressable source segments: "
+            f"{block.block_id}"
+        )
+
+    pieces: list[str] = []
+    cursor = block.start_char
+    for segment in contained:
+        pieces.append(report[cursor : segment.start_char])
+        pieces.append(f"<{segment.segment_id}>")
+        pieces.append(report[segment.start_char : segment.end_char])
+        cursor = segment.end_char
+    pieces.append(report[cursor : block.end_char])
+    return {
+        "block_id": block.block_id,
+        "kind": block.kind.value,
+        "section_path": list(block.section_path),
+        "addressable_text": "".join(pieces),
+    }
+
+
+def build_selection_prompt(
+    report: str,
+    blocks: Sequence[MarkdownBlock],
+    *,
+    span_registry: SourceSpanRegistry | None = None,
+) -> str:
+    """Build the pointer-only, code-grounded block-selection prompt."""
+
+    registry = span_registry or build_source_span_registry(report)
+    payload = [
+        _render_selection_block(report, block=block, registry=registry)
+        for block in blocks
+    ]
     return _SELECTION_PROMPT.format(
         blocks=json.dumps(payload, ensure_ascii=False, sort_keys=True)
     )
@@ -828,6 +939,9 @@ async def _call_model(
 def _selection_for_every_block(
     blocks: Sequence[MarkdownBlock],
     content: Any,
+    *,
+    report: str,
+    span_registry: SourceSpanRegistry,
 ) -> tuple[tuple[BlockSelection, ...], tuple[str, ...]]:
     if not isinstance(content, Mapping) or not isinstance(
         content.get("blocks"), (list, tuple)
@@ -842,7 +956,8 @@ def _selection_for_every_block(
         )
         return failed, ("selection_payload_invalid",)
 
-    expected = {block.block_id for block in blocks}
+    block_by_id = {block.block_id: block for block in blocks}
+    expected = set(block_by_id)
     grouped: dict[str, list[BlockSelection]] = {}
     diagnostics: list[str] = []
     for index, raw_selection in enumerate(content["blocks"]):
@@ -853,16 +968,59 @@ def _selection_for_every_block(
                 f"selection_entry_invalid[{index}]: {exc}"
             )
             continue
+        if proposal.block_id not in expected:
+            diagnostics.append(
+                f"selection_unknown_block: {proposal.block_id}"
+            )
+            continue
+        block = block_by_id[proposal.block_id]
+        assertions: list[SelectedAssertion] = []
+        try:
+            for assertion in proposal.assertions:
+                resolved = resolve_source_span(
+                    report,
+                    span_registry,
+                    start_segment_id=assertion.start_segment_id,
+                    end_segment_id=assertion.end_segment_id,
+                )
+                if not (
+                    block.start_char <= resolved.start_char
+                    and resolved.end_char <= block.end_char
+                ):
+                    raise ValueError(
+                        "selection segment range leaves its declared block"
+                    )
+                assertions.append(
+                    SelectedAssertion(
+                        selected_text=resolved.source_quote,
+                        citation_requirement=assertion.citation_requirement,
+                        selection_start_segment_id=resolved.start_segment_id,
+                        selection_end_segment_id=resolved.end_segment_id,
+                        selection_span_registry_id=span_registry.registry_id,
+                        selection_report_text_sha256=(
+                            span_registry.source_text_sha256
+                        ),
+                        selection_segmentation_version=(
+                            span_registry.segmentation_version
+                        ),
+                    )
+                )
+        except ValueError as exc:
+            diagnostics.append(
+                f"selection_entry_invalid[{index}]: {exc}"
+            )
+            continue
+
         derived_disposition = (
             BlockDisposition.CLAIMS_SELECTED
-            if proposal.assertions
+            if assertions
             else BlockDisposition.NO_VERIFIABLE_CLAIMS
         )
         selection = BlockSelection(
             block_id=proposal.block_id,
             disposition=derived_disposition,
             rationale=proposal.rationale,
-            assertions=proposal.assertions,
+            assertions=tuple(assertions),
         )
         if (
             proposal.proposed_disposition is not None
@@ -874,11 +1032,6 @@ def _selection_for_every_block(
                 f"{proposal.proposed_disposition.value}, derived="
                 f"{derived_disposition.value}"
             )
-        if selection.block_id not in expected:
-            diagnostics.append(
-                f"selection_unknown_block: {selection.block_id}"
-            )
-            continue
         grouped.setdefault(selection.block_id, []).append(selection)
 
     ordered: list[BlockSelection] = []
@@ -914,6 +1067,21 @@ def _claim_seed(
                     "claim_id": f"claim-{len(claims) + 1:04d}",
                     "block_id": selection.block_id,
                     "selected_text": assertion.selected_text,
+                    "selection_start_segment_id": (
+                        assertion.selection_start_segment_id
+                    ),
+                    "selection_end_segment_id": (
+                        assertion.selection_end_segment_id
+                    ),
+                    "selection_span_registry_id": (
+                        assertion.selection_span_registry_id
+                    ),
+                    "selection_report_text_sha256": (
+                        assertion.selection_report_text_sha256
+                    ),
+                    "selection_segmentation_version": (
+                        assertion.selection_segmentation_version
+                    ),
                     "citation_requirement": (
                         assertion.citation_requirement.value
                     ),
@@ -1123,16 +1291,60 @@ def _selected_assertion_bounds(
     *,
     block: MarkdownBlock,
     selected_text: str,
+    span_registry: SourceSpanRegistry,
+    selection_start_segment_id: str | None = None,
+    selection_end_segment_id: str | None = None,
+    selection_span_registry_id: str | None = None,
+    selection_report_text_sha256: str | None = None,
+    selection_segmentation_version: str | None = None,
 ) -> tuple[int | None, int | None, str | None]:
     """Resolve the selection-stage assertion within its one declared block.
 
-    Selection names the assertion; extraction only selects its containing
-    addressable range.  The final render anchor is therefore code-narrowed to
-    the exact selected assertion rather than inheriting an over-broad model
-    segment range.  A missing or repeated selection text has no safe offset,
-    so it becomes a visible normalization failure instead of a paragraph-wide
-    annotation.
+    Pointer-based selection already identifies an exact code-owned source
+    range, including when the same sentence occurs twice in a block.  Legacy
+    historical selections have only text and therefore retain the conservative
+    exact-in-block lookup below.  Extraction merely selects a containing
+    addressable range; it cannot widen the final render anchor.
     """
+
+    selection_pointer = (
+        selection_start_segment_id,
+        selection_end_segment_id,
+        selection_span_registry_id,
+        selection_report_text_sha256,
+        selection_segmentation_version,
+    )
+    if any(value is not None for value in selection_pointer):
+        if not all(value is not None for value in selection_pointer):
+            raise AssertionError(
+                "selection pointer binding must be complete in a claim seed"
+            )
+        if (
+            selection_span_registry_id != span_registry.registry_id
+            or selection_report_text_sha256 != span_registry.source_text_sha256
+            or selection_segmentation_version
+            != span_registry.segmentation_version
+        ):
+            return None, None, "selection_pointer_registry_mismatch"
+        try:
+            resolved = resolve_source_span(
+                report,
+                span_registry,
+                start_segment_id=str(selection_start_segment_id),
+                end_segment_id=str(selection_end_segment_id),
+            )
+        except ValueError:
+            return None, None, "selection_pointer_invalid"
+        if resolved.source_quote != selected_text:
+            raise AssertionError(
+                "code-resolved selection text must equal its authoritative span"
+            )
+        if not (
+            block.start_char <= resolved.start_char
+            and resolved.end_char <= block.end_char
+        ):
+            return None, None, "selection_pointer_outside_declared_block"
+        return resolved.start_char, resolved.end_char, None
 
     block_text = report[block.start_char : block.end_char]
     occurrences = _unique_occurrences(block_text, selected_text)
@@ -1190,7 +1402,11 @@ async def decompose_claims(
         try:
             selection_content, batch_usage = await _call_model(
                 model_client,
-                build_selection_prompt(block_batch),
+                build_selection_prompt(
+                    report,
+                    block_batch,
+                    span_registry=report_span_registry,
+                ),
             )
         except Exception as exc:
             selection_content = None
@@ -1203,6 +1419,8 @@ async def decompose_claims(
         batch_selections, batch_diagnostics = _selection_for_every_block(
             block_batch,
             selection_content,
+            report=report,
+            span_registry=report_span_registry,
         )
         diagnostics.extend(batch_diagnostics)
         failed_ids = tuple(
@@ -1530,6 +1748,16 @@ async def decompose_claims(
             report,
             block=block,
             selected_text=str(seed["selected_text"]),
+            span_registry=report_span_registry,
+            selection_start_segment_id=seed.get("selection_start_segment_id"),
+            selection_end_segment_id=seed.get("selection_end_segment_id"),
+            selection_span_registry_id=seed.get("selection_span_registry_id"),
+            selection_report_text_sha256=seed.get(
+                "selection_report_text_sha256"
+            ),
+            selection_segmentation_version=seed.get(
+                "selection_segmentation_version"
+            ),
         )
         if selected_error is not None:
             reason = selected_error

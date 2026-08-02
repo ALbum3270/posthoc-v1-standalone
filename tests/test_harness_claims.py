@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
+import re
 
 import pytest
 
@@ -25,17 +27,95 @@ from open_deep_research.harness.source_spans import build_source_span_registry
 
 
 class ScriptedClaimModel:
-    def __init__(self, *contents: dict[str, object]) -> None:
+    def __init__(
+        self,
+        *contents: dict[str, object],
+        upgrade_selection_text: bool = True,
+    ) -> None:
         self.contents = list(contents)
         self.prompts: list[str] = []
+        self.upgrade_selection_text = upgrade_selection_text
 
     async def generate(self, prompt: str) -> dict[str, object]:
         self.prompts.append(prompt)
+        content = copy.deepcopy(self.contents.pop(0))
+        if self.upgrade_selection_text and prompt.startswith("Stage 1 of 3"):
+            _upgrade_legacy_selection_text_to_pointers(content, prompt)
         return {
-            "content": json.dumps(self.contents.pop(0)),
+            "content": json.dumps(content),
             "token_count": 10,
             "cost_usd": 0.01,
         }
+
+
+def _upgrade_legacy_selection_text_to_pointers(
+    content: dict[str, object],
+    prompt: str,
+) -> None:
+    """Keep old fixture prose readable while exercising the live interface.
+
+    Tests written before selection pointers describe exact assertion text.  The
+    production schema must reject that shape, so this *test-client-only*
+    adapter turns uniquely identifiable fixture text into the pointer protocol
+    emitted by a real selection model.  A rewrite or repeated text is left
+    unchanged deliberately; those tests then prove the live schema rejects it
+    rather than giving it an unsafe anchor.
+    """
+
+    if not isinstance(content.get("blocks"), list):
+        return
+    payload = json.loads(prompt.split("Markdown blocks:\n", 1)[1])
+    addressable_by_block = {
+        str(block["block_id"]): str(block["addressable_text"])
+        for block in payload
+    }
+    marker = re.compile(r"<(S\d{6})>")
+    for block in content["blocks"]:
+        if not isinstance(block, dict):
+            continue
+        addressable = addressable_by_block.get(str(block.get("block_id")))
+        assertions = block.get("assertions")
+        if addressable is None or not isinstance(assertions, list):
+            continue
+        matches = list(marker.finditer(addressable))
+        if not matches:
+            continue
+        plain_parts: list[str] = []
+        positions: list[tuple[str, int, int]] = []
+        cursor = 0
+        for index, match in enumerate(matches):
+            plain_parts.append(addressable[cursor : match.start()])
+            chunk_end = (
+                matches[index + 1].start()
+                if index + 1 < len(matches)
+                else len(addressable)
+            )
+            start = sum(len(part) for part in plain_parts)
+            chunk = addressable[match.end() : chunk_end]
+            plain_parts.append(chunk)
+            positions.append((match.group(1), start, start + len(chunk)))
+            cursor = chunk_end
+        plain = "".join(plain_parts)
+        for assertion in assertions:
+            if not isinstance(assertion, dict):
+                continue
+            selected_text = assertion.get("selected_text")
+            if not isinstance(selected_text, str):
+                continue
+            if plain.count(selected_text) != 1:
+                continue
+            start = plain.index(selected_text)
+            end = start + len(selected_text)
+            selected = [
+                segment
+                for segment in positions
+                if segment[1] < end and start < segment[2]
+            ]
+            if not selected:
+                continue
+            assertion.pop("selected_text")
+            assertion["start_segment_id"] = selected[0][0]
+            assertion["end_segment_id"] = selected[-1][0]
 
 
 def _span(report: str, text: str) -> dict[str, object]:
@@ -313,6 +393,151 @@ def test_each_stage_omission_has_a_claim_specific_diagnostic() -> None:
     assert "extraction_missing: claim-0002" in result.diagnostics
     assert "decontextualization_invalid: claim-0003" in result.diagnostics
     assert '"claim_id": "claim-0003"' not in model.prompts[2]
+
+
+def test_selection_pointer_derives_verbatim_finance_19_text_without_rewrite() -> None:
+    """A real finance-19 rewrite must become a code-owned exact span.
+
+    The old selection shape handwrote ``2022年12月，SBF随后移送美国。``
+    after splitting a single timeline sentence.  It could not be located
+    without guessing a new anchor.  The pointer protocol instead retains the
+    whole authoritative sentence; pre-pointer selection rejects this payload
+    because it has no ``selected_text``, so this is a genuine interface
+    red/green regression rather than a synthetic happy path.
+    """
+
+    report = (
+        "- **2022年12月**：SBF在巴哈马被捕，随后移送美国，"
+        "面临多项刑事指控，案件重心转入司法审理阶段。"
+    )
+    blocks = parse_markdown_blocks(report)
+    selection_pointer = _pointer(report, report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "one exact timeline sentence",
+                    "assertions": [
+                        {
+                            **selection_pointer,
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": report,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    **selection_pointer,
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    claim = result.claims[0]
+    assertion = result.selections[0].assertions[0]
+    assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
+    assert claim.selected_text == report
+    assert claim.anchor_text == report
+    assert assertion.selected_text == report
+    assert assertion.selection_start_segment_id == (
+        selection_pointer["start_segment_id"]
+    )
+    assert assertion.selection_end_segment_id == selection_pointer[
+        "end_segment_id"
+    ]
+    assert "selected_assertion_not_verbatim_in_block" not in result.diagnostics
+    assert '"selected_text"' not in model.prompts[0]
+    assert "<S000001>" in model.prompts[0]
+
+
+def test_selection_pointer_outside_its_block_fails_without_textual_fallback() -> None:
+    report = "First fact.\n\nSecond fact."
+    blocks = parse_markdown_blocks(report)
+    second_pointer = _pointer(report, "Second fact.")
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "invalid pointer",
+                    "assertions": [
+                        {
+                            **second_pointer,
+                            "citation_requirement": "external",
+                        }
+                    ],
+                },
+                {
+                    "block_id": blocks[1].block_id,
+                    "rationale": "empty",
+                    "assertions": [],
+                },
+            ]
+        },
+        upgrade_selection_text=False,
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    assert result.selections[0].disposition is BlockDisposition.SELECTION_FAILED
+    assert result.selections[1].disposition is (
+        BlockDisposition.NO_VERIFIABLE_CLAIMS
+    )
+    assert result.claims == ()
+    assert any(
+        diagnostic.startswith("selection_entry_invalid[0]: ")
+        and "leaves its declared block" in diagnostic
+        for diagnostic in result.diagnostics
+    )
+
+
+def test_textual_selection_is_rejected_even_when_it_happens_to_be_verbatim() -> None:
+    """The live protocol cannot fall back to model-copied assertion text."""
+
+    report = "A verbatim fact."
+    blocks = parse_markdown_blocks(report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "rationale": "old response shape",
+                    "assertions": [
+                        {
+                            "selected_text": report,
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        upgrade_selection_text=False,
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    assert result.claims == ()
+    assert result.selections[0].disposition is BlockDisposition.SELECTION_FAILED
+    assert any(
+        diagnostic.startswith("selection_entry_invalid[0]: ")
+        and "Extra inputs are not permitted" in diagnostic
+        for diagnostic in result.diagnostics
+    )
 
 
 def test_selection_omission_is_retained_as_failed_disposition() -> None:
@@ -892,12 +1117,12 @@ def test_context_span_repeated_inside_claim_block_remains_ambiguous() -> None:
             "blocks": [
                 {
                     "block_id": blocks[0].block_id,
-                    "rationale": "one contextual assertion",
-                    "assertions": [
-                        {
-                            "selected_text": "He stopped.",
-                            "citation_requirement": "external",
-                        }
+                        "rationale": "one contextual assertion",
+                        "assertions": [
+                            {
+                                **_pointer(report, "Sam stopped."),
+                                "citation_requirement": "external",
+                            }
                     ],
                 }
             ]
@@ -942,12 +1167,12 @@ def test_markdown_date_context_repairs_inside_its_own_list_item() -> None:
                 },
                 {
                     "block_id": target.block_id,
-                    "rationale": "one timeline assertion",
-                    "assertions": [
-                        {
-                            "selected_text": "11月11日：John J. Ray III接任CEO。",
-                            "citation_requirement": "external",
-                        }
+                        "rationale": "one timeline assertion",
+                        "assertions": [
+                            {
+                                **_pointer(report, target.text),
+                                "citation_requirement": "external",
+                            }
                     ],
                 },
             ]
@@ -1188,18 +1413,16 @@ def test_finance07_style_rewritten_selection_is_not_given_a_broader_anchor() -> 
 
     result = asyncio.run(decompose_claims(report, model_client=model))
 
-    claim = result.claims[0]
-    assert claim.normalization_status is (
-        ClaimNormalizationStatus.NORMALIZATION_FAILED
+    assert result.claims == ()
+    assert result.selections[0].disposition is BlockDisposition.SELECTION_FAILED
+    assert any(
+        diagnostic.startswith("selection_entry_invalid[0]: ")
+        for diagnostic in result.diagnostics
     )
-    assert claim.normalization_failure == "selected_assertion_not_verbatim_in_block"
-    assert claim.anchor_text is None
-    assert claim.start_char is None
-    assert claim.end_char is None
 
 
-def test_repeated_selected_assertion_in_one_block_is_not_arbitrarily_anchored():
-    """Code must reject ambiguity rather than choose the first duplicate."""
+def test_repeated_assertions_are_selected_by_explicit_segment_not_text_search():
+    """A pointer, unlike copied text, identifies the intended repetition."""
 
     selected_assertion = "The transaction failed."
     report = f"{selected_assertion} {selected_assertion}"
@@ -1209,12 +1432,16 @@ def test_repeated_selected_assertion_in_one_block_is_not_arbitrarily_anchored():
             "blocks": [
                 {
                     "block_id": blocks[0].block_id,
-                    "rationale": "one repeated assertion",
-                    "assertions": [
-                        {
-                            "selected_text": selected_assertion,
-                            "citation_requirement": "external",
-                        }
+                        "rationale": "one repeated assertion",
+                        "assertions": [
+                            {
+                                **_pointer(
+                                    report,
+                                    selected_assertion,
+                                    occurrence=1,
+                                ),
+                                "citation_requirement": "external",
+                            }
                     ],
                 }
             ]
@@ -1232,7 +1459,7 @@ def test_repeated_selected_assertion_in_one_block_is_not_arbitrarily_anchored():
             "claims": [
                 {
                     "claim_id": "claim-0001",
-                    **_pointer(report, selected_assertion),
+                    **_pointer(report, selected_assertion, occurrence=1),
                 }
             ]
         },
@@ -1241,13 +1468,9 @@ def test_repeated_selected_assertion_in_one_block_is_not_arbitrarily_anchored():
     result = asyncio.run(decompose_claims(report, model_client=model))
 
     claim = result.claims[0]
-    assert claim.normalization_status is (
-        ClaimNormalizationStatus.NORMALIZATION_FAILED
-    )
-    assert claim.normalization_failure == "selected_assertion_not_unique_in_block"
-    assert claim.anchor_text is None
-    assert claim.start_char is None
-    assert claim.end_char is None
+    assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
+    assert claim.start_char == report.rindex(selected_assertion)
+    assert claim.anchor_text == selected_assertion
 
 
 def test_anchor_pointer_outside_selected_block_is_still_rejected() -> None:
@@ -1354,11 +1577,12 @@ def test_finance18_style_broad_pointer_is_narrowed_to_atomic_claim_anchor() -> N
 
     claim = result.claims[0]
     assert claim.normalization_status is ClaimNormalizationStatus.LOCATED
-    assert claim.anchor_text == selected_assertion
-    assert claim.start_char == report.index(selected_assertion)
-    assert claim.end_char == claim.start_char + len(selected_assertion)
+    expected_exact_range = report[: report.index("公司缺乏有效")]
+    assert claim.anchor_text == expected_exact_range
+    assert claim.start_char == 0
+    assert claim.end_char == claim.start_char + len(expected_exact_range)
     assert claim.anchor_end_segment_id == registry.segments[1].segment_id
-    assert report[claim.start_char : claim.end_char] == selected_assertion
+    assert report[claim.start_char : claim.end_char] == expected_exact_range
     assert "公司缺乏有效" not in claim.anchor_text
 
 
@@ -1401,16 +1625,11 @@ def test_selection_rewrite_is_visible_failure_not_a_guess_at_offsets() -> None:
 
     result = asyncio.run(decompose_claims(report, model_client=model))
 
-    claim = result.claims[0]
-    assert claim.normalization_status is (
-        ClaimNormalizationStatus.NORMALIZATION_FAILED
-    )
-    assert claim.normalization_failure == "selected_assertion_not_verbatim_in_block"
-    assert claim.anchor_text is None
-    assert claim.start_char is None
-    assert claim.end_char is None
-    assert "selected_assertion_not_verbatim_in_block: claim-0001" in (
-        result.diagnostics
+    assert result.claims == ()
+    assert result.selections[0].disposition is BlockDisposition.SELECTION_FAILED
+    assert any(
+        diagnostic.startswith("selection_entry_invalid[0]: ")
+        for diagnostic in result.diagnostics
     )
 
 
@@ -1418,7 +1637,7 @@ def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
     report = "A device stopped."
     blocks = parse_markdown_blocks(report)
 
-    selection = build_selection_prompt(blocks)
+    selection = build_selection_prompt(report, blocks)
     decontext = build_decontextualization_prompt(
         report,
         [
@@ -1441,6 +1660,9 @@ def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
     assert '"start_char":0' not in extraction
     assert '"anchor_text"' not in extraction
     assert '"start_segment_id"' in extraction
+    assert '"selected_text"' not in selection
+    assert '"addressable_text"' in selection
+    assert "<S000001>" in selection
     assert all("json" in prompt.lower() for prompt in (
         selection,
         decontext,

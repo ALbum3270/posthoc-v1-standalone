@@ -16,7 +16,24 @@ from open_deep_research.harness.runner import (
     _publish_artifact_bundle,
     run_harness,
 )
+from open_deep_research.harness.source_spans import build_source_span_registry
 from open_deep_research.harness.verify import ClaimEvidenceState
+
+
+def _selection_pointer(draft: str, text: str) -> dict[str, str]:
+    start = draft.index(text)
+    end = start + len(text)
+    registry = build_source_span_registry(draft)
+    selected = [
+        segment
+        for segment in registry.segments
+        if segment.start_char < end and start < segment.end_char
+    ]
+    assert selected
+    return {
+        "start_segment_id": selected[0].segment_id,
+        "end_segment_id": selected[-1].segment_id,
+    }
 
 
 class ChecklistModel:
@@ -114,7 +131,7 @@ class ClaimModel:
                         "rationale": "one external assertion",
                         "assertions": [
                             {
-                                "selected_text": paragraph.text,
+                                **_selection_pointer(self.draft, paragraph.text),
                                 "citation_requirement": "external",
                             }
                         ],
@@ -296,7 +313,7 @@ class MixedRequirementClaimModel:
                         "block_id": external.block_id,
                         "assertions": [
                             {
-                                "selected_text": external.text,
+                                **_selection_pointer(self.draft, external.text),
                                 "citation_requirement": "external",
                             }
                         ],
@@ -306,7 +323,7 @@ class MixedRequirementClaimModel:
                         "block_id": internal.block_id,
                         "assertions": [
                             {
-                                "selected_text": internal.text,
+                                **_selection_pointer(self.draft, internal.text),
                                 "citation_requirement": "internal",
                             }
                         ],
@@ -521,7 +538,7 @@ class ReauditClaimModel:
                         "block_id": paragraph.block_id,
                         "assertions": [
                             {
-                                "selected_text": paragraph.text,
+                                **_selection_pointer(draft, paragraph.text),
                                 "citation_requirement": "external",
                             }
                         ],
@@ -668,7 +685,7 @@ class TwoBlockReauditClaimModel:
                             "block_id": block.block_id,
                             "assertions": [
                                 {
-                                    "selected_text": block.text,
+                                    **_selection_pointer(draft, block.text),
                                     "citation_requirement": "external",
                                 }
                             ],
