@@ -1,0 +1,829 @@
+{
+  "cases": [
+    {
+      "addressable_spans": [
+        {
+          "end_char": 56,
+          "start_char": 0,
+          "text": "FTX交易所由Sam Bankman-Fried（简称SBF）创办并担任CEO，直至2022年11月11日辞职。"
+        },
+        {
+          "end_char": 147,
+          "start_char": 56,
+          "text": "其所关联的Alameda Research是一家由SBF共同创立的交易公司，Alameda持有大量FTX发行的交易代币FTT，两者实际关系紧密，员工常共同办公，内部并无有效隔离机制。"
+        },
+        {
+          "end_char": 229,
+          "start_char": 147,
+          "text": "Alameda的CEO为Caroline Ellison，她曾与SBF有亲密关系，且在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0003",
+      "block_text": "FTX交易所由Sam Bankman-Fried（简称SBF）创办并担任CEO，直至2022年11月11日辞职。其所关联的Alameda Research是一家由SBF共同创立的交易公司，Alameda持有大量FTX发行的交易代币FTT，两者实际关系紧密，员工常共同办公，内部并无有效隔离机制。Alameda的CEO为Caroline Ellison，她曾与SBF有亲密关系，且在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪。",
+      "case_id": "finance-19:post_edit:claim-0009",
+      "observed_claim_text": "Caroline Ellison在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "她在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪。",
+      "original_claim_id": "claim-0009",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 54,
+          "start_char": 0,
+          "text": "破产申请后，法院任命了经验丰富的资深重组主管John J. Ray III接替CEO职位，负责管理破产过程。"
+        },
+        {
+          "end_char": 97,
+          "start_char": 54,
+          "text": "他曾主持著名的Enron破产重组，并针对FTX的管理混乱与缺乏财务透明发表了严厉批评。"
+        },
+        {
+          "end_char": 145,
+          "start_char": 97,
+          "text": "此外，FTX董事会成员极少，主要由SBF及其亲信组成，缺少独立外部董事，且整体岗位缺乏专业管控。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0004",
+      "block_text": "破产申请后，法院任命了经验丰富的资深重组主管John J. Ray III接替CEO职位，负责管理破产过程。他曾主持著名的Enron破产重组，并针对FTX的管理混乱与缺乏财务透明发表了严厉批评。此外，FTX董事会成员极少，主要由SBF及其亲信组成，缺少独立外部董事，且整体岗位缺乏专业管控。",
+      "case_id": "finance-19:post_edit:claim-0012",
+      "observed_claim_text": "John J. Ray III针对FTX的管理混乱与缺乏财务透明发表了严厉批评。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "他针对FTX的管理混乱与缺乏财务透明发表了严厉批评。",
+      "original_claim_id": "claim-0012",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 84,
+          "start_char": 0,
+          "text": "在事件中，诸多高知名度投资者及推广者也受到牵连，如运动员Tom Brady及超模Gisele Bündchen被指出参与推广未经监管的FTX证券产品，并被纳入集体诉讼。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0005",
+      "block_text": "在事件中，诸多高知名度投资者及推广者也受到牵连，如运动员Tom Brady及超模Gisele Bündchen被指出参与推广未经监管的FTX证券产品，并被纳入集体诉讼。",
+      "case_id": "finance-19:post_edit:claim-0018",
+      "observed_claim_text": "Tom Brady及超模Gisele Bündchen被纳入集体诉讼。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "他们被纳入集体诉讼。",
+      "original_claim_id": "claim-0018",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 72,
+          "start_char": 0,
+          "text": "2022年11月2日，CoinDesk报道称Alameda Research持有大量FTT代币，该代币价值随即暴跌，触发FTX用户大规模提现潮。"
+        },
+        {
+          "end_char": 98,
+          "start_char": 72,
+          "text": "用户提现需求激增暴露了FTX约80亿美元的资金缺口。"
+        },
+        {
+          "end_char": 121,
+          "start_char": 98,
+          "text": "随后，FTX停止响应提现请求，用户资金被锁定。"
+        },
+        {
+          "end_char": 170,
+          "start_char": 121,
+          "text": "Binance最初计划收购拯救FTX，但在知晓财务和法律风险后于11月6日宣布退出谈判，加剧危机。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0007",
+      "block_text": "2022年11月2日，CoinDesk报道称Alameda Research持有大量FTT代币，该代币价值随即暴跌，触发FTX用户大规模提现潮。用户提现需求激增暴露了FTX约80亿美元的资金缺口。随后，FTX停止响应提现请求，用户资金被锁定。Binance最初计划收购拯救FTX，但在知晓财务和法律风险后于11月6日宣布退出谈判，加剧危机。",
+      "case_id": "finance-19:post_edit:claim-0026",
+      "observed_claim_text": "Binance在知晓财务和法律风险后于11月6日宣布退出谈判。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "Binance在知晓财务和法律风险后于11月6日宣布退出谈判。",
+      "original_claim_id": "claim-0026",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 29,
+          "start_char": 0,
+          "text": "破产调查发现，FTX存在严重的公司治理缺失和财务管理漏洞。"
+        },
+        {
+          "end_char": 68,
+          "start_char": 29,
+          "text": "公司没有独立的首席财务官和完善的会计体系，缺乏有效风险管理和资产负债控制机制。"
+        },
+        {
+          "end_char": 107,
+          "start_char": 68,
+          "text": "公司运作更像“封建王朝”，决策集中在少数圈内人手中，且优先考虑忠诚度而非能力。"
+        },
+        {
+          "end_char": 144,
+          "start_char": 107,
+          "text": "内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0008",
+      "block_text": "破产调查发现，FTX存在严重的公司治理缺失和财务管理漏洞。公司没有独立的首席财务官和完善的会计体系，缺乏有效风险管理和资产负债控制机制。公司运作更像“封建王朝”，决策集中在少数圈内人手中，且优先考虑忠诚度而非能力。内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为。",
+      "case_id": "finance-19:post_edit:claim-0030",
+      "observed_claim_text": "FTX公司没有完善的会计体系。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "公司没有完善的会计体系。",
+      "original_claim_id": "claim-0030",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 29,
+          "start_char": 0,
+          "text": "破产调查发现，FTX存在严重的公司治理缺失和财务管理漏洞。"
+        },
+        {
+          "end_char": 68,
+          "start_char": 29,
+          "text": "公司没有独立的首席财务官和完善的会计体系，缺乏有效风险管理和资产负债控制机制。"
+        },
+        {
+          "end_char": 107,
+          "start_char": 68,
+          "text": "公司运作更像“封建王朝”，决策集中在少数圈内人手中，且优先考虑忠诚度而非能力。"
+        },
+        {
+          "end_char": 144,
+          "start_char": 107,
+          "text": "内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0008",
+      "block_text": "破产调查发现，FTX存在严重的公司治理缺失和财务管理漏洞。公司没有独立的首席财务官和完善的会计体系，缺乏有效风险管理和资产负债控制机制。公司运作更像“封建王朝”，决策集中在少数圈内人手中，且优先考虑忠诚度而非能力。内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为。",
+      "case_id": "finance-19:post_edit:claim-0036",
+      "observed_claim_text": "FTX内部软件、用以保管密钥的电子邮件账户安全不足，这助长了客户资金被挪用的行为。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "这助长了客户资金被挪用的行为。",
+      "original_claim_id": "claim-0036",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 60,
+          "start_char": 0,
+          "text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反美国证券法及FTX自身的服务条款。"
+        },
+        {
+          "end_char": 94,
+          "start_char": 60,
+          "text": "Alameda将这些客户资产用作抵押借款，应对自身爆发的保证金追缴。"
+        },
+        {
+          "end_char": 127,
+          "start_char": 94,
+          "text": "整体操作缺乏透明度，客户资产被非法挪用，大幅削弱FTX自身流动性。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0009",
+      "block_text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反美国证券法及FTX自身的服务条款。Alameda将这些客户资产用作抵押借款，应对自身爆发的保证金追缴。整体操作缺乏透明度，客户资产被非法挪用，大幅削弱FTX自身流动性。",
+      "case_id": "finance-19:post_edit:claim-0039",
+      "observed_claim_text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反FTX自身的服务条款。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反FTX自身的服务条款",
+      "original_claim_id": "claim-0039",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 47,
+          "start_char": 0,
+          "text": "- **2022年11月6日**：Binance宣布终止收购意向，称已无法控制和解决相关问题。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0013",
+      "block_text": "- **2022年11月6日**：Binance宣布终止收购意向，称已无法控制和解决相关问题。",
+      "case_id": "finance-19:post_edit:claim-0050",
+      "observed_claim_text": "Binance称已无法控制和解决相关问题。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "Binance称已无法控制和解决相关问题",
+      "original_claim_id": "claim-0050",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 46,
+          "start_char": 0,
+          "text": "- 美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0027",
+      "block_text": "- 美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动。",
+      "case_id": "finance-19:post_edit:claim-0072",
+      "observed_claim_text": "美国联邦贸易委员会（FTC）对相关加密借贷平台和关联公司发起执法行动",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "美国联邦贸易委员会（FTC）对相关加密借贷平台和关联公司发起执法行动",
+      "original_claim_id": "claim-0072",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 46,
+          "start_char": 0,
+          "text": "- 美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0027",
+      "block_text": "- 美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动。",
+      "case_id": "finance-19:post_edit:claim-0073",
+      "observed_claim_text": "纽约总检察长对相关加密借贷平台和关联公司发起执法行动。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "纽约总检察长对相关加密借贷平台和关联公司发起执法行动",
+      "original_claim_id": "claim-0073",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 36,
+          "start_char": 0,
+          "text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者。"
+        },
+        {
+          "end_char": 62,
+          "start_char": 36,
+          "text": "顶级债权人超过50家，合计超过30亿美元债务未偿付。"
+        },
+        {
+          "end_char": 122,
+          "start_char": 62,
+          "text": "大型机构投资者如Sequoia Capital、Paradigm、SoftBank Vision Fund等均遭受损失。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0030",
+      "block_text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者。顶级债权人超过50家，合计超过30亿美元债务未偿付。大型机构投资者如Sequoia Capital、Paradigm、SoftBank Vision Fund等均遭受损失。",
+      "case_id": "finance-19:post_edit:claim-0076",
+      "observed_claim_text": "FTX倒闭影响超过一百万用户。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "FTX倒闭影响超过一百万用户",
+      "original_claim_id": "claim-0076",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 36,
+          "start_char": 0,
+          "text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者。"
+        },
+        {
+          "end_char": 62,
+          "start_char": 36,
+          "text": "顶级债权人超过50家，合计超过30亿美元债务未偿付。"
+        },
+        {
+          "end_char": 122,
+          "start_char": 62,
+          "text": "大型机构投资者如Sequoia Capital、Paradigm、SoftBank Vision Fund等均遭受损失。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0030",
+      "block_text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者。顶级债权人超过50家，合计超过30亿美元债务未偿付。大型机构投资者如Sequoia Capital、Paradigm、SoftBank Vision Fund等均遭受损失。",
+      "case_id": "finance-19:post_edit:claim-0077",
+      "observed_claim_text": "FTX倒闭影响数百家机构投资者。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "FTX倒闭影响数百家机构投资者",
+      "original_claim_id": "claim-0077",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 60,
+          "start_char": 0,
+          "text": "此外，涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼，反映出该事件对加密货币生态内外部的广泛冲击。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0031",
+      "block_text": "此外，涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼，反映出该事件对加密货币生态内外部的广泛冲击。",
+      "case_id": "finance-19:post_edit:claim-0081",
+      "observed_claim_text": "涉及FTX推广的多位明星名人因参与销售未经注册的证券产品而卷入诉讼",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "涉及FTX推广的多位明星名人因参与销售未经注册的证券产品而卷入诉讼",
+      "original_claim_id": "claim-0081",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 60,
+          "start_char": 0,
+          "text": "此外，涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼，反映出该事件对加密货币生态内外部的广泛冲击。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0031",
+      "block_text": "此外，涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼，反映出该事件对加密货币生态内外部的广泛冲击。",
+      "case_id": "finance-19:post_edit:claim-0082",
+      "observed_claim_text": "该事件对加密货币生态内外部产生了广泛冲击",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "该事件对加密货币生态内外部产生了广泛冲击",
+      "original_claim_id": "claim-0082",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 41,
+          "start_char": 0,
+          "text": "随着司法程序推进，FTX的创办人及高管被指控并定罪，破产重组持续努力追回客户资产。"
+        },
+        {
+          "end_char": 80,
+          "start_char": 41,
+          "text": "此事件令人深刻警示加密市场须加强监管、提升透明度与治理水平，以防类似灾难重演。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0034",
+      "block_text": "随着司法程序推进，FTX的创办人及高管被指控并定罪，破产重组持续努力追回客户资产。此事件令人深刻警示加密市场须加强监管、提升透明度与治理水平，以防类似灾难重演。",
+      "case_id": "finance-19:post_edit:claim-0092",
+      "observed_claim_text": "随着司法程序推进，FTX的创办人及高管被定罪。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "随着司法程序推进，FTX的创办人及高管被定罪。",
+      "original_claim_id": "claim-0092",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    },
+    {
+      "addressable_spans": [
+        {
+          "end_char": 41,
+          "start_char": 0,
+          "text": "随着司法程序推进，FTX的创办人及高管被指控并定罪，破产重组持续努力追回客户资产。"
+        },
+        {
+          "end_char": 80,
+          "start_char": 41,
+          "text": "此事件令人深刻警示加密市场须加强监管、提升透明度与治理水平，以防类似灾难重演。"
+        }
+      ],
+      "audit_view": "post_edit",
+      "block_id": "block-0034",
+      "block_text": "随着司法程序推进，FTX的创办人及高管被指控并定罪，破产重组持续努力追回客户资产。此事件令人深刻警示加密市场须加强监管、提升透明度与治理水平，以防类似灾难重演。",
+      "case_id": "finance-19:post_edit:claim-0095",
+      "observed_claim_text": "为防类似灾难重演。",
+      "observed_failure": "selected_assertion_not_verbatim_in_block",
+      "observed_selected_text": "为防类似灾难重演。",
+      "original_claim_id": "claim-0095",
+      "report_text_sha256": "26bd5fb1aed06e79e44155fb45bd6049e6065171a5248828851db68c613e36a7",
+      "source_run_id": "finance-19"
+    }
+  ],
+  "cases_sha256": "56d873274cc58c39ebc31115ca222136c59f77f5e68566ee9fa5cff050a125e9",
+  "gold": [
+    {
+      "case_id": "finance-19:post_edit:claim-0009",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "且在FTX破产时与其他高管如联合创始人Gary Wang等一起面临法律诉讼并认罪",
+          "start_char": 188,
+          "end_char": 228
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=Caroline Ellison",
+        "时间锚=FTX破产时",
+        "事件=面临法律诉讼",
+        "事件=认罪",
+        "并列主体=Gary Wang",
+        "Gary Wang 的身份=联合创始人"
+      ],
+      "necessary_context": [
+        "「她」在前文指 Alameda 的 CEO Caroline Ellison"
+      ],
+      "preferred_verification_units": [
+        "Caroline Ellison 在 FTX 破产时面临法律诉讼并认罪。",
+        "联合创始人 Gary Wang 在 FTX 破产时面临法律诉讼并认罪。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "原句用「且」承接前文主语，模型补主语是必要的去指代；但表面切片必须是原文「且在…认罪」。两名主体的法律状态可能需要不同来源，故拆为两个核验单元；「面临诉讼」与「认罪」是同一主体同一司法进程的连续状态，拆开会丢失关系，保留在同一单元内。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0012",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "并针对FTX的管理混乱与缺乏财务透明发表了严厉批评",
+          "start_char": 71,
+          "end_char": 96
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=John J. Ray III",
+        "言论对象=FTX 的管理混乱",
+        "言论对象=缺乏财务透明",
+        "行为=发表严厉批评"
+      ],
+      "necessary_context": [
+        "「他」指前句的 John J. Ray III"
+      ],
+      "preferred_verification_units": [
+        "John J. Ray III 针对 FTX 的管理混乱与缺乏财务透明发表了严厉批评。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "原文是并列谓语的后半，表面切片保留「并」字。批评的两个对象出自同一次表态，拆开会制造两条实际同源的断言，保留为一个单元。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0018",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "并被纳入集体诉讼",
+          "start_char": 75,
+          "end_char": 83
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=Tom Brady",
+        "主体=Gisele Bündchen",
+        "事件=被纳入集体诉讼",
+        "转述标记=被指出（作用于前半分句）"
+      ],
+      "necessary_context": [
+        "「他们」指前文的 Tom Brady 及 Gisele Bündchen",
+        "前半分句「被指出参与推广」带转述标记，本切片的「被纳入集体诉讼」不在该标记作用域内，需据原文判断作用域边界"
+      ],
+      "preferred_verification_units": [
+        "Tom Brady 被纳入与 FTX 推广相关的集体诉讼。",
+        "Gisele Bündchen 被纳入与 FTX 推广相关的集体诉讼。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "关键案例：原句前半有转述标记「被指出」，模型产出的 claim 丢失了它。经审阅，「被指出」在原文中修饰的是「参与推广未经监管的FTX证券产品」，「并被纳入集体诉讼」是并列的直陈分句，故本切片不受该标记约束——但这一判断必须由人给出，不能由代码推断。两名被告的诉讼状态需分别核验。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0026",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "但在知晓财务和法律风险后于11月6日宣布退出谈判",
+          "start_char": 140,
+          "end_char": 164
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=Binance",
+        "日期=11月6日",
+        "事件=宣布退出谈判",
+        "前置条件=在知晓财务和法律风险后",
+        "被退出的对象=收购FTX的计划"
+      ],
+      "necessary_context": [
+        "「Binance最初计划收购拯救FTX」提供了「谈判」所指的对象"
+      ],
+      "preferred_verification_units": [
+        "Binance 在知晓财务和法律风险后于 2022 年 11 月 6 日宣布退出收购 FTX 的谈判。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "日期与事件必须留在同一核验单元——分开会让「11月6日」失去它标注的事件。注意：外部事实核查显示 Binance 放弃收购实为 11 月 9 日，11 月 6 日是 CZ 宣布抛售 FTT；但 gold 标注的是「该表面切片的真值条件是什么」，事实对错由核验层判定，不在本标注范围。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0030",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "公司没有独立的首席财务官和完善的会计体系",
+          "start_char": 29,
+          "end_char": 49
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=FTX",
+        "缺失项=独立的首席财务官",
+        "缺失项=完善的会计体系",
+        "否定=没有（作用于两个并列宾语）"
+      ],
+      "necessary_context": [
+        "「公司」指前文破产调查所述的 FTX"
+      ],
+      "preferred_verification_units": [
+        "FTX 没有独立的首席财务官。",
+        "FTX 没有完善的会计体系。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "并列宾语受同一否定词辖域。拆分是合理的（两项可能由不同来源证实），但每个单元都必须重述否定词，否则辖域丢失。模型原产出「公司没有完善的会计体系」已正确保留否定，问题只在表面切片非逐字。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0036",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "内部软件、用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用的行为",
+          "start_char": 107,
+          "end_char": 143
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=FTX",
+        "缺陷=内部软件安全不足",
+        "缺陷=用以保管密钥的电子邮件账户安全不足",
+        "后果=客户资金被挪用",
+        "关系=助长（因果）"
+      ],
+      "necessary_context": [
+        "主语 FTX 由段首「FTX存在严重的公司治理缺失」提供"
+      ],
+      "preferred_verification_units": [
+        "FTX 的内部软件与用以保管密钥的电子邮件账户安全不足，助长了客户资金被挪用。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "不可拆。「A 助长 B」是因果断言，拆成「A 安全不足」与「B 被挪用」两条会丢失因果关系，且两条分别为真并不蕴含原句为真。这正是 Codex 所说「因果、比较、转折、时序应作为整体保留」的实例。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0039",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "FTX利用客户资金非法为其关联交易方Alameda Research提供资金支持，违反美国证券法及FTX自身的服务条款",
+          "start_char": 0,
+          "end_char": 59
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=FTX",
+        "行为=利用客户资金提供资金支持",
+        "受方=Alameda Research（关联交易方）",
+        "定性=非法",
+        "违反对象=美国证券法",
+        "违反对象=FTX 自身的服务条款"
+      ],
+      "necessary_context": [],
+      "preferred_verification_units": [
+        "FTX 利用客户资金为其关联交易方 Alameda Research 提供资金支持，违反美国证券法。",
+        "FTX 利用客户资金为其关联交易方 Alameda Research 提供资金支持，违反 FTX 自身的服务条款。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "模型只取了「违反FTX自身的服务条款」而丢掉「美国证券法」——这是并列宾语的选择性遗漏，属真值条件丢失。两个违反对象需要不同性质的证据（法律认定 vs 合同条款），故拆为两个单元，但共同的行为描述必须在每个单元内重述。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0050",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "Binance宣布终止收购意向，称已无法控制和解决相关问题",
+          "start_char": 17,
+          "end_char": 46
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=Binance",
+        "日期=2022年11月6日",
+        "事件=宣布终止收购意向",
+        "转述=称已无法控制和解决相关问题"
+      ],
+      "necessary_context": [
+        "日期 2022年11月6日 来自该列表项的加粗前缀，不在句子本体内"
+      ],
+      "preferred_verification_units": [
+        "Binance 于 2022 年 11 月 6 日宣布终止收购 FTX 的意向，理由是称已无法控制和解决相关问题。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "「称」是转述标记，其后内容是 Binance 的主张而非已证实事实，必须保留在核验单元中——核验的是「Binance 是否这样说」而非「问题是否真的无法解决」。日期在列表项前缀里，去语境化时必须补入。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0072",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动",
+          "start_char": 2,
+          "end_char": 45
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=美国联邦贸易委员会（FTC）",
+        "主体=纽约总检察长",
+        "行为=发起执法行动",
+        "对象=相关加密借贷平台和关联公司",
+        "递进标记=也"
+      ],
+      "necessary_context": [],
+      "preferred_verification_units": [
+        "美国联邦贸易委员会（FTC）对相关加密借贷平台和关联公司发起执法行动。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "并列主语拆分。两个机构的执法行动是独立事件、需分别核验，拆分成立。但「也」标示这是在前述监管行动之外的追加，拆分后该递进关系丢失——这是可接受的损失（不影响单条真值），须在此记录。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0073",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "美国联邦贸易委员会（FTC）以及纽约总检察长也对相关加密借贷平台和关联公司发起执法行动",
+          "start_char": 2,
+          "end_char": 45
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=纽约总检察长",
+        "行为=发起执法行动",
+        "对象=相关加密借贷平台和关联公司",
+        "递进标记=也"
+      ],
+      "necessary_context": [],
+      "preferred_verification_units": [
+        "纽约总检察长对相关加密借贷平台和关联公司发起执法行动。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "与 claim-0072 共享同一表面切片。这证明一个表面切片可对应多个核验单元，schema 必须允许该多对一关系。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0076",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者",
+          "start_char": 0,
+          "end_char": 35
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=FTX 倒闭",
+        "影响范围=超过一百万用户",
+        "影响范围=数百家机构投资者",
+        "量级词=超过/数百"
+      ],
+      "necessary_context": [],
+      "preferred_verification_units": [
+        "FTX 倒闭影响超过一百万用户。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "并列宾语拆分，两个量级数字可能来自不同统计口径与来源，需分别核验。量级词「超过」「数百」是真值条件的一部分，去掉会改变断言强度。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0077",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "FTX倒闭重创了全球加密货币市场，影响超过一百万用户和数百家机构投资者",
+          "start_char": 0,
+          "end_char": 35
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=FTX 倒闭",
+        "影响范围=数百家机构投资者",
+        "量级词=数百"
+      ],
+      "necessary_context": [],
+      "preferred_verification_units": [
+        "FTX 倒闭影响数百家机构投资者。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "与 claim-0076 共享同一表面切片，同样是多对一关系。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0081",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "涉及FTX推广的多位明星名人也因参与销售未经注册的证券产品而卷入诉讼",
+          "start_char": 3,
+          "end_char": 37
+        }
+      ],
+      "ambiguity": "unambiguous",
+      "truth_conditional_elements": [
+        "主体=涉及 FTX 推广的多位明星名人",
+        "原因=参与销售未经注册的证券产品",
+        "结果=卷入诉讼",
+        "定性=未经注册"
+      ],
+      "necessary_context": [],
+      "preferred_verification_units": [
+        "涉及 FTX 推广的多位明星名人因参与销售未经注册的证券产品而卷入诉讼。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "「因…而…」是因果结构，不可拆。「未经注册」是对证券产品的法律定性，是真值条件的核心，不能省略。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0082",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "no_verifiable_claims",
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "truth_conditional_elements": [],
+      "necessary_context": [],
+      "preferred_verification_units": [],
+      "reviewer": "claude-pm",
+      "rationale": "这是作者对前述事实的解释性评述（「反映出…」），不是可独立外部核验的事实断言。它的真假取决于对「广泛冲击」的界定，没有客观真值可供来源核对。应记为无事实核验单元，原表面切片仍保留在报告与 selection 审计中，但不进入 external factual denominator。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0092",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "verification_units",
+      "acceptable_surface_spans": [
+        {
+          "text": "FTX的创办人及高管被指控并定罪",
+          "start_char": 9,
+          "end_char": 25
+        }
+      ],
+      "ambiguity": "resolved_from_context",
+      "truth_conditional_elements": [
+        "主体=FTX 的创办人",
+        "主体=FTX 的高管",
+        "事件=被指控",
+        "事件=被定罪",
+        "时序标记=随着司法程序推进"
+      ],
+      "necessary_context": [
+        "「随着司法程序推进」提供了时间框架，本身不是可核验的独立断言"
+      ],
+      "preferred_verification_units": [
+        "FTX 的创办人被指控并定罪。",
+        "FTX 的高管被指控并定罪。"
+      ],
+      "reviewer": "claude-pm",
+      "rationale": "「被指控并定罪」是同一司法进程的两个连续阶段，保留在同一单元内；创办人与高管是不同主体、判决时间与罪名不同，需分别核验故拆为两条。注意报告写作时（对应 2022 年末视角）与实际司法进展存在时效差，但那是内容问题不是抽取问题。"
+    },
+    {
+      "case_id": "finance-19:post_edit:claim-0095",
+      "review_status": "provisional_model_review",
+      "gold_disposition": "no_verifiable_claims",
+      "acceptable_surface_spans": [],
+      "ambiguity": null,
+      "truth_conditional_elements": [],
+      "necessary_context": [],
+      "preferred_verification_units": [],
+      "reviewer": "claude-pm",
+      "rationale": "这是规范性/劝诫性表述（「此事件令人深刻警示…以防类似灾难重演」的目的状语），根本不是事实断言，没有真值。它被当作外部可核验断言进入分母，会虚增零支持率。应在 selection 层判为无事实核验单元。"
+    }
+  ],
+  "schema_version": "claim-extraction-review-v2",
+  "source_audit": "harness_runs/finance-19/audit.json",
+  "source_audit_sha256": "7cfcb5235541804498d7b967bf47fe75cfb97211bac01317e921f45b92967cf3",
+  "provenance": {
+    "fixture_version": "v2",
+    "based_on_fixture": "harness_claim_extraction_finance19_review.json (schema v1)",
+    "based_on_sha256": "5704897a7f247dbf848da7aa5c1ff378489efde816fd925db883b981370285b1",
+    "annotation_authority": "model_draft_pending_human_review",
+    "comparison_rule": "Record v1 or v2 explicitly; do not compare results across versions as if the gold annotations were unchanged."
+  }
+}

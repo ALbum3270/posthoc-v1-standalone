@@ -132,7 +132,7 @@ class GapSearchQuery(BaseModel):
 
 
 class DeferredGapTarget(BaseModel):
-    """A target explicitly left without a route because query capacity ended.
+    """A target left without a successfully completed acquisition route.
 
     This is a capacity record, not a semantic judgement that the claim needs
     no evidence or cannot be researched.  Those conclusions require actual
@@ -142,7 +142,10 @@ class DeferredGapTarget(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     claim_id: str
-    reason: Literal["query_capacity_not_allocated"]
+    reason: Literal[
+        "query_capacity_not_allocated",
+        "search_route_failed",
+    ]
     priority_rationale: str
     allocation_source: Literal["code_derived"] = "code_derived"
 
@@ -335,7 +338,7 @@ class EvidenceGapResult(BaseModel):
         """Derive routing coverage from accepted, actually retained routes.
 
         A target is routed only when it has an accepted cached-note candidate
-        or an issued search record.  Merely belonging to the requested target
+        or a search record without a provider error.  Merely belonging to the requested target
         set is not work done.  Keeping this derivation inside the result model
         also makes hand-built offline/recovery results obey the same audit
         contract as the live executor.
@@ -344,11 +347,6 @@ class EvidenceGapResult(BaseModel):
         if not isinstance(value, Mapping):
             return value
         data = dict(value)
-        if (
-            "routed_target_claim_ids" in data
-            or "unrouted_target_claim_ids" in data
-        ):
-            return data
         target_ids = tuple(data.get("target_claim_ids") or ())
         routed: set[str] = set()
         for hint in data.get("cached_candidate_hints") or ():
@@ -360,6 +358,13 @@ class EvidenceGapResult(BaseModel):
             if claim_id is not None:
                 routed.add(str(claim_id))
         for record in data.get("searches") or ():
+            error = (
+                record.get("error")
+                if isinstance(record, Mapping)
+                else getattr(record, "error", None)
+            )
+            if error is not None:
+                continue
             query = (
                 record.get("query")
                 if isinstance(record, Mapping)
@@ -377,6 +382,51 @@ class EvidenceGapResult(BaseModel):
         data["unrouted_target_claim_ids"] = tuple(
             claim_id for claim_id in target_ids if claim_id not in routed
         )
+        if data.get("selected_planning_attempt") is not None:
+            deferred = list(data.get("deferred_targets") or ())
+            deferred_ids = {
+                str(
+                    item.get("claim_id")
+                    if isinstance(item, Mapping)
+                    else getattr(item, "claim_id", "")
+                )
+                for item in deferred
+            }
+            queried_ids = {
+                str(claim_id)
+                for record in data.get("searches") or ()
+                for claim_id in (
+                    (
+                        record.get("query", {}).get("claim_ids", ())
+                        if isinstance(record, Mapping)
+                        else getattr(record.query, "claim_ids", ())
+                    )
+                    or ()
+                )
+            }
+            for claim_id in data["unrouted_target_claim_ids"]:
+                if claim_id in deferred_ids:
+                    continue
+                failed_route = claim_id in queried_ids
+                deferred.append(
+                    {
+                        "claim_id": claim_id,
+                        "reason": (
+                            "search_route_failed"
+                            if failed_route
+                            else "query_capacity_not_allocated"
+                        ),
+                        "priority_rationale": (
+                            "code derived: every issued search route for this "
+                            "target ended with a provider error"
+                            if failed_route
+                            else "code derived: target received no accepted "
+                            "cached candidate or issued query route"
+                        ),
+                        "allocation_source": "code_derived",
+                    }
+                )
+            data["deferred_targets"] = tuple(deferred)
         return data
 
     @model_validator(mode="after")
@@ -2051,6 +2101,46 @@ async def run_evidence_gap_round(
                     )
                 )
 
+        successful_route_ids = {hint.claim_id for hint in hints} | {
+            claim_id
+            for search_record in searches
+            if search_record.error is None
+            for claim_id in search_record.query.claim_ids
+        }
+        queried_ids = {
+            claim_id
+            for search_record in searches
+            for claim_id in search_record.query.claim_ids
+        }
+        deferral_by_id = {
+            target.claim_id: target for target in deferred_targets
+        }
+        for target in targets:
+            claim_id = target.claim.claim_id
+            if claim_id in successful_route_ids or claim_id in deferral_by_id:
+                continue
+            deferral_by_id[claim_id] = DeferredGapTarget(
+                claim_id=claim_id,
+                reason=(
+                    "search_route_failed"
+                    if claim_id in queried_ids
+                    else "query_capacity_not_allocated"
+                ),
+                priority_rationale=(
+                    "code derived: every issued search route for this target "
+                    "ended with a provider error"
+                    if claim_id in queried_ids
+                    else "code derived: target received no accepted cached "
+                    "candidate or issued query route"
+                ),
+            )
+        deferred_targets = tuple(
+            deferral_by_id[target.claim.claim_id]
+            for target in targets
+            if target.claim.claim_id in deferral_by_id
+            and target.claim.claim_id not in successful_route_ids
+        )
+
         read_prompt: str | None = None
         prerequisite_tokens = 0
         prerequisite_cost = 0.0
@@ -2560,11 +2650,10 @@ async def run_evidence_gap_round(
         stop_reason=stop_reason,
     )
     if stop_reason is EvidenceGapStopReason.COMPLETED:
-        routed_claim_ids = {
-            hint.claim_id for hint in hints
-        } | {
+        routed_claim_ids = {hint.claim_id for hint in hints} | {
             claim_id
             for search_record in searches
+            if search_record.error is None
             for claim_id in search_record.query.claim_ids
         }
         routed_count = sum(

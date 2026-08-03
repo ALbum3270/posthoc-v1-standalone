@@ -7,10 +7,26 @@ from open_deep_research.graphrag.adapters.tavily import TAVILY_QUERY_MAX_CHARS
 from open_deep_research.harness.ledger import SourceLinkCaptureStatus
 from open_deep_research.harness.tools import (
     SourceReadError,
+    extract_markdown_links,
     read,
     read_with_links,
     search,
 )
+
+
+def test_markdown_links_preserve_document_order_across_syntaxes() -> None:
+    records = extract_markdown_links(
+        "<https://first.example/a>\n"
+        "[second]: https://second.example/b\n"
+        "[third](https://third.example/c)\n",
+        source_url="https://source.example/page",
+    )
+
+    assert [record.target_url for record in records] == [
+        "https://first.example/a",
+        "https://second.example/b",
+        "https://third.example/c",
+    ]
 
 
 class FakeTavily:
@@ -148,6 +164,9 @@ def test_read_with_links_keeps_text_bytes_and_captures_markdown_sidecar():
     assert result.link_capture.status is SourceLinkCaptureStatus.CAPTURED
     assert result.link_capture.captured_link_count == 2
     assert result.link_capture.completeness_guaranteed is False
+    assert result.link_capture.ordering_basis == (
+        "provider_markdown_document_order_first_occurrence"
+    )
     assert client.extract_calls == [
         (
             [url],

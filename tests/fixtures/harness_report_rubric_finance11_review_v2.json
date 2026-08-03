@@ -106,20 +106,20 @@
       {
         "importance": "core",
         "keypoint_id": "kp-funds-destination",
-        "rationale": "对应 where-funds-allocated。这是标题第三问的正面回答；只写「去向不明」等于把检索失败呈现为事实结论。",
-        "requirement": "列举被挪用客户资金的具体去向类别（如 Alameda 亏损、风险投资、房地产、政治捐款等），而不只是笼统称「用途不透明」"
+        "rationale": "对应 where-funds-allocated，是标题第三问的正面回答。不得与追回混答的要求源自 finance-22 的真实失败：该报告的「客户资金去向」一节通篇在写破产后追回了哪些资产、债权人能拿多少现金，读起来像回答了，实际回避了「原先的钱被花到哪儿」。只写「去向不明」同样是把检索失败呈现为事实结论。",
+        "requirement": "列举破产前被挪用的客户资金的具体去向类别，而不只是笼统称「用途不透明」。这一项问的是钱被花到哪里，必须与破产后受托团队追回了什么明确区分，不得以后者代答前者"
       },
       {
         "importance": "core",
         "keypoint_id": "kp-recovery-progress",
-        "rationale": "对应 when-recovery-efforts / what-customer-funds-status。用户关心的「钱还能不能拿回来」的一半答案。finance-11 的编辑器删掉了它。",
-        "requirement": "给出破产程序中已追回资产的规模及其时点"
+        "rationale": "对应 when-recovery-efforts / what-customer-funds-status。追回数额随程序推进持续变动，缺 as-of 时点的数字无法判断是否陈旧。与 kp-funds-destination 的分工在两条要求里对称写明，因为 finance-22 正是把两者混成一节而漏掉了前者。",
+        "requirement": "给出破产程序中已追回资产的规模，并标明其 as-of 时点。这一项问的是受托团队后来追回了什么，必须与破产前资金被挪用的去向明确区分"
       },
       {
         "importance": "core",
         "keypoint_id": "kp-repayment-ratio-plan",
-        "rationale": "对应 what-customer-funds-status。另一半答案。要求标注「计划」状态，是因为偿付比例在破产程序中反复变动，写成既成事实会误导。finance-11 的编辑器删掉了它。",
-        "requirement": "说明债权人的预期偿付比例或分配计划，并标明其为计划/预期而非已完成事实"
+        "rationale": "对应 what-customer-funds-status。原要求是「标明其为计划/预期而非已完成事实」，该要求本身已过时——重组计划 2024-10-08 获法院确认、2025-01-03 生效、分配已在执行，旧写法会强迫模型把正确陈述对冲成错误陈述。as-of 时点要求只适用于「当前状态」类断言，历史崩溃事实不受此约束。口径限定是因为「118%」按允许债权的美元额计算，不等于返还原数量加密资产，也不适用于所有债权类别。",
+        "requirement": "说明债权人的偿付比例与分配安排，并标明该数字的 as-of 时点与计算口径（按法院认可的允许债权额、以破产申请时点美元价值折算），以及它是否已生效执行。不得把已生效的分配写成尚未确定的预期，也不得把某一债权类别的比例说成适用于所有客户"
       },
       {
         "importance": "core",
@@ -164,9 +164,21 @@
         "requirement": "说明调查方与破产管理人通过何种手段追踪资金流向，而不只给出结论数字"
       }
     ],
-    "rationale": "keypoint 由 topic 与冻结的 12 个 checklist 问题推导，不从基线报告反推——若从基线反推，基线按构造即满分，前后对照就只能显示退化。core 与 supporting 的划分依据是：标题明确问的三件事（原因、时间线、客户资金去向）所必需的答案点记为 core，其余为 supporting。\n\n边界：这是覆盖与保全的尺子，不是事实正确性的尺子。它能判断某个答案点在编辑前后是否丢失，判断不了留下来的数字是否正确——finance-18 的 $900M/$90M 十倍错误和撤款时点错误都不在此尺覆盖范围内，需由数值一致性证伪器与人工核对处理。\n\n标注人是 claude-pm（模型），不是人类标注者。SAFE 报告自动判定与人工标注约 72% 一致，故此 gold 应被视为待人类复核的初版，不可当作最终 ground truth。",
-    "review_status": "reviewed",
+    "rationale": "keypoint 由 topic 与冻结的 12 个 checklist 问题推导，不从基线报告反推——若从基线反推，基线按构造即满分，前后对照就只能显示退化。core 与 supporting 的划分依据是：标题明确问的三件事（原因、时间线、客户资金去向）所必需的答案点记为 core，其余为 supporting。\n\n边界：这是覆盖与保全的尺子，不是事实正确性的尺子。它能判断某个答案点在编辑前后是否丢失，判断不了留下来的数字是否正确——finance-18 的 $900M/$90M 十倍错误和撤款时点错误都不在此尺覆盖范围内，需由数值一致性证伪器与人工核对处理。\n\n标注人是 claude-pm（模型），不是人类标注者。SAFE 报告自动判定与人工标注约 72% 一致，故此 gold 应被视为待人类复核的初版，不可当作最终 ground truth。\n\n---\n\n2026-08-03 修订（依据 finance-22 真跑的人工复核）：\n\nkp-repayment-ratio-plan 原要求「标明其为计划/预期而非已完成事实」已撤销。该要求本身过时，会强迫模型把正确陈述对冲成错误陈述；改为 as-of 时点与计算口径要求。注意 as-of 只适用于「当前状态」类断言，历史崩溃事实不受此约束，否则会误伤 2022 年的既成事实。这条修正由人工复核与 Codex 独立提出，指向同一处。\n\nkp-funds-destination 与 kp-recovery-progress 新增互不代答的要求。finance-22 的「客户资金去向」一节通篇在写破产后追回了什么，读起来像回答了标题第三问，实际回避了「原先的钱被花到哪儿」。两条 keypoint 本就分列，但不写明不得混答，覆盖判定就会被后者顶替。\n\n仍然成立的边界：这是覆盖与保全的尺子，不评事实正确性。finance-22 的两处硬错误——SBF 定罪日期写成 2023 年 10 月（实为 11 月 2 日）、称 John Ray 由法院指派为 CEO——此尺一条都抓不到，只能靠人工核对与数值一致性证伪器。",
+    "review_status": "provisional_model_review",
     "reviewer": "claude-pm"
   },
-  "schema_version": "report-preservation-review-v1"
+  "schema_version": "report-preservation-review-v2",
+  "provenance": {
+    "fixture_version": "v2",
+    "based_on_fixture": "harness_report_rubric_finance11_review_v1.json",
+    "based_on_sha256": "7c773bd6adb21d1963189cab2d413cd51cf911e5e68745fa094a019900c2b942",
+    "annotation_authority": "model_draft_pending_human_review",
+    "revision_sources": {
+      "kp-repayment-ratio-plan": "world-state correction independent of measured run",
+      "kp-funds-destination": "finance-22 observed-failure-informed rubric revision",
+      "kp-recovery-progress": "finance-22 observed-failure-informed rubric revision"
+    },
+    "comparison_rule": "Record v1 or v2 explicitly; do not compare results across versions as if the rubric were unchanged."
+  }
 }

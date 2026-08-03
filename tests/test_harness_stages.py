@@ -491,6 +491,37 @@ def test_an_empty_scope_from_a_truncated_upstream_is_demoted():
     assert adjusted["attribution"].expected_scope is None
 
 
+@pytest.mark.parametrize(
+    "downstream_stage",
+    ("evidence_gap", "recovery_triage", "audit_editing"),
+)
+def test_initial_verification_cutoff_demotes_downstream_complete_zero_of_zero(
+    downstream_stage: str,
+):
+    from open_deep_research.harness.stages import demote_vacuous_completions
+
+    stages = {
+        "initial_verification": StageExecutionRecord(
+            status=StageExecutionStatus.PARTIAL,
+            reason="budget ended before verification scope was established",
+        ),
+        downstream_stage: StageExecutionRecord(
+            status=StageExecutionStatus.COMPLETE,
+            reason="empty selector",
+            expected_scope=StageScope(unit="claim", count=0),
+            evaluated_scope=StageScope(unit="claim", count=0),
+        ),
+    }
+
+    adjusted = demote_vacuous_completions(stages)
+
+    assert adjusted[downstream_stage].status is StageExecutionStatus.NOT_RUN
+    assert adjusted[downstream_stage].expected_scope is None
+    assert "initial_verification did not complete" in (
+        adjusted[downstream_stage].reason
+    )
+
+
 def test_a_real_scope_is_never_demoted_even_if_upstream_was_cut():
     """Work actually done upstream must keep its record."""
 

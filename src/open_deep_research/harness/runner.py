@@ -415,6 +415,22 @@ def _scope_record(
         else None
     )
     if (
+        expected is not None
+        and evaluated is not None
+        and evaluated.count > expected.count
+    ):
+        observed_count = evaluated.count
+        evaluated = None
+        status = StageExecutionStatus.PARTIAL
+        reason = (
+            "mechanical scope invariant "
+            "evaluated_scope_cannot_exceed_expected_scope was not satisfied; "
+            f"observed_evaluated_count={observed_count}; "
+            f"expected_count={expected.count}; recorded partial with unknown "
+            "evaluated scope instead. "
+            + reason
+        )
+    if (
         status is StageExecutionStatus.COMPLETE
         and expected is not None
         and (
@@ -486,7 +502,9 @@ def _disagreement_execution_record(
 
     selected_ids = tuple(selection.claim_id for selection in result.selected_claims)
     attempted_ids = {
-        attempt.claim_id for attempt in result.disagreement_search_attempted
+        attempt.claim_id
+        for attempt in result.disagreement_search_attempted
+        if attempt.methods
     }
     evaluated_ids = tuple(
         claim_id for claim_id in selected_ids if claim_id in attempted_ids

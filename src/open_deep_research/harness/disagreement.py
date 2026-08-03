@@ -575,7 +575,7 @@ def _attempts(
         methods = []
         if hints:
             methods.append("cached_source_review")
-        if searches:
+        if any(search.error is None for search in searches):
             methods.append("web_search")
         attempts.append(
             DisagreementSearchAttempt(
@@ -866,7 +866,9 @@ async def run_disagreement_detection(
         ),
         EvidenceGapStopReason.DISABLED: DisagreementStopReason.DISABLED,
     }[acquisition.stop_reason]
-    attempted_ids = {attempt.claim_id for attempt in attempts}
+    attempted_ids = {
+        attempt.claim_id for attempt in attempts if attempt.methods
+    }
     unattempted_ids = tuple(
         selection.claim_id
         for selection in selections
@@ -887,7 +889,7 @@ async def run_disagreement_detection(
         )
     elif mapped_stop is DisagreementStopReason.COMPLETED:
         stop_detail = (
-            f"single bounded pass attempted {len(attempts)} claim(s); "
+            f"single bounded pass attempted {len(attempted_ids)} claim(s); "
             f"new completed relations={sum(counts.values())}; "
             f"conflicts found={counts[VerificationVerdict.CONTRADICTS.value]}. "
             "Zero conflicts is normal and does not establish absence of "

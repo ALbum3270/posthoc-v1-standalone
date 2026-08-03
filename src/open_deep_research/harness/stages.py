@@ -326,8 +326,11 @@ def stages_claiming_completion_without_output(
 STAGE_SCOPE_DEPENDS_ON = {
     "attribution": "claim_decomposition",
     "evaluative_diagnostics": "claim_decomposition",
+    "evidence_gap": "initial_verification",
+    "recovery_triage": "initial_verification",
     "evidence_recovery": "recovery_triage",
     "initial_verification": "attribution",
+    "audit_editing": "initial_verification",
     "post_edit_attribution": "post_edit_claim_decomposition",
     "post_edit_evaluative_diagnostics": "post_edit_claim_decomposition",
     "post_edit_initial_verification": "post_edit_attribution",

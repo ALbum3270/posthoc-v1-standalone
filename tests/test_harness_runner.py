@@ -21,8 +21,10 @@ from open_deep_research.harness.loop import LoopBudget, StopReason
 from open_deep_research.harness.recovery import EvidenceRecoveryStopReason
 from open_deep_research.harness.runner import (
     _publish_artifact_bundle,
+    _scope_record,
     run_harness,
 )
+from open_deep_research.harness.stages import StageExecutionStatus
 from open_deep_research.harness.source_spans import build_source_span_registry
 from open_deep_research.harness.verify import ClaimEvidenceState
 
@@ -80,6 +82,25 @@ class DecisionModel:
 class UnusedNoteModel:
     async def generate(self, prompt):
         raise AssertionError("note model should not be called")
+
+
+def test_scope_overcount_degrades_without_erasing_the_run() -> None:
+    record = _scope_record(
+        status=StageExecutionStatus.COMPLETE,
+        reason="stage claimed completion",
+        unit="claim",
+        expected_count=1,
+        evaluated_count=2,
+        unevaluated_ids=("claim-outside-scope",),
+    )
+
+    assert record.status is StageExecutionStatus.PARTIAL
+    assert record.expected_scope.count == 1
+    assert record.evaluated_scope is None
+    assert record.unevaluated_ids == ("claim-outside-scope",)
+    assert "evaluated_scope_cannot_exceed_expected_scope" in record.reason
+    assert "observed_evaluated_count=2" in record.reason
+    assert record.reason.endswith("stage claimed completion")
 
 
 class WriteModel:

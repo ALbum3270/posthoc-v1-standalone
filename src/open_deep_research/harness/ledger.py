@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -46,6 +46,11 @@ class SourceLinkCaptureAudit(BaseModel):
     requested_format: str = "markdown"
     captured_link_count: int = Field(default=0, ge=0)
     completeness_guaranteed: bool = False
+    ordering_basis: Literal[
+        "provider_markdown_document_order_first_occurrence",
+        "not_applicable_no_captured_links",
+        "legacy_unspecified",
+    ] = "legacy_unspecified"
     error: str | None = None
 
     @model_validator(mode="after")
@@ -62,6 +67,17 @@ class SourceLinkCaptureAudit(BaseModel):
             raise ValueError("non-captured status requires zero links")
         if self.completeness_guaranteed:
             raise ValueError("provider Markdown link completeness is not guaranteed")
+        if (
+            self.status is SourceLinkCaptureStatus.CAPTURED
+            and self.ordering_basis == "not_applicable_no_captured_links"
+        ):
+            raise ValueError("captured links require an applicable ordering basis")
+        if (
+            self.status is not SourceLinkCaptureStatus.CAPTURED
+            and self.ordering_basis
+            == "provider_markdown_document_order_first_occurrence"
+        ):
+            raise ValueError("empty link captures cannot claim document ordering")
         if (
             self.status is SourceLinkCaptureStatus.PROVIDER_ERROR
             and not self.error

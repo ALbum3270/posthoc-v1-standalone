@@ -19,9 +19,10 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 
 class ClaimReviewStatus(str, Enum):
-    """Whether a human-approved semantic judgement is available."""
+    """Authority state of a semantic judgement."""
 
     PENDING_REVIEW = "pending_review"
+    PROVISIONAL_MODEL_REVIEW = "provisional_model_review"
     REVIEWED = "reviewed"
 
 
@@ -105,7 +106,7 @@ class FrozenClaimExtractionCase(BaseModel):
 
 
 class ClaimExtractionGold(BaseModel):
-    """Human-approved source interpretation for one frozen case."""
+    """Source interpretation whose annotations declare their authority."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -148,10 +149,10 @@ class ClaimExtractionGold(BaseModel):
             return self
         if self.gold_disposition is None or self.reviewer is None:
             raise ValueError(
-                "reviewed gold requires gold_disposition and reviewer"
+                "annotated gold requires gold_disposition and reviewer"
             )
         if not self.rationale:
-            raise ValueError("reviewed gold requires a rationale")
+            raise ValueError("annotated gold requires a rationale")
         if self.gold_disposition is ClaimGoldDisposition.VERIFICATION_UNITS:
             if self.ambiguity is None:
                 raise ValueError(
@@ -252,7 +253,7 @@ class ClaimExtractionSystemJudgement(BaseModel):
             if self.selected_surface_spans or self.claims or self.reviewer:
                 raise ValueError("pending system judgement cannot contain labels")
         elif self.reviewer is None:
-            raise ValueError("reviewed system judgement requires reviewer")
+            raise ValueError("annotated system judgement requires reviewer")
         return self
 
 
@@ -402,18 +403,24 @@ def evaluate_claim_extraction(
         extraneous = sum(
             claim.extraneous_element_count for claim in judged.claims
         )
-        precision_scores.append(
-            len(covered) / (len(covered) + extraneous)
-            if covered or extraneous
-            else 1.0
-        )
-        recall_scores.append(
-            len(covered) / element_total if element_total else 1.0
-        )
+        # A reviewed case with no gold elements cannot inform element-level
+        # precision or recall.  Exclude it from those denominators instead of
+        # manufacturing a perfect score from an empty set.
+        if element_total:
+            precision_scores.append(
+                len(covered) / (len(covered) + extraneous)
+                if covered or extraneous
+                else 1.0
+            )
+            recall_scores.append(len(covered) / element_total)
 
-    precision = fmean(precision_scores)
-    recall = fmean(recall_scores)
-    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    precision = fmean(precision_scores) if precision_scores else None
+    recall = fmean(recall_scores) if recall_scores else None
+    f1 = (
+        2 * precision * recall / (precision + recall)
+        if precision is not None and recall is not None and precision + recall
+        else (0.0 if precision is not None and recall is not None else None)
+    )
     return ClaimExtractionMetrics(
         system_id=system_id,
         total_cases=len(cases),

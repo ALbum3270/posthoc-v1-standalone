@@ -112,18 +112,28 @@ def extract_markdown_links(
     is not evidence that the original page contained no links.
     """
 
-    candidates: list[tuple[str, str]] = []
-    for pattern in (_INLINE_MARKDOWN_LINK, _REFERENCE_MARKDOWN_LINK):
+    candidates: list[tuple[int, int, str, str]] = []
+    for pattern_order, pattern in enumerate(
+        (_INLINE_MARKDOWN_LINK, _REFERENCE_MARKDOWN_LINK, _AUTOLINK)
+    ):
         for match in pattern.finditer(markdown):
             candidates.append(
-                (match.group("label").strip(), match.group("target"))
+                (
+                    match.start(),
+                    pattern_order,
+                    (
+                        match.group("label").strip()
+                        if "label" in match.groupdict()
+                        else ""
+                    ),
+                    match.group("target"),
+                )
             )
-    for match in _AUTOLINK.finditer(markdown):
-        candidates.append(("", match.group("target")))
+    candidates.sort(key=lambda candidate: (candidate[0], candidate[1]))
 
     records: list[SourceLinkRecord] = []
     seen_targets: set[str] = set()
-    for label, raw_target in candidates:
+    for _, _, label, raw_target in candidates:
         target_url = _http_link(raw_target, source_url=source_url)
         if target_url is None or target_url in seen_targets:
             continue
@@ -218,6 +228,7 @@ async def read_with_links(
         if matching is None:
             capture = SourceLinkCaptureAudit(
                 status=SourceLinkCaptureStatus.NO_MARKDOWN_CONTENT,
+                ordering_basis="not_applicable_no_captured_links",
             )
             links: tuple[SourceLinkRecord, ...] = ()
         else:
@@ -225,6 +236,7 @@ async def read_with_links(
             if not markdown:
                 capture = SourceLinkCaptureAudit(
                     status=SourceLinkCaptureStatus.NO_MARKDOWN_CONTENT,
+                    ordering_basis="not_applicable_no_captured_links",
                 )
                 links = ()
             else:
@@ -239,11 +251,17 @@ async def read_with_links(
                         else SourceLinkCaptureStatus.NO_LINKS_CAPTURED
                     ),
                     captured_link_count=len(links),
+                    ordering_basis=(
+                        "provider_markdown_document_order_first_occurrence"
+                        if links
+                        else "not_applicable_no_captured_links"
+                    ),
                 )
     except Exception as exc:  # noqa: BLE001 - sidecar failure is audited data
         links = ()
         capture = SourceLinkCaptureAudit(
             status=SourceLinkCaptureStatus.PROVIDER_ERROR,
+            ordering_basis="not_applicable_no_captured_links",
             error=f"{type(exc).__name__}: {exc}",
         )
     return SourceReadResult(

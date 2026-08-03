@@ -203,6 +203,18 @@ class EmptySearchNetwork:
         raise AssertionError("no empty search result should be read")
 
 
+class FailedSearchNetwork:
+    def __init__(self):
+        self.queries = []
+
+    async def search(self, query, **kwargs):
+        self.queries.append(query)
+        raise RuntimeError("provider unavailable")
+
+    async def extract(self, urls, **kwargs):
+        raise AssertionError("a failed search must not lead to a read")
+
+
 def _estimate_tokens(client, prompt):
     return 1
 
@@ -567,6 +579,59 @@ def test_incomplete_plan_executes_its_audited_partial_route_once():
         result.unrouted_target_claim_ids
     )
     assert "issued query slots=1/6" in result.stop_detail
+
+
+def test_failed_search_route_remains_unrouted_and_partial():
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(1)
+    )
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claims[0].claim_id],
+                    "item_id": "what-1",
+                    "query": "a route whose provider fails",
+                }
+            ],
+        }
+    )
+    network = FailedSearchNetwork()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=0,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    from open_deep_research.harness.runner import _evidence_gap_execution_record
+
+    stage = _evidence_gap_execution_record(result)
+    assert result.searches[0].error == "RuntimeError: provider unavailable"
+    assert result.routed_target_claim_ids == ()
+    assert result.unrouted_target_claim_ids == (claims[0].claim_id,)
+    assert result.deferred_targets[0].reason == "search_route_failed"
+    assert stage.status.value == "partial"
+    assert stage.evaluated_scope.count == 0
 
 
 def test_zero_route_plan_returns_an_audited_partial_result():

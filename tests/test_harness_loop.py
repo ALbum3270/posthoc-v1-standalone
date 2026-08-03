@@ -653,6 +653,9 @@ def test_model_can_inspect_captured_source_links_then_read_a_selected_target():
         link_capture=SourceLinkCaptureAudit(
             status=SourceLinkCaptureStatus.CAPTURED,
             captured_link_count=1,
+            ordering_basis=(
+                "provider_markdown_document_order_first_occurrence"
+            ),
         ),
     )
     decisions = [
@@ -715,7 +718,44 @@ def test_model_can_inspect_captured_source_links_then_read_a_selected_target():
     first_audit = json.loads(ledger.rounds[0].result_summary)
     assert first_audit["returned_target_urls"] == [target_url]
     assert first_audit["next_cursor"] is None
+    assert first_audit["page_start_offset"] == 0
+    assert first_audit["page_end_offset_exclusive"] == 1
+    assert first_audit["exposed_before_count"] == 0
+    assert first_audit["exposed_after_count"] == 1
+    assert first_audit["unexposed_after_count"] == 0
+    assert first_audit["ordering_basis"] == (
+        "provider_markdown_document_order_first_occurrence"
+    )
     assert [note.url for note in ledger.notes] == [target_url]
+    assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
+
+
+def test_source_link_inspection_failure_is_visible_on_the_next_turn():
+    active = checklist(second=False)
+    missing_url = "https://example.com/not-cached"
+    decisions = [
+        envelope(
+            {
+                "action": "inspect_source_links",
+                "item_id": "what-1",
+                "url": missing_url,
+                "cursor": None,
+            }
+        ),
+        envelope({"action": "settle", "item_id": "what-1"}),
+    ]
+
+    result, decision_model, _, _ = run_loop(
+        decisions,
+        active_checklist=active,
+    )
+
+    feedback_prompt = decision_model.prompts[1]
+    assert '"inspected": false' in feedback_prompt
+    assert missing_url in feedback_prompt
+    assert "requires a URL in the source cache" in feedback_prompt
+    first_audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert first_audit["inspected"] is False
     assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
 
 

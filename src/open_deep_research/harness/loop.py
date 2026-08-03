@@ -1122,6 +1122,7 @@ def _source_link_index(ledger: ResearchLedger | None) -> list[dict[str, Any]]:
             "source_url": source_url,
             "capture_status": capture.status.value,
             "captured_link_count": capture.captured_link_count,
+            "ordering_basis": capture.ordering_basis,
             "capture_completeness_guaranteed": (
                 capture.completeness_guaranteed
             ),
@@ -1195,6 +1196,9 @@ def _inspect_source_links_page(
     return {
         "source_url": url,
         "cursor": cursor,
+        "page_start_offset": offset,
+        "page_end_offset_exclusive": next_offset,
+        "ordering_basis": capture.ordering_basis,
         "capture": capture.model_dump(mode="json"),
         "links": [link.model_dump(mode="json") for link in page_links],
         "returned_count": len(page_links),
@@ -2358,6 +2362,7 @@ async def run_research_loop(
     recalled: list[str] = []
     inspected_note_page: dict[str, Any] | None = None
     inspected_source_link_page: dict[str, Any] | None = None
+    source_link_exposed_offsets: dict[str, set[int]] = {}
     recalled_note_details: list[dict[str, Any]] = []
     candidates: dict[str, dict[str, Any]] = {}
     acquisition_attempts = _new_acquisition_attempt_state(
@@ -2838,14 +2843,31 @@ async def run_research_loop(
                     page_size=context_settings.source_link_page_size,
                 )
                 if page is None:
-                    summary = {
+                    inspected_source_link_page = {
                         "url": action.url,
                         "cursor": action.cursor,
                         "inspected": False,
                         "detail": page_error,
                     }
+                    summary = dict(inspected_source_link_page)
                 else:
-                    inspected_source_link_page = page
+                    exposed = source_link_exposed_offsets.setdefault(
+                        action.url, set()
+                    )
+                    exposed_before = len(exposed)
+                    exposed.update(
+                        range(
+                            page["page_start_offset"],
+                            page["page_end_offset_exclusive"],
+                        )
+                    )
+                    inspected_source_link_page = {
+                        **page,
+                        "inspected": True,
+                        "exposed_before_count": exposed_before,
+                        "exposed_after_count": len(exposed),
+                        "unexposed_after_count": page["total_count"] - len(exposed),
+                    }
                     summary = {
                         "url": action.url,
                         "cursor": action.cursor,
@@ -2856,6 +2878,16 @@ async def run_research_loop(
                         "returned_count": page["returned_count"],
                         "total_count": page["total_count"],
                         "next_cursor": page["next_cursor"],
+                        "page_start_offset": page["page_start_offset"],
+                        "page_end_offset_exclusive": page[
+                            "page_end_offset_exclusive"
+                        ],
+                        "ordering_basis": page["ordering_basis"],
+                        "exposed_before_count": exposed_before,
+                        "exposed_after_count": len(exposed),
+                        "unexposed_after_count": (
+                            page["total_count"] - len(exposed)
+                        ),
                     }
 
             elif isinstance(action, RecallNotesAction):

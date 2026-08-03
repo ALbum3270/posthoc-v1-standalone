@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -148,6 +149,33 @@ def test_pending_report_rubric_never_becomes_zero_coverage() -> None:
     assert metrics.baseline_distribution is None
     assert metrics.candidate_distribution is None
     assert metrics.degraded_keypoint_ids == ()
+
+
+def test_provisional_model_rubric_can_hold_annotations_but_cannot_score() -> None:
+    fixture = (
+        Path(__file__).parent
+        / "fixtures"
+        / "harness_report_rubric_finance11_review_v2.json"
+    )
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
+    case = FrozenReportRubricCase.model_validate(payload["case"])
+    gold = ReportRubricGold.model_validate(payload["gold"])
+    assert payload["schema_version"] == "report-preservation-review-v2"
+    assert gold.review_status is ReportReviewStatus.PROVISIONAL_MODEL_REVIEW
+    assert gold.keypoints
+
+    pending = ReportQualitySystemJudgement(
+        case_id=case.case_id,
+        system_id="candidate",
+        report_version_id="baseline",
+        report_text=case.baseline_report_text,
+        report_text_sha256=case.baseline_report_sha256,
+        review_status=ReportReviewStatus.PENDING_REVIEW,
+    )
+    metrics = evaluate_report_preservation(case, gold, pending, pending)
+
+    assert metrics.total_keypoints is None
+    assert metrics.baseline_distribution is None
 
 
 def test_paired_report_review_exposes_lost_core_answer_without_composite_score() -> None:

@@ -19,9 +19,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ReportReviewStatus(str, Enum):
-    """Whether a human or independent reviewer supplied a semantic review."""
+    """Authority state of a semantic review."""
 
     PENDING_REVIEW = "pending_review"
+    PROVISIONAL_MODEL_REVIEW = "provisional_model_review"
     REVIEWED = "reviewed"
 
 
@@ -106,7 +107,7 @@ class ReportRubricKeypoint(BaseModel):
 
 
 class ReportRubricGold(BaseModel):
-    """Human report rubric; pending packets deliberately contain no keypoints."""
+    """Report rubric whose annotations carry an explicit authority state."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -123,9 +124,9 @@ class ReportRubricGold(BaseModel):
                 raise ValueError("pending report rubric cannot contain guessed gold")
             return self
         if not self.keypoints:
-            raise ValueError("reviewed report rubric requires keypoints")
+            raise ValueError("annotated report rubric requires keypoints")
         if not self.reviewer or not self.rationale:
-            raise ValueError("reviewed report rubric requires reviewer and rationale")
+            raise ValueError("annotated report rubric requires reviewer and rationale")
         identifiers = [item.keypoint_id for item in self.keypoints]
         if len(set(identifiers)) != len(identifiers):
             raise ValueError("report rubric keypoint IDs must be unique")
@@ -183,7 +184,7 @@ class ReportQualitySystemJudgement(BaseModel):
             return self
         if not self.reviewer or not self.rationale:
             raise ValueError(
-                "reviewed report judgement requires reviewer and rationale"
+                "annotated report judgement requires reviewer and rationale"
             )
         identifiers = [item.keypoint_id for item in self.keypoint_assessments]
         if len(set(identifiers)) != len(identifiers):

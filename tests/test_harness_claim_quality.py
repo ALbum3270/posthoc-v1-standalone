@@ -25,8 +25,14 @@ from open_deep_research.harness.claim_quality import (
 FIXTURE = (
     Path(__file__).parent
     / "fixtures"
+    / "harness_claim_extraction_finance19_review_v2.json"
+)
+V1_FIXTURE = (
+    Path(__file__).parent
+    / "fixtures"
     / "harness_claim_extraction_finance19_review.json"
 )
+V1_FILE_SHA256 = "5704897a7f247dbf848da7aa5c1ff378489efde816fd925db883b981370285b1"
 CASES_SHA256 = "56d873274cc58c39ebc31115ca222136c59f77f5e68566ee9fa5cff050a125e9"
 
 
@@ -41,7 +47,7 @@ def _load_fixture() -> tuple[
     )
 
 
-def test_finance19_claim_extraction_inputs_are_frozen_and_gold_is_reviewed() -> None:
+def test_finance19_claim_extraction_v2_is_frozen_and_provisional() -> None:
     payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
     canonical_cases = json.dumps(
         payload["cases"],
@@ -73,12 +79,13 @@ def test_finance19_claim_extraction_inputs_are_frozen_and_gold_is_reviewed() -> 
         "claim-0092",
         "claim-0095",
     }
-    # The frozen inputs above must never move. The gold below was annotated by
-    # a human reviewer after the schema gained a disposition that can say "no
-    # verifiable claim here" -- before that, annotating would have locked the
-    # ruler to atomic-v1's discarded target.
+    assert payload["schema_version"] == "claim-extraction-review-v2"
+    assert payload["provenance"]["annotation_authority"] == (
+        "model_draft_pending_human_review"
+    )
     assert all(
-        entry.review_status is ClaimReviewStatus.REVIEWED for entry in gold
+        entry.review_status is ClaimReviewStatus.PROVISIONAL_MODEL_REVIEW
+        for entry in gold
     )
     by_case = {entry.case_id: entry for entry in gold}
     dispositions = Counter(entry.gold_disposition for entry in gold)
@@ -113,6 +120,10 @@ def test_finance19_claim_extraction_inputs_are_frozen_and_gold_is_reviewed() -> 
         and "助长了客户资金被挪用" in entry.acceptable_surface_spans[0].text
     )
     assert len(causal.preferred_verification_units) == 1
+
+
+def test_finance19_claim_extraction_v1_bytes_are_preserved() -> None:
+    assert hashlib.sha256(V1_FIXTURE.read_bytes()).hexdigest() == V1_FILE_SHA256
 
 
 def test_pending_human_review_cannot_be_reported_as_a_semantic_score() -> None:
@@ -280,8 +291,9 @@ def test_reviewed_gold_can_confirm_that_a_block_has_no_verifiable_claims() -> No
 
     assert metrics.reviewed_cases == 1
     assert metrics.surface_binding_accuracy == 1.0
-    assert metrics.element_precision == 1.0
-    assert metrics.element_recall == 1.0
+    assert metrics.element_precision is None
+    assert metrics.element_recall is None
+    assert metrics.element_f1 is None
     assert metrics.entailment_rate is None
     assert metrics.verification_unit_appropriateness_rate is None
     assert metrics.truth_condition_preservation_rate is None

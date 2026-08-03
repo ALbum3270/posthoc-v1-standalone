@@ -152,6 +152,12 @@ class EmptySearch:
         raise AssertionError("empty results must not be read")
 
 
+class FailedSearch(EmptySearch):
+    async def search(self, query, **kwargs):
+        self.queries.append(query)
+        raise RuntimeError("provider unavailable")
+
+
 class UnusedModel:
     async def generate(self, prompt):
         raise AssertionError("model must not be called")
@@ -382,6 +388,70 @@ def test_unrouted_selected_claims_are_partial_not_completed() -> None:
     ] == [first.claim_id]
     assert second.claim_id in result.stop_detail
     assert "does not require every query slot" in model.prompts[1]
+
+
+def test_failed_search_is_audited_but_does_not_complete_a_check() -> None:
+    report = "# Report\n\nA measured value was reported."
+    claim = _claim(report)
+    attribution, verification = _initial((claim,))
+    model = ScriptedModel(
+        {
+            "claims": [
+                {
+                    "claim_id": claim.claim_id,
+                    "reason": "An alternative measurement is informative.",
+                }
+            ]
+        },
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "alternative measurement account",
+                }
+            ],
+        },
+    )
+
+    result = asyncio.run(
+        run_disagreement_detection(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=attribution,
+            initial_verification=verification,
+            selection_model=model,
+            note_model=UnusedModel(),
+            attribution_model=UnusedModel(),
+            verification_model=UnusedModel(),
+            tavily_client=FailedSearch(),
+            budget=DisagreementBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_selected_claims=1,
+                max_search_queries=1,
+                max_reads=0,
+            ),
+            estimate_input_tokens=_tokens,
+            estimate_cost_usd=_cost,
+        )
+    )
+
+    from open_deep_research.harness.runner import _disagreement_execution_record
+
+    attempt = result.disagreement_search_attempted[0]
+    stage = _disagreement_execution_record(result)
+    assert attempt.methods == ()
+    assert attempt.search_errors == ("RuntimeError: provider unavailable",)
+    assert result.stop_reason is (
+        DisagreementStopReason.SINGLE_PASS_ENDED_WITH_UNATTEMPTED_SELECTIONS
+    )
+    assert stage.status.value == "partial"
+    assert stage.evaluated_scope.count == 0
+    assert stage.unevaluated_ids == (claim.claim_id,)
 
 
 def test_all_four_verdicts_are_information_not_a_conflict_score() -> None:
