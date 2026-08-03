@@ -1915,6 +1915,27 @@ def test_json_mode_adapter_supplies_provider_required_literal() -> None:
     assert result["content"] == '{"ok":true}'
 
 
+def test_openai_adapter_reports_missing_choices_without_raw_type_error() -> None:
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            return SimpleNamespace(choices=None, usage=None, id="resp-empty")
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=FakeCompletions())
+    )
+    model = harness_cli.OpenAIEnvelopeModel(client, "test-model")
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "chat completion returned no choices "
+            r"\(model='test-model', response_id='resp-empty', "
+            r"usage_present=False\)"
+        ),
+    ):
+        asyncio.run(model.generate("Return json."))
+
+
 class EmptyEvaluativeClaimModel(ClaimModel):
     """Decomposes normally, but its advisory pass assesses nothing.
 

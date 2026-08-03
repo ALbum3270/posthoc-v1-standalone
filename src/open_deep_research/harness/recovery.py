@@ -131,6 +131,14 @@ class RecoveryTriageSettings(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     batch_size: int = Field(default=12, ge=1, le=30)
+    source_lead_prompt_char_limit: int = Field(
+        default=80_000,
+        ge=2,
+        description=(
+            "Maximum serialized characters for the mechanically exposed "
+            "source-lead array in one triage prompt."
+        ),
+    )
 
 
 class RecoveryTriageDecision(BaseModel):
@@ -222,6 +230,7 @@ class RecoveryTriageCallUsage(BaseModel):
     batch_number: int = Field(ge=1)
     claim_ids: tuple[str, ...]
     outcome: str = Field(min_length=1)
+    prompt_chars: int = Field(default=0, ge=0)
     token_count: int = Field(ge=0)
     cost_usd: float = Field(ge=0.0)
 
@@ -239,6 +248,27 @@ class RecoveryTriageResult(BaseModel):
     diagnostics: tuple[str, ...] = ()
     usage: tuple[RecoveryTriageCallUsage, ...] = ()
     source_leads: tuple[SourceLeadCandidate, ...] = ()
+    source_lead_prompt_inventory_count: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    source_lead_prompt_shown_count: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    source_lead_prompt_omitted_count: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    source_lead_prompt_char_limit: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    source_lead_prompt_serialized_chars: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    source_lead_prompt_truncated: bool | None = None
     source_lead_inventory_limitations: tuple[str, ...] = (
         SOURCE_LEAD_INVENTORY_LIMITATIONS
     )
@@ -285,6 +315,51 @@ class RecoveryTriageResult(BaseModel):
         )
         if self.status is not expected_status:
             raise ValueError("triage status must reflect substantive decisions")
+        prompt_counts = (
+            self.source_lead_prompt_inventory_count,
+            self.source_lead_prompt_shown_count,
+            self.source_lead_prompt_omitted_count,
+            self.source_lead_prompt_char_limit,
+            self.source_lead_prompt_serialized_chars,
+        )
+        if any(value is not None for value in prompt_counts):
+            if any(value is None for value in prompt_counts):
+                raise ValueError(
+                    "source-lead prompt capacity fields must be recorded together"
+                )
+            assert self.source_lead_prompt_inventory_count is not None
+            assert self.source_lead_prompt_shown_count is not None
+            assert self.source_lead_prompt_omitted_count is not None
+            assert self.source_lead_prompt_char_limit is not None
+            assert self.source_lead_prompt_serialized_chars is not None
+            if self.source_lead_prompt_inventory_count != len(self.source_leads):
+                raise ValueError(
+                    "source-lead prompt inventory count must equal full audit inventory"
+                )
+            if (
+                self.source_lead_prompt_shown_count
+                + self.source_lead_prompt_omitted_count
+                != self.source_lead_prompt_inventory_count
+            ):
+                raise ValueError(
+                    "shown and omitted source-lead counts must partition inventory"
+                )
+            if (
+                self.source_lead_prompt_serialized_chars
+                > self.source_lead_prompt_char_limit
+            ):
+                raise ValueError(
+                    "serialized source-lead prompt payload exceeds its capacity"
+                )
+            expected_truncated = self.source_lead_prompt_omitted_count > 0
+            if self.source_lead_prompt_truncated is not expected_truncated:
+                raise ValueError(
+                    "source-lead prompt truncation must reflect omitted candidates"
+                )
+        elif self.source_lead_prompt_truncated is not None:
+            raise ValueError(
+                "source-lead prompt truncation requires capacity fields"
+            )
         if not self.canonical_draft_unchanged:
             raise ValueError("recovery triage cannot mutate report bytes")
         if not self.claim_registry_unchanged:
@@ -470,6 +545,12 @@ do not let an official source monopolize interpretive claims. For other
 actions, all four retrieval-intent fields and selected_source_lead_id must be
 null.
 
+The source-lead object records whether the full inventory was mechanically
+truncated to fit a serialized-character capacity. This is not a relevance or
+authority ranking. Select only an ID shown in its `leads` array. If
+`truncated` is true, omitted candidates may still exist; do not infer their
+absence, and use the direct-search fallback when no shown clue is useful.
+
 Return exactly one entry per claim_id:
 {{"decisions":[{{"claim_id":"claim-0001",\
 "action":"research_more|edit_directly|leave_as_is",\
@@ -489,6 +570,92 @@ Frozen evidence exceptions:
 Registered source-chain candidates (mechanical text shapes, not evidence):
 {source_leads}
 """
+
+
+class _SourceLeadPromptProjection(BaseModel):
+    """Capacity-bounded prompt view while retaining the complete audit view."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    inventory_count: int = Field(ge=0)
+    shown_leads: tuple[SourceLeadCandidate, ...] = ()
+    omitted_count: int = Field(ge=0)
+    char_limit: int = Field(ge=2)
+    serialized_chars: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _counts_and_capacity_are_consistent(
+        self,
+    ) -> _SourceLeadPromptProjection:
+        if len(self.shown_leads) + self.omitted_count != self.inventory_count:
+            raise ValueError("source-lead prompt projection must partition inventory")
+        if self.serialized_chars > self.char_limit:
+            raise ValueError("source-lead prompt projection exceeds capacity")
+        return self
+
+    @property
+    def truncated(self) -> bool:
+        return self.omitted_count > 0
+
+    def prompt_payload(self) -> dict[str, Any]:
+        return {
+            "inventory_count": self.inventory_count,
+            "shown_count": len(self.shown_leads),
+            "omitted_count": self.omitted_count,
+            "serialized_char_limit": self.char_limit,
+            "serialized_chars": self.serialized_chars,
+            "truncated": self.truncated,
+            "selection_scope": (
+                "shown leads are the deterministic inventory-order prefix; "
+                "this is not a relevance or authority ranking"
+            ),
+            "leads": [
+                lead.model_dump(mode="json") for lead in self.shown_leads
+            ],
+        }
+
+
+def _serialized_source_leads_chars(
+    leads: Sequence[SourceLeadCandidate],
+) -> int:
+    """Measure the exact JSON array emitted into the triage prompt."""
+
+    return len(
+        json.dumps(
+            [lead.model_dump(mode="json") for lead in leads],
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
+
+
+def _project_source_leads_for_prompt(
+    source_leads: Sequence[SourceLeadCandidate],
+    *,
+    char_limit: int,
+) -> _SourceLeadPromptProjection:
+    """Expose a whole-candidate prefix up to a mechanical prompt capacity.
+
+    Candidate text is never cut mid-record: when the next complete candidate
+    would exceed capacity, the remaining inventory is omitted from the model
+    prompt but remains in the result's complete audit inventory. The prompt
+    explicitly offers direct search as the degradation path.
+    """
+
+    shown: list[SourceLeadCandidate] = []
+    for lead in source_leads:
+        candidate = (*shown, lead)
+        if _serialized_source_leads_chars(candidate) > char_limit:
+            break
+        shown.append(lead)
+    serialized_chars = _serialized_source_leads_chars(shown)
+    return _SourceLeadPromptProjection(
+        inventory_count=len(source_leads),
+        shown_leads=tuple(shown),
+        omitted_count=len(source_leads) - len(shown),
+        char_limit=char_limit,
+        serialized_chars=serialized_chars,
+    )
 
 
 def _claim_registry_sha256(verification: VerificationResult) -> str:
@@ -535,8 +702,28 @@ def build_recovery_triage_prompt(
     *,
     checklist: ResearchChecklist,
     source_leads: Sequence[SourceLeadCandidate] = (),
+    source_lead_prompt_char_limit: int = 80_000,
 ) -> str:
     """Build the semantic triage prompt without any source allowlist."""
+
+    projection = _project_source_leads_for_prompt(
+        source_leads,
+        char_limit=source_lead_prompt_char_limit,
+    )
+    return _build_recovery_triage_prompt(
+        targets,
+        checklist=checklist,
+        source_lead_projection=projection,
+    )
+
+
+def _build_recovery_triage_prompt(
+    targets: Sequence[ClaimVerification],
+    *,
+    checklist: ResearchChecklist,
+    source_lead_projection: _SourceLeadPromptProjection,
+) -> str:
+    """Build one prompt from a previously measured source-lead projection."""
 
     claims = [
         {
@@ -574,7 +761,7 @@ def build_recovery_triage_prompt(
         ),
         claims=json.dumps(claims, ensure_ascii=False, sort_keys=True),
         source_leads=json.dumps(
-            [lead.model_dump(mode="json") for lead in source_leads],
+            source_lead_projection.prompt_payload(),
             ensure_ascii=False,
             sort_keys=True,
         ),
@@ -728,6 +915,25 @@ async def triage_evidence_recovery(
     inapplicable_claims = recovery_inapplicable_claims(verification)
     target_ids = tuple(target.claim.claim_id for target in targets)
     draft_hash = hashlib.sha256(canonical_draft.encode("utf-8")).hexdigest()
+    active_settings = settings or RecoveryTriageSettings()
+    source_lead_projection = _project_source_leads_for_prompt(
+        source_leads,
+        char_limit=active_settings.source_lead_prompt_char_limit,
+    )
+    source_lead_audit = {
+        "source_lead_prompt_inventory_count": (
+            source_lead_projection.inventory_count
+        ),
+        "source_lead_prompt_shown_count": len(
+            source_lead_projection.shown_leads
+        ),
+        "source_lead_prompt_omitted_count": source_lead_projection.omitted_count,
+        "source_lead_prompt_char_limit": source_lead_projection.char_limit,
+        "source_lead_prompt_serialized_chars": (
+            source_lead_projection.serialized_chars
+        ),
+        "source_lead_prompt_truncated": source_lead_projection.truncated,
+    }
     if not targets:
         return RecoveryTriageResult(
             status=RecoveryTriageStatus.NO_TARGETS,
@@ -735,30 +941,45 @@ async def triage_evidence_recovery(
             canonical_draft_sha256=draft_hash,
             claim_registry_sha256=frozen_registry_hash,
             source_leads=source_leads,
+            **source_lead_audit,
         )
 
-    active_settings = settings or RecoveryTriageSettings()
     decisions: list[RecoveryTriageDecision] = []
     failed_ids: list[str] = []
     diagnostics: list[str] = []
+    if source_lead_projection.truncated:
+        diagnostics.append(
+            "recovery_triage_source_leads_mechanically_truncated: "
+            f"shown={len(source_lead_projection.shown_leads)}/"
+            f"{source_lead_projection.inventory_count}; "
+            f"omitted={source_lead_projection.omitted_count}; "
+            f"serialized_chars={source_lead_projection.serialized_chars}; "
+            f"char_limit={source_lead_projection.char_limit}; "
+            "direct_search_fallback_remains_available"
+        )
     usage: list[RecoveryTriageCallUsage] = []
     for start in range(0, len(targets), active_settings.batch_size):
         batch = targets[start : start + active_settings.batch_size]
         batch_number = len(usage) + 1
         batch_ids = tuple(target.claim.claim_id for target in batch)
+        prompt_chars = 0
+        phase = "prompt_build"
         try:
+            prompt = _build_recovery_triage_prompt(
+                batch,
+                checklist=checklist,
+                source_lead_projection=source_lead_projection,
+            )
+            prompt_chars = len(prompt)
+            phase = "model_call_or_response_processing"
             content, tokens, cost = await _call_triage_model(
                 model_client,
-                build_recovery_triage_prompt(
-                    batch,
-                    checklist=checklist,
-                    source_leads=source_leads,
-                ),
+                prompt,
             )
             parsed, failed, batch_diagnostics = _parse_triage_batch(
                 content,
                 batch,
-                source_leads=source_leads,
+                source_leads=source_lead_projection.shown_leads,
             )
         except RunCostCapReached:
             raise
@@ -769,6 +990,14 @@ async def triage_evidence_recovery(
             failed = batch_ids
             batch_diagnostics = (
                 f"recovery_triage_batch_error[{batch_number}]: "
+                f"phase={phase}; claim_ids={list(batch_ids)}; "
+                f"prompt_chars={prompt_chars}; source_leads_shown="
+                f"{len(source_lead_projection.shown_leads)}/"
+                f"{source_lead_projection.inventory_count}; "
+                f"source_leads_omitted={source_lead_projection.omitted_count}; "
+                f"source_lead_serialized_chars="
+                f"{source_lead_projection.serialized_chars}; "
+                f"source_lead_char_limit={source_lead_projection.char_limit}; "
                 f"{type(exc).__name__}: {exc}",
             )
         decisions.extend(parsed)
@@ -785,6 +1014,7 @@ async def triage_evidence_recovery(
                     if len(failed) == len(batch_ids)
                     else "partial"
                 ),
+                prompt_chars=prompt_chars,
                 token_count=tokens,
                 cost_usd=cost,
             )
@@ -819,6 +1049,7 @@ async def triage_evidence_recovery(
         diagnostics=tuple(diagnostics),
         usage=tuple(usage),
         source_leads=source_leads,
+        **source_lead_audit,
         canonical_draft_sha256=draft_hash,
         claim_registry_sha256=frozen_registry_hash,
     )

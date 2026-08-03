@@ -52,6 +52,7 @@ from open_deep_research.harness.ledger import ResearchLedger  # noqa: E402
 from open_deep_research.harness.recovery import (  # noqa: E402
     RecoveryTriageAction,
     RecoveryTriageResult,
+    RecoveryTriageSettings,
     build_recovery_gap_plan_prompt,
     summarize_evidence_recovery,
     triage_evidence_recovery,
@@ -80,6 +81,7 @@ _TRIAGE_LEADS_MARKER = (
     "\n\nRegistered source-chain candidates "
     "(mechanical text shapes, not evidence):\n"
 )
+_HISTORICAL_REPLAY_SOURCE_LEAD_CHAR_LIMIT = 10_000_000
 _VERIFICATION_CLAIMS_RE = re.compile(
     r"Claims:\n(?P<claims>\[.*?\])\n\n"
     r"BEGIN COMPLETE CACHED SOURCE WITH ADDRESSABLE SEGMENTS",
@@ -172,9 +174,16 @@ class _ScriptedTriageModel(_MeasuredFake):
                     _TRIAGE_LEADS_MARKER, 1
                 )[0]
             )
-            leads = json.loads(prompt.split(_TRIAGE_LEADS_MARKER, 1)[1])
+            source_lead_payload = json.loads(
+                prompt.split(_TRIAGE_LEADS_MARKER, 1)[1]
+            )
         except (IndexError, json.JSONDecodeError) as exc:
             raise ValueError("triage prompt did not expose its target array") from exc
+        leads = (
+            source_lead_payload["leads"]
+            if isinstance(source_lead_payload, Mapping)
+            else source_lead_payload
+        )
         selected_lead_by_claim = self._selected_lead_by_claim(leads)
         decisions: list[dict[str, Any]] = []
         for claim in claims:
@@ -604,6 +613,14 @@ async def replay_finance_recovery(audit_path: Path) -> dict[str, Any]:
         checklist=checklist,
         verification=verification,
         model_client=triage_model,
+        # This frozen replay asserts historical source-chain selections, so it
+        # intentionally exposes its complete fixed inventory. Live triage uses
+        # the production capacity boundary and its direct-search degradation.
+        settings=RecoveryTriageSettings(
+            source_lead_prompt_char_limit=(
+                _HISTORICAL_REPLAY_SOURCE_LEAD_CHAR_LIMIT
+            )
+        ),
         source_cache=payload["ledger"]["source_cache"],
     )
     decisions = _decision_map(triage)

@@ -37,7 +37,9 @@ from open_deep_research.harness.recovery import (
     RecoveryTriageAction,
     RecoveryTriageDecision,
     RecoveryTriageResult,
+    RecoveryTriageSettings,
     RecoveryTriageStatus,
+    build_recovery_triage_prompt,
     summarize_evidence_recovery,
     triage_evidence_recovery,
 )
@@ -345,6 +347,92 @@ def test_unknown_lead_id_is_audited_and_uses_direct_fallback_query():
         "unknown_source_lead_fell_back_direct" in diagnostic
         for diagnostic in result.diagnostics
     )
+
+
+def test_source_lead_prompt_capacity_degrades_to_audited_direct_fallback():
+    """A large cached-link inventory must not make every triage batch fail.
+
+    finance-26 had 2,013 inventoried leads repeated into each batch, producing
+    a roughly 1.1-million-character prompt. This synthetic cache reproduces
+    the same unbounded-input shape without a provider call.
+    """
+
+    source_cache = {
+        "https://secondary.example/report": "\n".join(
+            f"https://records.example/document-{index:04d}.pdf"
+            for index in range(450)
+        )
+    }
+    verification = VerificationResult(claims=(_verification("claim-0001"),))
+    model = ScriptedTriageModel([_decision("claim-0001", "research_more")])
+    result = asyncio.run(
+        triage_evidence_recovery(
+            "A draft.",
+            checklist=_checklist(),
+            verification=verification,
+            model_client=model,
+            settings=RecoveryTriageSettings(
+                source_lead_prompt_char_limit=20_000,
+            ),
+            source_cache=source_cache,
+        )
+    )
+
+    full_prompt = build_recovery_triage_prompt(
+        (_verification("claim-0001"),),
+        checklist=_checklist(),
+        source_leads=result.source_leads,
+        source_lead_prompt_char_limit=1_000_000,
+    )
+
+    assert result.status is RecoveryTriageStatus.COMPLETE
+    assert result.source_lead_prompt_inventory_count == len(result.source_leads)
+    assert result.source_lead_prompt_shown_count is not None
+    assert result.source_lead_prompt_omitted_count is not None
+    assert result.source_lead_prompt_shown_count > 0
+    assert result.source_lead_prompt_omitted_count > 0
+    assert result.source_lead_prompt_truncated is True
+    assert result.source_lead_prompt_serialized_chars is not None
+    assert result.source_lead_prompt_serialized_chars <= 20_000
+    assert result.usage[0].prompt_chars < len(full_prompt)
+    assert '"truncated": true' in model.prompts[0]
+    assert result.source_leads[0].lead_id in model.prompts[0]
+    assert result.source_leads[-1].lead_id not in model.prompts[0]
+    assert any(
+        "mechanically_truncated" in diagnostic
+        and "direct_search_fallback_remains_available" in diagnostic
+        for diagnostic in result.diagnostics
+    )
+
+
+def test_triage_batch_failure_records_input_shape_without_raising():
+    class NoChoicesTriageModel:
+        async def generate(self, prompt):
+            raise RuntimeError(
+                "chat completion returned no choices "
+                "(model='recovery-model', response_id=None, "
+                "usage_present=False)"
+            )
+
+    result = asyncio.run(
+        triage_evidence_recovery(
+            "A draft.",
+            checklist=_checklist(),
+            verification=VerificationResult(
+                claims=(_verification("claim-0001"),)
+            ),
+            model_client=NoChoicesTriageModel(),
+        )
+    )
+
+    assert result.status is RecoveryTriageStatus.FAILED
+    assert result.failed_claim_ids == ("claim-0001",)
+    assert result.usage[0].prompt_chars > 0
+    diagnostic = result.diagnostics[0]
+    assert "phase=model_call_or_response_processing" in diagnostic
+    assert "claim_ids=['claim-0001']" in diagnostic
+    assert "source_leads_shown=0/0" in diagnostic
+    assert "chat completion returned no choices" in diagnostic
 
 
 def test_zero_yield_56_target_shape_is_not_silently_called_complete():

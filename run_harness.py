@@ -99,13 +99,28 @@ class OpenAIEnvelopeModel:
             messages=[{"role": "user", "content": prompt}],
             **extra,
         )
-        content = response.choices[0].message.content
+        choices = getattr(response, "choices", None)
+        response_id = getattr(response, "id", None)
+        usage = getattr(response, "usage", None)
+        if not choices:
+            raise RuntimeError(
+                "chat completion returned no choices "
+                f"(model={self.model!r}, response_id={response_id!r}, "
+                f"usage_present={usage is not None})"
+            )
+        message = getattr(choices[0], "message", None)
+        content = getattr(message, "content", None)
         if not isinstance(content, str):
-            raise RuntimeError("chat completion returned no text content")
+            raise RuntimeError(
+                "chat completion first choice returned no text content "
+                f"(model={self.model!r}, response_id={response_id!r}, "
+                f"message_present={message is not None}, "
+                f"content_type={type(content).__name__})"
+            )
 
         usage_data = (
-            response.usage.model_dump()
-            if response.usage is not None
+            usage.model_dump()
+            if usage is not None
             else {}
         )
         token_count = usage_data.get("total_tokens", 0)
