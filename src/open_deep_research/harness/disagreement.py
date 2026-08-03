@@ -63,6 +63,7 @@ class DisagreementBudget(BaseModel):
     max_search_queries: int = Field(default=3, ge=0, le=20)
     max_reads: int = Field(default=3, ge=0, le=20)
     max_results_per_search: int = Field(default=5, ge=1, le=20)
+    provider_timeout_seconds: float = Field(default=60.0, ge=1.0, le=60.0)
 
 
 class PosthocRetrievalBudget(BaseModel):
@@ -817,6 +818,7 @@ async def run_disagreement_detection(
             max_search_queries=budget.max_search_queries,
             max_reads=budget.max_reads,
             max_results_per_search=budget.max_results_per_search,
+            provider_timeout_seconds=budget.provider_timeout_seconds,
         ),
         attribution_settings=attribution_settings,
         verification_settings=verification_settings,

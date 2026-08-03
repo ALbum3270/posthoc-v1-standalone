@@ -44,6 +44,7 @@ from open_deep_research.harness.notes import (
     create_note,
 )
 from open_deep_research.harness.tools import (
+    ProviderCallTimeoutError,
     SearchResult,
     SourceReadError,
     TavilyClient,
@@ -93,6 +94,7 @@ class EvidenceGapBudget(BaseModel):
     max_search_queries: int = Field(default=6, ge=0, le=20)
     max_reads: int = Field(default=3, ge=0, le=20)
     max_results_per_search: int = Field(default=5, ge=1, le=20)
+    provider_timeout_seconds: float = Field(default=60.0, ge=1.0, le=60.0)
 
 
 class EvidenceGapCallUsage(BaseModel):
@@ -2090,6 +2092,7 @@ async def run_evidence_gap_round(
                         query.query,
                         tavily_client=tavily_client,
                         max_results=budget.max_results_per_search,
+                        timeout_seconds=budget.provider_timeout_seconds,
                     )
                 )
                 searches.append(GapSearchRecord(query=query, results=results))
@@ -2258,6 +2261,7 @@ async def run_evidence_gap_round(
                     else await read_with_links(
                         selection.url,
                         tavily_client=tavily_client,
+                        timeout_seconds=budget.provider_timeout_seconds,
                     )
                 )
                 source_text = (
@@ -2265,7 +2269,7 @@ async def run_evidence_gap_round(
                     if existing is not None
                     else source_read.cleaned_text
                 )
-            except SourceReadError as exc:
+            except (ProviderCallTimeoutError, SourceReadError) as exc:
                 acquisitions.append(
                     GapSourceAcquisition(
                         url=selection.url,

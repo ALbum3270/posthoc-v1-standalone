@@ -420,6 +420,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--provider-timeout-seconds",
+        type=float,
+        default=60.0,
+        help=(
+            "local deadline for each Tavily search or extraction call "
+            "(1-60 seconds); failures remain auditable and degradable"
+        ),
+    )
+    parser.add_argument(
         "--max-recalled-notes",
         type=int,
         default=8,
@@ -566,6 +575,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 decision_source_char_limit=args.source_char_limit,
                 note_page_size=args.note_page_size,
                 source_link_page_size=args.source_link_page_size,
+                provider_timeout_seconds=args.provider_timeout_seconds,
                 max_recalled_notes=args.max_recalled_notes,
             ),
             output_dir=args.output_dir,
@@ -578,12 +588,14 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 max_cost_usd=args.evidence_gap_max_cost_usd,
                 max_search_queries=args.evidence_gap_max_searches,
                 max_reads=args.evidence_gap_max_reads,
+                provider_timeout_seconds=args.provider_timeout_seconds,
             ),
             evidence_recovery_budget=EvidenceGapBudget(
                 max_tokens=args.evidence_recovery_max_tokens,
                 max_cost_usd=args.evidence_recovery_max_cost_usd,
                 max_search_queries=args.evidence_recovery_max_searches,
                 max_reads=args.evidence_recovery_max_reads,
+                provider_timeout_seconds=args.provider_timeout_seconds,
             ),
             disagreement_budget=DisagreementBudget(
                 max_tokens=args.disagreement_max_tokens,
@@ -591,6 +603,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 max_selected_claims=args.disagreement_max_claims,
                 max_search_queries=args.disagreement_max_searches,
                 max_reads=args.disagreement_max_reads,
+                provider_timeout_seconds=args.provider_timeout_seconds,
             ),
             posthoc_retrieval_budget=PosthocRetrievalBudget(
                 max_tokens=args.posthoc_retrieval_max_tokens,

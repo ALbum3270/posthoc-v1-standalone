@@ -157,6 +157,7 @@ class LoopSettings(BaseModel):
     decision_source_char_limit: int = Field(default=100_000, ge=0)
     note_page_size: int = Field(default=8, ge=1, le=50)
     source_link_page_size: int = Field(default=64, ge=1, le=200)
+    provider_timeout_seconds: float = Field(default=60.0, ge=1.0, le=60.0)
     max_recalled_notes: int = Field(default=8, ge=1, le=50)
     # This is a capacity bound on cross-item discovery, not an evidence-quality
     # threshold. Keep it fixed during the first comparison run.
@@ -307,11 +308,12 @@ class InspectNotesAction(_ItemAction):
 
 
 class InspectSourceLinksAction(_ItemAction):
-    """Page through links mechanically captured from one cached source."""
+    """Inspect a model-selected window of mechanically captured links."""
 
     action: Literal["inspect_source_links"]
     url: str = Field(min_length=1)
     cursor: str | None = None
+    match_text: str | None = Field(default=None, max_length=256)
 
     @field_validator("url")
     @classmethod
@@ -329,6 +331,16 @@ class InspectSourceLinksAction(_ItemAction):
         normalized = value.strip()
         if not normalized:
             raise ValueError("cursor must be null or a non-blank string")
+        return normalized
+
+    @field_validator("match_text")
+    @classmethod
+    def _match_text_is_not_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("match_text must be null or a non-blank string")
         return normalized
 
 
@@ -564,7 +576,7 @@ The optional action is one of:
 ]}}
 {{"action":"recall","item_id":"...","url":"..."}}
 {{"action":"inspect_notes","item_id":"...","cursor":null}}
-{{"action":"inspect_source_links","item_id":"...","url":"...","cursor":null}}
+{{"action":"inspect_source_links","item_id":"...","url":"...","cursor":null,"match_text":null}}
 {{"action":"recall_notes","item_id":"...","note_ids":["note-000001"]}}
 {{"action":"stop"}}
 
@@ -605,7 +617,13 @@ URLs and labels for one cached source, then read a target URL if you judge that
 following the source's own lead would help the active question. A captured link
 is a lead, not evidence or a source-role classification; capture can also be
 incomplete or unavailable. Code does not decide which links are relevant or
-what kind of record they identify.
+what kind of record they identify. For a large capture, you may supply your own
+match_text. Code then performs only a case-insensitive literal substring match
+over each label and target URL, preserves the original document order, and
+returns matching links with their original captured offsets. This is your
+selection expression, not a code-owned relevance filter. Keep the same
+match_text when following its next_cursor; set match_text to null to page the
+unfiltered capture or jump directly to a known decimal cursor.
 
 Return JSON only.
 
@@ -1171,6 +1189,7 @@ def _inspect_source_links_page(
     *,
     url: str,
     cursor: str | None,
+    match_text: str | None,
     page_size: int,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Return captured link identities for one cached source without ranking."""
@@ -1187,22 +1206,51 @@ def _inspect_source_links_page(
         return None, "cursor must be a non-negative decimal offset"
 
     links = ledger.source_links[url]
-    if offset > len(links):
-        return None, f"cursor {offset} is past the captured link count {len(links)}"
-    page_links = links[offset : offset + page_size]
+    normalized_match = match_text.casefold() if match_text is not None else None
+    selected_links = tuple(
+        (captured_offset, link)
+        for captured_offset, link in enumerate(links)
+        if normalized_match is None
+        or normalized_match
+        in f"{link.label}\n{link.target_url}".casefold()
+    )
+    if offset > len(selected_links):
+        return None, (
+            f"cursor {offset} is past the selected link count "
+            f"{len(selected_links)}"
+        )
+    page_links = selected_links[offset : offset + page_size]
     next_offset = offset + len(page_links)
-    next_cursor = str(next_offset) if next_offset < len(links) else None
+    next_cursor = (
+        str(next_offset) if next_offset < len(selected_links) else None
+    )
     capture = ledger.source_link_capture[url]
     return {
         "source_url": url,
         "cursor": cursor,
+        "match_text": match_text,
+        "selection_basis": (
+            "model_supplied_case_insensitive_literal_substring"
+            if match_text is not None
+            else "unfiltered_capture_order"
+        ),
         "page_start_offset": offset,
         "page_end_offset_exclusive": next_offset,
         "ordering_basis": capture.ordering_basis,
         "capture": capture.model_dump(mode="json"),
-        "links": [link.model_dump(mode="json") for link in page_links],
+        "links": [
+            {
+                "captured_offset": captured_offset,
+                **link.model_dump(mode="json"),
+            }
+            for captured_offset, link in page_links
+        ],
+        "returned_captured_offsets": [
+            captured_offset for captured_offset, _ in page_links
+        ],
         "returned_count": len(page_links),
         "total_count": len(links),
+        "selected_count": len(selected_links),
         "next_cursor": next_cursor,
     }, None
 
@@ -2543,6 +2591,9 @@ async def run_research_loop(
                             action.query,
                             tavily_client=tavily_client,
                             max_results=max_search_results,
+                            timeout_seconds=(
+                                context_settings.provider_timeout_seconds
+                            ),
                         )
                         _record_acquisition_attempt(
                             acquisition_attempts,
@@ -2628,6 +2679,9 @@ async def run_research_loop(
                             source_read = await read_with_links(
                                 action.url,
                                 tavily_client=tavily_client,
+                                timeout_seconds=(
+                                    context_settings.provider_timeout_seconds
+                                ),
                             )
                             source_text = source_read.cleaned_text
                             ledger.cache_source(
@@ -2840,12 +2894,14 @@ async def run_research_loop(
                     ledger,
                     url=action.url,
                     cursor=action.cursor,
+                    match_text=action.match_text,
                     page_size=context_settings.source_link_page_size,
                 )
                 if page is None:
                     inspected_source_link_page = {
                         "url": action.url,
                         "cursor": action.cursor,
+                        "match_text": action.match_text,
                         "inspected": False,
                         "detail": page_error,
                     }
@@ -2855,12 +2911,7 @@ async def run_research_loop(
                         action.url, set()
                     )
                     exposed_before = len(exposed)
-                    exposed.update(
-                        range(
-                            page["page_start_offset"],
-                            page["page_end_offset_exclusive"],
-                        )
-                    )
+                    exposed.update(page["returned_captured_offsets"])
                     inspected_source_link_page = {
                         **page,
                         "inspected": True,
@@ -2871,18 +2922,24 @@ async def run_research_loop(
                     summary = {
                         "url": action.url,
                         "cursor": action.cursor,
+                        "match_text": action.match_text,
                         "inspected": True,
                         "returned_target_urls": [
                             link["target_url"] for link in page["links"]
                         ],
                         "returned_count": page["returned_count"],
                         "total_count": page["total_count"],
+                        "selected_count": page["selected_count"],
                         "next_cursor": page["next_cursor"],
                         "page_start_offset": page["page_start_offset"],
                         "page_end_offset_exclusive": page[
                             "page_end_offset_exclusive"
                         ],
                         "ordering_basis": page["ordering_basis"],
+                        "selection_basis": page["selection_basis"],
+                        "returned_captured_offsets": page[
+                            "returned_captured_offsets"
+                        ],
                         "exposed_before_count": exposed_before,
                         "exposed_after_count": len(exposed),
                         "unexposed_after_count": (

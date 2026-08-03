@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
 
@@ -6,6 +8,8 @@ from open_deep_research.graphrag.adapters.content import clean_text
 from open_deep_research.graphrag.adapters.tavily import TAVILY_QUERY_MAX_CHARS
 from open_deep_research.harness.ledger import SourceLinkCaptureStatus
 from open_deep_research.harness.tools import (
+    ProviderCallTimeoutError,
+    _with_provider_deadline,
     SourceReadError,
     extract_markdown_links,
     read,
@@ -117,7 +121,11 @@ def test_read_reuses_clean_text_and_does_not_chunk_or_truncate():
     assert "citation entry" not in cleaned
     urls, kwargs = client.extract_calls[0]
     assert urls == ["https://example.com/article"]
-    assert kwargs == {"extract_depth": "advanced", "format": "text"}
+    assert kwargs == {
+        "extract_depth": "advanced",
+        "format": "text",
+        "timeout": 60.0,
+    }
 
 
 def test_read_raises_clear_error_when_injected_client_returns_no_text():
@@ -170,11 +178,19 @@ def test_read_with_links_keeps_text_bytes_and_captures_markdown_sidecar():
     assert client.extract_calls == [
         (
             [url],
-            {"extract_depth": "advanced", "format": "text"},
+            {
+                "extract_depth": "advanced",
+                "format": "text",
+                "timeout": 60.0,
+            },
         ),
         (
             [url],
-            {"extract_depth": "advanced", "format": "markdown"},
+            {
+                "extract_depth": "advanced",
+                "format": "markdown",
+                "timeout": 60.0,
+            },
         ),
     ]
 
@@ -197,3 +213,104 @@ def test_markdown_sidecar_failure_does_not_discard_canonical_text():
     assert result.source_links == ()
     assert result.link_capture.status is SourceLinkCaptureStatus.PROVIDER_ERROR
     assert result.link_capture.error == "RuntimeError: markdown unavailable"
+
+
+def test_extract_result_for_another_url_is_never_bound_to_requested_url():
+    client = FakeTavily(
+        extract_response={
+            "results": [
+                {
+                    "url": "https://other.example/page",
+                    "raw_content": "Bytes from another page.",
+                }
+            ]
+        }
+    )
+
+    with pytest.raises(SourceReadError, match="no extraction result"):
+        asyncio.run(
+            read("https://requested.example/page", tavily_client=client)
+        )
+
+
+def test_extract_result_accepts_same_url_after_http_to_https_upgrade():
+    client = FakeTavily(
+        extract_response={
+            "results": [
+                {
+                    "url": "https://example.com/page/",
+                    "raw_content": "Canonical redirected bytes.",
+                }
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        read("http://EXAMPLE.com/page", tavily_client=client)
+    )
+
+    assert result == "Canonical redirected bytes."
+
+
+def test_local_search_deadline_has_a_named_degradable_error():
+    class HangingSearch(FakeTavily):
+        async def search(self, query, **kwargs):
+            await asyncio.Event().wait()
+
+    with pytest.raises(RuntimeError, match="search timed out after 0.001 seconds"):
+        asyncio.run(
+            search(
+                "bounded query",
+                tavily_client=HangingSearch(),
+                timeout_seconds=0.001,
+            )
+        )
+
+
+def test_a_hanging_provider_call_becomes_a_typed_timeout_not_a_hang():
+    """A provider that never returns must not stall the whole run.
+
+    Round and cost caps bound how many calls happen, not how long one call
+    takes. Without a local deadline a single hung request keeps the run alive
+    indefinitely, spending nothing and producing nothing.
+    """
+
+    async def scenario() -> None:
+        async def never_returns() -> dict[str, object]:
+            await asyncio.Event().wait()
+            return {}
+
+        with pytest.raises(ProviderCallTimeoutError) as caught:
+            await _with_provider_deadline(
+                never_returns(),
+                operation="search",
+                timeout_seconds=0.01,
+            )
+        assert "search" in str(caught.value)
+
+    asyncio.run(scenario())
+
+
+def test_the_timeout_is_catchable_by_the_broad_guards_that_wrap_reads():
+    """The collection loop guards provider calls with ``except Exception``.
+
+    A timeout raised outside that hierarchy would escape those guards and lose
+    the whole run, which is how two earlier runs were lost.
+    """
+
+    assert issubclass(ProviderCallTimeoutError, Exception)
+
+
+def test_a_non_positive_deadline_is_rejected_before_any_call_is_made():
+    async def scenario() -> None:
+        async def unused() -> dict[str, object]:
+            raise AssertionError("the awaitable must not be awaited")
+
+        coro = unused()
+        with pytest.raises(ValueError, match="positive"):
+            await _with_provider_deadline(
+                coro, operation="search", timeout_seconds=0
+            )
+        coro.close()
+
+    asyncio.run(scenario())

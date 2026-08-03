@@ -726,7 +726,72 @@ def test_model_can_inspect_captured_source_links_then_read_a_selected_target():
     assert first_audit["ordering_basis"] == (
         "provider_markdown_document_order_first_occurrence"
     )
+    assert first_audit["selection_basis"] == "unfiltered_capture_order"
+    assert first_audit["returned_captured_offsets"] == [0]
     assert [note.url for note in ledger.notes] == [target_url]
+    assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
+
+
+def test_model_supplied_link_match_can_reach_the_tail_in_one_round():
+    active = checklist(second=False)
+    ledger = ResearchLedger(topic=active.topic)
+    parent_url = "https://example.com/large-index"
+    target_url = "https://records.example/needle-filing.pdf"
+    links = tuple(
+        SourceLinkRecord(
+            target_url=(
+                target_url
+                if index == 2_078
+                else f"https://example.com/archive/{index}"
+            ),
+            label=("Needle filing" if index == 2_078 else f"Archive {index}"),
+        )
+        for index in range(2_079)
+    )
+    ledger.cache_source(
+        parent_url,
+        "A large link index.",
+        source_links=links,
+        link_capture=SourceLinkCaptureAudit(
+            status=SourceLinkCaptureStatus.CAPTURED,
+            captured_link_count=len(links),
+            ordering_basis=(
+                "provider_markdown_document_order_first_occurrence"
+            ),
+        ),
+    )
+    decisions = [
+        envelope(
+            {
+                "action": "inspect_source_links",
+                "item_id": "what-1",
+                "url": parent_url,
+                "cursor": None,
+                "match_text": "needle",
+            }
+        ),
+        envelope({"action": "settle", "item_id": "what-1"}),
+    ]
+
+    result, decision_model, _, _ = run_loop(
+        decisions,
+        active_checklist=active,
+        active_ledger=ledger,
+        settings=LoopSettings(source_link_page_size=1),
+    )
+
+    assert target_url not in decision_model.prompts[0]
+    assert target_url in decision_model.prompts[1]
+    audit = json.loads(ledger.rounds[0].result_summary)
+    assert audit["match_text"] == "needle"
+    assert audit["selection_basis"] == (
+        "model_supplied_case_insensitive_literal_substring"
+    )
+    assert audit["total_count"] == 2_079
+    assert audit["selected_count"] == 1
+    assert audit["returned_captured_offsets"] == [2_078]
+    assert audit["exposed_after_count"] == 1
+    assert audit["unexposed_after_count"] == 2_078
     assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
 
 
