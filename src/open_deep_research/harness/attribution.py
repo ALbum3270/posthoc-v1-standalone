@@ -213,6 +213,13 @@ claim in the later verification stage. It is not a finding that the source
 supports, contradicts, proves, verifies, or grounds the claim. Do not return a
 support verdict.
 
+Publisher and URL are provenance context, not proof and not a mechanical
+ranking. Use your semantic judgement about each source's relationship to the
+claim; do not choose a note merely because its model-written finding repeats
+the claim. A compound claim may need multiple candidate notes when distinct
+parts require distinct sources. Request a full-note page when the compact
+metadata is insufficient to make that choice.
+
 Return json only. Every claim must appear exactly once in the final attribute
 action. An empty candidates array is legal and means no candidate source was
 identified.
@@ -319,6 +326,7 @@ def _compact_note_registry(
             "item_id": note.item_id,
             "finding": note.finding,
             "publisher": note.publisher,
+            "url": note.url,
             "location_status": note.location_status.value,
             "page_cursor": (index // page_size) * page_size,
         }

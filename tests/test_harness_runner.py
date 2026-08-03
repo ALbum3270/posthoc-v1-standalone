@@ -2229,3 +2229,50 @@ def test_a_cap_that_bites_after_the_draft_still_writes_an_honest_bundle(
     )
 
     assert stages_claiming_completion_without_output(audit) == ()
+
+
+def test_tail_reserve_cannot_become_a_writing_admission_gate(tmp_path):
+    """Finance-25 regression: protect recoverability before evidence work."""
+
+    from open_deep_research.harness.budget import RunCostBudget
+
+    events = []
+    draft = "# Report\n\nThe model wrote this report."
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=DecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=WriteModel(events),
+            claim_model=ClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=AttributionModel(events),
+            verification_model=UnusedVerificationModel(),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            run_cost_budget=RunCostBudget(
+                max_cost_usd=0.10,
+                evidence_tail_reserve_usd=0.051,
+            ),
+            output_dir=tmp_path,
+            run_id="tail-reserve-after-writing",
+        )
+    )
+
+    assert "write" in events
+    assert result.pipeline_complete is False
+    bundle = tmp_path / "tail-reserve-after-writing"
+    assert (bundle / "report.md").is_file()
+    assert (bundle / "sources.md").is_file()
+    audit = json.loads((bundle / "audit.json").read_text(encoding="utf-8"))
+    writing_admission = next(
+        record
+        for record in audit["run_cost_budget"]["admissions"]
+        if record["stage"] == "writing"
+    )
+    assert writing_admission["admitted"] is True
+    assert writing_admission["protected_reserve_usd"] == 0.0
+    assert "The model wrote this report." in (
+        bundle / "report.md"
+    ).read_text(encoding="utf-8")

@@ -973,8 +973,34 @@ async def revise_audited_draft(
             verification=verification,
             preservation_context=preservation_context,
         )
-        content, tokens, cost, error = await _call_model(model_client, prompt)
         batch_number = len(usage) + 1
+        try:
+            content, tokens, cost, error = await _call_model(
+                model_client, prompt
+            )
+        except RunCostCapReached as exc:
+            deferred_ids = tuple(
+                block.block_id for block in target_blocks[start:]
+            )
+            diagnostics.append(
+                f"editorial_budget_exhausted[{batch_number}]: {exc}; "
+                f"current_block_ids={batch_ids}; "
+                f"deferred_block_ids={deferred_ids}"
+            )
+            usage.append(
+                EditorialCallUsage(
+                    batch_number=batch_number,
+                    block_ids=batch_ids,
+                    outcome="budget_exhausted",
+                    token_count=0,
+                    cost_usd=0.0,
+                )
+            )
+            # Earlier block-atomic proposals remain useful. Return them as a
+            # partial revision so the runner can re-audit and commit those
+            # bytes instead of turning a later admission denial into whole-
+            # pass data loss.
+            break
         if error is not None:
             diagnostics.append(f"editorial_batch_failed[{batch_number}]: {error}")
             usage.append(
@@ -1027,14 +1053,41 @@ async def revise_audited_draft(
             diagnostics=batch_diagnostics,
             preservation_context=preservation_context,
         )
-        (
-            correction_content,
-            correction_tokens,
-            correction_cost,
-            correction_error,
-        ) = await _call_model(model_client, correction_prompt)
         correction_number = len(usage) + 1
         correction_ids = tuple(block.block_id for block in correction_blocks)
+        try:
+            (
+                correction_content,
+                correction_tokens,
+                correction_cost,
+                correction_error,
+            ) = await _call_model(model_client, correction_prompt)
+        except RunCostCapReached as exc:
+            deferred_ids = tuple(
+                block.block_id
+                for block in (
+                    *correction_blocks,
+                    *target_blocks[
+                        start + active_settings.block_batch_size :
+                    ],
+                )
+            )
+            diagnostics.append(
+                f"editorial_correction_budget_exhausted"
+                f"[{correction_number}]: {exc}; "
+                f"current_block_ids={correction_ids}; "
+                f"deferred_block_ids={deferred_ids}"
+            )
+            usage.append(
+                EditorialCallUsage(
+                    batch_number=correction_number,
+                    block_ids=correction_ids,
+                    outcome="correction_budget_exhausted",
+                    token_count=0,
+                    cost_usd=0.0,
+                )
+            )
+            break
         if correction_error is not None:
             diagnostics.append(
                 f"editorial_correction_failed[{correction_number}]: "

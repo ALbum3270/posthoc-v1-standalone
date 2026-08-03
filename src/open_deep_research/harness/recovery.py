@@ -981,8 +981,31 @@ async def triage_evidence_recovery(
                 batch,
                 source_leads=source_lead_projection.shown_leads,
             )
-        except RunCostCapReached:
-            raise
+        except RunCostCapReached as exc:
+            # A later batch must not erase dispositions already produced by
+            # earlier batches. Freeze the uncalled suffix as explicit failed
+            # scope and return a partial/failed result to the runner.
+            deferred_ids = tuple(
+                target.claim.claim_id for target in targets[start:]
+            )
+            failed_ids.extend(deferred_ids)
+            diagnostics.append(
+                f"recovery_triage_budget_exhausted[{batch_number}]: {exc}; "
+                f"current_claim_ids={batch_ids}; "
+                f"deferred_claim_ids={deferred_ids}; "
+                f"prompt_chars={prompt_chars}"
+            )
+            usage.append(
+                RecoveryTriageCallUsage(
+                    batch_number=batch_number,
+                    claim_ids=batch_ids,
+                    outcome="budget_exhausted",
+                    prompt_chars=prompt_chars,
+                    token_count=0,
+                    cost_usd=0.0,
+                )
+            )
+            break
         except Exception as exc:
             tokens = 0
             cost = 0.0

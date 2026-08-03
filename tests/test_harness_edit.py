@@ -5,6 +5,10 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from open_deep_research.harness.budget import (
+    RunCostBudgetAudit,
+    RunCostCapReached,
+)
 from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
@@ -20,6 +24,7 @@ from open_deep_research.harness.edit import (
     EditorialPreservationImpact,
     EditorialResearchQuestion,
     EditorialRevisionStatus,
+    EditorialSettings,
     audit_editorial_admission,
     build_editorial_prompt,
     revise_audited_draft,
@@ -168,6 +173,40 @@ class SequencedEditor:
             "token_count": 17,
             "cost_usd": 0.02,
         }
+
+
+class CapAfterFirstEditor:
+    def __init__(self, first_content):
+        self.first_content = first_content
+        self.calls = 0
+
+    async def generate(self, prompt):
+        self.calls += 1
+        if self.calls == 1:
+            return {
+                "content": json.dumps(self.first_content),
+                "token_count": 17,
+                "cost_usd": 0.02,
+            }
+        raise RunCostCapReached(
+            "estimated call cannot fit the remaining run allowance",
+            stage="audit_editing",
+            audit=RunCostBudgetAudit(
+                configured=True,
+                max_cost_usd=1.0,
+                enforcement=(
+                    "pre_call_estimate_admission_plus_observed_usage"
+                ),
+                observed_total_cost_usd=0.98,
+                remaining_cost_usd=0.02,
+                observed_overshoot_usd=0.0,
+                cap_was_binding=True,
+                admitted_call_count=1,
+                rejected_call_count=1,
+                unestimated_admitted_call_count=0,
+            ),
+            completed_stages=("audit_editing",),
+        )
 
 
 def test_noop_remove_gets_one_block_local_correction_attempt():
@@ -603,6 +642,83 @@ def test_finance_13_accepts_four_valid_blocks_and_keeps_rejected_block() -> None
     assert result.requires_reaudit is True
     assert any(
         f"editorial_block_rejected: {blocks[5].block_id}" in diagnostic
+        for diagnostic in result.diagnostics
+    )
+
+
+def test_cost_cap_after_first_batch_preserves_accepted_editorial_work() -> None:
+    """A later admission denial is partial progress, not whole-pass loss."""
+
+    paragraphs = ("Unsupported first detail.", "Unsupported second detail.")
+    draft = "# Report\n\n" + "\n\n".join(paragraphs)
+    blocks = parse_markdown_blocks(draft)
+    claims = tuple(
+        _claim(
+            f"claim-{index:04d}",
+            block,
+            block.text,
+            block.start_char,
+            block.end_char,
+        )
+        for index, block in enumerate(blocks[1:], start=1)
+    )
+    verification = VerificationResult(
+        claims=tuple(
+            _verification(
+                claim,
+                ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT,
+                (
+                    _relation(
+                        claim.claim_id,
+                        VerificationVerdict.DOES_NOT_SUPPORT,
+                    ),
+                ),
+            )
+            for claim in claims
+        )
+    )
+    first_proposal = {
+        "blocks": [
+            {
+                "block_id": blocks[1].block_id,
+                "replacement_text": "Qualified first detail.",
+                "decisions": [
+                    {
+                        "claim_id": claims[0].claim_id,
+                        "action": "qualify",
+                        "reason": "Use a narrower statement.",
+                    }
+                ],
+            }
+        ]
+    }
+    model = CapAfterFirstEditor(first_proposal)
+
+    result = asyncio.run(
+        revise_audited_draft(
+            draft,
+            blocks=blocks,
+            verification=verification,
+            model_client=model,
+            settings=EditorialSettings(block_batch_size=1),
+        )
+    )
+
+    assert model.calls == 2
+    assert result.status is EditorialRevisionStatus.PARTIAL
+    assert result.evaluated_claim_ids == (claims[0].claim_id,)
+    assert result.unevaluated_claim_ids == (claims[1].claim_id,)
+    assert "Qualified first detail." in result.edited_draft
+    assert paragraphs[1] in result.edited_draft
+    assert result.requires_reaudit is True
+    assert [record.outcome for record in result.usage] == [
+        "completed",
+        "budget_exhausted",
+    ]
+    assert any(
+        "editorial_budget_exhausted[2]" in diagnostic
+        and f"current_block_ids=('{blocks[2].block_id}',)" in diagnostic
+        and f"deferred_block_ids=('{blocks[2].block_id}',)" in diagnostic
         for diagnostic in result.diagnostics
     )
 

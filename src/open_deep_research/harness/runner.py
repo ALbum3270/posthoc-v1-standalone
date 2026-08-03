@@ -1011,7 +1011,13 @@ async def run_harness(
     budgeted_write_model = run_cost.wrap(
         write_model,
         stage="writing",
-        protected_reserve_usd=evidence_tail_reserve_usd,
+        # Writing is the recoverability boundary: before it succeeds there is
+        # no canonical draft from which an honest partial bundle can be
+        # produced. Collection already protected both the writing allowance
+        # and the evidence-tail estimate. Do not turn the latter into a second
+        # write-admission gate; if writing leaves too little for the tail, the
+        # post-draft cutoff path persists the draft and records the unrun scope.
+        protected_reserve_usd=0.0,
     )
     report = await write_report(
         assembled,

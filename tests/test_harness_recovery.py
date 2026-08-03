@@ -8,6 +8,10 @@ from open_deep_research.harness.attribution import (
     AttributionResult,
     AttributionStopReason,
 )
+from open_deep_research.harness.budget import (
+    RunCostBudgetAudit,
+    RunCostCapReached,
+)
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
     ChecklistItem,
@@ -140,6 +144,42 @@ class ScriptedTriageModel:
         }
 
 
+class CapAfterFirstTriageModel:
+    def __init__(self, first_decision):
+        self.first_decision = first_decision
+        self.calls = 0
+
+    async def generate(self, prompt):
+        self.calls += 1
+        if self.calls == 1:
+            return {
+                "content": json.dumps(
+                    {"decisions": [self.first_decision]}
+                ),
+                "token_count": 31,
+                "cost_usd": 0.004,
+            }
+        raise RunCostCapReached(
+            "estimated call cannot fit the remaining run allowance",
+            stage="recovery_triage",
+            audit=RunCostBudgetAudit(
+                configured=True,
+                max_cost_usd=1.0,
+                enforcement=(
+                    "pre_call_estimate_admission_plus_observed_usage"
+                ),
+                observed_total_cost_usd=0.98,
+                remaining_cost_usd=0.02,
+                observed_overshoot_usd=0.0,
+                cap_was_binding=True,
+                admitted_call_count=1,
+                rejected_call_count=1,
+                unestimated_admitted_call_count=0,
+            ),
+            completed_stages=("recovery_triage",),
+        )
+
+
 def _decision(claim_id, action):
     research = action == "research_more"
     return {
@@ -225,6 +265,44 @@ def test_finance_11_shape_routes_material_facts_to_research_before_editing():
     assert result.claim_registry_unchanged is True
     assert "Do not edit, delete, qualify, or rewrite" in model.prompts[0]
     assert "Research is not a search for\nagreement" in model.prompts[0]
+
+
+def test_triage_cost_cap_after_first_batch_preserves_prior_disposition():
+    """A stricter verifier can enlarge scope without causing batch all-loss."""
+
+    claim_ids = ("claim-0001", "claim-0002")
+    model = CapAfterFirstTriageModel(
+        _decision(claim_ids[0], "edit_directly")
+    )
+
+    result = asyncio.run(
+        triage_evidence_recovery(
+            "# Report\n\nTwo audited assertions.",
+            checklist=_checklist(),
+            verification=VerificationResult(
+                claims=tuple(_verification(claim_id) for claim_id in claim_ids)
+            ),
+            model_client=model,
+            settings=RecoveryTriageSettings(batch_size=1),
+        )
+    )
+
+    assert model.calls == 2
+    assert result.status is RecoveryTriageStatus.PARTIAL
+    assert tuple(decision.claim_id for decision in result.decisions) == (
+        claim_ids[0],
+    )
+    assert result.failed_claim_ids == (claim_ids[1],)
+    assert [record.outcome for record in result.usage] == [
+        "completed",
+        "budget_exhausted",
+    ]
+    assert any(
+        "recovery_triage_budget_exhausted[2]" in diagnostic
+        and f"current_claim_ids=('{claim_ids[1]}',)" in diagnostic
+        and f"deferred_claim_ids=('{claim_ids[1]}',)" in diagnostic
+        for diagnostic in result.diagnostics
+    )
 
 
 def test_refuted_claim_cannot_be_routed_to_support_seeking():

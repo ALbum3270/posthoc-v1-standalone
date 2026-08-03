@@ -162,15 +162,17 @@ def test_all_claims_and_compact_registry_are_visible_without_full_notes() -> Non
     assert candidate.item_id in prompt
     assert candidate.finding in prompt
     assert candidate.publisher in prompt
+    assert candidate.url in prompt
     assert candidate.location_status.value in prompt
     assert _note_reference(other) in prompt
     assert other.note_id not in prompt
     assert other.finding in prompt
     assert "MODEL WORDING NOT PRESENT IN THE SOURCE" not in prompt
     assert "Exact source phrase." not in prompt
-    assert "https://one.example/page" not in prompt
     assert '"resolution"' not in prompt
     assert "repetition is direct matching, not inheritance" in prompt
+    assert "provenance context, not proof" in prompt
+    assert "compound claim may need multiple candidate notes" in prompt
 
     by_claim = _by_claim(result)
     first = by_claim["claim-1"]
@@ -246,7 +248,7 @@ def test_model_requests_full_note_page_then_uses_previous_unit_inheritance() -> 
 
     assert len(model.prompts) == 2
     assert "Exact full-note quote." not in model.prompts[0]
-    assert "https://source.example/page" not in model.prompts[0]
+    assert "https://source.example/page" in model.prompts[0]
     assert "Exact full-note quote." in model.prompts[1]
     assert "https://source.example/page" in model.prompts[1]
     assert result.inspected_pages[0].note_ids == (note.note_id,)
