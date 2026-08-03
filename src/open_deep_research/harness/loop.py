@@ -8,6 +8,7 @@ from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, Any, Literal, Protocol
+from urllib.parse import urlsplit
 
 from pydantic import (
     BaseModel,
@@ -90,13 +91,18 @@ class LoopBudget(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    max_rounds: int = Field(default=25, ge=0)
+    # A fixed number of decisions is not an independent collection resource:
+    # a cheap inspection and an expensive read both consume one round.  Keep a
+    # round guard available for callers that need one, but let the cost envelope
+    # be the default finite boundary rather than silently spending it as a
+    # 25-turn allowance.
+    max_rounds: int | None = Field(default=None, ge=0)
     # A cumulative token total is not a per-call input-size guard.  It is only
     # known after a decision or note call finishes, so a default here can stop
     # later exploration after an otherwise admitted read has already overshot
-    # it.  Cost and round caps remain the default recoverable collection
-    # envelope.  Callers with an independent token allotment can still opt in
-    # to one explicitly.
+    # it.  The cost cap remains the default recoverable collection envelope.
+    # Callers with an independent token or turn allotment can still opt in to
+    # either one explicitly.
     max_tokens: int | None = Field(default=None, ge=0)
     max_cost_usd: float = Field(default=10.0, ge=0.0)
     writing_token_reserve: int = Field(default=0, ge=0)
@@ -157,6 +163,7 @@ class LoopSettings(BaseModel):
     decision_source_char_limit: int = Field(default=100_000, ge=0)
     note_page_size: int = Field(default=8, ge=1, le=50)
     source_link_page_size: int = Field(default=64, ge=1, le=200)
+    source_link_host_index_size: int = Field(default=64, ge=1, le=200)
     provider_timeout_seconds: float = Field(default=60.0, ge=1.0, le=60.0)
     max_recalled_notes: int = Field(default=8, ge=1, le=50)
     # This is a capacity bound on cross-item discovery, not an evidence-quality
@@ -449,6 +456,9 @@ class DecisionTurn(BaseModel):
 
     status_updates: tuple[StatusUpdate, ...] = ()
     action: PrimaryAction | None = None
+    # This records the model's own action-selection rationale.  It is optional
+    # for protocol compatibility and never participates in action admission.
+    decision_reason: str | None = None
 
     @model_validator(mode="after")
     def _item_updates_are_unique(self) -> DecisionTurn:
@@ -540,7 +550,7 @@ DECISION_PROMPT = """\
 Choose terminal status updates and at most one next action for this research run.
 
 Return this JSON shape:
-{{"status_updates":[
+{{"decision_reason":"brief reason for the status updates or next action", "status_updates":[
   {{"item_id":"...","status":"settled","reason":"..."}},
   {{"item_id":"...","status":"exhausted_not_found","reason":"..."}}
 ],"action":{{"action":"search|read|reanalyze|dismiss_candidates|recall|inspect_notes|inspect_source_links|recall_notes|stop", ...}}}}
@@ -549,6 +559,10 @@ status_updates may contain any number of distinct checklist items. Give every
 update its own reason. status_updates accepts terminal judgements only:
 "settled" or "exhausted_not_found". Never put "unexplored" or "has_material"
 in status_updates; the system maintains those non-terminal states.
+
+decision_reason is optional audit metadata for the overall choice on this
+turn. It does not make an action admissible or settle an item; state the
+research reason for your choice briefly when you provide it.
 
 "not_attempted" and "attempted_no_result" are different. Use
 "exhausted_not_found" only after at least one real search, read, or reanalyze
@@ -624,6 +638,12 @@ returns matching links with their original captured offsets. This is your
 selection expression, not a code-owned relevance filter. Keep the same
 match_text when following its next_cursor; set match_text to null to page the
 unfiltered capture or jump directly to a known decimal cursor.
+
+The index also gives an order-preserving, mechanically derived inventory of
+target_hosts for each cached source. It is neither a relevance ranking nor a
+source-quality classification. Use a host only as a clue for whether to inspect
+that source's exact links; if target_hosts_truncated is true, the ordinary
+inspection interface remains available for the unlisted remainder.
 
 Return JSON only.
 
@@ -1130,13 +1150,44 @@ def _compact_note_index(
     }
 
 
-def _source_link_index(ledger: ResearchLedger | None) -> list[dict[str, Any]]:
+def _captured_target_hosts(
+    links: Sequence[Any],
+    *,
+    max_hosts: int,
+) -> tuple[list[str], int]:
+    """Return an order-preserving, non-semantic host inventory for links."""
+
+    hosts: list[str] = []
+    seen: set[str] = set()
+    for link in links:
+        try:
+            host = (urlsplit(link.target_url).hostname or "").casefold()
+        except ValueError:
+            host = ""
+        if not host or host in seen:
+            continue
+        seen.add(host)
+        hosts.append(host)
+    return hosts[:max_hosts], len(hosts)
+
+
+def _source_link_index(
+    ledger: ResearchLedger | None,
+    *,
+    host_index_size: int,
+) -> list[dict[str, Any]]:
     """Expose capture facts without interpreting any linked document."""
 
     if ledger is None:
         return []
-    return [
-        {
+    entries: list[dict[str, Any]] = []
+    for source_url, capture in sorted(ledger.source_link_capture.items()):
+        target_hosts, target_host_count = _captured_target_hosts(
+            ledger.source_links.get(source_url, ()),
+            max_hosts=host_index_size,
+        )
+        entries.append(
+            {
             "source_url": source_url,
             "capture_status": capture.status.value,
             "captured_link_count": capture.captured_link_count,
@@ -1145,9 +1196,12 @@ def _source_link_index(ledger: ResearchLedger | None) -> list[dict[str, Any]]:
                 capture.completeness_guaranteed
             ),
             "can_inspect": source_url in ledger.source_links,
+            "target_hosts": target_hosts,
+            "target_host_count": target_host_count,
+            "target_hosts_truncated": target_host_count > len(target_hosts),
         }
-        for source_url, capture in sorted(ledger.source_link_capture.items())
-    ]
+        )
+    return entries
 
 
 def _inspect_notes_page(
@@ -1386,7 +1440,10 @@ def _build_decision_prompt(
         ),
         "acquisition_attempts": _acquisition_attempt_state(attempt_state),
         "note_index": _compact_note_index(checklist, notes),
-        "source_link_index": _source_link_index(ledger),
+        "source_link_index": _source_link_index(
+            ledger,
+            host_index_size=settings.source_link_host_index_size,
+        ),
         "quote_quality": quote_quality_metrics(notes),
     }
     if inspected_note_page is not None:
@@ -1819,7 +1876,11 @@ def _budget_state(
 
     token_limit = budget.collection_token_limit
     return {
-        "remaining_rounds": max(0, budget.max_rounds - rounds_completed),
+        "remaining_rounds": (
+            max(0, budget.max_rounds - rounds_completed)
+            if budget.max_rounds is not None
+            else None
+        ),
         "remaining_collection_tokens": (
             max(0, token_limit - tokens_used)
             if token_limit is not None
@@ -1844,7 +1905,7 @@ def _budget_limit_reached(
 ) -> _CollectionLimitHit | None:
     """Name which collection ceiling stopped work, with its used/limit pair."""
 
-    if rounds >= budget.max_rounds:
+    if budget.max_rounds is not None and rounds >= budget.max_rounds:
         return _CollectionLimitHit(
             stop_reason=StopReason.COLLECTION_ROUND_LIMIT_REACHED,
             resource="rounds",

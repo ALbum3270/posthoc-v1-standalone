@@ -17,6 +17,8 @@ from open_deep_research.harness.ledger import (
 )
 from open_deep_research.harness.loop import (
     LoopBudget,
+    _budget_state,
+    _source_link_index,
     LoopSettings,
     StopReason,
     build_decision_prompt,
@@ -2093,3 +2095,87 @@ def test_note_index_is_compact_and_model_pages_then_recalls_selected_notes():
         "note-000002",
         "note-000004",
     ]
+
+
+def _capture(count: int) -> SourceLinkCaptureAudit:
+    return SourceLinkCaptureAudit(
+        status=SourceLinkCaptureStatus.CAPTURED,
+        captured_link_count=count,
+        # The audit model refuses to claim completeness for provider Markdown.
+        completeness_guaranteed=False,
+    )
+
+
+def test_the_link_index_names_the_hosts_behind_a_capture_not_just_a_count():
+    """A bare count gives the model nothing to decide with.
+
+    Two real runs never once inspected a source's links. A source advertising
+    only "822 links" makes inspection a blind round: the model cannot tell
+    whether following it reaches a court filing or a navigation menu, so
+    searching again always dominates. The hosts are a mechanical fact parsed
+    from the captured URLs -- not a ranking, not a quality judgement.
+    """
+
+    ledger = ResearchLedger(research_id="r", topic="t")
+    ledger.cache_source(
+        "https://secondary.example/article",
+        "body",
+        source_links=(
+            SourceLinkRecord(
+                target_url="https://www.sec.gov/files/complaint.pdf",
+                label="complaint",
+            ),
+            SourceLinkRecord(target_url="https://www.sec.gov/other", label="other"),
+            SourceLinkRecord(
+                target_url="https://secondary.example/nav", label="Home"
+            ),
+        ),
+        link_capture=_capture(3),
+    )
+
+    entry = _source_link_index(ledger, host_index_size=64)[0]
+
+    # Capture order preserved, duplicates collapsed, nothing reordered by any
+    # notion of authority.
+    assert entry["target_hosts"] == ["www.sec.gov", "secondary.example"]
+    assert entry["target_host_count"] == 2
+    assert entry["target_hosts_truncated"] is False
+
+
+def test_a_truncated_host_inventory_says_so_rather_than_implying_completeness():
+    ledger = ResearchLedger(research_id="r", topic="t")
+    ledger.cache_source(
+        "https://hub.example/page",
+        "body",
+        source_links=tuple(
+            SourceLinkRecord(
+                target_url=f"https://host{i}.example/x", label=f"l{i}"
+            )
+            for i in range(5)
+        ),
+        link_capture=_capture(5),
+    )
+
+    entry = _source_link_index(ledger, host_index_size=2)[0]
+
+    assert entry["target_hosts"] == ["host0.example", "host1.example"]
+    assert entry["target_host_count"] == 5
+    assert entry["target_hosts_truncated"] is True
+
+
+def test_an_unset_round_cap_reports_null_remaining_rounds_not_zero():
+    """No round allowance is not an allowance of zero.
+
+    A fixed turn count is not an independent collection resource: a cheap
+    inspection and an expensive read spend the same one round. Reporting zero
+    would tell the model it must stop when only cost actually bounds it.
+    """
+
+    state = _budget_state(
+        LoopBudget(max_rounds=None, max_cost_usd=1.0),
+        rounds_completed=40,
+        tokens_used=0,
+        cost_used_usd=0.0,
+    )
+
+    assert state["remaining_rounds"] is None

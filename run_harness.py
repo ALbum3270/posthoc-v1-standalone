@@ -315,7 +315,18 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run the standalone model-directed research harness.",
     )
     parser.add_argument("topic", help="research topic")
-    parser.add_argument("--max-rounds", type=int, default=25)
+    parser.add_argument(
+        "--max-rounds",
+        type=int,
+        default=None,
+        help=(
+            "optional collection round cap. A fixed turn count is not an "
+            "independent resource: a cheap link inspection and an expensive "
+            "read spend the same one round, so a default here stops research "
+            "with cost still unspent. Without it the cost cap is the finite "
+            "boundary"
+        ),
+    )
     parser.add_argument(
         "--max-tokens",
         type=int,
