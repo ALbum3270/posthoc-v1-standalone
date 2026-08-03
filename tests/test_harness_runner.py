@@ -1698,7 +1698,7 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
 
     assert args.max_cost_usd == 0.28
     assert args.collection_max_cost_usd == 0.09
-    assert args.max_tokens == 150_000
+    assert args.max_tokens is None
     assert args.source_link_page_size == 64
     assert args.verification_cost_reserve_usd == 0.10
     assert args.evidence_gap_max_searches == 6
@@ -1717,6 +1717,7 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
     help_text = " ".join(harness_cli.build_parser().format_help().split())
     assert "absolute run cost cap" in help_text
     assert "collection-only sub-cap" in help_text
+    assert "optional cumulative collection token cap" in help_text
     # The cap must not be advertised as a safety net it cannot be. It sits
     # inside the normal cost range, so saying so is part of its description.
     assert "Not a runaway-only guard" in help_text

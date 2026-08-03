@@ -91,11 +91,13 @@ class LoopBudget(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     max_rounds: int = Field(default=25, ge=0)
-    # Real collection runs repeatedly reached the former 100k default while
-    # their independent dollar cap still had room.  Keep a hard token boundary
-    # (input size is a real resource), but leave enough capacity for a model to
-    # follow a newly discovered source chain before that boundary intervenes.
-    max_tokens: int = Field(default=150_000, ge=0)
+    # A cumulative token total is not a per-call input-size guard.  It is only
+    # known after a decision or note call finishes, so a default here can stop
+    # later exploration after an otherwise admitted read has already overshot
+    # it.  Cost and round caps remain the default recoverable collection
+    # envelope.  Callers with an independent token allotment can still opt in
+    # to one explicitly.
+    max_tokens: int | None = Field(default=None, ge=0)
     max_cost_usd: float = Field(default=10.0, ge=0.0)
     writing_token_reserve: int = Field(default=0, ge=0)
     writing_cost_reserve_usd: float = Field(default=0.0, ge=0.0)
@@ -103,7 +105,12 @@ class LoopBudget(BaseModel):
 
     @model_validator(mode="after")
     def _writing_reserve_fits_total_budget(self) -> LoopBudget:
-        if self.writing_token_reserve > self.max_tokens:
+        if self.max_tokens is None:
+            if self.writing_token_reserve:
+                raise ValueError(
+                    "writing_token_reserve requires a finite max_tokens"
+                )
+        elif self.writing_token_reserve > self.max_tokens:
             raise ValueError("writing_token_reserve must not exceed max_tokens")
         if self.writing_cost_reserve_usd > self.max_cost_usd:
             raise ValueError(
@@ -112,9 +119,11 @@ class LoopBudget(BaseModel):
         return self
 
     @property
-    def collection_token_limit(self) -> int:
-        """Tokens collection may use without consuming the writing reserve."""
+    def collection_token_limit(self) -> int | None:
+        """Optional tokens collection may use before its writing reserve."""
 
+        if self.max_tokens is None:
+            return None
         return self.max_tokens - self.writing_token_reserve
 
     @property
@@ -563,8 +572,10 @@ The action item_id identifies the checklist item this round is working on.
 
 search_candidates holds every url search has surfaced so far, with its snippet
 and whether you already read it. Searching only adds candidates; reading one is
-what produces notes. Prefer reading a promising unread candidate over searching
-again for the same thing.
+what produces notes. When the choice is between searching again for the same
+item and reading one of that item's promising unread candidates, prefer the
+read. This comparison does not rank inspection, recall, or other information
+actions by whether they immediately produce notes.
 
 candidate_work shows, per checklist item, which surfaced URLs remain unread,
 which were read, which failed mechanically and are now unreadable, and which
@@ -1754,10 +1765,13 @@ def _budget_state(
 ) -> dict[str, Any]:
     """Expose collection headroom and the protected writing allocation."""
 
+    token_limit = budget.collection_token_limit
     return {
         "remaining_rounds": max(0, budget.max_rounds - rounds_completed),
-        "remaining_collection_tokens": max(
-            0, budget.collection_token_limit - tokens_used
+        "remaining_collection_tokens": (
+            max(0, token_limit - tokens_used)
+            if token_limit is not None
+            else None
         ),
         "remaining_collection_cost_usd": max(
             0.0, budget.collection_cost_limit_usd - cost_used_usd
@@ -1785,12 +1799,13 @@ def _budget_limit_reached(
             used=float(rounds),
             limit=float(budget.max_rounds),
         )
-    if tokens >= budget.collection_token_limit:
+    token_limit = budget.collection_token_limit
+    if token_limit is not None and tokens >= token_limit:
         return _CollectionLimitHit(
             stop_reason=StopReason.COLLECTION_TOKEN_LIMIT_REACHED,
             resource="tokens",
             used=float(tokens),
-            limit=float(budget.collection_token_limit),
+            limit=float(token_limit),
         )
     if cost_usd >= budget.collection_cost_limit_usd:
         return _CollectionLimitHit(

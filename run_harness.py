@@ -319,10 +319,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--max-tokens",
         type=int,
-        default=150_000,
+        default=None,
         help=(
-            "hard collection token cap, independent of the dollar cap; it "
-            "limits provider work but does not decide when research is enough"
+            "optional cumulative collection token cap. Without it, the "
+            "recoverable round and cost caps bound collection; this is not a "
+            "per-call input-size guard"
         ),
     )
     parser.add_argument(

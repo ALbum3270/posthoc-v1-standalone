@@ -283,7 +283,41 @@ def test_decision_prompt_leaves_source_assessment_and_stopping_to_the_model():
         "code does\nnot classify sources or impose a source-quality threshold"
         in prompt
     )
-    assert LoopBudget().max_tokens == 150_000
+    assert LoopBudget().max_tokens is None
+    assert '"remaining_collection_tokens": null' in prompt
+    assert (
+        "This comparison does not rank inspection, recall, or other information\n"
+        "actions by whether they immediately produce notes."
+        in prompt
+    )
+
+
+def test_default_budget_does_not_turn_post_call_token_usage_into_a_stop():
+    """An unbounded cumulative total leaves cost and rounds as the envelope."""
+
+    result, model, _, _ = run_loop(
+        [
+            envelope(
+                {
+                    "action": "search",
+                    "item_id": "what-1",
+                    "query": "a bounded neutral query",
+                },
+                tokens=1_000_000,
+            ),
+            envelope({"action": "stop"}),
+        ],
+        budget=LoopBudget(max_rounds=3, max_cost_usd=1.0),
+    )
+
+    assert len(model.prompts) == 2
+    assert result.stop_reason is StopReason.MODEL_STOP_WITH_OPEN_ITEMS
+    assert result.ledger.total_tokens == 1_000_001
+
+
+def test_writing_token_reserve_requires_an_explicit_token_cap():
+    with pytest.raises(ValueError, match="requires a finite max_tokens"):
+        LoopBudget(writing_token_reserve=1)
 
 
 def test_malformed_actions_are_billed_and_stop_at_the_consecutive_limit():
