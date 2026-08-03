@@ -577,311 +577,311 @@
   "gold": [
     {
       "case_id": "finance-24:post_edit:claim-0001:source-cbcb8fb3f1a83fa9:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文只说 SBF 于 2019 年创立 FTX；没有提及 Gary Wang。单独创立的表述不排除共同创立，故不是反驳；但共同创立这一必要成分只能靠猜测补入，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0001:source-383c97c3c43dae57:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文明确说 2019 年 5 月 Sam Bankman-Fried 与 Gary Wang 一同创立 FTX；主体、共同创立关系与年份均齐备。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0002:source-cbcb8fb3f1a83fa9:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 SBF 于 2017 年共同创立 Alameda，Alameda 是加密基金及市场做市商；又称 FTX OTC desk 由 Alameda 提供支持、清算机制的 backstop 是 Alameda。这足以支持其作为 FTX 重要做市/交易相对方的概括。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0003:source-cbcb8fb3f1a83fa9:0",
-      "rationale": "引文的日期是 10 Nov 2022，断言写 11 月 11 日；且引文只说 Ray 被任命、SBF 辞职，完全没有涉及「SBF 同时担任两家公司 CEO 直至破产」这一断言主干。",
+      "rationale": "引文将 FTX 与 Alameda 申请 Chapter 11、Ray 被任命及 SBF 辞职明确定位为 2022 年 11 月 10 日；断言对同一破产事件给出 11 月 11 日。该关键日期有明示相反值，故为反驳，而非仅未支持。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
-      "verdict": "does_not_support"
+      "reviewer": "codex-provisional",
+      "verdict": "contradicts"
     },
     {
       "case_id": "finance-24:post_edit:claim-0003:source-383c97c3c43dae57:1",
-      "rationale": "引文的日期是 10 Nov 2022，断言写 11 月 11 日；且引文只说 Ray 被任命、SBF 辞职，完全没有涉及「SBF 同时担任两家公司 CEO 直至破产」这一断言主干。",
+      "rationale": "引文支持 2022 年 11 月 11 日破产及 SBF 辞去 FTX CEO，却没有说他同时担任 Alameda CEO，也没有 John J. Ray III 接任或负责重组。缺少的成分不能由外部知识补足，属证据不足；引文未给出相反事实。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
-      "verdict": "does_not_support"
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0004:source-cbcb8fb3f1a83fa9:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "图中文字列出 Gary Wang、Nishad Singh 的若干百分比持股，但没有说明 Gary Wang 参与 FTX 核心业务运营。后半项是完整断言的必要成分，不能从股权图自行推出。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0005:source-cbcb8fb3f1a83fa9:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 SBF 在“Jul”将 Alameda CEO 角色交给 Ellison 与 Trabucco；断言把同一就任事件写为 2021 年 10 月底。月份是同一关键事件的明示不同值，故为反驳；Trabucco 离职和 Ellison 成为唯一 CEO 的部分虽获支持，不能消除日期冲突。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "contradicts"
     },
     {
       "case_id": "finance-24:post_edit:claim-0005:source-272b33412576de73:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文支持 2021 年 10 月 Ellison 与 Trabucco 成为联合 CEO，但未涉及 Trabucco 于 2022 年 7 月离职或 Ellison 成为唯一 CEO。补全这些后续事件需要外部信息，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0006:source-383c97c3c43dae57:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 Ellison 曾是 SBF 的女友、两人共同生活和工作；称 Ellison 面临欺诈和洗钱指控，并为减刑与检方合作。关系、指控和合作三个成分均有明示支持。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0007:source-318a2b102dfd9682:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文明确给出 2022 年 11 月 2 日 CoinDesk 的报道、Alameda 大量持有 FTX 发行的 FTT、两者财务交织以及 Alameda 面临现金紧张；断言各项均被支持。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0008:source-318a2b102dfd9682:0",
-      "rationale": "引文支持 11 月 6 日、宣布计划出售全部 FTT 持仓、FTT 价格暴跌三点，但完全没有 5.8 亿美元这个金额，也没有提现挤兑。引文对增加的部分沉默而非相反，故为证据不足而不是被反驳。",
+      "rationale": "引文支持 11 月 6 日、宣布计划出售全部 FTT 持仓和 FTT 价格下跌，但没有 5.8 亿美元金额、客户提现请求或银行挤兑。新增成分处于沉默，不能猜测补齐，属证据不足而非反驳。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
+      "reviewer": "codex-provisional",
       "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0009:source-9674d943a7c95f32:0",
-      "rationale": "引文原文即「FTX reached a deal to sell itself to Binance」，就此引文而言断言成立。**核验判定是对的，错的是来源**——实际签署的是不具约束力的收购意向书。此条是关键对照：它把「来源不准」与「核验器不准」分开，任何把它判成 does_not_support 的尺子都会错误地惩罚一次正确的核验。",
+      "rationale": "引文支持“FTX reached a deal to sell itself to Binance”，因此不以外部关于该交易是否具约束力的事实否定它；但引文没有说达成交易是为了“稳住客户资金风险”。动机这一新增真值条件沉默，故整条断言证据不足。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
-      "verdict": "supports"
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0010:source-9674d943a7c95f32:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文支持 Binance 撤回潜在收购、提到尽调及关于客户资金处置和监管调查的新闻，并称 SEC 与司法部已调查；但没有说尽调“发现 FTX 财务混乱”，也未将该发现作为撤回原因。该因果与发现内容未获明示，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0011:source-9674d943a7c95f32:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文直接称 11 月 10 日一名巴哈马金融监管机构冻结了 FTX 的资产，主体、行为与对象一致。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0013:source-9674d943a7c95f32:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称纽约联邦检察官展开调查，争点是 FTX 是否在向 Alameda 提供客户资金时违反证券法；这与断言的调查主体及审查重点一致。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0014:source-318a2b102dfd9682:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 SBF 在巴哈马被捕，次日美国政府以多项金融犯罪起诉，并指控其故意欺骗客户和投资者；与断言相符。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0015:source-318a2b102dfd9682:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文记载庭审陪审员遴选、SBF 出庭作证、被判欺诈以及被判处 25 年监禁；足以支持“接受庭审，最终被判处 25 年”。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0016:source-cbcb8fb3f1a83fa9:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "结构图列出 FTX US、FTX Global、Alameda Research、FTX Ventures 和持股关系，并将其置于同一企业结构中；支持其通过包含这些实体的网络运营。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0016:source-e52ed853c91a7e37:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文仅称 FTX 通过逾 130 个关联实体运营，其中包括 Alameda；未提到断言点名的 FTX US 或 FTX 全球。列举的实体成分不能由外部知识补足，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0017:source-318a2b102dfd9682:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文说的是 Chapter 11、SBF 辞职、Ray 任 CEO、关联公司数与资产负债估计；没有少数人集中控制或由此导致风险过度集中。两个必要判断均未被触及，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0017:source-cbcb8fb3f1a83fa9:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文支持控制权集中于少数人，但没有说明这种集中“导致风险过度集中”。因果关系是断言的独立真值条件，不能从前件自动推出，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0018:source-272b33412576de73:0",
-      "rationale": "引文是「Bankman-Fried still owned 90% of Alameda」——SBF 持有 Alameda 的 90%。断言说的是 Alameda 持有 FTX 的 90%，主语与宾语互换，是另一个命题。两者共享 90%/Alameda/持股这些表层记号，正是细粒度不敏感的典型形态。",
+      "rationale": "引文明确的是“SBF 持有 Alameda 的 90%”，断言却是“Alameda 持有 FTX 的约 90%”。这是同一持股谓词的主语、宾语互换，属于相关但不同的关系；引文也未明说 Alameda 不持有 FTX，故不升级为反驳。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
+      "reviewer": "codex-provisional",
       "verdict": "does_not_support"
     },
     {
       "case_id": "finance-24:post_edit:claim-0019:source-e8b2a1e652fad62a:1",
-      "rationale": "引文「secretly transferred $10 billion of customer funds from FTX to ... Alameda Research」在方向、主体与量级上都与断言一致。正例对照。",
+      "rationale": "引文明确 SBF 将约 100 亿美元客户资金从 FTX 秘密转至 Alameda，故支持主体、方向与量级；但没有说转移是为“支持其高风险交易及投资”。目的这一新增成分沉默，整条断言属证据不足。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
-      "verdict": "supports"
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0020:source-cbcb8fb3f1a83fa9:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文支持 FTX 向 Alameda 出借数十亿美元客户资金，以及未经同意混同和交易资金违法并违反服务条款；但没有称该行为导致流动性危机或是崩溃根源。未说出的因果结论不能补入，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0020:source-272b33412576de73:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 FTX 向 Alameda 出借客户资金并违反 FTX 条款，却没有说违反监管规定、导致流动性危机或构成崩溃根源。缺失的法律和因果成分须靠外部材料，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0021:source-318a2b102dfd9682:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 Ray 对 FTX 运营作出严厉描述，并提到安全控制缺失和公司资金用于员工住房奢侈品；没有“公司控制彻底失败”、无可信财务信息或治理不足的完整判断，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0021:source-cbcb8fb3f1a83fa9:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文载有 Ray 对“公司控制彻底失败”和“完全没有可信财务信息”的原话，但没有系统安全缺失。断言把后者一并作为范围，逐字引文对此沉默，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0021:source-272b33412576de73:2",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文有“公司控制彻底失败”、无可信财务信息、系统完整性受损和权力集中等内容，但逐字引文未标明说话者为 John Ray III。只看冻结断言—引文对时，归属不能从 URL 或外部上下文猜得，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0021:source-9e25115e131bdc5d:3",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文明示 John Ray III 的 CEO 身份及其关于公司控制彻底失败、缺乏可信财务信息的评价；但未提系统安全缺失。该新增范围没有引文支持，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0022:source-e8b2a1e652fad62a:1",
-      "rationale": "引文明说记账系统「was built using bespoke software」（定制软件），断言说是 QuickBooks。引文不是沉默而是相反，断言在这一点上被引文反驳。",
+      "rationale": "引文明说记账系统“was built using bespoke software”（定制软件），断言则称使用 QuickBooks 管理资产。软件类型对同一账务系统给出明示不相容值，故为反驳；其余后门描述不消除该冲突。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
-      "verdict": "does_not_support"
+      "reviewer": "codex-provisional",
+      "verdict": "contradicts"
     },
     {
       "case_id": "finance-24:post_edit:claim-0023:source-cbcb8fb3f1a83fa9:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文支持 FTX 发行 FTT 及其手续费折扣、随盈利回购销毁的机制；没有说 FTT 是资产负债表重要组成、缺乏流动性或依赖公司持续经营。新增判断均未获支持，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0024:source-9674d943a7c95f32:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 Binance 将出售约 5.8 亿美元 FTT，此举触发广泛抛售、类似银行挤兑，并使 FTX 面临客户提现需求且因缺钱停止提款；支持价格、危机和提款压力的链条。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0028:source-318a2b102dfd9682:0",
-      "rationale": "引文支持超过 130 家关联公司与 100–500 亿美元资产及相近负债，但没有「超过 10 万个债权人」与「近 100 万客户债权」。引文对这两项沉默。",
+      "rationale": "引文支持逾 130 家关联公司和 100–500 亿美元资产、相近负债，却没有超过 10 万债权人或近 100 万客户债权。后两项新增数字沉默，属证据不足。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
+      "reviewer": "codex-provisional",
       "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0028:source-383c97c3c43dae57:1",
-      "rationale": "引文支持超过 130 家关联公司与 100–500 亿美元资产及相近负债，但没有「超过 10 万个债权人」与「近 100 万客户债权」。引文对这两项沉默。",
+      "rationale": "引文只说 2023 年初约 100 万实体被欠款及前 50 债权人获欠逾 30 亿美元；没有破产文件、130 个实体、100–500 亿资产负债、超过 10 万债权人或近 100 万客户债权，属证据不足。",
       "review_status": "provisional_model_review",
-      "reviewer": "claude-pm",
+      "reviewer": "codex-provisional",
       "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0030:source-9e25115e131bdc5d:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 5 万美元及以下获准债权约获 118% 的获准金额，约 98% 债权人获得该补偿；与断言的计划比例和小额客户待遇相符。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0034:source-027851ac283fcaa7:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文说巴哈马清算人随后在纽约南区提出 Chapter 15，并解释该程序允许外国人到美国申请破产；没有说其目的或效果是协调国际资产回收，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0035:source-9674d943a7c95f32:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文支持纽约联邦检察官调查 FTX 是否违反证券法向 Alameda 提供客户资金；未提及 SBF 及高管涉嫌欺诈和洗钱。断言后半的主体和罪名缺少信息，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0035:source-195ff367765d21cb:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文讨论对客户资金被挪用的调查，并以“if it can be established”假设性地说明可能构成欺诈、董事可能面临刑事追诉；没有证券法调查、SBF 或高管为对象的确定调查，也没有洗钱。属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0036:source-272b33412576de73:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文明示 Ellison、Wang、Singh 等核心高管对欺诈客户及相关指控认罪，并称三人后来作证 SBF 指使其欺诈；认罪与配合调查均有支持。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0040:source-cbcb8fb3f1a83fa9:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文支持 Alameda 于 2017 年、FTX 于 2019 年成立，并显示 Alameda 为 FTX OTC desk 提供支持、SBF 任两家公司 CEO；但没有极少数人主导决策、违规转移客户资金或关联实体高风险的内容。属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0041:source-9674d943a7c95f32:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 CoinDesk 曝光 Alameda 大量资产为 FTT，引发对 Alameda/FTX 储备的担忧；又称 Binance 出售 FTT 触发更广泛抛售、类似银行挤兑、客户提现压力和停止提款。断言的事件链获支持。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     },
     {
       "case_id": "finance-24:post_edit:claim-0041:source-318a2b102dfd9682:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文支持 CoinDesk 曝光、市场受惊、Binance 宣布出售及 FTT 下跌；没有资金链断裂、流动性危机或客户提现的内容。断言后半需要猜测，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0042:source-9674d943a7c95f32:0",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称广泛抛售使 FTX 面临突然的客户提现需求，资金不足后停止提款；没有称这些提现促使 FTX 提交破产保护。关键后果未在逐字引文中出现，属证据不足。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "not_enough_information"
     },
     {
       "case_id": "finance-24:post_edit:claim-0042:source-4c496bf205b3e2ae:1",
-      "rationale": null,
-      "review_status": "pending_review",
-      "reviewer": null,
-      "verdict": null
+      "rationale": "引文称 FTX 在经历“加密领域等同于银行挤兑”的事件后，于 2022 年 11 月申请破产保护；支持断言的银行挤兑与破产衔接。",
+      "review_status": "provisional_model_review",
+      "reviewer": "codex-provisional",
+      "verdict": "supports"
     }
   ],
   "schema_version": "verifier-challenge-review-v1",
