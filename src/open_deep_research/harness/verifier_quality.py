@@ -16,7 +16,16 @@ from open_deep_research.harness.verify import VerificationVerdict
 
 
 class VerifierGoldStatus(str, Enum):
+    """Authority state of one gold verdict.
+
+    A two-state enum forced an annotator to choose between deleting the work
+    and calling a model-drafted label human-reviewed. The third state lets a
+    provisional label carry its annotations while the metrics keep treating it
+    as unreviewed.
+    """
+
     PENDING_REVIEW = "pending_review"
+    PROVISIONAL_MODEL_REVIEW = "provisional_model_review"
     REVIEWED = "reviewed"
 
 
@@ -51,6 +60,18 @@ class VerifierGold(BaseModel):
 
     @model_validator(mode="after")
     def _gold_is_human_substantive(self) -> VerifierGold:
+        if self.review_status is VerifierGoldStatus.PROVISIONAL_MODEL_REVIEW:
+            # A provisional label must still be auditable: it carries a verdict
+            # and its reasoning, but scoring never reads it as ground truth.
+            if self.verdict is None or not (self.reviewer or "").strip():
+                raise ValueError(
+                    "provisional verifier gold requires a verdict and a reviewer"
+                )
+            if not (self.rationale or "").strip():
+                raise ValueError(
+                    "provisional verifier gold requires a rationale"
+                )
+            return self
         if self.review_status is VerifierGoldStatus.PENDING_REVIEW:
             if any(
                 value is not None

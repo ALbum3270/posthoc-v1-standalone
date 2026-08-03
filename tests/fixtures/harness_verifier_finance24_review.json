@@ -1,0 +1,890 @@
+{
+  "cases": [
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0001:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0001",
+      "claim_text": "FTX由Sam Bankman-Fried（简称SBF）和Gary Wang在2019年共同创立。",
+      "evidence_quote": "In 2019, SBF founded FTX, an crypto futures exchange built to meet the needs of serious traders (“by traders, for traders”).",
+      "original_explanation": "Source says SBF founded FTX in 2019 and separately notes Gary Wang co-founded FTX in Nov 2019.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0001:source-383c97c3c43dae57:1",
+      "claim_id": "claim-0001",
+      "claim_text": "FTX由Sam Bankman-Fried（简称SBF）和Gary Wang在2019年共同创立。",
+      "evidence_quote": "Background\nIn May 2019, Sam Bankman-Fried joined with Gary Wang, who once worked at Google, to found FTX.",
+      "original_explanation": "The source says Sam Bankman-Fried joined with Gary Wang in May 2019 to found FTX.",
+      "original_verdict": "supports",
+      "source_id": "source-383c97c3c43dae57",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "6e6b4a6680027a31a978dff8ae23b324ffe9c060ac81309e4759a588523b6aa0",
+      "url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0002:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0002",
+      "claim_text": "SBF同时也是加密交易公司Alameda Research的创始人，该公司成立于2017年，主要作为FTX的重要市场做市商和交易对手。",
+      "evidence_quote": "Origins Origins and the relationship between FTX and Alameda In 2017, Sam Bankman-Fried (“SBF”) co-founded Alameda Research (“Alameda”), a crypto fund. Alameda became a prominent market maker on crypto exchanges. In 2019, SBF founded FTX, an crypto futures exchange built to meet the needs of serious traders (“by traders, for traders”). The FTX OTC desk was powered by Alameda and SBF was the CEO of both businesses. FTX launched it’s own token, “FTT”. FTT provided holders with a discount on trading fees and OTC rebates, with FTX buying back and ‘burning’ FTT tokens based on FTX profitability – reducing supply hence increasing token price. By 2021, FTX had become one of the largest and most popular exchanges for professional traders due to its fast listing of tokens, user-interface, and high liquidity (driving tighter spreads between bid and ask prices). FTX’s market leading liquidity was in part due to its unique liquidation engine which effectively acquired holdings from sellers in the event of a large liquidation event – thus preventing collapse of prices. The backstop for this liquidation engine was Alameda.",
+      "original_explanation": "Source says SBF co-founded Alameda in 2017 and Alameda was the backstop / market maker for FTX, matching the market maker and counterpart role.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0003:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0003",
+      "claim_text": "SBF担任两家公司CEO直至2022年11月11日FTX申请破产，后由经验丰富的破产管理专家John J. Ray III接替CEO职位，负责公司破产重组工作。",
+      "evidence_quote": "10 Nov 2022 FTX and Alameda filed for Chapter 11 bankruptcy protection in Delaware, USA. John J Ray III was appointed as CEO and SBF resigns.",
+      "original_explanation": "Source states FTX and Alameda filed for Chapter 11 on 10 Nov 2022 and John J. Ray III was appointed CEO as SBF resigned.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0003:source-383c97c3c43dae57:1",
+      "claim_id": "claim-0003",
+      "claim_text": "SBF担任两家公司CEO直至2022年11月11日FTX申请破产，后由经验丰富的破产管理专家John J. Ray III接替CEO职位，负责公司破产重组工作。",
+      "evidence_quote": "On November 11, Alameda Research and FTX declared bankruptcy, and Bankman-Fried stepped down as CEO of FTX.",
+      "original_explanation": "It states FTX and Alameda filed for bankruptcy on November 11, 2022 and Bankman-Fried stepped down as CEO; later, John J. Ray III was appointed as the new CEO to work on creditor recovery.",
+      "original_verdict": "supports",
+      "source_id": "source-383c97c3c43dae57",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "6e6b4a6680027a31a978dff8ae23b324ffe9c060ac81309e4759a588523b6aa0",
+      "url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0004:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0004",
+      "claim_text": "Gary Wang和Nishad Singh则持有FTX相关多个实体的股权，且Gary Wang参与了FTX核心业务运营。",
+      "evidence_quote": "Sam Bankman-Fried (“SBF”) West Realm Shires Inc. (Delaware) (“FTX US”) Third party investors Clifton Bay Investments LLC (“FTX Ventures”) Alameda Research LLC (Delaware) (“Alameda”) FTX Trading Ltd (Antigua) (“FTX Global”) 25% 75% 90% 10%: Gary Wang 8%: Nishad Singh 23%: Gary Wang 10%: Nishad Singh 67% 53% 17%: Gary Wang A cryptocurrency fund and the largest market-maker on FTX Venture investments in early and growth-stage web 3 and crypto companies and projects Crypto exchange for US residents Crypto exchange for non-US residents Core business: Source: Declaration of John J Ray III in support of Chapter 11 petitions (“the Declaration”), 17 November 2022 Note: (a) Simplification on Exhibit A and Exhibit B from the Declaration.",
+      "original_explanation": "The corporate structure shows Gary Wang and Nishad Singh holding equity stakes in FTX-related entities, and the text says Gary Wang was CEO of the OTC desk / had a core role in FTX operations.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0005:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0005",
+      "claim_text": "Alameda Research在2021年10月底开始由Caroline Ellison和Sam Trabucco担任联合CEO，Trabucco于2022年7月离职，Ellison成为Alameda的唯一CEO。",
+      "evidence_quote": "Jul USD 421m funding round at a USD 25bn valuation of FTX SBF officially handed over Alameda CEO role to co-CEO's Caroline Ellison and Sam Trabucco.\nOct 2022 FTX raised USD 1.9bn in Series C funding from investors at a valuation of USD 32bn.\nJan Terra USD (UST), an algorithmic stablecoin de-pegged from the USD, with subsequent market crash in cryptocurrencies resulting in the collapse of Three Arrows Capital (a crypto fund) and Voyager Digital (a crypto lender).\nMar/Jul SBF/FTX offered bailouts to struggling crypto platforms including: Voyager Digital, Celsius and BlockFi.\nJul Sam Trabucco stepped down as co-CEO of Alameda citing work-life-balance and other priorities. Caroline Ellison continues as sole CEO.",
+      "original_explanation": "Source says SBF handed Alameda CEO role to Caroline Ellison and Sam Trabucco in July 2021; Trabucco stepped down in July 2022 and Ellison continued as sole CEO.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0005:source-272b33412576de73:1",
+      "claim_id": "claim-0005",
+      "claim_text": "Alameda Research在2021年10月底开始由Caroline Ellison和Sam Trabucco担任联合CEO，Trabucco于2022年7月离职，Ellison成为Alameda的唯一CEO。",
+      "evidence_quote": "Bankman-Fried was the CEO of both companies until he formally stepped down from his position at Alameda in October 2021, promoting traders Caroline Ellison and Sam Trabucco to co-CEOs.",
+      "original_explanation": "Source says Bankman-Fried stepped down from Alameda in October 2021, promoting Caroline Ellison and Sam Trabucco to co-CEOs; later Ellison was the CEO after Trabucco (consistent with the claim's July 2022 phrasing not being directly stated).",
+      "original_verdict": "supports",
+      "source_id": "source-272b33412576de73",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "c37d615c58579ebf67e6aeefab28becfdec9dd9d9b51cd27d4d56cfa8c74fccb",
+      "url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0006:source-383c97c3c43dae57:1",
+      "claim_id": "claim-0006",
+      "claim_text": "Ellison与SBF曾有密切关系，且在公司陷入破产时面临刑事起诉，后与检察机关合作减刑。",
+      "evidence_quote": "Caroline Ellison, who was CEO of Alameda at the time of its bankruptcy filing, and Gary Wang (co-founder of FTX) both began working with prosecutors with the hopes of getting reduced sentences. They both faced fraud and money laundering charges, similar to those of Bankman-Fried. Ellison was sometimes Bankman-Fried’s girlfriend, and both lived and worked in a large villa in the Bahamas along with many other people on staff at both companies.",
+      "original_explanation": "The source says Ellison and Bankman-Fried lived and worked together, Ellison faced fraud and money laundering charges at bankruptcy filing, and both cooperated with prosecutors seeking reduced sentences.",
+      "original_verdict": "supports",
+      "source_id": "source-383c97c3c43dae57",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "6e6b4a6680027a31a978dff8ae23b324ffe9c060ac81309e4759a588523b6aa0",
+      "url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0007:source-318a2b102dfd9682:0",
+      "claim_id": "claim-0007",
+      "claim_text": "2022年11月2日，CoinDesk报道Alameda Research持有大量FTX发行的代币FTT，揭露两者财务紧密关联，引发市场对Alameda现金流不足的担忧。",
+      "evidence_quote": "2022\nNov. 2: Coindesk reports Alameda Reseach, Bankman-Fried’s cryptocurrency trading firm, holds a large amount of FTT, a token issued by FTX, suggesting the finances of the two are intertwined and Alameda faces a cash crunch. The report spooks participants in the crypto market.",
+      "original_explanation": "Source says on Nov. 2 Coindesk reported Alameda held a large amount of FTT, suggesting Alameda and FTX finances were intertwined and Alameda faced a cash crunch.",
+      "original_verdict": "supports",
+      "source_id": "source-318a2b102dfd9682",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "b7234d1d61603cde69706af08c4e447a2e1de54e43d92fffef14a53bd6cf9e91",
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0008:source-318a2b102dfd9682:0",
+      "claim_id": "claim-0008",
+      "claim_text": "11月6日，Binance CEO宣布出售全部价值约5.8亿美元的FTT代币，引发FTT价格暴跌，市场担忧加剧，导致大量FTX客户提现请求，形成加密领域的“银行挤兑”。",
+      "evidence_quote": "Nov. 6: Rival cryptocurrency exchange Binance announces that the firm plans to sell all its holdings in FTT. The price of FTT tanks.",
+      "original_explanation": "Source says on Nov. 6 Binance announced it planned to sell all its holdings in FTT and that the price of FTT tanks.",
+      "original_verdict": "supports",
+      "source_id": "source-318a2b102dfd9682",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "b7234d1d61603cde69706af08c4e447a2e1de54e43d92fffef14a53bd6cf9e91",
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0009:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0009",
+      "claim_text": "FTX达成与Binance的收购协议，试图稳住客户资金风险。",
+      "evidence_quote": "Nov. 8 – FTX reached a deal to sell itself to Binance, the crypto exchange whose executive had helped trigger the selloff.",
+      "original_explanation": "The source says on Nov. 8 FTX reached a deal to sell itself to Binance.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "516af3ebb83465d0d004a129459aad8cd73babc5b84baf8e11a8e61b4f9897d3",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0010:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0010",
+      "claim_text": "Binance撤回收购协议，原因是尽职调查发现FTX财务混乱及客户资金管理问题，同时美国监管部门开始介入调查。",
+      "evidence_quote": "9 – Binance withdrew from the deal to acquire FTX.\n\"As a result of corporate due diligence, as well as the latest news reports regarding mishandled customer funds and alleged US agency investigations, we have decided that we will not pursue the potential acquisition of FTX.com.,\" Binance said.\nMORE: These tech companies have imposed major layoffs in 2022\nZhao, of Binance, summed up the decision in a tweet:\nMeanwhile, the Securities and Exchange Commission and the Justice Department had begun investigating the FTX collapse, the Wall Street Journal reports.",
+      "original_explanation": "The source says Binance withdrew from the deal on Nov. 9 after corporate due diligence and reports of mishandled customer funds and alleged US agency investigations, and notes SEC/Justice Department investigations had begun.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "516af3ebb83465d0d004a129459aad8cd73babc5b84baf8e11a8e61b4f9897d3",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0011:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0011",
+      "claim_text": "巴哈马监管机构冻结FTX资产。",
+      "evidence_quote": "Nov. 10 – A Bahamian financial regulator froze the assets of FTX.\nThe Securities Commission of the Bahamas said it was aware of public statements suggesting that FTX's customer funds were potentially \"mishandled\" and \"mismanaged.\"",
+      "original_explanation": "The source states that on Nov. 10 a Bahamian financial regulator froze FTX's assets.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "516af3ebb83465d0d004a129459aad8cd73babc5b84baf8e11a8e61b4f9897d3",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0013:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0013",
+      "claim_text": "纽约联邦检察部门启动调查，重点审查FTX是否非法使用客户资金支持Alameda Research。",
+      "evidence_quote": "14 – The collapse of cryptocurrency exchange FTX became the subject of an investigation by federal prosecutors in New York, sources familiar with the matter told ABC News.\nAt issue, the sources said, is whether FTX violated securities laws when it reportedly gave customer funds to Alameda Research.",
+      "original_explanation": "The source says on Nov. 14 federal prosecutors in New York began an investigation, with the issue being whether FTX violated securities laws by giving customer funds to Alameda Research.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "516af3ebb83465d0d004a129459aad8cd73babc5b84baf8e11a8e61b4f9897d3",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0014:source-318a2b102dfd9682:0",
+      "claim_id": "claim-0014",
+      "claim_text": "SBF在巴哈马被捕，美国政府控告其多项金融犯罪和欺诈指控。",
+      "evidence_quote": "12: Bankman-Fried is arrested in the Bahamas, where FTX is headquartered.\nDec. 13: The U.S. government charges Bankman-Fried with a host of financial crimes, alleging he intentionally deceived customers and investors to enrich himself and others, while playing a central role in the company’s multibillion-dollar collapse.",
+      "original_explanation": "Source says on Dec. 12 Bankman-Fried was arrested in the Bahamas, and on Dec. 13 the U.S. government charged him with financial crimes.",
+      "original_verdict": "supports",
+      "source_id": "source-318a2b102dfd9682",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "b7234d1d61603cde69706af08c4e447a2e1de54e43d92fffef14a53bd6cf9e91",
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0015:source-318a2b102dfd9682:0",
+      "claim_id": "claim-0015",
+      "claim_text": "SBF接受庭审，最终被判处25年监禁。",
+      "evidence_quote": "3: Jury selection began for the trial.\nOct. 27: Bankman-Fried took the stand in his trial. He again acknowledged failures but denied defrauding anyone.\nNov. 3: Bankman-Fried is convicted of fraud for stealing at least $10 billion from customers and investors.\nMarch 28: Bankman-Fried is sentenced to 25 years in prison.",
+      "original_explanation": "Source says trial jury selection began Oct. 3, he took the stand Oct. 27, was convicted Nov. 3, and was sentenced to 25 years on March 28.",
+      "original_verdict": "supports",
+      "source_id": "source-318a2b102dfd9682",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "b7234d1d61603cde69706af08c4e447a2e1de54e43d92fffef14a53bd6cf9e91",
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0016:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0016",
+      "claim_text": "FTX通过一个网络体系运营，涵盖FTX美国、FTX全球、Alameda Research及多个附属实体。",
+      "evidence_quote": "(Delaware) (“FTX US”) Third party investors Clifton Bay Investments LLC (“FTX Ventures”) Alameda Research LLC (Delaware) (“Alameda”) FTX Trading Ltd (Antigua) (“FTX Global”) 25% 75% 90% 10%: Gary Wang 8%: Nishad Singh 23%: Gary Wang 10%: Nishad Singh 67% 53% 17%: Gary Wang A cryptocurrency fund and the largest market-maker on FTX Venture investments in early and growth-stage web 3 and crypto companies and projects Crypto exchange for US residents Crypto exchange for non-US residents Core business: Source: Declaration of John J Ray III in support of Chapter 11 petitions (“the Declaration”), 17 November 2022 Note: (a) Simplification on Exhibit A and Exhibit B from the Declaration.",
+      "original_explanation": "The simplified corporate structure shows FTX US, FTX Global, Alameda Research and related entities as part of the FTX network.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0016:source-e52ed853c91a7e37:1",
+      "claim_id": "claim-0016",
+      "claim_text": "FTX通过一个网络体系运营，涵盖FTX美国、FTX全球、Alameda Research及多个附属实体。",
+      "evidence_quote": "FTX operated through a network of over 130 affiliated entities, almost all of which have filed for bankruptcy – including Alameda Research, its trading arm.",
+      "original_explanation": "Source says FTX operated through a network of over 130 affiliated entities, including Alameda Research; this supports the claim’s network-structure description, though the exact named entities are broader in the claim.",
+      "original_verdict": "supports",
+      "source_id": "source-e52ed853c91a7e37",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "e416bba9fc34f88b904b6514f559cc9b702716b77a73255e745c33cabe53f9db",
+      "url": "https://law.rutgers.edu/news/significance-and-consequences-ftx-crypto-collapse"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0017:source-318a2b102dfd9682:0",
+      "claim_id": "claim-0017",
+      "claim_text": "管理权高度集中，控制在SBF等少数几人手中，这导致风险过度集中。",
+      "evidence_quote": "11: FTX files for Chapter 11 and Bankman-Fried resigns. John Ray III, a long-time bankruptcy litigator who is best known for having to clean up the mess made after the collapse of Enron, is named the new CEO.\nIn its bankruptcy filing, FTX listed more than 130 affiliated companies around the globe. The company valued its assets between $10 billion to $50 billion, with a similar estimate for its liabilities. Bitcoin falls 10%.",
+      "original_explanation": "Source says Bankman-Fried resigned, John Ray III became CEO, and the filing listed over 130 affiliated companies with assets and liabilities estimates, indicating highly concentrated control is not directly stated; however this does not support the exact wording.",
+      "original_verdict": "supports",
+      "source_id": "source-318a2b102dfd9682",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "b7234d1d61603cde69706af08c4e447a2e1de54e43d92fffef14a53bd6cf9e91",
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0017:source-cbcb8fb3f1a83fa9:1",
+      "claim_id": "claim-0017",
+      "claim_text": "管理权高度集中，控制在SBF等少数几人手中，这导致风险过度集中。",
+      "evidence_quote": "Concentration of control in “…a very small group of inexperienced, unsophisticated and potentially compromised individuals,” Ray said.",
+      "original_explanation": "Source says control was concentrated in a very small group of individuals, which supports the claim of highly concentrated management control.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0018:source-272b33412576de73:0",
+      "claim_id": "claim-0018",
+      "claim_text": "Alameda拥有FTX约90%的股权，其资金与FTX客户资金高度混合。",
+      "evidence_quote": "As of August 2021, Bankman-Fried still owned 90% of Alameda.\nThe close relationship and potential conflicts of interest between Alameda and FTX drew scrutiny from the rest of the cryptocurrency industry. Alameda was once the largest trader on FTX, bringing liquidity to the exchange. Between 1 June 2022 and 22 July 2022, Alameda's known wallets were the largest stablecoin depositors and sources of liquidity to all of FTX's known wallet addresses, accounting for 10% of Tether \"Tether (cryptocurrency)\") transfers and 30% of USD Coin transfers on the exchange. According to John J. Ray III, Alameda had a \"secret exemption\" from FTX's auto-liquidation protocol.\nAlameda Research suffered a series of losses in May and June 2022, which anonymous sources told the Wall Street Journal resulted in FTX lending the trading firm more than half of its customer funds, a decision that the sources said FTX CEO Sam Bankman-Fried described as a \"poor judgment call\". This was explicitly forbidden by FTX's terms of service. On 12 November 2022, the Wall Street Journal reported that anonymous sources had said that Alameda CEO Caroline Ellison said that she, Bankman-Fried, Gary Wang, and Nishad Singh were aware of that decision. The same was reported in the New York Times on 14 November 2022. FTX used software to conceal the misuse of customer funds.",
+      "original_explanation": "Source states Bankman-Fried owned 90% of Alameda and that FTX lent Alameda more than half of its customer funds, explicitly forbidden by FTX terms of service, indicating commingling/misuse of customer funds.",
+      "original_verdict": "supports",
+      "source_id": "source-272b33412576de73",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "c37d615c58579ebf67e6aeefab28becfdec9dd9d9b51cd27d4d56cfa8c74fccb",
+      "url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0019:source-e8b2a1e652fad62a:1",
+      "claim_id": "claim-0019",
+      "claim_text": "SBF指示将约100亿美元客户资金内部转移至Alameda Research，支持其高风险交易及投资。",
+      "evidence_quote": "The exchange's founder Sam Bankman-Fried secretly transferred $10 billion of customer funds from FTX to Bankman-Fried's trading company Alameda Research, the people told Reuters.",
+      "original_explanation": "The source says Bankman-Fried secretly transferred $10 billion of customer funds from FTX to Alameda Research.",
+      "original_verdict": "supports",
+      "source_id": "source-e8b2a1e652fad62a",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "5b16cc352b3a774270cc416bfdf112d13411b59199f5f1cf600607eee0bebc63",
+      "url": "https://www.reuters.com/markets/currencies/exclusive-least-1-billion-client-funds-missing-failed-crypto-firm-ftx-sources-2022-11-12"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0020:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0020",
+      "claim_text": "这种将客户资金借贷给关联实体的行为违反了监管规定和FTX自身条款，并导致流动性危机，成为崩溃根源之一。",
+      "evidence_quote": "(1/2) Commingling of company and customer funds FTX appears to have lent billions of dollars in customer funds to Alameda Research. Commingling customer funds with counterparties and trading them without consent is illegal according to US securities law and violates FTX’s terms of service.",
+      "original_explanation": "Source says FTX lent billions of customer funds to Alameda and that commingling customer funds with counterparties without consent is illegal and violates terms of service.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0020:source-272b33412576de73:1",
+      "claim_id": "claim-0020",
+      "claim_text": "这种将客户资金借贷给关联实体的行为违反了监管规定和FTX自身条款，并导致流动性危机，成为崩溃根源之一。",
+      "evidence_quote": "Alameda Research suffered a series of losses in May and June 2022, which anonymous sources told the Wall Street Journal resulted in FTX lending the trading firm more than half of its customer funds, a decision that the sources said FTX CEO Sam Bankman-Fried described as a \"poor judgment call\". This was explicitly forbidden by FTX's terms of service. On 12 November 2022, the Wall Street Journal reported that anonymous sources had said that Alameda CEO Caroline Ellison said that she, Bankman-Fried, Gary Wang, and Nishad Singh were aware of that decision. The same was reported in the New York Times on 14 November 2022. FTX used software to conceal the misuse of customer funds.",
+      "original_explanation": "Source says lending customer funds to Alameda was explicitly forbidden by FTX's terms of service and involved misuse of customer funds; this aligns with the claim's violation and contribution to the crisis.",
+      "original_verdict": "supports",
+      "source_id": "source-272b33412576de73",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "c37d615c58579ebf67e6aeefab28becfdec9dd9d9b51cd27d4d56cfa8c74fccb",
+      "url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0021:source-318a2b102dfd9682:0",
+      "claim_id": "claim-0021",
+      "claim_text": "继任CEO John Ray III称，FTX存在“公司控制彻底失败”的情况，从无可信财务信息到系统安全缺失，严重缺乏内控与治理。",
+      "evidence_quote": "17: Ray gives a damning description of FTX’s operations under Bankman-Fried, from a lack of security controls to business funds being used to buy employees homes and luxuries.",
+      "original_explanation": "Source says Ray gave a damning description of FTX’s operations, including a lack of security controls and misuse of funds, matching his criticism of severe control/governance failures.",
+      "original_verdict": "supports",
+      "source_id": "source-318a2b102dfd9682",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "b7234d1d61603cde69706af08c4e447a2e1de54e43d92fffef14a53bd6cf9e91",
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0021:source-cbcb8fb3f1a83fa9:1",
+      "claim_id": "claim-0021",
+      "claim_text": "继任CEO John Ray III称，FTX存在“公司控制彻底失败”的情况，从无可信财务信息到系统安全缺失，严重缺乏内控与治理。",
+      "evidence_quote": "I have been the Chief Restructuring Offices or Chief Executive Officer in several of the largest corporate failures in history… Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information as occurred here.” John J. Ray III, Chief Restructuring Officer to FTX and Alameda Source: Declaration of John J Ray III in support of Chapter 11 petitions (“the Declaration”), 17 November 2022 6 Document Classification: KPMG Public © 2022 KPMG, a Hong Kong partnership and a member firm of the KPMG global organisation of independent member firms affiliated with KPMG International Limited, a private English company limited by guarantee.",
+      "original_explanation": "John J. Ray III says there was a complete failure of corporate controls and a complete absence of trustworthy financial information, matching the claim’s description of severe internal control and governance failures.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0021:source-272b33412576de73:2",
+      "claim_id": "claim-0021",
+      "claim_text": "继任CEO John Ray III称，FTX存在“公司控制彻底失败”的情况，从无可信财务信息到系统安全缺失，严重缺乏内控与治理。",
+      "evidence_quote": "I have supervised situations involving novel financial structures (Enron and Residential Capital) and cross-border asset recovery and maximization (Nortel and Overseas Shipholding)…\n>\n> Never in my career have I seen such a complete failure of corporate controls and such a complete absence of trustworthy financial information as occurred here. From compromised systems integrity and faulty regulatory oversight abroad, to the concentration of control in the hands of a very small group of inexperienced, unsophisticated and potentially compromised individuals, this situation is unprecedented.",
+      "original_explanation": "John J. Ray III says he had never seen such a complete failure of corporate controls and such an absence of trustworthy financial information, with control concentrated in a very small group.",
+      "original_verdict": "supports",
+      "source_id": "source-272b33412576de73",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "c37d615c58579ebf67e6aeefab28becfdec9dd9d9b51cd27d4d56cfa8c74fccb",
+      "url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0021:source-9e25115e131bdc5d:3",
+      "claim_id": "claim-0021",
+      "claim_text": "继任CEO John Ray III称，FTX存在“公司控制彻底失败”的情况，从无可信财务信息到系统安全缺失，严重缺乏内控与治理。",
+      "evidence_quote": "After Bankman-Fried stepped down, FTX appointed John Ray III as CEO. Speaking about FTX in November 2022, Ray said that \"in his 40 years of legal and restructuring experience,\" he had never seen \"such a complete failure of corporate controls and such a complete absence of trustworthy financial information as occurred here.\"",
+      "original_explanation": "The source says John Ray III became CEO and quoted him describing a 'complete failure of corporate controls' and 'complete absence of trustworthy financial information,' matching the claim's substance about severe control/governance failures and lack of reliable financial info.",
+      "original_verdict": "supports",
+      "source_id": "source-9e25115e131bdc5d",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "8f6743c2adad1248a6f2272a82d2605675187eaf3dc68a396b383f2d37332cdf",
+      "url": "https://www.cnbc.com/amp/2024/05/08/ftx-bankruptcy-most-customers-of-crypto-firm-will-get-all-money-back.html"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0022:source-e8b2a1e652fad62a:1",
+      "claim_id": "claim-0022",
+      "claim_text": "公司财务账目混乱，用QuickBooks软件管理巨型资产，账本设置“后门”，允许修改账户资金流而无任何外部警示，隐藏了大量资金转移和盗用。",
+      "evidence_quote": "In a subsequent examination, FTX legal and finance teams also learned that Bankman-Fried implemented what the two people described as a \"backdoor\" in FTX's book-keeping system, which was built using bespoke software.\nThey said the \"backdoor\" allowed Bankman-Fried to execute commands that could alter the company's financial records without alerting other people, including external auditors. This set-up meant that the movement of the $10 billion in funds to Alameda did not trigger internal compliance or accounting red flags at FTX, they said.",
+      "original_explanation": "The source says FTX used bespoke software book-keeping with a 'backdoor' that let Bankman-Fried alter financial records without alerting others, and that this setup prevented compliance or accounting red flags.",
+      "original_verdict": "supports",
+      "source_id": "source-e8b2a1e652fad62a",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "5b16cc352b3a774270cc416bfdf112d13411b59199f5f1cf600607eee0bebc63",
+      "url": "https://www.reuters.com/markets/currencies/exclusive-least-1-billion-client-funds-missing-failed-crypto-firm-ftx-sources-2022-11-12"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0023:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0023",
+      "claim_text": "FTX发行为交易所设计的FTT代币是其资产负债表的重要组成部分，但FTT缺乏流动性且依赖公司持续经营。",
+      "evidence_quote": "FTX launched it’s own token, “FTT”. FTT provided holders with a discount on trading fees and OTC rebates, with FTX buying back and ‘burning’ FTT tokens based on FTX profitability – reducing supply hence increasing token price.",
+      "original_explanation": "Source says FTX launched FTT and that FTT provided holders benefits; later it states FTT was used as collateral and depended on FTX as a going concern, supporting the claim about importance and illiquidity/dependence.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0024:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0024",
+      "claim_text": "随着Binance宣布出售持有的FTT，市场恐慌导致代币价格急剧下跌，加剧了财务危机及客户提现压力。",
+      "evidence_quote": "6 – In response to the article, Changpeng Zhao, the CEO of rival crypto exchange Binance, often referred to as \"CZ,\" said he would sell all of the company's holdings in FTT, which amount to $580 million worth of the token.\nThe major exit from a crypto heavyweight triggered a wider selloff, akin to a bank run, placing immense pressure on FTX to meet the sudden demand for customer withdrawals. Due to a lack of funds, FTX halted customer withdrawals altogether.",
+      "original_explanation": "The source says Binance would sell its FTT holdings, triggering a wider selloff, pressure on withdrawals, and then FTX halted withdrawals.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "516af3ebb83465d0d004a129459aad8cd73babc5b84baf8e11a8e61b4f9897d3",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0028:source-318a2b102dfd9682:0",
+      "claim_id": "claim-0028",
+      "claim_text": "破产文件显示，FTX及其约130个相关实体资产负债均估计在100亿美元至500亿美元之间，约有超过10万个债权人和近100万客户债权。",
+      "evidence_quote": "In its bankruptcy filing, FTX listed more than 130 affiliated companies around the globe. The company valued its assets between $10 billion to $50 billion, with a similar estimate for its liabilities.",
+      "original_explanation": "Source says the bankruptcy filing listed more than 130 affiliated companies and valued assets between $10 billion and $50 billion with a similar estimate for liabilities.",
+      "original_verdict": "supports",
+      "source_id": "source-318a2b102dfd9682",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "b7234d1d61603cde69706af08c4e447a2e1de54e43d92fffef14a53bd6cf9e91",
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0028:source-383c97c3c43dae57:1",
+      "claim_id": "claim-0028",
+      "claim_text": "破产文件显示，FTX及其约130个相关实体资产负债均估计在100亿美元至500亿美元之间，约有超过10万个债权人和近100万客户债权。",
+      "evidence_quote": "At the start of 2023, an estimated 1 million entities were owed money; the company's top fifty creditors, which included large financial firms, were owed over $3 billion.",
+      "original_explanation": "The source says an estimated 1 million entities were owed money and the top fifty creditors were owed over $3 billion, which matches the reported large creditor/customer scale, though not every numerical detail is stated exactly the same.",
+      "original_verdict": "supports",
+      "source_id": "source-383c97c3c43dae57",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "6e6b4a6680027a31a978dff8ae23b324ffe9c060ac81309e4759a588523b6aa0",
+      "url": "https://www.ebsco.com/research-starters/law/ftx-bankruptcy"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0030:source-9e25115e131bdc5d:0",
+      "claim_id": "claim-0030",
+      "claim_text": "尽管有资金损失，破产方案预计偿还98%以上的债权人，特别是索赔额度不超过5万美元的客户可获得约118%的本金偿付（含利息），弥补绝大多数中小客户损失。",
+      "evidence_quote": "Customers whose claims amount to $50,000 or less will receive approximately 118% of the amount of their allowed claim, the plan says. Around 98% of creditors will receive this compensation.",
+      "original_explanation": "The source states claims of $50,000 or less get approximately 118% of allowed claim and around 98% of creditors will receive this compensation, which supports the claim.",
+      "original_verdict": "supports",
+      "source_id": "source-9e25115e131bdc5d",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "8f6743c2adad1248a6f2272a82d2605675187eaf3dc68a396b383f2d37332cdf",
+      "url": "https://www.cnbc.com/amp/2024/05/08/ftx-bankruptcy-most-customers-of-crypto-firm-will-get-all-money-back.html"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0034:source-027851ac283fcaa7:0",
+      "claim_id": "claim-0034",
+      "claim_text": "美国破产法第15章程序试图协调国际资产回收。",
+      "evidence_quote": "company, the co-founder and staff largely operated out of an office in the Bahamas.(#ftn13) FTX Digital Markets had begun a liquidation in a court in the Bahamas, the day before the Chapter 11 filing.(#ftn14) Following the Delaware filing, the Bahamian court-appointed liquidators then filed for a Chapter 15 bankruptcy case in the Southern District of New York, alleging that the Chapter 11 filing was not authorized.(#ftn15) A Chapter 15 filing allows foreign nationals to file for bankruptcy in the U.S.",
+      "original_explanation": "The source states that a Chapter 15 filing allows foreign nationals to file in U.S. courts when there are assets or business in multiple countries and can follow foreign insolvency procedures, which supports the claim that it is meant to coordinate international recovery.",
+      "original_verdict": "supports",
+      "source_id": "source-027851ac283fcaa7",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "16c8684c1d0fe8f0e79ed180e980238217e39a61b9973cf10541419e5fb02e89",
+      "url": "https://cablj.org/this-situation-is-unprecedented-examining-the-legal-challenges-in-the-bankruptcy-of-ftx"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0035:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0035",
+      "claim_text": "监管机构调查重点包括FTX是否违反证券法非法使用客户资金，以及SBF及高管是否涉嫌欺诈和洗钱。",
+      "evidence_quote": "14 – The collapse of cryptocurrency exchange FTX became the subject of an investigation by federal prosecutors in New York, sources familiar with the matter told ABC News.\nAt issue, the sources said, is whether FTX violated securities laws when it reportedly gave customer funds to Alameda Research.",
+      "original_explanation": "The source states the investigation focused on whether FTX violated securities laws by giving customer funds to Alameda Research, which matches the illegal customer-funds aspect of the claim.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "516af3ebb83465d0d004a129459aad8cd73babc5b84baf8e11a8e61b4f9897d3",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0035:source-195ff367765d21cb:1",
+      "claim_id": "claim-0035",
+      "claim_text": "监管机构调查重点包括FTX是否违反证券法非法使用客户资金，以及SBF及高管是否涉嫌欺诈和洗钱。",
+      "evidence_quote": "An investigation is well underway in relation to FTX and the alleged misappropriation of client funds. Investors are now seeking to recover their FTX assets.\nIf it can be established that customers’ investments have been used to support Alameda Research (FTX’s trading partner), then this will almost certainly amount to fraudulent conduct. This would be a serious problem for FTX and the directors behind the exchange, and is likely to result in a high volume of legal claims against FTX. This will undoubtedly cause panic in an already turbulent cryptocurrency market.\nIf client funds have been misappropriated, it is a fraud. Directors are facing criminal prosecution as well as striking off.",
+      "original_explanation": "The source says an investigation is underway regarding FTX and alleged misappropriation of client funds, and that if client funds were misappropriated it is fraud; it also states directors are facing criminal prosecution. This supports the report’s description of suspected misuse and fraud-related investigation, though the source does not specifically mention securities law or money laundering.",
+      "original_verdict": "supports",
+      "source_id": "source-195ff367765d21cb",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "f51dc62fa065796a460ed3b01a3c5f4e24ca0a4bfb3b95ac4b8c5b64b7ee3a61",
+      "url": "https://keystonelaw.com/keynotes/the-collapse-of-ftx-can-investors-recover-their-losses-2"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0036:source-272b33412576de73:0",
+      "claim_id": "claim-0036",
+      "claim_text": "多位核心高管已承认犯罪行为并配合调查，包括Ellison、Wang和Singh。",
+      "evidence_quote": "In late 2022 and early 2023, key executives from FTX and Alameda, such as Caroline Ellison, Gary Wang \"Gary Wang (American businessman)\"), and Nishad Singh, pleaded guilty to defrauding FTX customers and related charges. In October 2023, all three testified that it was Bankman-Fried who directed them to commit fraud. On 2 November 2023, Sam Bankman-Fried was convicted of defrauding customers of FTX and lenders of Alameda Research.",
+      "original_explanation": "Source states that Caroline Ellison, Gary Wang, and Nishad Singh pleaded guilty and cooperated, matching the claim that these core executives admitted crimes and assisted investigators.",
+      "original_verdict": "supports",
+      "source_id": "source-272b33412576de73",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "c37d615c58579ebf67e6aeefab28becfdec9dd9d9b51cd27d4d56cfa8c74fccb",
+      "url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0040:source-cbcb8fb3f1a83fa9:0",
+      "claim_id": "claim-0040",
+      "claim_text": "2017年至2019年创立的FTX及Alameda紧密结合，核心决策由极少数人主导，客户资金被违规转移至风险极高的关联实体。",
+      "evidence_quote": "Origins Origins and the relationship between FTX and Alameda In 2017, Sam Bankman-Fried (“SBF”) co-founded Alameda Research (“Alameda”), a crypto fund. Alameda became a prominent market maker on crypto exchanges. In 2019, SBF founded FTX, an crypto futures exchange built to meet the needs of serious traders (“by traders, for traders”). The FTX OTC desk was powered by Alameda and SBF was the CEO of both businesses. FTX launched it’s own token, “FTT”. FTT provided holders with a discount on trading fees and OTC rebates, with FTX buying back and ‘burning’ FTT tokens based on FTX profitability – reducing supply hence increasing token price. By 2021, FTX had become one of the largest and most popular exchanges for professional traders due to its fast listing of tokens, user-interface, and high liquidity (driving tighter spreads between bid and ask prices). FTX’s market leading liquidity was in part due to its unique liquidation engine which effectively acquired holdings from sellers in the event of a large liquidation event – thus preventing collapse of prices. The backstop for this liquidation engine was Alameda.",
+      "original_explanation": "Source shows FTX and Alameda were closely linked, with SBF founding FTX and Alameda, SBF serving as CEO of both, and Alameda backing FTX’s liquidation engine, supporting the core of the claim.",
+      "original_verdict": "supports",
+      "source_id": "source-cbcb8fb3f1a83fa9",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "aee831db6c2a64e15f7fff556094a07bc4bc74e2e7b00fd586c1d2f11acfa769",
+      "url": "https://assets.kpmg.com/content/dam/kpmg/sg/pdf/2022/12/the-collapse-of-ftx-1.pdf"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0041:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0041",
+      "claim_text": "2022年11月初开始，外部曝光Alameda持有大量FTT资产，引发市场恐慌和Binance减持事件，迅速触发资金链断裂和流动性危机。",
+      "evidence_quote": "Major concerns about FTX started when news outlet CoinDesk published an article that found a significant portion of Alameda Research's assets consisted of FTT, a token created by FTX that allows users of the exchange to access discounted trading fees.\nBecause FTT cannot be easily exchanged for cash, the report stoked fears about the capital reserves at Alameda Research and thus FTX.\nMORE: Billionaire donors are defecting from Trump. Here's who to watch.\nNov. 6 – In response to the article, Changpeng Zhao, the CEO of rival crypto exchange Binance, often referred to as \"CZ,\" said he would sell all of the company's holdings in FTT, which amount to $580 million worth of the token.\nThe major exit from a crypto heavyweight triggered a wider selloff, akin to a bank run, placing immense pressure on FTX to meet the sudden demand for customer withdrawals. Due to a lack of funds, FTX halted customer withdrawals altogether.",
+      "original_explanation": "The source says concerns began when CoinDesk exposed Alameda's large FTT holdings, which stoked fears, and Binance's planned sale triggered a wider selloff and withdrawals.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "516af3ebb83465d0d004a129459aad8cd73babc5b84baf8e11a8e61b4f9897d3",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0041:source-318a2b102dfd9682:1",
+      "claim_id": "claim-0041",
+      "claim_text": "2022年11月初开始，外部曝光Alameda持有大量FTT资产，引发市场恐慌和Binance减持事件，迅速触发资金链断裂和流动性危机。",
+      "evidence_quote": "2: Coindesk reports Alameda Reseach, Bankman-Fried’s cryptocurrency trading firm, holds a large amount of FTT, a token issued by FTX, suggesting the finances of the two are intertwined and Alameda faces a cash crunch. The report spooks participants in the crypto market.\nNov. 6: Rival cryptocurrency exchange Binance announces that the firm plans to sell all its holdings in FTT. The price of FTT tanks.",
+      "original_explanation": "Source says Coindesk reported Alameda held a large amount of FTT, the report spooked the market, Binance announced it would sell FTT, and the price tanked, matching the described chain leading into the crisis.",
+      "original_verdict": "supports",
+      "source_id": "source-318a2b102dfd9682",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "b7234d1d61603cde69706af08c4e447a2e1de54e43d92fffef14a53bd6cf9e91",
+      "url": "https://apnews.com/article/ftx-bankruptcy-binance-timeline-c519d50b9059aa8bff0ce8b6cd26c40e"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0042:source-9674d943a7c95f32:0",
+      "claim_id": "claim-0042",
+      "claim_text": "客户大量提取引发“银行挤兑”，促使FTX申请破产保护。",
+      "evidence_quote": "The major exit from a crypto heavyweight triggered a wider selloff, akin to a bank run, placing immense pressure on FTX to meet the sudden demand for customer withdrawals. Due to a lack of funds, FTX halted customer withdrawals altogether.",
+      "original_explanation": "The source says the selloff was akin to a bank run and that, due to lack of funds, FTX halted withdrawals before filing Chapter 11.",
+      "original_verdict": "supports",
+      "source_id": "source-9674d943a7c95f32",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "516af3ebb83465d0d004a129459aad8cd73babc5b84baf8e11a8e61b4f9897d3",
+      "url": "https://abcnews.com/amp/Business/timeline-cryptocurrency-exchange-ftxs-historic-collapse/story?id=93337035"
+    },
+    {
+      "audit_view": "post_edit",
+      "case_id": "finance-24:post_edit:claim-0042:source-4c496bf205b3e2ae:1",
+      "claim_id": "claim-0042",
+      "claim_text": "客户大量提取引发“银行挤兑”，促使FTX申请破产保护。",
+      "evidence_quote": "(AP Photo/Petros Giannakouris)\nFormer Greek anti-austerity leader Alexis Tsipras steps back into politics\n2 MIN READ\nFTX was the third-largest cryptocurrency exchange in the world when it filed for bankruptcy protection in November 2022 after it experienced the crypto equivalent of a bank run.\nCEO and founder Sam Bankman-Fried resigned when the exchange collapsed.",
+      "original_explanation": "The source says FTX filed for bankruptcy after experiencing the crypto equivalent of a bank run, and Bankman-Fried resigned when the exchange collapsed.",
+      "original_verdict": "supports",
+      "source_id": "source-4c496bf205b3e2ae",
+      "source_run_id": "finance-24",
+      "source_text_sha256": "4317161ab48f6a8cafbcabfae2868a6876ba29892a1991bd6f2f9e5394ef1186",
+      "url": "https://apnews.com/article/ftx-crypto-bankman-fried-creditor-6365ceb2565deb891da9b268db94b7a8"
+    }
+  ],
+  "cases_sha256": "7fb0161938bd8e532ca4509c435d5a012709ca4e47f96e05764fb1e6875e6382",
+  "gold": [
+    {
+      "case_id": "finance-24:post_edit:claim-0001:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0001:source-383c97c3c43dae57:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0002:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0003:source-cbcb8fb3f1a83fa9:0",
+      "rationale": "引文的日期是 10 Nov 2022，断言写 11 月 11 日；且引文只说 Ray 被任命、SBF 辞职，完全没有涉及「SBF 同时担任两家公司 CEO 直至破产」这一断言主干。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "does_not_support"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0003:source-383c97c3c43dae57:1",
+      "rationale": "引文的日期是 10 Nov 2022，断言写 11 月 11 日；且引文只说 Ray 被任命、SBF 辞职，完全没有涉及「SBF 同时担任两家公司 CEO 直至破产」这一断言主干。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "does_not_support"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0004:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0005:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0005:source-272b33412576de73:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0006:source-383c97c3c43dae57:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0007:source-318a2b102dfd9682:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0008:source-318a2b102dfd9682:0",
+      "rationale": "引文支持 11 月 6 日、宣布计划出售全部 FTT 持仓、FTT 价格暴跌三点，但完全没有 5.8 亿美元这个金额，也没有提现挤兑。引文对增加的部分沉默而非相反，故为证据不足而不是被反驳。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "not_enough_information"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0009:source-9674d943a7c95f32:0",
+      "rationale": "引文原文即「FTX reached a deal to sell itself to Binance」，就此引文而言断言成立。**核验判定是对的，错的是来源**——实际签署的是不具约束力的收购意向书。此条是关键对照：它把「来源不准」与「核验器不准」分开，任何把它判成 does_not_support 的尺子都会错误地惩罚一次正确的核验。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "supports"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0010:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0011:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0013:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0014:source-318a2b102dfd9682:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0015:source-318a2b102dfd9682:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0016:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0016:source-e52ed853c91a7e37:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0017:source-318a2b102dfd9682:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0017:source-cbcb8fb3f1a83fa9:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0018:source-272b33412576de73:0",
+      "rationale": "引文是「Bankman-Fried still owned 90% of Alameda」——SBF 持有 Alameda 的 90%。断言说的是 Alameda 持有 FTX 的 90%，主语与宾语互换，是另一个命题。两者共享 90%/Alameda/持股这些表层记号，正是细粒度不敏感的典型形态。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "does_not_support"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0019:source-e8b2a1e652fad62a:1",
+      "rationale": "引文「secretly transferred $10 billion of customer funds from FTX to ... Alameda Research」在方向、主体与量级上都与断言一致。正例对照。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "supports"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0020:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0020:source-272b33412576de73:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0021:source-318a2b102dfd9682:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0021:source-cbcb8fb3f1a83fa9:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0021:source-272b33412576de73:2",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0021:source-9e25115e131bdc5d:3",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0022:source-e8b2a1e652fad62a:1",
+      "rationale": "引文明说记账系统「was built using bespoke software」（定制软件），断言说是 QuickBooks。引文不是沉默而是相反，断言在这一点上被引文反驳。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "does_not_support"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0023:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0024:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0028:source-318a2b102dfd9682:0",
+      "rationale": "引文支持超过 130 家关联公司与 100–500 亿美元资产及相近负债，但没有「超过 10 万个债权人」与「近 100 万客户债权」。引文对这两项沉默。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "not_enough_information"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0028:source-383c97c3c43dae57:1",
+      "rationale": "引文支持超过 130 家关联公司与 100–500 亿美元资产及相近负债，但没有「超过 10 万个债权人」与「近 100 万客户债权」。引文对这两项沉默。",
+      "review_status": "provisional_model_review",
+      "reviewer": "claude-pm",
+      "verdict": "not_enough_information"
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0030:source-9e25115e131bdc5d:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0034:source-027851ac283fcaa7:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0035:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0035:source-195ff367765d21cb:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0036:source-272b33412576de73:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0040:source-cbcb8fb3f1a83fa9:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0041:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0041:source-318a2b102dfd9682:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0042:source-9674d943a7c95f32:0",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    },
+    {
+      "case_id": "finance-24:post_edit:claim-0042:source-4c496bf205b3e2ae:1",
+      "rationale": null,
+      "review_status": "pending_review",
+      "reviewer": null,
+      "verdict": null
+    }
+  ],
+  "schema_version": "verifier-challenge-review-v1",
+  "source_audit": "harness_runs/finance-24/audit.json",
+  "source_audit_sha256": "f2a926068e5c3954e5482321a9f80e7969d83c2924c0946ad3898781f35a7713"
+}

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from open_deep_research.harness.verifier_quality import (
     FrozenVerifierCase,
@@ -172,4 +173,62 @@ def test_candidate_predictions_cannot_skip_hard_cases() -> None:
             gold,
             original_verifier_predictions(cases[:-1]),
             system_id="incomplete-candidate",
+        )
+
+
+def test_a_provisional_model_label_is_never_scored_as_ground_truth():
+    """A model-drafted verdict must carry its work without claiming authority.
+
+    The two-state enum forced an annotator to choose between deleting the
+    annotation and calling a model label human-reviewed. The third state exists
+    so the label can be recorded and still stay out of the numerator.
+    """
+
+    case = FrozenVerifierCase(
+        case_id="c1",
+        source_run_id="finance-24",
+        audit_view="post_edit",
+        claim_id="claim-0018",
+        claim_text="Alameda owns 90% of FTX.",
+        source_id="source-1",
+        url="https://example.com/a",
+        source_text_sha256="0" * 64,
+        evidence_quote="Bankman-Fried still owned 90% of Alameda.",
+        original_verdict=VerificationVerdict.SUPPORTS,
+        original_explanation="matched 90% and Alameda",
+    )
+    gold = VerifierGold(
+        case_id="c1",
+        review_status=VerifierGoldStatus.PROVISIONAL_MODEL_REVIEW,
+        verdict=VerificationVerdict.DOES_NOT_SUPPORT,
+        reviewer="claude-pm",
+        rationale="the quote reverses subject and object",
+    )
+
+    metrics = evaluate_verifier_challenge(
+        cases=(case,),
+        gold=(gold,),
+        predictions=(
+            VerifierPrediction(
+                case_id="c1",
+                verdict=VerificationVerdict.DOES_NOT_SUPPORT,
+                explanation="reversed",
+            ),
+        ),
+        system_id="probe",
+    )
+
+    assert metrics.reviewed_case_ids == ()
+    assert metrics.pending_case_ids == ("c1",)
+    # A perfect prediction against a provisional label earns no accuracy.
+    assert metrics.accuracy is None
+
+
+def test_a_provisional_label_without_its_reasoning_is_rejected():
+    with pytest.raises(ValidationError, match="rationale"):
+        VerifierGold(
+            case_id="c1",
+            review_status=VerifierGoldStatus.PROVISIONAL_MODEL_REVIEW,
+            verdict=VerificationVerdict.DOES_NOT_SUPPORT,
+            reviewer="claude-pm",
         )
