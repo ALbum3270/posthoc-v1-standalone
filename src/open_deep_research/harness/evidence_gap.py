@@ -44,9 +44,7 @@ from open_deep_research.harness.notes import (
     create_note,
 )
 from open_deep_research.harness.tools import (
-    ProviderCallTimeoutError,
     SearchResult,
-    SourceReadError,
     TavilyClient,
     read_with_links,
     search,
@@ -2269,7 +2267,15 @@ async def run_evidence_gap_round(
                     if existing is not None
                     else source_read.cleaned_text
                 )
-            except (ProviderCallTimeoutError, SourceReadError) as exc:
+                if not cache_hit:
+                    ledger.cache_source(
+                        selection.url,
+                        source_text,
+                        source_links=source_read.source_links,
+                        link_capture=source_read.link_capture,
+                    )
+            except Exception as exc:  # noqa: BLE001 - one source must not lose the pass
+                error = f"{type(exc).__name__}: {exc}"
                 acquisitions.append(
                     GapSourceAcquisition(
                         url=selection.url,
@@ -2277,22 +2283,16 @@ async def run_evidence_gap_round(
                         publisher_identity=selection.publisher_identity,
                         cache_hit=False,
                         outcome="read_error",
-                        error=str(exc),
+                        error=error,
                     )
                 )
                 ledger.record_evidence_gap(
                     event=ledger_event("source_read_error"),
                     url=selection.url,
-                    result_summary=str(exc),
+                    result_summary=error,
                 )
                 continue
             if not cache_hit:
-                ledger.cache_source(
-                    selection.url,
-                    source_text,
-                    source_links=source_read.source_links,
-                    link_capture=source_read.link_capture,
-                )
                 added_source_urls.append(selection.url)
 
             if cache_hit:

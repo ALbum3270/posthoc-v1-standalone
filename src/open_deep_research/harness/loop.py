@@ -1612,6 +1612,17 @@ def _rejected_update(
 def _parse_decision(content: Any) -> _DecisionParse:
     try:
         decoded = _decode_json_content(content)
+        raw_decision_reason = (
+            decoded.get("decision_reason") if isinstance(decoded, Mapping) else None
+        )
+        # This is audit-only metadata.  A malformed optional rationale must not
+        # make an otherwise executable decision unusable.
+        decision_reason = (
+            raw_decision_reason.strip()
+            if isinstance(raw_decision_reason, str)
+            and raw_decision_reason.strip()
+            else None
+        )
         if isinstance(decoded, Mapping) and (
             "status_updates" in decoded
             or isinstance(decoded.get("action"), Mapping)
@@ -1666,6 +1677,7 @@ def _parse_decision(content: Any) -> _DecisionParse:
                     turn=DecisionTurn(
                         status_updates=tuple(valid_updates),
                         action=action,
+                        decision_reason=decision_reason,
                     ),
                     rejected_status_updates=tuple(rejected_updates),
                     rejected_action=rejected_action,
@@ -1679,7 +1691,16 @@ def _parse_decision(content: Any) -> _DecisionParse:
 
         # Preserve compatibility with already recorded scripted runs and simple
         # clients that still emit the original one-action protocol.
-        legacy = _ACTION_ADAPTER.validate_python(decoded)
+        legacy_input = (
+            {
+                key: value
+                for key, value in decoded.items()
+                if key != "decision_reason"
+            }
+            if isinstance(decoded, Mapping)
+            else decoded
+        )
+        legacy = _ACTION_ADAPTER.validate_python(legacy_input)
         if isinstance(legacy, SettleAction):
             return _DecisionParse(
                 turn=DecisionTurn(
@@ -1690,6 +1711,7 @@ def _parse_decision(content: Any) -> _DecisionParse:
                             reason="decision model settled the item",
                         ),
                     ),
+                    decision_reason=decision_reason,
                 ),
             )
         if isinstance(legacy, MarkExhaustedAction):
@@ -1702,9 +1724,15 @@ def _parse_decision(content: Any) -> _DecisionParse:
                             reason=legacy.reason,
                         ),
                     ),
+                    decision_reason=decision_reason,
                 ),
             )
-        return _DecisionParse(turn=DecisionTurn(action=legacy))
+        return _DecisionParse(
+            turn=DecisionTurn(
+                action=legacy,
+                decision_reason=decision_reason,
+            )
+        )
     except (json.JSONDecodeError, TypeError, ValidationError, ValueError) as exc:
         return _DecisionParse(
             turn=None,
@@ -1794,6 +1822,7 @@ def _prepare_decision(
             DecisionTurn(
                 status_updates=tuple(valid_updates),
                 action=action,
+                decision_reason=parsed.turn.decision_reason,
             ),
             None,
             rejection_audit,
@@ -3037,6 +3066,8 @@ async def run_research_loop(
             summary["rejected_status_updates"] = rejected_status_updates
         if rejected_action is not None:
             summary["rejected_action"] = rejected_action
+        if turn is not None and turn.decision_reason is not None:
+            summary["decision_reason"] = turn.decision_reason
         if candidate_audit_item_ids:
             summary["candidate_work"] = _candidate_work_state(
                 candidates,

@@ -121,6 +121,32 @@ def test_source_link_sidecar_round_trips_without_changing_canonical_text():
     assert restored.source_link_capture[url] == capture
 
 
+def test_rejected_source_link_sidecar_does_not_partially_cache_source():
+    url = "https://example.com/report"
+    ledger = ResearchLedger()
+    links = (
+        SourceLinkRecord(
+            target_url="https://records.example/filing.pdf",
+            label="Original filing",
+        ),
+    )
+    capture = SourceLinkCaptureAudit(
+        status=SourceLinkCaptureStatus.NO_LINKS_CAPTURED,
+    )
+
+    with pytest.raises(ValueError, match="count must equal"):
+        ledger.cache_source(
+            url,
+            "Canonical cleaned source text.",
+            source_links=links,
+            link_capture=capture,
+        )
+
+    assert ledger.get_source(url) is None
+    assert ledger.source_links == {}
+    assert ledger.source_link_capture == {}
+
+
 def test_historical_ledger_without_link_sidecar_remains_valid():
     restored = ResearchLedger.model_validate(
         {"source_cache": {"https://example.com/report": "Historical text."}}

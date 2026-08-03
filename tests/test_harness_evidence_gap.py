@@ -1287,6 +1287,91 @@ class SearchAndReadNetwork:
         }
 
 
+def test_cache_failure_for_one_gap_source_is_recorded_and_does_not_escape(
+    monkeypatch,
+):
+    """A ledger invariant failure is one failed acquisition, not a lost run."""
+
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    selected_url = "https://new.example/article"
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "one candidate",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": selected_url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "New Example",
+                    "independence_rationale": "A new publisher candidate.",
+                }
+            ]
+        },
+    )
+
+    original_cache_source = ResearchLedger.cache_source
+
+    def fail_selected_cache(self, url, cleaned_text, **kwargs):
+        if url == selected_url:
+            raise ValueError("synthetic cache invariant failure")
+        return original_cache_source(self, url, cleaned_text, **kwargs)
+
+    monkeypatch.setattr(ResearchLedger, "cache_source", fail_selected_cache)
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=SearchAndReadNetwork(selected_url),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    assert result.acquisitions[0].outcome == "read_error"
+    assert "ValueError: synthetic cache invariant failure" in (
+        result.acquisitions[0].error or ""
+    )
+    assert ledger.get_source(selected_url) is None
+    assert any(
+        event.event == "source_read_error"
+        and "synthetic cache invariant failure" in event.result_summary
+        for event in ledger.evidence_gap_history
+    )
+
+
 def test_grouped_read_rejects_only_claim_with_existing_publisher():
     """Finance-13 grouped one useful and one duplicate claim on one URL."""
 

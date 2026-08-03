@@ -208,6 +208,26 @@ def test_terminal_completion_and_model_stop_are_distinct_outcomes():
     assert stop_audit["open_item_ids"] == ["what-1", "how-1"]
 
 
+def test_decision_reason_is_retained_in_the_round_audit():
+    result, _, _, _ = run_loop(
+        [
+            envelope(
+                {
+                    "decision_reason": "The remaining questions need a new search route.",
+                    "status_updates": [],
+                    "action": {"action": "stop"},
+                }
+            )
+        ]
+    )
+
+    audit = json.loads(result.ledger.rounds[0].result_summary)
+
+    assert audit["decision_reason"] == (
+        "The remaining questions need a new search route."
+    )
+
+
 @pytest.mark.parametrize(
     ("budget", "decision", "stop_reason", "resource", "limit"),
     [

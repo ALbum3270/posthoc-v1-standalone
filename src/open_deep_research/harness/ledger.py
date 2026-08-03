@@ -356,49 +356,45 @@ class ResearchLedger(BaseModel):
         if existing is not None:
             if existing != cleaned_text:
                 raise ValueError(f"cached source changed for URL: {normalized_url}")
-            self._cache_source_link_sidecar(
-                normalized_url,
-                source_links=source_links,
-                link_capture=link_capture,
-            )
-            return False
-        self.source_cache[normalized_url] = cleaned_text
-        self._cache_source_link_sidecar(
+        normalized_links = self._validate_source_link_sidecar(
             normalized_url,
             source_links=source_links,
             link_capture=link_capture,
         )
-        return True
+        # All input and consistency checks precede mutation.  A rejected
+        # sidecar must not leave canonical text or only one sidecar map behind.
+        if existing is None:
+            self.source_cache[normalized_url] = cleaned_text
+        if normalized_links is not None:
+            self.source_links[normalized_url] = normalized_links
+            self.source_link_capture[normalized_url] = link_capture
+        return existing is None
 
-    def _cache_source_link_sidecar(
+    def _validate_source_link_sidecar(
         self,
         url: str,
         *,
         source_links: tuple[SourceLinkRecord, ...] | None,
         link_capture: SourceLinkCaptureAudit | None,
-    ) -> None:
+    ) -> tuple[SourceLinkRecord, ...] | None:
         if (source_links is None) is not (link_capture is None):
             raise ValueError(
                 "source links and link capture audit must be cached together"
             )
-        if source_links is not None:
-            normalized_links = tuple(source_links)
-            existing_links = self.source_links.get(url)
-            if existing_links is not None and existing_links != normalized_links:
-                raise ValueError(f"cached source links changed for URL: {url}")
-            self.source_links[url] = normalized_links
-        if link_capture is not None:
-            if (
-                source_links is not None
-                and link_capture.captured_link_count != len(source_links)
-            ):
-                raise ValueError(
-                    "link capture count must equal cached source link count"
-                )
-            existing_capture = self.source_link_capture.get(url)
-            if existing_capture is not None and existing_capture != link_capture:
-                raise ValueError(f"source link capture changed for URL: {url}")
-            self.source_link_capture[url] = link_capture
+        if source_links is None:
+            return None
+        normalized_links = tuple(source_links)
+        if link_capture.captured_link_count != len(normalized_links):
+            raise ValueError(
+                "link capture count must equal cached source link count"
+            )
+        existing_links = self.source_links.get(url)
+        if existing_links is not None and existing_links != normalized_links:
+            raise ValueError(f"cached source links changed for URL: {url}")
+        existing_capture = self.source_link_capture.get(url)
+        if existing_capture is not None and existing_capture != link_capture:
+            raise ValueError(f"source link capture changed for URL: {url}")
+        return normalized_links
 
     def get_source(self, url: str) -> str | None:
         """Return cached source text without refetching it."""
