@@ -670,6 +670,224 @@ class AuditEditorModel:
         }
 
 
+class AdjacentEvidenceWriteModel:
+    """Finance-20 shape: one supported sentence and one adjacent overclaim."""
+
+    original_draft = (
+        "# Report\n\n"
+        "The exchange used athlete endorsements. "
+        "This pushed it into mainstream finance."
+    )
+    edited_draft = "# Report\n\nThe exchange used athlete endorsements."
+
+    async def generate(self, prompt):
+        return {
+            "content": self.original_draft,
+            "token_count": 5,
+            "cost_usd": 0.01,
+        }
+
+
+class AdjacentEvidenceClaimModel:
+    """Build fresh one-block registries before and after the safe deletion."""
+
+    first_sentence = "The exchange used athlete endorsements."
+    second_sentence = "This pushed it into mainstream finance."
+
+    def __init__(self):
+        self.call_number = 0
+
+    async def generate(self, prompt):
+        self.call_number += 1
+        edited = self.call_number > 4
+        draft = (
+            AdjacentEvidenceWriteModel.edited_draft
+            if edited
+            else AdjacentEvidenceWriteModel.original_draft
+        )
+        blocks = parse_markdown_blocks(draft)
+        paragraph = blocks[1]
+        claim_texts = (
+            (self.first_sentence,)
+            if edited
+            else (self.first_sentence, self.second_sentence)
+        )
+        phase = self.call_number if self.call_number <= 4 else self.call_number - 4
+        if phase == 1:
+            content = {
+                "blocks": [
+                    {
+                        "block_id": blocks[0].block_id,
+                        "assertions": [],
+                        "rationale": "heading",
+                    },
+                    {
+                        "block_id": paragraph.block_id,
+                        "assertions": [
+                            {
+                                **_selection_pointer(draft, claim_text),
+                                "citation_requirement": "external",
+                            }
+                            for claim_text in claim_texts
+                        ],
+                        "rationale": "two adjacent external assertions",
+                    },
+                ]
+            }
+        elif phase == 2:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": f"claim-{index:04d}",
+                        "claim_text": claim_text,
+                        "context_spans": [],
+                    }
+                    for index, claim_text in enumerate(claim_texts, start=1)
+                ]
+            }
+        elif phase == 3:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": f"claim-{index:04d}",
+                        **_selection_pointer(draft, claim_text),
+                    }
+                    for index, claim_text in enumerate(claim_texts, start=1)
+                ]
+            }
+        else:
+            content = {
+                "claims": [
+                    {
+                        "claim_id": f"claim-{index:04d}",
+                        "status": "not_underspecified",
+                        "categories": [],
+                        "reason": "The assertion has explicit boundaries.",
+                    }
+                    for index in range(1, len(claim_texts) + 1)
+                ]
+            }
+        return {
+            "content": json.dumps(content),
+            "token_count": 5,
+            "cost_usd": 0.01,
+        }
+
+
+class AdjacentEvidenceAttributionModel:
+    """Leave the adjacent overclaim unresolved while citing its sibling."""
+
+    def __init__(self):
+        self.prompts = []
+
+    async def generate(self, prompt):
+        self.prompts.append(prompt)
+        note_ref = re.search(r"nref-[0-9a-f]{16}", prompt)
+        assert note_ref is not None
+        claims = [
+            {
+                "claim_id": "claim-0001",
+                "candidates": [
+                    {
+                        "note_ref": note_ref.group(0),
+                        "inherited_from_claim_id": None,
+                    }
+                ],
+            }
+        ]
+        if "claim-0002" in prompt:
+            claims.append({"claim_id": "claim-0002", "candidates": []})
+        return {
+            "content": json.dumps(
+                {"action": "attribute", "claims": claims}
+            ),
+            "token_count": 7,
+            "cost_usd": 0.02,
+        }
+
+
+class AdjacentEvidenceVerificationModel:
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, prompt):
+        self.calls += 1
+        return {
+            "content": json.dumps(
+                {
+                    "results": [
+                        {
+                            "claim_id": "claim-0001",
+                            "verdict": "supports",
+                            "start_segment_id": "S000001",
+                            "end_segment_id": "S000001",
+                            "explanation": (
+                                "The source directly states the retained fact."
+                            ),
+                        }
+                    ]
+                }
+            ),
+            "token_count": 8,
+            "cost_usd": 0.01,
+        }
+
+
+class AdjacentEvidenceEditorModel:
+    def __init__(self):
+        self.prompts = []
+
+    async def generate(self, prompt):
+        self.prompts.append(prompt)
+        return {
+            "content": json.dumps(
+                {
+                    "blocks": [
+                        {
+                            "block_id": "block-0002",
+                            "replacement_text": (
+                                "The exchange used athlete endorsements."
+                            ),
+                            "decisions": [
+                                {
+                                    "claim_id": "claim-0002",
+                                    "action": "remove",
+                                    "reason": (
+                                        "The interpretive extension has no "
+                                        "candidate source and is dispensable."
+                                    ),
+                                }
+                            ],
+                        }
+                    ]
+                }
+            ),
+            "token_count": 6,
+            "cost_usd": 0.01,
+        }
+
+
+class AdjacentEvidenceTavily:
+    def __init__(self, url):
+        self.url = url
+
+    async def search(self, query, **kwargs):
+        raise AssertionError("search should not be called")
+
+    async def extract(self, urls, **kwargs):
+        assert urls == [self.url]
+        return {
+            "results": [
+                {
+                    "url": self.url,
+                    "raw_content": (
+                        "The exchange used athlete endorsements."
+                    ),
+                }
+            ]
+        }
+
+
 class TwoBlockAuditWriteModel:
     async def generate(self, prompt):
         return {
@@ -977,16 +1195,14 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     final_markdown = result.report_path.read_text(encoding="utf-8")
     sources_markdown = result.sources_path.read_text(encoding="utf-8")
     assert final_markdown == result.rendered_report.markdown
-    assert final_markdown.startswith(
-        "> **质量审核状态：未完成独立质量审核。**"
-    )
-    assert "`pipeline_complete` 只表示规定流程已执行" in final_markdown
-    assert "> 证据包：" in final_markdown
+    assert "质量审核状态" not in final_markdown
+    assert "`pipeline_complete` 只表示规定流程已执行" not in final_markdown
+    assert "> 证据包：" not in final_markdown
     assert (
         "缺失逐字证据、提交标记或摘要不符则证据包不完整"
-        in final_markdown
+        not in final_markdown
     )
-    assert "正文块评估 2/2" in final_markdown
+    assert "正文块评估 2/2" not in final_markdown
     assert (
         "证据状态：本报告没有任何可定位的正式支持关系"
         in final_markdown
@@ -995,13 +1211,13 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert "Run ID：`fixed-run`" in sources_markdown
     assert "[report.md](report.md)" in sources_markdown
     assert (
-        "> 域名代理集中度：没有正式 claim–source 支持关系；"
+        "域名代理集中度：没有正式 claim–source 支持关系；"
         "域名仅作发布方代理。"
-    ) in final_markdown
+    ) in sources_markdown
     assert (
-        "> 清单内容覆盖（不表示来源支持）："
+        "清单内容覆盖（不表示来源支持）："
         "已评估 1/1；完整覆盖 1/1"
-    ) in final_markdown
+    ) in sources_markdown
     assert (
         "The model wrote this report.〔未找到候选来源〕"
         in final_markdown
@@ -1009,6 +1225,9 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     assert "- Status: settled" in writer.prompts[0]
 
     audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    assert audit["posthoc_evidence"]["rendering"][
+        "reader_render_contract"
+    ] == "posthoc-evidence-v1.1-clean-reader"
     assert audit["canonical_draft"] == (
         "# Report\n\nThe model wrote this report."
     )
@@ -1357,21 +1576,19 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     sources_markdown = result.sources_path.read_text(encoding="utf-8")
     assert "The model wrote this report.[^1]" in markdown
     assert "〔单一发布方支持〕" not in markdown
-    assert (
-        "> 图例：带脚注且无额外状态标签 = "
-        "至少一个来源提供了可定位支持引文；"
-        "域名代理数量不表示来源独立"
-    ) in markdown
+    assert "图例：带脚注且无额外状态标签" not in markdown
+    assert "图例：带脚注且无额外状态标签" in sources_markdown
     assert markdown.count("[^1]:") == 1
     assert "ExactSourceEvidence 2026" not in markdown
     assert "ExactSourceEvidence 2026" in sources_markdown
     assert "exact source evidence 2026." not in markdown
     assert "exact source evidence 2026." not in sources_markdown
     assert (
-        "[逐字证据]"
+        "[证据摘录]"
         "(sources.md#evidence-1)"
         in markdown
     )
+    assert "[evidence.example][source-1]" in markdown
     assert '<a id="evidence-1"></a>' in sources_markdown
     assert "source_id" not in sources_markdown
     assert "start_char" not in sources_markdown
@@ -1484,6 +1701,83 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
         "post_edit_initial_verification",
         "post_edit_checklist_reconciliation",
     ]
+
+
+def test_runner_edits_no_candidate_claim_using_adjacent_block_evidence(
+    tmp_path,
+):
+    """Finance-20 regression: an unrouted sibling must reach the editor."""
+
+    events = []
+    url = "https://evidence.example/endorsements"
+    claim_model = AdjacentEvidenceClaimModel()
+    attribution_model = AdjacentEvidenceAttributionModel()
+    verifier = AdjacentEvidenceVerificationModel()
+    editor = AdjacentEvidenceEditorModel()
+
+    result = asyncio.run(
+        run_harness(
+            "Explain how the exchange marketed itself.",
+            checklist_model=ChecklistModel(events),
+            decision_model=ReadThenSettleDecisionModel(events, url),
+            note_model=OneNoteModel(events),
+            write_model=AdjacentEvidenceWriteModel(),
+            claim_model=claim_model,
+            reconciliation_model=CoverageModel(events),
+            attribution_model=attribution_model,
+            verification_model=verifier,
+            editor_model=editor,
+            tavily_client=AdjacentEvidenceTavily(url),
+            budget=LoopBudget(max_rounds=3, max_tokens=100, max_cost_usd=1),
+            output_dir=tmp_path,
+            run_id="adjacent-no-candidate-edit",
+        )
+    )
+
+    assert result.editorial_admission is not None
+    assert result.editorial_admission.target_claim_ids == ("claim-0002",)
+    assert result.editorial_admission.eligible_target_claim_ids == (
+        "claim-0002",
+    )
+    assert result.editorial_revision is not None
+    assert result.editorial_revision.committed_after_reaudit is True
+    assert result.report.canonical_draft == AdjacentEvidenceWriteModel.edited_draft
+    assert claim_model.call_number == 8
+    assert len(attribution_model.prompts) == 2
+    assert verifier.calls == 2
+    assert len(editor.prompts) == 1
+    assert '"evidence_state": "no_candidate_source"' in editor.prompts[0]
+    assert (
+        '"source_quote": "The exchange used athlete endorsements."'
+        in editor.prompts[0]
+    )
+    assert (
+        AdjacentEvidenceClaimModel.second_sentence
+        not in result.rendered_report.markdown
+    )
+    assert "〔未找到候选来源〕" not in result.rendered_report.markdown
+
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    posthoc = audit["posthoc_evidence"]
+    initial_claims = posthoc["pre_edit_evidence"]["verification"]["claims"]
+    assert [claim["state"] for claim in initial_claims] == [
+        "supported_single_domain_proxy",
+        "no_candidate_source",
+    ]
+    assert [
+        claim["claim"]["claim_id"]
+        for claim in posthoc["verification"]["claims"]
+    ] == ["claim-0001"]
+    for stage in (
+        "audit_editing",
+        "post_edit_claim_decomposition",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
+    ):
+        assert posthoc["stage_execution"]["stages"][stage]["status"] == (
+            "complete"
+        )
 
 
 def test_runner_reaudits_whole_draft_after_partial_block_edit(tmp_path):
@@ -1734,6 +2028,7 @@ def test_cli_separates_run_cost_limit_from_collection_subcap() -> None:
     assert args.evidence_recovery_max_cost_usd == 0.07
     assert args.evidence_recovery_max_searches == 2
     assert args.evidence_recovery_max_reads == 1
+    assert args.reader_report_style == "clean-reader-v2"
     # argparse rewraps help text to the terminal width, so compare on
     # whitespace-normalised text rather than pinning a line break.
     help_text = " ".join(harness_cli.build_parser().format_help().split())
@@ -1853,6 +2148,7 @@ def test_cli_enables_recovery_and_passes_its_independent_budget(monkeypatch):
     )
     assert kwargs["run_cost_budget"].max_cost_usd == args.max_cost_usd
     assert kwargs["model_names"]["recovery"] == "recovery"
+    assert kwargs["reader_report_style"].value == "clean-reader-v2"
 
 
 def test_cli_defaults_reconciliation_to_attribution_tier(monkeypatch):

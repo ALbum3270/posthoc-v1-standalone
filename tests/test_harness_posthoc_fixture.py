@@ -266,7 +266,7 @@ def test_atomic_v1_examples_are_unique_verbatim_report_anchors() -> None:
     assert "His parents" in cases[2]["anchor_text"]
 
 
-def test_contract_has_one_annotated_report_and_no_evaluation_variant() -> None:
+def test_contract_has_one_reader_report_and_versioned_presentation() -> None:
     contract = _CONTRACT_PATH.read_text(encoding="utf-8")
 
     assert "one reader-facing report" in contract
@@ -275,6 +275,9 @@ def test_contract_has_one_annotated_report_and_no_evaluation_variant() -> None:
     assert "not a second\nreport variant" in contract
     assert "audit last as the completion marker" in contract
     assert "report.evaluation.md" not in contract
+    assert "clean-reader-v2" in contract
+    assert "audit-annotated-v1" in contract
+    assert "changes presentation,\nnot the claim registry" in contract
     assert "may not be removed or weakened" in contract
     assert "canonical narrative draft without citations" in contract
     assert "note/source handles" in contract

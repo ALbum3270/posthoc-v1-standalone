@@ -15,6 +15,12 @@ The executable entry point is `run_harness.py`. Its pipeline is:
 6. optional audited editing followed by a complete re-audit when bytes change;
 7. deterministic report, source companion, and audit publication.
 
+The default reader artifact uses `clean-reader-v2`: `report.md` contains the
+narrative, compact citations, and only material unresolved warnings;
+`sources.md` carries full quotes and mechanical audit summaries; `audit.json`
+retains the complete machine state. Historical presentation remains available
+with `--reader-report-style audit-annotated-v1`.
+
 The semantic choices remain model-owned. Code enforces only protocol identity,
 source/span fidelity, resource limits, recoverable failure records, and artifact
 integrity. The normative post-draft rules are frozen in

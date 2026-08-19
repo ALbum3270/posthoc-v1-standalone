@@ -19,6 +19,7 @@ from open_deep_research.harness.source_provenance import (
 )
 from open_deep_research.harness.render import (
     InitialCollectionSnapshot,
+    ReaderReportStyle,
     render_verified_report,
 )
 from open_deep_research.harness.verify import (
@@ -246,6 +247,49 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
         "sources_sha256_matches": True,
         "unique_source_url_count": 1,
     }
+
+
+def test_clean_reader_report_moves_audit_presentation_to_companion() -> None:
+    draft = "A supported assertion."
+    claim = _claim(draft, "claim-1", draft)
+    evidence = _support("claim-1")
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                claim,
+                ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER,
+                evidence,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(
+        draft,
+        verification,
+        reader_report_style=ReaderReportStyle.CLEAN,
+    )
+
+    assert rendered.reader_report_style is ReaderReportStyle.CLEAN
+    assert rendered.reader_render_contract == (
+        "posthoc-evidence-v1.1-clean-reader"
+    )
+    assert rendered.markdown.startswith("A supported assertion.[^1]")
+    assert "> 证据包：" not in rendered.markdown
+    assert "证据摘要：" not in rendered.markdown
+    assert "图例：" not in rendered.markdown
+    assert "清单内容覆盖" not in rendered.markdown
+    assert (
+        "[^1]: [source.example][source-1] · "
+        "[证据摘录](report.sources.md#evidence-1)"
+    ) in rendered.markdown
+    assert "## 机械审计摘要" in rendered.sources_markdown
+    assert rendered.footnote_format_line in rendered.sources_markdown
+    assert "语义关系 · 逐字证据 · 原文" not in rendered.sources_markdown
+    assert rendered.evidence_summary_line.removeprefix("> ") in (
+        rendered.sources_markdown
+    )
+    assert "Exact source-authored evidence." in rendered.sources_markdown
+    assert rendered.bundle_validation.sources_sha256_matches is True
 
 
 def test_url_references_are_deduplicated_by_first_footnote_occurrence() -> None:

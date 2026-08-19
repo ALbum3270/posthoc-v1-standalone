@@ -7,6 +7,7 @@ import json
 import re
 from collections import defaultdict
 from collections.abc import Sequence
+from enum import Enum
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
@@ -51,6 +52,23 @@ _NO_FORMAL_SUPPORT_LINE = (
     "> **证据状态：本报告没有任何可定位的正式支持关系。"
     "下列清单内容覆盖只表示正文讨论了相应调查项，"
     "不表示相关陈述获得来源支持。**"
+)
+
+
+class ReaderReportStyle(str, Enum):
+    """Versioned separation between reader prose and audit presentation."""
+
+    AUDIT_ANNOTATED = "audit-annotated-v1"
+    CLEAN = "clean-reader-v2"
+
+
+_READER_RENDER_CONTRACT = {
+    ReaderReportStyle.AUDIT_ANNOTATED: "posthoc-evidence-v1",
+    ReaderReportStyle.CLEAN: "posthoc-evidence-v1.1-clean-reader",
+}
+
+_CLEAN_FOOTNOTE_FORMAT_LINE = (
+    "脚注格式：发布方链接 · 证据摘录；语义关系与完整逐字证据见伴随文件。"
 )
 
 
@@ -282,6 +300,8 @@ class RenderedReport(BaseModel):
 
     markdown: str
     sources_markdown: str
+    reader_report_style: ReaderReportStyle
+    reader_render_contract: str
     report_filename: str
     sources_filename: str
     audit_filename: str
@@ -328,14 +348,19 @@ def _render_sources_document(
     run_id: str,
     report_filename: str,
     source_alias_by_url: dict[str, str],
+    audit_lines: Sequence[str] = (),
 ) -> str:
     lines = [
-        "# 逐字证据",
+        "# 证据与审计伴随文件" if audit_lines else "# 逐字证据",
         "",
         f"- Run ID：`{run_id}`",
         f"- 对应报告：[{report_filename}]({report_filename})",
         "- 说明：域名仅作发布方代理，不代表机构独立性认定。",
     ]
+    if audit_lines:
+        lines.extend(["", "## 机械审计摘要", ""])
+        lines.extend(line.removeprefix("> ") for line in audit_lines)
+        lines.extend(["", "## 逐字证据"])
     for footnote in footnotes:
         lines.extend(
             [
@@ -382,6 +407,7 @@ def _validate_evidence_bundle(
     *,
     sources_filename: str,
     sources_sha256: str,
+    reader_report_style: ReaderReportStyle,
 ) -> EvidenceBundleValidation:
     definitions = [
         match.group(1)
@@ -426,8 +452,13 @@ def _validate_evidence_bundle(
         if footnote.source_quote not in section:
             quote_complete = False
             break
+        link_label = (
+            "逐字证据"
+            if reader_report_style is ReaderReportStyle.AUDIT_ANNOTATED
+            else "证据摘录"
+        )
         link = (
-            f"[逐字证据]"
+            f"[{link_label}]"
             f"({sources_filename}#evidence-{footnote.number})"
         )
         definition_line = next(
@@ -440,8 +471,11 @@ def _validate_evidence_bundle(
         )
         if link not in definition_line:
             links_complete = False
+        alias = source_alias_by_url[footnote.url]
         expected_url_link = (
-            f"[原文][{source_alias_by_url[footnote.url]}]"
+            f"[原文][{alias}]"
+            if reader_report_style is ReaderReportStyle.AUDIT_ANNOTATED
+            else f"[{footnote.publisher_domain_proxy}][{alias}]"
         )
         if expected_url_link not in definition_line:
             url_links_complete = False
@@ -1002,11 +1036,18 @@ def render_verified_report(
     report_filename: str = "report.md",
     sources_filename: str = "report.sources.md",
     audit_filename: str = "report.json",
+    reader_report_style: ReaderReportStyle = (
+        ReaderReportStyle.AUDIT_ANNOTATED
+    ),
 ) -> RenderedReport:
     """Insert code-owned evidence markers without rewriting narrative text."""
 
     if not isinstance(canonical_draft, str):
         raise TypeError("canonical_draft must be text")
+    try:
+        reader_report_style = ReaderReportStyle(reader_report_style)
+    except ValueError as exc:
+        raise ValueError("unknown reader report style") from exc
     if settled_without_located_evidence < 0:
         raise ValueError(
             "settled_without_located_evidence must be non-negative"
@@ -1272,11 +1313,32 @@ def render_verified_report(
             evidence_status_line += " **初次采集阶段未取得任何原文。**"
     else:
         evidence_status_line = None
+    cutoff_line = _render_cutoff_line(stop_diagnostic)
+    footnote_format_line = (
+        _FOOTNOTE_FORMAT_LINE
+        if reader_report_style is ReaderReportStyle.AUDIT_ANNOTATED
+        else _CLEAN_FOOTNOTE_FORMAT_LINE
+    )
+    companion_audit_lines = [summary_line]
+    if cutoff_line is not None:
+        companion_audit_lines.insert(0, cutoff_line)
+    if evidence_status_line is not None:
+        companion_audit_lines.insert(0, evidence_status_line)
+    if concentration_line is not None:
+        companion_audit_lines.append(concentration_line)
+    companion_audit_lines.extend(
+        [footnote_format_line, _EVIDENCE_LEGEND_LINE, checklist_line]
+    )
     sources_markdown = _render_sources_document(
         footnotes,
         run_id=run_id,
         report_filename=report_filename,
         source_alias_by_url=source_alias_by_url,
+        audit_lines=(
+            companion_audit_lines
+            if reader_report_style is ReaderReportStyle.CLEAN
+            else ()
+        ),
     )
     sources_sha256 = hashlib.sha256(
         sources_markdown.encode("utf-8")
@@ -1288,31 +1350,55 @@ def render_verified_report(
         f"[{audit_filename}]({audit_filename})；"
         "缺失逐字证据、提交标记或摘要不符则证据包不完整。"
     )
-    header_lines = [bundle_line]
-    cutoff_line = _render_cutoff_line(stop_diagnostic)
-    if cutoff_line is not None:
-        header_lines.append(cutoff_line)
-    if evidence_status_line is not None:
-        header_lines.append(evidence_status_line)
-    header_lines.append(summary_line)
-    if concentration_line is not None:
-        header_lines.append(concentration_line)
-    header_lines.extend(
-        [_FOOTNOTE_FORMAT_LINE, _EVIDENCE_LEGEND_LINE, checklist_line]
-    )
-    rendered = "\n".join(header_lines) + "\n\n" + body
-    if footnotes:
-        definitions = [
-            (
-                f"[^{footnote.number}]: "
-                f"`{footnote.publisher_domain_proxy}` · "
-                f"{_verdict_label(footnote.semantic_verdicts)} · "
-                "[逐字证据]"
-                f"({sources_filename}#evidence-{footnote.number}) · "
-                f"[原文][{source_alias_by_url[footnote.url]}]"
-            )
-            for footnote in footnotes
+    if reader_report_style is ReaderReportStyle.AUDIT_ANNOTATED:
+        header_lines = [bundle_line]
+        if cutoff_line is not None:
+            header_lines.append(cutoff_line)
+        if evidence_status_line is not None:
+            header_lines.append(evidence_status_line)
+        header_lines.append(summary_line)
+        if concentration_line is not None:
+            header_lines.append(concentration_line)
+        header_lines.extend(
+            [_FOOTNOTE_FORMAT_LINE, _EVIDENCE_LEGEND_LINE, checklist_line]
+        )
+    else:
+        # Reader prose stays clean. Only material run-level uncertainty remains
+        # visible here; exhaustive counts and definitions live in sources/audit.
+        header_lines = [
+            line
+            for line in (cutoff_line, evidence_status_line)
+            if line is not None
         ]
+    rendered = (
+        "\n".join(header_lines) + "\n\n" + body
+        if header_lines
+        else body
+    )
+    if footnotes:
+        if reader_report_style is ReaderReportStyle.AUDIT_ANNOTATED:
+            definitions = [
+                (
+                    f"[^{footnote.number}]: "
+                    f"`{footnote.publisher_domain_proxy}` · "
+                    f"{_verdict_label(footnote.semantic_verdicts)} · "
+                    "[逐字证据]"
+                    f"({sources_filename}#evidence-{footnote.number}) · "
+                    f"[原文][{source_alias_by_url[footnote.url]}]"
+                )
+                for footnote in footnotes
+            ]
+        else:
+            definitions = [
+                (
+                    f"[^{footnote.number}]: "
+                    f"[{footnote.publisher_domain_proxy}]"
+                    f"[{source_alias_by_url[footnote.url]}] · "
+                    "[证据摘录]"
+                    f"({sources_filename}#evidence-{footnote.number})"
+                )
+                for footnote in footnotes
+            ]
         url_definitions = [
             f"[{alias}]: <{url}>"
             for url, alias in source_alias_by_url.items()
@@ -1333,10 +1419,13 @@ def render_verified_report(
         footnotes,
         sources_filename=sources_filename,
         sources_sha256=sources_sha256,
+        reader_report_style=reader_report_style,
     )
     return RenderedReport(
         markdown=rendered,
         sources_markdown=sources_markdown,
+        reader_report_style=reader_report_style,
+        reader_render_contract=_READER_RENDER_CONTRACT[reader_report_style],
         report_filename=report_filename,
         sources_filename=sources_filename,
         audit_filename=audit_filename,
@@ -1346,7 +1435,7 @@ def render_verified_report(
         evidence_status_line=evidence_status_line,
         evidence_summary_line=summary_line,
         evidence_legend_line=_EVIDENCE_LEGEND_LINE,
-        footnote_format_line=_FOOTNOTE_FORMAT_LINE,
+        footnote_format_line=footnote_format_line,
         checklist_coverage_line=checklist_line,
         domain_proxy_concentration_line=concentration_line,
         summary=summary,

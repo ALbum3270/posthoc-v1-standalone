@@ -26,6 +26,7 @@ from open_deep_research.harness.disagreement import (
     PosthocRetrievalBudget,
 )
 from open_deep_research.harness.evidence_gap import EvidenceGapBudget
+from open_deep_research.harness.render import ReaderReportStyle
 from open_deep_research.harness.runner import HarnessRunResult, run_harness
 
 _OPENROUTER_PROXY = "http://127.0.0.1:7890"
@@ -565,6 +566,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("harness_runs"),
     )
+    parser.add_argument(
+        "--reader-report-style",
+        choices=tuple(style.value for style in ReaderReportStyle),
+        default=ReaderReportStyle.CLEAN.value,
+        help=(
+            "reader artifact presentation. clean-reader-v2 keeps exhaustive "
+            "audit metadata in sources.md/audit.json; audit-annotated-v1 "
+            "replays the frozen historical presentation"
+        ),
+    )
     parser.add_argument("--run-id")
     return parser
 
@@ -656,6 +667,7 @@ async def _run(args: argparse.Namespace) -> HarnessRunResult:
                 "editorial": clients.editor_model_name,
                 "recovery": clients.recovery_model_name,
             },
+            reader_report_style=ReaderReportStyle(args.reader_report_style),
         )
     finally:
         await clients.close()

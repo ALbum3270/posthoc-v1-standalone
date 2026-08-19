@@ -1,30 +1,40 @@
 # Harness post-hoc evidence contract
 
-Version: `posthoc-evidence-v1`
+Evidence contract: `posthoc-evidence-v1`
+
+Reader render contracts:
+
+- `audit-annotated-v1` / `posthoc-evidence-v1` (historical replay)
+- `clean-reader-v2` / `posthoc-evidence-v1.1-clean-reader` (default)
 
 This contract governs the report-writing and evidence-verification stages that
 follow collection. It is intentionally independent of any research topic.
 Changes to a frozen rule require a new contract version and re-evaluation of
 every frozen report fixture.
 
-## One report, with a mandatory evidence companion
+## One reader report, with a mandatory evidence companion
 
 Each complete run is a three-file bundle: one reader-facing report,
 `<run_id>.md`; its full verbatim evidence companion,
 `<run_id>.sources.md`; and its audit JSON. The sources file is not a second
-report variant for automated judging. Human reviewers read the same annotated
-report that readers receive and may follow any footnote to the companion.
+report variant for automated judging. It is the exhaustive evidence and
+mechanical-audit surface; readers may follow any report footnote to it.
 
 The canonical draft is retained inside the audit solely to reproduce
 `anchor_text` locations and diagnose deterministic rendering. It is not
 emitted as another report and is not a review surface.
 
-Evidence labels, the evidence summary, and a compact local definition for
-every mechanically generated footnote must remain visible in the report.
-Full, untruncated verbatim quotes may live in the mandatory companion but
-may not be removed or weakened merely to improve aesthetics or reviewer
-scores. This rule protects readers from presentation pressure that would
-otherwise hide uncertainty.
+The default `clean-reader-v2` report keeps ordinary source footnotes plus
+material claim-level exceptions and run-level incompleteness. Aggregate
+evidence counts, domain-proxy concentration, checklist reconciliation, legends,
+and operational status live in the mandatory companion and audit. Full,
+untruncated verbatim quotes may live in the companion but may not be removed or weakened
+merely to improve aesthetics or reviewer scores.
+
+`audit-annotated-v1` retains the former fully annotated report byte contract
+for frozen-fixture replay. Selecting the clean contract changes presentation,
+not the claim registry, verification results, editorial scope, or publication
+integrity rules.
 
 ## Post-hoc attribution
 
@@ -142,16 +152,19 @@ Missing, duplicate, malformed, or failed model output remains
 
 ## Reader-visible rendering
 
-The report starts with an evidence summary that separately counts claims with
-zero, one, or multiple supporting publisher-domain proxies. A fixed legend
-states that a footnote without an additional inline status label means one
-publisher supplied a locatable supporting quote. This rule is invariant across
-reports and never changes in response to label prevalence. Multi-publisher
-support and every exceptional evidence state remain visible at the claim
-anchor. One-publisher support is a factual evidence state, not a failed
-threshold. `corroboration_target` is a gap-round resource priority signal; the
-renderer never reads it. `corroborated` remains reserved for support from at
-least two publisher-domain proxies.
+Under `clean-reader-v2`, the report starts with model-authored narrative unless
+the run was materially curtailed or obtained no formal support. Ordinary
+support appears as a compact publisher link and companion-evidence link.
+Exceptional evidence states remain visible at the claim anchor. The companion
+separately records zero, one, and multiple supporting publisher-domain proxies,
+the fixed legend, checklist coverage, and concentration diagnostics.
+
+Under `audit-annotated-v1`, the report retains the historical evidence header
+and verbose footnote definition. In both modes, one-publisher support is a
+factual evidence state, not a failed threshold. `corroboration_target` is a
+gap-round resource priority signal; the renderer never reads it.
+`corroborated` remains reserved for support from at least two independently
+assessed lineages.
 
 Footnote identifiers are assigned in deterministic anchor, claim, and source
 order. A compact report definition identifies the publisher-domain proxy,

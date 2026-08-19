@@ -97,6 +97,7 @@ from open_deep_research.harness.loop import (
 )
 from open_deep_research.harness.render import (
     InitialCollectionSnapshot,
+    ReaderReportStyle,
     RenderedReport,
     render_verified_report,
 )
@@ -880,10 +881,12 @@ async def run_harness(
     output_dir: str | Path = Path("harness_runs"),
     run_id: str | None = None,
     model_names: Mapping[str, str] | None = None,
+    reader_report_style: ReaderReportStyle = ReaderReportStyle.CLEAN,
 ) -> HarnessRunResult:
     """Run collection, drafting, post-hoc evidence, and artifact rendering."""
 
     normalized_run_id = _normalize_run_id(run_id)
+    reader_report_style = ReaderReportStyle(reader_report_style)
     report_filename = "report.md"
     sources_filename = "sources.md"
     audit_filename = "audit.json"
@@ -2690,6 +2693,7 @@ async def run_harness(
         report_filename=report_filename,
         sources_filename=sources_filename,
         audit_filename=audit_filename,
+        reader_report_style=reader_report_style,
     )
     stage_records["deterministic_rendering"] = _scope_record(
         status=StageExecutionStatus.COMPLETE,
@@ -2712,7 +2716,10 @@ async def run_harness(
         stage_records,
         mandatory_stages=mandatory_pipeline_stages,
     )
-    if post_draft_execution.quality_review_passed is None:
+    if (
+        post_draft_execution.quality_review_passed is None
+        and reader_report_style is ReaderReportStyle.AUDIT_ANNOTATED
+    ):
         quality_warning = (
             "> **质量审核状态：未完成独立质量审核。** "
             "`pipeline_complete` 只表示规定流程已执行，"
