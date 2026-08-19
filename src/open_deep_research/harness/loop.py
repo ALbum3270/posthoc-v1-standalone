@@ -1584,6 +1584,27 @@ def _best_effort_usage(response: Any) -> tuple[int, float]:
     return safe_tokens, safe_cost
 
 
+def _last_model_usage(client: object) -> tuple[int, float]:
+    """Recover charged usage when a provider raises after producing output."""
+
+    current = client
+    seen: set[int] = set()
+    while id(current) not in seen:
+        seen.add(id(current))
+        raw = getattr(current, "last_usage", None)
+        if callable(raw):
+            raw = raw()
+        if isinstance(raw, Mapping):
+            return _best_effort_usage(raw)
+        wrapped = getattr(current, "_model_client", None)
+        if wrapped is None:
+            wrapped = getattr(current, "envelope_model", None)
+        if wrapped is None:
+            break
+        current = wrapped
+    return 0, 0.0
+
+
 def _parse_envelope(response: Any) -> tuple[ModelEnvelope | None, str | None]:
     try:
         return ModelEnvelope.model_validate(response), None
@@ -2241,23 +2262,26 @@ async def _extract_notes(
     source_span_registry = build_source_span_registry(source_text)
     note_response: Any = None
     note_call_error: str | None = None
+    note_prompt = build_note_prompt(
+        checklist,
+        active_item_id=active_item_id,
+        url=url,
+        source_text=source_text,
+        max_cross_item_seeds=max_cross_item_seeds,
+        source_span_registry=source_span_registry,
+    )
     try:
         note_response = await _generate(
             note_model,
-            build_note_prompt(
-                checklist,
-                active_item_id=active_item_id,
-                url=url,
-                source_text=source_text,
-                max_cross_item_seeds=max_cross_item_seeds,
-                source_span_registry=source_span_registry,
-            ),
+            note_prompt,
         )
     except Exception as exc:  # noqa: BLE001 - auditable model turn
         note_call_error = f"note model error: {exc}"
 
     note_envelope, note_envelope_error = _parse_envelope(note_response)
     note_tokens, note_cost = _best_effort_usage(note_response)
+    if note_call_error is not None:
+        note_tokens, note_cost = _last_model_usage(note_model)
     if note_envelope is not None:
         note_tokens = note_envelope.token_count
         note_cost = note_envelope.cost_usd
@@ -2351,7 +2375,6 @@ async def _extract_notes(
                 f"{max_cross_item_seeds}"
             )
             continue
-        cross_item_ids.add(draft.item_id)
         note, error, rejection = retain(draft)
         if note is None:
             cross_errors.append(f"{prefix} could not be retained: {error}")
@@ -2365,7 +2388,120 @@ async def _extract_notes(
                     }
                 )
             continue
+        cross_item_ids.add(draft.item_id)
         cross_created.append(note)
+
+    retry_attempted = bool(span_rejections)
+    retry_error: str | None = None
+    retry_active_proposed = 0
+    retry_cross_proposed = 0
+    retry_span_rejections: list[dict[str, Any]] = []
+    if retry_attempted:
+        retry_feedback = (
+            "\n\nCAPACITY RETRY (one bounded retry only):\n"
+            "The following proposed ranges were fully resolved but exceeded the "
+            "mechanical span capacity. Return replacements only for these rejected "
+            "findings. Keep each replacement within "
+            f"{DEFAULT_NOTE_SPAN_MAX_SEGMENTS} segments and "
+            f"{DEFAULT_NOTE_SPAN_MAX_CHARS} source characters. Select the shortest "
+            "sufficient continuous range; split broad findings into separate compact "
+            "notes. Do not repeat notes that were already accepted.\n"
+            "Rejected proposals:\n"
+            + json.dumps(span_rejections, ensure_ascii=False, sort_keys=True)
+        )
+        retry_response: Any = None
+        try:
+            retry_response = await _generate(note_model, note_prompt + retry_feedback)
+        except Exception as exc:  # noqa: BLE001 - preserve accepted siblings
+            retry_error = f"note span retry model error: {exc}"
+        retry_envelope, retry_envelope_error = _parse_envelope(retry_response)
+        retry_tokens, retry_cost = _best_effort_usage(retry_response)
+        if retry_error is not None:
+            retry_tokens, retry_cost = _last_model_usage(note_model)
+        if retry_envelope is not None:
+            retry_tokens = retry_envelope.token_count
+            retry_cost = retry_envelope.cost_usd
+        note_tokens += retry_tokens
+        note_cost += retry_cost
+        retry_parsed = _NoteParse(
+            error=retry_error or retry_envelope_error
+        )
+        if retry_parsed.error is None and retry_envelope is not None:
+            retry_parsed = _parse_notes(retry_envelope.content)
+        retry_error = retry_parsed.error
+        retry_active_proposed = len(retry_parsed.active_notes)
+        retry_cross_proposed = len(retry_parsed.cross_item_seeds)
+        active_errors.extend(
+            f"capacity_retry: {message}"
+            for message in retry_parsed.active_errors
+        )
+        cross_errors.extend(
+            f"capacity_retry: {message}"
+            for message in retry_parsed.cross_errors
+        )
+        for index, draft in enumerate(retry_parsed.active_notes):
+            prefix = f"capacity_retry.active_notes[{index}]"
+            if draft.item_id != active_item_id:
+                active_errors.append(
+                    f"{prefix} item_id must equal active item "
+                    f"{active_item_id!r}, got {draft.item_id!r}"
+                )
+                continue
+            note, error, rejection = retain(draft)
+            if note is None:
+                active_errors.append(f"{prefix} could not be retained: {error}")
+                if rejection is not None:
+                    retry_span_rejections.append(
+                        {
+                            "channel": "active_notes",
+                            "index": index,
+                            "item_id": draft.item_id,
+                            **rejection,
+                        }
+                    )
+                continue
+            active_created.append(note)
+        for index, draft in enumerate(retry_parsed.cross_item_seeds):
+            prefix = f"capacity_retry.cross_item_seeds[{index}]"
+            if draft.item_id == active_item_id:
+                cross_errors.append(f"{prefix} must not target the active item")
+                continue
+            try:
+                item = current.get(draft.item_id)
+            except Exception as exc:  # noqa: BLE001 - preserve valid siblings
+                cross_errors.append(f"{prefix} unknown item_id: {exc}")
+                continue
+            if item.is_complete:
+                cross_errors.append(
+                    f"{prefix} targets terminal item {draft.item_id!r}"
+                )
+                continue
+            if draft.item_id in cross_item_ids:
+                cross_errors.append(
+                    f"{prefix} repeats cross-item seed {draft.item_id!r}"
+                )
+                continue
+            if len(cross_item_ids) >= max_cross_item_seeds:
+                cross_errors.append(
+                    f"{prefix} exceeds cross-item seed capacity "
+                    f"{max_cross_item_seeds}"
+                )
+                continue
+            note, error, rejection = retain(draft)
+            if note is None:
+                cross_errors.append(f"{prefix} could not be retained: {error}")
+                if rejection is not None:
+                    retry_span_rejections.append(
+                        {
+                            "channel": "cross_item_seeds",
+                            "index": index,
+                            "item_id": draft.item_id,
+                            **rejection,
+                        }
+                    )
+                continue
+            cross_item_ids.add(draft.item_id)
+            cross_created.append(note)
 
     for note in created:
         item = current.get(note.item_id)
@@ -2403,6 +2539,11 @@ async def _extract_notes(
             "provisional_protocol_capacity_not_quality_threshold": True,
         },
         "note_span_rejections": span_rejections,
+        "note_span_retry_attempted": retry_attempted,
+        "note_span_retry_error": retry_error,
+        "note_span_retry_active_notes_proposed": retry_active_proposed,
+        "note_span_retry_cross_item_seeds_proposed": retry_cross_proposed,
+        "note_span_retry_rejections": retry_span_rejections,
         "note_item_ids": [note.item_id for note in created],
         "note_output_error": parsed.error,
         "active_note_errors": active_errors,
@@ -2540,6 +2681,8 @@ async def run_research_loop(
 
         envelope, envelope_error = _parse_envelope(response)
         decision_tokens, decision_cost = _best_effort_usage(response)
+        if decision_error is not None:
+            decision_tokens, decision_cost = _last_model_usage(decision_model)
         if envelope is not None:
             decision_tokens = envelope.token_count
             decision_cost = envelope.cost_usd

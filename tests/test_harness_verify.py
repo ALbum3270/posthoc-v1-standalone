@@ -918,6 +918,46 @@ def test_oversized_verifier_range_is_rejected_whole_without_truncation() -> None
     assert relation.end_segment_id == "S000013"
 
 
+def test_oversized_verifier_range_gets_one_semantic_compact_retry() -> None:
+    claim = _claim("claim-capacity-retry")
+    url = "https://capacity-retry.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000001", "S000013"))
+            ]
+        },
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000006", "S000006"))
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-capacity-retry"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.COMPLETED
+    assert relation.start_segment_id == "S000006"
+    assert relation.end_segment_id == "S000006"
+    assert relation.source_quote == "Sentence 6."
+    assert len(result.usage) == 2
+    assert result.usage[1].retry is True
+    assert "CAPACITY RETRY (one bounded retry only)" in model.prompts[1]
+
+
 def test_no_candidate_and_all_admission_or_model_failures_remain_distinct() -> None:
     no_candidate = _claim("claim-none")
     budget_claim = _claim("claim-budget")

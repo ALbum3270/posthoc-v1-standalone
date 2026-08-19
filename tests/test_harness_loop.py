@@ -17,6 +17,7 @@ from open_deep_research.harness.ledger import (
 )
 from open_deep_research.harness.loop import (
     LoopBudget,
+    _extract_notes,
     _budget_state,
     _source_link_index,
     LoopSettings,
@@ -160,6 +161,32 @@ def run_loop(
         )
     )
     return result, decision_model, note_model, client
+
+
+def test_charged_note_failure_is_retained_in_collection_usage():
+    class ChargedTruncation:
+        last_usage = {"token_count": 23, "cost_usd": 0.04}
+
+        async def generate(self, prompt):
+            raise RuntimeError("synthetic charged output truncation")
+
+    active_checklist = checklist(second=False)
+    ledger = ResearchLedger(topic=active_checklist.topic)
+    _, tokens, cost, summary = asyncio.run(
+        _extract_notes(
+            active_checklist,
+            ledger=ledger,
+            note_model=ChargedTruncation(),
+            active_item_id="what-1",
+            url="https://example.com/source",
+            source_text="A useful exact sentence.",
+            max_cross_item_seeds=0,
+        )
+    )
+
+    assert tokens == 23
+    assert cost == 0.04
+    assert "charged output truncation" in summary["note_output_error"]
 
 
 def test_terminal_completion_and_model_stop_are_distinct_outcomes():
@@ -1057,6 +1084,65 @@ def test_oversized_note_ranges_are_rejected_individually_with_full_audit():
     ]
     assert audit["active_notes_proposed"] == 3
     assert audit["active_notes_created"] == 1
+
+
+def test_oversized_note_range_gets_one_model_selected_compact_retry():
+    source = " ".join(f"Sentence {index}." for index in range(13))
+    decisions = [
+        envelope(
+            {
+                "action": "read",
+                "item_id": "what-1",
+                "url": "https://example.com/source",
+            }
+        ),
+        envelope({"action": "stop"}),
+    ]
+    note_outputs = [
+        envelope(
+            {
+                "active_notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "The original range was too broad.",
+                        "start_segment_id": "S000001",
+                        "end_segment_id": "S000013",
+                    }
+                ],
+                "cross_item_seeds": [],
+            }
+        ),
+        envelope(
+            {
+                "active_notes": [
+                    {
+                        "item_id": "what-1",
+                        "finding": "A compact replacement selected by the model.",
+                        "start_segment_id": "S000007",
+                        "end_segment_id": "S000007",
+                    }
+                ],
+                "cross_item_seeds": [],
+            }
+        ),
+    ]
+
+    result, _, note_model, _ = run_loop(
+        decisions,
+        notes=note_outputs,
+        tavily=FakeTavily(raw_text=source),
+    )
+
+    assert [note.finding for note in result.ledger.notes] == [
+        "A compact replacement selected by the model."
+    ]
+    assert len(note_model.prompts) == 2
+    assert "CAPACITY RETRY (one bounded retry only)" in note_model.prompts[1]
+    assert '"segment_count": 13' in note_model.prompts[1]
+    audit = json.loads(result.ledger.rounds[0].result_summary)
+    assert audit["note_span_retry_attempted"] is True
+    assert audit["note_span_retry_active_notes_proposed"] == 1
+    assert audit["note_span_retry_rejections"] == []
 
 
 def test_cross_item_seed_capacity_is_per_distinct_open_item_and_audited():

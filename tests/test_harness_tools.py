@@ -9,6 +9,7 @@ from open_deep_research.graphrag.adapters.tavily import TAVILY_QUERY_MAX_CHARS
 from open_deep_research.harness.ledger import SourceLinkCaptureStatus
 from open_deep_research.harness.tools import (
     ProviderCallTimeoutError,
+    SearchResultError,
     _with_provider_deadline,
     SourceReadError,
     extract_markdown_links,
@@ -90,6 +91,41 @@ def test_search_uses_injected_client_and_bounded_tavily_query():
         "snippet": "A result snippet.",
         "score": 0.9,
     }
+
+
+def test_search_rejects_finance_v2_relative_redirect_results_as_recoverable():
+    client = FakeTavily(
+        search_response={
+            "results": [
+                {
+                    "title": f"Redirect {index}",
+                    "url": f"/goto?url=https%3A%2F%2Fexample.com%2F{index}",
+                    "content": "Provider redirect rather than a source URL.",
+                }
+                for index in range(5)
+            ]
+        }
+    )
+
+    with pytest.raises(
+        SearchResultError,
+        match=r"5 result\(s\).*none had an absolute HTTP\(S\) URL",
+    ):
+        asyncio.run(search("customer fund transfer", tavily_client=client))
+
+
+@pytest.mark.parametrize(
+    "results",
+    (
+        {"url": "https://example.com/not-an-array"},
+        ["not-an-object", None, {"url": ""}],
+    ),
+)
+def test_search_rejects_malformed_provider_result_shapes(results):
+    client = FakeTavily(search_response={"results": results})
+
+    with pytest.raises(SearchResultError):
+        asyncio.run(search("bounded query", tavily_client=client))
 
 
 def test_read_reuses_clean_text_and_does_not_chunk_or_truncate():

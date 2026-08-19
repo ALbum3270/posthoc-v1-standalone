@@ -58,6 +58,10 @@ class SourceReadError(RuntimeError):
     """Raised when the retrieval provider returns no text for a URL."""
 
 
+class SearchResultError(RuntimeError):
+    """Raised when a provider search has no mechanically usable result URL."""
+
+
 class ProviderCallTimeoutError(RuntimeError):
     """Raised when a local retrieval deadline expires."""
 
@@ -239,10 +243,28 @@ async def search(
         operation="search",
         timeout_seconds=timeout_seconds,
     )
+    raw_results = response.get("results", ()) or ()
+    if not isinstance(raw_results, (list, tuple)):
+        raise SearchResultError(
+            "search provider results must be an array; "
+            f"received={type(raw_results).__name__}"
+        )
     results: list[SearchResult] = []
-    for item in response.get("results", ()) or ():
+    nonblank_result_count = 0
+    rejected_url_count = 0
+    malformed_result_count = 0
+    for item in raw_results:
+        if not isinstance(item, Mapping):
+            malformed_result_count += 1
+            continue
         url = str(item.get("url") or "").strip()
         if not url:
+            malformed_result_count += 1
+            continue
+        nonblank_result_count += 1
+        parsed = urlsplit(url)
+        if parsed.scheme.casefold() not in {"http", "https"} or not parsed.hostname:
+            rejected_url_count += 1
             continue
         results.append(
             SearchResult(
@@ -251,6 +273,14 @@ async def search(
                 snippet=str(item.get("content") or ""),
                 score=item.get("score"),
             )
+        )
+    if raw_results and not results:
+        raise SearchResultError(
+            "search provider returned "
+            f"{len(raw_results)} result(s), but none had an absolute "
+            "HTTP(S) URL; "
+            f"rejected_url_count={rejected_url_count}; "
+            f"malformed_result_count={malformed_result_count}"
         )
     return results
 

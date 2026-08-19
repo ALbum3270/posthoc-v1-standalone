@@ -474,6 +474,10 @@ For supports or contradicts, point to the shortest sufficient continuous
 source range with start_segment_id and end_segment_id. A range may cover
 adjacent segments, but it must not join separated passages. If no one
 continuous range supports that verdict, do not manufacture a composite.
+The selected range may contain at most {max_span_segments} segments and
+{max_span_chars} source characters. These are protocol-capacity ceilings, not
+evidence-quality targets. Select a narrower sufficient passage rather than an
+entire section.
 Other verdicts must use null for both IDs. Code owns the offsets and copies
 the authoritative source bytes; you do not quote or calculate offsets. Code
 also decides whether a result becomes formal evidence.
@@ -496,6 +500,8 @@ def build_verification_prompt(
     source_text: str,
     claims: Sequence[AtomicClaim],
     span_registry: SourceSpanRegistry | None = None,
+    max_span_segments: int = DEFAULT_NOTE_SPAN_MAX_SEGMENTS,
+    max_span_chars: int = DEFAULT_NOTE_SPAN_MAX_CHARS,
 ) -> str:
     """Build a verifier prompt containing the complete addressable source."""
 
@@ -521,6 +527,8 @@ def build_verification_prompt(
         url=url,
         claims=json.dumps(payload, ensure_ascii=False, sort_keys=True),
         source_text=render_segmented_source(source_text, registry),
+        max_span_segments=max_span_segments,
+        max_span_chars=max_span_chars,
     )
 
 
@@ -1028,6 +1036,8 @@ async def verify_attributions(
             source_text=source_text,
             claims=[task.claim for task in tasks],
             span_registry=span_registry,
+            max_span_segments=active_settings.max_span_segments,
+            max_span_chars=active_settings.max_span_chars,
         )
         admissible, reason = _estimate_admissible(
             prompt,
@@ -1094,6 +1104,109 @@ async def verify_attributions(
         )
         return parsed, retry_ids
 
+    async def retry_capacity_range(
+        task: _VerificationTask,
+        entry: _VerifierEntry,
+        source_text: str,
+        span_registry: SourceSpanRegistry,
+        original: VerifiedSourceRelation,
+    ) -> VerifiedSourceRelation:
+        """Give one well-formed semantic verdict one bounded pointer retry."""
+
+        nonlocal call_number
+        prompt = build_verification_prompt(
+            url=task.url,
+            source_text=source_text,
+            claims=(task.claim,),
+            span_registry=span_registry,
+            max_span_segments=active_settings.max_span_segments,
+            max_span_chars=active_settings.max_span_chars,
+        )
+        prompt += (
+            "\n\nCAPACITY RETRY (one bounded retry only):\n"
+            "Your prior semantic verdict parsed successfully, but its selected "
+            "continuous range exceeded the mechanical capacity. Re-evaluate the "
+            "same claim and source, and return exactly one result. If supports or "
+            "contradicts still applies, select the shortest sufficient continuous "
+            f"range containing no more than {active_settings.max_span_segments} "
+            f"segments and {active_settings.max_span_chars} source characters. "
+            "Do not preserve the prior verdict by inventing a narrower passage; "
+            "you may revise the verdict when no compact range supports it.\n"
+            "Rejected prior result:\n"
+            + json.dumps(entry.model_dump(mode="json"), sort_keys=True)
+        )
+        admissible, reason = _estimate_admissible(
+            prompt,
+            budget=active_budget,
+            used_tokens=sum(record.token_count for record in usage),
+            used_cost=sum(record.cost_usd for record in usage),
+            estimate_input_tokens=estimate_input_tokens,
+            estimate_cost_usd=estimate_cost_usd,
+        )
+        if not admissible:
+            diagnostics.append(
+                f"{task.url}: capacity_retry_not_run: "
+                f"{task.claim.claim_id}: {reason}"
+            )
+            return original
+        content, tokens, cost, call_error = await _call_model(model_client, prompt)
+        call_number += 1
+        outcome = "model_error" if call_error is not None else "parsed"
+        parsed: dict[str, _VerifierEntry] = {}
+        retry_ids: set[str] = set()
+        if call_error is None:
+            parsed, retry_ids, parse_diagnostics = _parse_entries(
+                content,
+                (task.claim.claim_id,),
+            )
+            diagnostics.extend(
+                f"{task.url}: capacity_retry: {message}"
+                for message in parse_diagnostics
+            )
+            if retry_ids:
+                outcome = "partial_malformed"
+        usage.append(
+            VerificationCallUsage(
+                call_number=call_number,
+                url=task.url,
+                claim_ids=(task.claim.claim_id,),
+                retry=True,
+                outcome=outcome,
+                token_count=tokens,
+                cost_usd=cost,
+            )
+        )
+        if call_error is not None:
+            diagnostics.append(
+                f"{task.url}: capacity_retry_model_error: "
+                f"{task.claim.claim_id}: {call_error}"
+            )
+            return original
+        replacement_entry = parsed.get(task.claim.claim_id)
+        if replacement_entry is None:
+            diagnostics.append(
+                f"{task.url}: capacity_retry_exhausted: "
+                f"{task.claim.claim_id}: result remained malformed or omitted"
+            )
+            return original
+        replacement = _completed_relation(
+            task,
+            replacement_entry,
+            source_text=source_text,
+            span_registry=span_registry,
+            settings=active_settings,
+        )
+        if (
+            replacement.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+            and replacement.error
+            and "source span exceeds protocol capacity" in replacement.error
+        ):
+            diagnostics.append(
+                f"{task.url}: capacity_retry_exhausted: "
+                f"{task.claim.claim_id}: {replacement.error}"
+            )
+        return replacement
+
     for url in sorted(tasks_by_url):
         tasks = tasks_by_url[url]
         source_text = source_cache.get(url)
@@ -1137,15 +1250,28 @@ async def verify_attributions(
             )
             by_id = {task.claim.claim_id: task for task in batch}
             for claim_id, entry in parsed.items():
-                relations_by_claim[claim_id].append(
-                    _completed_relation(
-                        by_id[claim_id],
-                        entry,
-                        source_text=source_text,
-                        span_registry=span_registry,
-                        settings=active_settings,
-                    )
+                task = by_id[claim_id]
+                relation = _completed_relation(
+                    task,
+                    entry,
+                    source_text=source_text,
+                    span_registry=span_registry,
+                    settings=active_settings,
                 )
+                if (
+                    relation.status
+                    is VerificationRecordStatus.QUOTE_UNLOCATABLE
+                    and relation.error
+                    and "source span exceeds protocol capacity" in relation.error
+                ):
+                    relation = await retry_capacity_range(
+                        task,
+                        entry,
+                        source_text,
+                        span_registry,
+                        relation,
+                    )
+                relations_by_claim[claim_id].append(relation)
             for claim_id in sorted(retry_ids):
                 retry_task = by_id[claim_id]
                 retry_parsed, retry_again = await run_call(
