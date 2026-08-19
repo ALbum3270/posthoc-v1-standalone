@@ -85,6 +85,7 @@ class StageExecutionRecord(BaseModel):
 
 MANDATORY_PIPELINE_STAGES = (
     "claim_decomposition",
+    "evidence_obligation_resolution",
     "attribution",
     "initial_verification",
     "checklist_reconciliation",
@@ -223,6 +224,7 @@ def publication_audit(
 # pass ending from every requested target actually being evaluated.
 STAGE_AUDIT_PAYLOAD_KEYS = {
     "claim_decomposition": "claim_decomposition",
+    "evidence_obligation_resolution": "claim_decomposition",
     "attribution": "attribution",
     "initial_verification": "verification",
     "checklist_reconciliation": "checklist_report_reconciliation",
@@ -235,6 +237,7 @@ STAGE_AUDIT_PAYLOAD_KEYS = {
         "post_edit_evaluative_claim_diagnostics"
     ),
     "post_edit_claim_decomposition": "claim_decomposition",
+    "post_edit_evidence_obligation_resolution": "claim_decomposition",
     "post_edit_attribution": "attribution",
     "post_edit_initial_verification": "verification",
     "post_edit_checklist_reconciliation": (
@@ -324,14 +327,26 @@ def stages_claiming_completion_without_output(
 # claims exist if decomposition built the registry; verification can only know
 # how many relations exist if attribution proposed them.
 STAGE_SCOPE_DEPENDS_ON = {
-    "attribution": "claim_decomposition",
+    "evidence_obligation_resolution": "claim_decomposition",
+    # Historical audits have no evidence-obligation stage, so retain the
+    # original decomposition dependency as well as the new live dependency.
+    "attribution": (
+        "claim_decomposition",
+        "evidence_obligation_resolution",
+    ),
     "evaluative_diagnostics": "claim_decomposition",
     "evidence_gap": "initial_verification",
     "recovery_triage": "initial_verification",
     "evidence_recovery": "recovery_triage",
     "initial_verification": "attribution",
     "audit_editing": "initial_verification",
-    "post_edit_attribution": "post_edit_claim_decomposition",
+    "post_edit_evidence_obligation_resolution": (
+        "post_edit_claim_decomposition"
+    ),
+    "post_edit_attribution": (
+        "post_edit_claim_decomposition",
+        "post_edit_evidence_obligation_resolution",
+    ),
     "post_edit_evaluative_diagnostics": "post_edit_claim_decomposition",
     "post_edit_initial_verification": "post_edit_attribution",
     "post_edit_checklist_reconciliation": "post_edit_claim_decomposition",
@@ -354,22 +369,28 @@ def demote_vacuous_completions(
     """
 
     adjusted = dict(stages)
-    for stage_name, upstream_name in STAGE_SCOPE_DEPENDS_ON.items():
-        record = adjusted.get(stage_name)
-        upstream = adjusted.get(upstream_name)
-        if record is None or upstream is None:
-            continue
-        if record.status is not StageExecutionStatus.COMPLETE:
-            continue
-        if upstream.status is StageExecutionStatus.COMPLETE:
-            continue
-        if record.expected_scope is not None and record.expected_scope.count:
-            continue
-        adjusted[stage_name] = StageExecutionRecord(
-            status=StageExecutionStatus.NOT_RUN,
-            reason=(
-                f"scope was empty only because {upstream_name} did not "
-                f"complete ({upstream.status.value}); nothing was evaluated"
-            ),
+    for stage_name, configured_upstreams in STAGE_SCOPE_DEPENDS_ON.items():
+        upstream_names = (
+            (configured_upstreams,)
+            if isinstance(configured_upstreams, str)
+            else configured_upstreams
         )
+        for upstream_name in upstream_names:
+            record = adjusted.get(stage_name)
+            upstream = adjusted.get(upstream_name)
+            if record is None or upstream is None:
+                continue
+            if record.status is not StageExecutionStatus.COMPLETE:
+                continue
+            if upstream.status is StageExecutionStatus.COMPLETE:
+                continue
+            if record.expected_scope is not None and record.expected_scope.count:
+                continue
+            adjusted[stage_name] = StageExecutionRecord(
+                status=StageExecutionStatus.NOT_RUN,
+                reason=(
+                    f"scope was empty only because {upstream_name} did not "
+                    f"complete ({upstream.status.value}); nothing was evaluated"
+                ),
+            )
     return adjusted

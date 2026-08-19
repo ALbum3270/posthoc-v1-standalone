@@ -253,6 +253,9 @@ class _SeamVerificationModel:
         self.both_claims_supported = both_claims_supported
 
     async def generate(self, prompt: str) -> Any:
+        review = base._evidence_review_response(prompt)
+        if review is not None:
+            return review
         self.calls += 1
         claim_ids = tuple(
             dict.fromkeys(re.findall(r'"claim_id": "(claim-[0-9]+)"', prompt))
@@ -397,9 +400,23 @@ def _attribution_stage(prompt: str, call: int) -> str:
 
 
 def _verification_stage(prompt: str, call: int) -> str:
+    if prompt.startswith("Independent negative-selection review"):
+        return (
+            "post_edit_evidence_obligation_resolution"
+            if call > 1
+            else "evidence_obligation_resolution"
+        )
+    if prompt.startswith("Independent evidence-obligation review"):
+        return (
+            "post_edit_evidence_obligation_resolution"
+            if "A narrower supported fact." in prompt
+            else "evidence_obligation_resolution"
+        )
     if "A narrower supported fact." in prompt:
         return "post_edit_initial_verification"
-    return "initial_verification" if call == 0 else "evidence_gap"
+    # The first call is now the negative-selection reviewer; the first actual
+    # source-verification call is therefore ordinal 1.
+    return "initial_verification" if call <= 1 else "evidence_gap"
 
 
 def _constant_stage(stage: str) -> Callable[[str, int], str]:

@@ -28,7 +28,6 @@ from pydantic import (
 
 from open_deep_research.harness.budget import RunCostCapReached
 from open_deep_research.harness.claims import (
-    CitationRequirement,
     ClaimNormalizationStatus,
     MarkdownBlock,
 )
@@ -448,6 +447,8 @@ EDITORIAL_TARGET_STATES = frozenset(
         ClaimEvidenceState.REFUTED,
         ClaimEvidenceState.CONFLICTING_EVIDENCE,
         ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+        ClaimEvidenceState.INTERNAL_NOT_SUPPORTED,
+        ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED,
     }
 )
 
@@ -531,8 +532,6 @@ def _target_claims_by_block(
 ) -> dict[str, list[ClaimVerification]]:
     targets: dict[str, list[ClaimVerification]] = defaultdict(list)
     for claim in verification.claims:
-        if claim.claim.citation_requirement is not CitationRequirement.EXTERNAL:
-            continue
         if claim.state not in EDITORIAL_TARGET_STATES:
             continue
         targets[claim.claim.block_id].append(claim)
@@ -549,8 +548,7 @@ def editorial_target_claim_ids(
     return tuple(
         claim.claim.claim_id
         for claim in verification.claims
-        if claim.claim.citation_requirement is CitationRequirement.EXTERNAL
-        and claim.state in EDITORIAL_TARGET_STATES
+        if claim.state in EDITORIAL_TARGET_STATES
     )
 
 
@@ -726,6 +724,13 @@ def build_editorial_prompt(
                         "claim_text": claim.claim.claim_text,
                         "anchor_text": claim.claim.anchor_text,
                         "evidence_state": claim.state.value,
+                        "evidence_obligation": (
+                            claim.claim.evidence_obligation.model_dump(
+                                mode="json"
+                            )
+                            if claim.claim.evidence_obligation is not None
+                            else None
+                        ),
                         "is_edit_target": claim.claim.claim_id in target_ids,
                         "relations": _relation_payload(claim),
                     }

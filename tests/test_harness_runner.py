@@ -45,6 +45,59 @@ def _selection_pointer(draft: str, text: str) -> dict[str, str]:
     }
 
 
+def _evidence_review_response(prompt: str):
+    """Shared offline response for the new independent review protocols."""
+
+    if prompt.startswith("Independent negative-selection review"):
+        block_ids = tuple(
+            dict.fromkeys(re.findall(r'"block_id": "(block-[0-9]+)"', prompt))
+        )
+        return {
+            "content": json.dumps(
+                {
+                    "blocks": [
+                        {
+                            "block_id": block_id,
+                            "outcome": "confirmed_empty",
+                            "rationale": "synthetic structural block",
+                            "assertions": [],
+                        }
+                        for block_id in block_ids
+                    ]
+                }
+            ),
+            "token_count": 0,
+            "cost_usd": 0.0,
+        }
+    if prompt.startswith("Independent evidence-obligation review"):
+        claim_ids = tuple(
+            dict.fromkeys(re.findall(r'"claim_id": "(claim-[0-9]+)"', prompt))
+        )
+        return {
+            "content": json.dumps(
+                {
+                    "claims": [
+                        {
+                            "claim_id": claim_id,
+                            "outcome": "internal_supported",
+                            "rationale": "synthetic report-artifact relation",
+                            "evidence_spans": [
+                                {
+                                    "start_segment_id": "S000001",
+                                    "end_segment_id": "S000001",
+                                }
+                            ],
+                        }
+                        for claim_id in claim_ids
+                    ]
+                }
+            ),
+            "token_count": 0,
+            "cost_usd": 0.0,
+        }
+    return None
+
+
 class ChecklistModel:
     last_usage = {"token_count": 3, "cost_usd": 0.03}
 
@@ -410,7 +463,78 @@ class MixedRequirementClaimModel:
 
 class UnusedVerificationModel:
     async def generate(self, prompt):
+        review = _evidence_review_response(prompt)
+        if review is not None:
+            return review
         raise AssertionError("no-candidate claim must not call verifier")
+
+
+class PromoteInternalVerificationModel:
+    """Require external evidence for every proposed internal assertion."""
+
+    async def generate(self, prompt):
+        review = _evidence_review_response(prompt)
+        if review is not None and not prompt.startswith(
+            "Independent evidence-obligation review"
+        ):
+            return review
+        if prompt.startswith("Independent evidence-obligation review"):
+            claim_ids = tuple(
+                dict.fromkeys(
+                    re.findall(r'"claim_id": "(claim-[0-9]+)"', prompt)
+                )
+            )
+            return {
+                "content": json.dumps(
+                    {
+                        "claims": [
+                            {
+                                "claim_id": claim_id,
+                                "outcome": "external_required",
+                                "rationale": (
+                                    "The assertion describes the world, not "
+                                    "a relation established by this report."
+                                ),
+                                "evidence_spans": [],
+                            }
+                            for claim_id in claim_ids
+                        ]
+                    }
+                ),
+                "token_count": 0,
+                "cost_usd": 0.0,
+            }
+        raise AssertionError("no-candidate claim must not call verifier")
+
+
+class AllClaimsEmptyAttributionModel:
+    """Return an explicit empty candidate set for every requested claim."""
+
+    def __init__(self, events):
+        self.events = events
+        self.prompts = []
+
+    async def generate(self, prompt):
+        self.events.append("attribution")
+        self.prompts.append(prompt)
+        claim_ids = tuple(
+            dict.fromkeys(
+                re.findall(r'"claim_id": "(claim-[0-9]+)"', prompt)
+            )
+        )
+        return {
+            "content": json.dumps(
+                {
+                    "action": "attribute",
+                    "claims": [
+                        {"claim_id": claim_id, "candidates": []}
+                        for claim_id in claim_ids
+                    ],
+                }
+            ),
+            "token_count": 7,
+            "cost_usd": 0.02,
+        }
 
 
 class ReadThenSettleDecisionModel:
@@ -508,6 +632,9 @@ class EvidenceVerificationModel:
         self.events = events
 
     async def generate(self, prompt):
+        review = _evidence_review_response(prompt)
+        if review is not None:
+            return review
         self.events.append("verification")
         return {
             "content": json.dumps(
@@ -617,6 +744,9 @@ class AuditEditVerificationModel:
         self.calls = 0
 
     async def generate(self, prompt):
+        review = _evidence_review_response(prompt)
+        if review is not None:
+            return review
         self.calls += 1
         result = {
             "claim_id": "claim-0001",
@@ -811,6 +941,9 @@ class AdjacentEvidenceVerificationModel:
         self.calls = 0
 
     async def generate(self, prompt):
+        review = _evidence_review_response(prompt)
+        if review is not None:
+            return review
         self.calls += 1
         return {
             "content": json.dumps(
@@ -1019,6 +1152,9 @@ class TwoBlockPartialVerificationModel:
         self.calls = 0
 
     async def generate(self, prompt):
+        review = _evidence_review_response(prompt)
+        if review is not None:
+            return review
         self.calls += 1
         first_verdict = "does_not_support" if self.calls == 1 else "supports"
         return {
@@ -1060,6 +1196,9 @@ class TwoBlockEditorialVerificationModel:
         self.calls = 0
 
     async def generate(self, prompt):
+        review = _evidence_review_response(prompt)
+        if review is not None:
+            return review
         self.calls += 1
         after_edit = self.calls == 2
         return {
@@ -1498,17 +1637,13 @@ def test_runner_recovery_accepts_mixed_external_and_internal_registry(tmp_path):
     assert posthoc["recovery_triage"]["decisions"][0]["action"] == (
         "research_more"
     )
-    assert posthoc["recovery_triage"]["inapplicable_claims"] == [
-        {
-            "claim_id": "claim-0002",
-            "citation_requirement": "internal",
-            "reason": "non_external_citation_requirement",
-            "explanation": (
-                "evidence recovery performs external source retrieval; this "
-                "claim's citation requirement is not external"
-            ),
-        }
-    ]
+    # The independent obligation reviewer supplied report-artifact evidence,
+    # so this internal claim is resolved rather than being treated as an
+    # anomaly that recovery merely declines to search.
+    assert posthoc["recovery_triage"]["inapplicable_claims"] == []
+    assert posthoc["verification"]["claims"][1]["state"] == (
+        "internal_supported"
+    )
     assert posthoc["evidence_recovery"]["stop_reason"] == (
         "no_information_yield"
     )
@@ -1521,6 +1656,80 @@ def test_runner_recovery_accepts_mixed_external_and_internal_registry(tmp_path):
     assert stages["evidence_recovery"]["expected_scope"]["count"] == 1
     assert stages["evidence_recovery"]["evaluated_scope"]["count"] == 1
     assert stages["evidence_recovery"]["unevaluated_ids"] == []
+
+
+def test_runner_cannot_silently_bypass_a_world_fact_proposed_as_internal(
+    tmp_path,
+):
+    """A proposed internal route is independently resolved before routing.
+
+    This is the finance-run regression shape: a world-fact assertion was
+    proposed as ``internal`` and therefore disappeared from attribution,
+    verification, editing, and reader-visible warnings.  The independent
+    evidence-obligation review must be able to promote it to the external
+    denominator, after which an empty candidate set remains an explicit
+    verification result rather than a silent omission.
+    """
+
+    events = []
+    draft = (
+        "# Report\n\nAn externally checkable assertion.\n\n"
+        "A second externally checkable assertion."
+    )
+    attribution_model = AllClaimsEmptyAttributionModel(events)
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=DecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=FixedDraftWriteModel(events, draft),
+            claim_model=MixedRequirementClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=attribution_model,
+            verification_model=PromoteInternalVerificationModel(),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            output_dir=tmp_path,
+            run_id="internal-world-fact-promotion",
+        )
+    )
+
+    claims = {entry.claim.claim_id: entry for entry in result.verification.claims}
+    assert tuple(claims) == ("claim-0001", "claim-0002")
+    assert claims["claim-0002"].claim.proposed_citation_requirement.value == (
+        "internal"
+    )
+    assert claims["claim-0002"].claim.citation_requirement.value == "external"
+    assert claims["claim-0002"].claim.evidence_obligation.status.value == (
+        "external_required"
+    )
+    assert claims["claim-0002"].state is ClaimEvidenceState.NO_CANDIDATE_SOURCE
+    assert len(attribution_model.prompts) == 1
+    assert '"claim_id": "claim-0002"' in attribution_model.prompts[0]
+    assert (
+        "A second externally checkable assertion.〔未找到候选来源〕"
+        in result.rendered_report.markdown
+    )
+
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    decomposition = audit["posthoc_evidence"]["claim_decomposition"]
+    assert decomposition["block_denominator_audit"]["silent_bypass_count"] == 0
+    assert decomposition["claim_obligation_audit"][
+        "silent_bypass_count"
+    ] == 0
+    assert decomposition["claim_obligation_audit"][
+        "externally_routed_claim_ids"
+    ] == ["claim-0001", "claim-0002"]
+    obligation_stage = audit["posthoc_evidence"]["stage_execution"]["stages"][
+        "evidence_obligation_resolution"
+    ]
+    assert obligation_stage["status"] == "complete"
+    # The stage owns both halves of the closed denominator: the independently
+    # reviewed empty heading block plus the two selected-claim obligations.
+    assert obligation_stage["expected_scope"]["count"] == 3
+    assert obligation_stage["evaluated_scope"]["count"] == 3
+    assert obligation_stage["unevaluated_ids"] == []
 
 
 def test_runner_rejects_run_id_that_could_escape_output_directory(tmp_path):
@@ -1691,12 +1900,14 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
         assert stages[stage]["status"] == "complete", stage
     assert posthoc["stage_execution"]["mandatory_pipeline_stages"] == [
         "claim_decomposition",
+        "evidence_obligation_resolution",
         "attribution",
         "initial_verification",
         "checklist_reconciliation",
         "deterministic_rendering",
         "audit_editing",
         "post_edit_claim_decomposition",
+        "post_edit_evidence_obligation_resolution",
         "post_edit_attribution",
         "post_edit_initial_verification",
         "post_edit_checklist_reconciliation",

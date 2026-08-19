@@ -15,11 +15,13 @@ from open_deep_research.harness.claims import (
     ClaimDecompositionSettings,
     ClaimNormalizationStatus,
     ClaimRepresentationVersion,
+    EvidenceObligationStatus,
     MarkdownBlockKind,
     SelectedAssertion,
     SourceResolution,
     build_decontextualization_prompt,
     build_extraction_prompt,
+    build_negative_selection_review_prompt,
     build_selection_prompt,
     decompose_claims,
     parse_markdown_blocks,
@@ -48,6 +50,11 @@ class ScriptedClaimModel:
             "token_count": 10,
             "cost_usd": 0.01,
         }
+
+
+class FailingClaimModel:
+    async def generate(self, prompt: str) -> dict[str, object]:
+        raise RuntimeError("synthetic independent-review failure")
 
 
 def _upgrade_legacy_selection_text_to_pointers(
@@ -602,13 +609,13 @@ def test_selection_omission_is_retained_as_failed_disposition() -> None:
     assert any("selection omitted this block" in item for item in result.diagnostics)
 
 
-def test_legacy_no_verifiable_with_none_assertion_is_mechanically_derived() -> None:
-    """Reproduce finance-06's rejected shape without accepting contradiction.
+def test_live_selection_rejects_historical_none_route() -> None:
+    """Historical ``none`` remains readable but cannot enter a live registry.
 
     The old protocol let the model say both ``no_verifiable_claims`` and
-    return assertions classified ``none``.  The proposal is now accepted as
-    raw input, but the contradictory model-owned disposition is discarded;
-    the strict registry record is derived solely from assertion presence.
+    return assertions classified ``none``. Accepting that entry would let a
+    selected assertion exit all evidence denominators, so the live proposal
+    rejects it instead of deriving an apparently successful disposition.
     """
 
     report = "A broad observation appears in the report."
@@ -650,16 +657,15 @@ def test_legacy_no_verifiable_with_none_assertion_is_mechanically_derived() -> N
 
     result = asyncio.run(decompose_claims(report, model_client=model))
 
-    assert result.registry_coverage.is_complete is True
-    assert result.registry_coverage.evaluated_blocks == 1
-    assert result.selections[0].disposition is BlockDisposition.CLAIMS_SELECTED
-    assert result.claims[0].citation_requirement is CitationRequirement.NONE
-    assert result.claims[0].normalization_status is ClaimNormalizationStatus.LOCATED
+    assert result.registry_coverage.is_complete is False
+    assert result.registry_coverage.evaluated_blocks == 0
+    assert result.selections[0].disposition is BlockDisposition.SELECTION_FAILED
+    assert result.claims == ()
     assert any(
-        item.startswith("selection_legacy_disposition_ignored[0]")
+        item.startswith("selection_entry_invalid[0]")
         for item in result.diagnostics
     )
-    assert "code mechanically derives claims_selected" in model.prompts[0]
+    assert 'no "none"' in model.prompts[0]
 
 
 def test_strict_block_selection_still_rejects_contradictory_registry_data() -> None:
@@ -1710,3 +1716,346 @@ def test_prompts_are_topic_neutral_and_expose_only_stage_owned_fields() -> None:
         decontext,
         extraction,
     ))
+
+
+def test_independent_negative_review_can_restore_a_missed_claim() -> None:
+    report = "# Report\n\nA material fact was omitted from selection."
+    blocks = parse_markdown_blocks(report)
+    paragraph = blocks[1]
+    claim_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {"block_id": block.block_id, "assertions": []}
+                for block in blocks
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": paragraph.text,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {"claim_id": "claim-0001", **_pointer(report, paragraph.text)}
+            ]
+        },
+    )
+    review_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "outcome": "confirmed_empty",
+                    "rationale": "structural heading",
+                    "assertions": [],
+                },
+                {
+                    "block_id": paragraph.block_id,
+                    "outcome": "claims_selected",
+                    "rationale": "the first selector missed a factual claim",
+                    "assertions": [
+                        {
+                            **_pointer(report, paragraph.text),
+                            "citation_requirement": "external",
+                        }
+                    ],
+                },
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=claim_model,
+            review_model_client=review_model,
+            settings=ClaimDecompositionSettings(
+                require_independent_evidence_review=True
+            ),
+        )
+    )
+
+    assert result.registry_coverage.is_complete is True
+    assert len(result.claims) == 1
+    assert result.block_denominator_audit is not None
+    assert result.block_denominator_audit.silent_bypass_count == 0
+    assert result.block_denominator_audit.selected_block_ids == (
+        paragraph.block_id,
+    )
+    assert result.claim_obligation_audit is not None
+    assert result.claim_obligation_audit.externally_routed_claim_ids == (
+        "claim-0001",
+    )
+
+
+def test_negative_review_failure_is_explicit_not_confirmed_empty() -> None:
+    report = "A block whose empty selection cannot be independently reviewed."
+    blocks = parse_markdown_blocks(report)
+    claim_model = ScriptedClaimModel(
+        {"blocks": [{"block_id": blocks[0].block_id, "assertions": []}]}
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=claim_model,
+            review_model_client=FailingClaimModel(),
+            settings=ClaimDecompositionSettings(
+                require_independent_evidence_review=True
+            ),
+        )
+    )
+
+    assert result.registry_coverage.is_complete is False
+    assert result.selections[0].disposition is (
+        BlockDisposition.SELECTION_UNRESOLVED
+    )
+    assert result.block_denominator_audit is not None
+    assert result.block_denominator_audit.unresolved_block_ids == (
+        blocks[0].block_id,
+    )
+    assert result.block_denominator_audit.silent_bypass_count == 0
+
+
+def test_internal_route_is_independently_promoted_to_external() -> None:
+    report = "# Report\n\nA company transferred customer funds in 2022."
+    blocks = parse_markdown_blocks(report)
+    paragraph = blocks[1]
+    claim_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {"block_id": blocks[0].block_id, "assertions": []},
+                {
+                    "block_id": paragraph.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, paragraph.text),
+                            "citation_requirement": "internal",
+                        }
+                    ],
+                },
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": paragraph.text,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {"claim_id": "claim-0001", **_pointer(report, paragraph.text)}
+            ]
+        },
+    )
+    review_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "outcome": "confirmed_empty",
+                    "rationale": "structural heading",
+                    "assertions": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "outcome": "external_required",
+                    "rationale": "truth depends on records outside the report",
+                    "evidence_spans": [],
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=claim_model,
+            review_model_client=review_model,
+            settings=ClaimDecompositionSettings(
+                require_independent_evidence_review=True
+            ),
+        )
+    )
+
+    claim = result.claims[0]
+    assert claim.proposed_citation_requirement is CitationRequirement.INTERNAL
+    assert claim.citation_requirement is CitationRequirement.EXTERNAL
+    assert claim.evidence_obligation is not None
+    assert claim.evidence_obligation.status is (
+        EvidenceObligationStatus.EXTERNAL_REQUIRED
+    )
+    assert result.claim_obligation_audit is not None
+    assert result.claim_obligation_audit.silent_bypass_count == 0
+    assert "claim's own report_surface is not independent" in (
+        review_model.prompts[1]
+    )
+
+
+def test_internal_claim_cannot_use_its_own_surface_as_evidence() -> None:
+    report = "# Report\n\nThe report contains four findings."
+    blocks = parse_markdown_blocks(report)
+    paragraph = blocks[1]
+    claim_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {"block_id": blocks[0].block_id, "assertions": []},
+                {
+                    "block_id": paragraph.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, paragraph.text),
+                            "citation_requirement": "internal",
+                        }
+                    ],
+                },
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": paragraph.text,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {"claim_id": "claim-0001", **_pointer(report, paragraph.text)}
+            ]
+        },
+    )
+    review_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": blocks[0].block_id,
+                    "outcome": "confirmed_empty",
+                    "assertions": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "outcome": "internal_supported",
+                    "rationale": "incorrectly cites itself",
+                    "evidence_spans": [_pointer(report, paragraph.text)],
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=claim_model,
+            review_model_client=review_model,
+            settings=ClaimDecompositionSettings(
+                require_independent_evidence_review=True
+            ),
+        )
+    )
+
+    obligation = result.claims[0].evidence_obligation
+    assert obligation is not None
+    assert obligation.status is EvidenceObligationStatus.UNRESOLVED
+    assert obligation.failure_reason == "internal_evidence_self_reference"
+    assert result.claim_obligation_audit is not None
+    assert result.claim_obligation_audit.unresolved_claim_ids == (
+        "claim-0001",
+    )
+    assert result.claim_obligation_audit.silent_bypass_count == 0
+
+
+def test_internal_not_supported_is_a_completed_negative_conclusion() -> None:
+    report = "The report artifact does not establish this conclusion."
+    block = parse_markdown_blocks(report)[0]
+    claim_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, block.text),
+                            "citation_requirement": "internal",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": block.text,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {"claim_id": "claim-0001", **_pointer(report, block.text)}
+            ]
+        },
+    )
+    review_model = ScriptedClaimModel(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "outcome": "internal_not_supported",
+                    "rationale": "No independent report-artifact span exists.",
+                    "evidence_spans": [],
+                }
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=claim_model,
+            review_model_client=review_model,
+            settings=ClaimDecompositionSettings(
+                require_independent_evidence_review=True
+            ),
+        )
+    )
+
+    obligation = result.claims[0].evidence_obligation
+    assert obligation is not None
+    assert obligation.status is EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED
+    assert result.claim_obligation_audit is not None
+    assert result.claim_obligation_audit.internally_unsupported_claim_ids == (
+        "claim-0001",
+    )
+    assert result.claim_obligation_audit.unresolved_claim_ids == ()
+    obligation_batch = next(
+        batch for batch in result.batches if batch.stage == "evidence_obligation"
+    )
+    assert obligation_batch.outcome == "completed"
+    assert obligation_batch.output_ids == ("claim-0001",)
+    assert obligation_batch.failed_input_ids == ()
+
+
+def test_review_prompts_keep_empty_and_internal_decisions_explicit() -> None:
+    report = "# Report\n\nA claim."
+    blocks = parse_markdown_blocks(report)
+    negative = build_negative_selection_review_prompt(report, blocks[:1])
+    assert "confirmed_empty|claims_selected|uncertain" in negative
+    assert 'a "none" route' in negative

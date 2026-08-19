@@ -510,6 +510,45 @@ def test_same_sentence_claims_keep_distinct_evidence_states() -> None:
     }
 
 
+def test_renderer_exposes_unresolved_internal_evidence_obligations() -> None:
+    draft = "A report-internal conclusion. Another unresolved conclusion."
+    unsupported = _claim(
+        draft,
+        "claim-internal-unsupported",
+        "A report-internal conclusion",
+    ).model_copy(
+        update={"citation_requirement": CitationRequirement.INTERNAL}
+    )
+    unresolved = _claim(
+        draft,
+        "claim-internal-unresolved",
+        "Another unresolved conclusion",
+    ).model_copy(
+        update={"citation_requirement": CitationRequirement.INTERNAL}
+    )
+    verification = VerificationResult(
+        claims=(
+            _verified(
+                unsupported,
+                ClaimEvidenceState.INTERNAL_NOT_SUPPORTED,
+            ),
+            _verified(
+                unresolved,
+                ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(draft, verification)
+
+    assert "A report-internal conclusion〔报告内部依据不支持〕" in rendered.markdown
+    assert "Another unresolved conclusion〔证据义务未决〕" in rendered.markdown
+    assert [annotation.claim_id for annotation in rendered.annotations] == [
+        "claim-internal-unsupported",
+        "claim-internal-unresolved",
+    ]
+
+
 def test_confirmed_lineage_corroboration_is_explicitly_labeled() -> None:
     draft = "The independently supported event occurred."
     claim = _claim(draft, "claim-corroborated", draft)

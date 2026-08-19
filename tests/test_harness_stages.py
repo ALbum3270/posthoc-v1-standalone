@@ -491,6 +491,39 @@ def test_an_empty_scope_from_a_truncated_upstream_is_demoted():
     assert adjusted["attribution"].expected_scope is None
 
 
+def test_attribution_empty_scope_is_demoted_when_obligation_review_truncated():
+    from open_deep_research.harness.stages import demote_vacuous_completions
+
+    stages = {
+        "claim_decomposition": StageExecutionRecord(
+            status=StageExecutionStatus.COMPLETE,
+            reason="all blocks selected",
+            expected_scope=StageScope(unit="markdown_block", count=2),
+            evaluated_scope=StageScope(unit="markdown_block", count=2),
+        ),
+        "evidence_obligation_resolution": StageExecutionRecord(
+            status=StageExecutionStatus.PARTIAL,
+            reason="one internal route was unresolved",
+            expected_scope=StageScope(unit="evidence_obligation_unit", count=2),
+            evaluated_scope=StageScope(unit="evidence_obligation_unit", count=1),
+            unevaluated_ids=("claim-0002",),
+        ),
+        "attribution": StageExecutionRecord(
+            status=StageExecutionStatus.COMPLETE,
+            reason="no external claims to attribute",
+            expected_scope=StageScope(unit="external_claim", count=0),
+            evaluated_scope=StageScope(unit="external_claim", count=0),
+        ),
+    }
+
+    adjusted = demote_vacuous_completions(stages)
+
+    assert adjusted["attribution"].status is StageExecutionStatus.NOT_RUN
+    assert "evidence_obligation_resolution did not complete" in (
+        adjusted["attribution"].reason
+    )
+
+
 @pytest.mark.parametrize(
     "downstream_stage",
     ("evidence_gap", "recovery_triage", "audit_editing"),

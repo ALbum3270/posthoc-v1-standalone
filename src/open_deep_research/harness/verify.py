@@ -27,6 +27,7 @@ from open_deep_research.harness.attribution import (
 from open_deep_research.harness.claims import (
     AtomicClaim,
     ClaimNormalizationStatus,
+    EvidenceObligationStatus,
 )
 from open_deep_research.harness.jsonio import loads_lenient
 from open_deep_research.harness.notes import (
@@ -106,6 +107,9 @@ class ClaimEvidenceState(str, Enum):
     VERIFICATION_INCOMPLETE = "verification_incomplete"
     VERIFICATION_NOT_RUN = "verification_not_run"
     NORMALIZATION_FAILED = "normalization_failed"
+    INTERNAL_SUPPORTED = "internal_supported"
+    INTERNAL_NOT_SUPPORTED = "internal_not_supported"
+    EVIDENCE_OBLIGATION_UNRESOLVED = "evidence_obligation_unresolved"
 
     @classmethod
     def _missing_(cls, value: object) -> ClaimEvidenceState | None:
@@ -919,10 +923,35 @@ def build_claim_verification(
             ),
         )
     )
-    state, formal_count, publishers, lineage_ids, lineage_complete = _aggregate_state(
-        claim,
-        ordered_relations,
-    )
+    obligation = claim.evidence_obligation
+    if obligation is not None and obligation.status in {
+        EvidenceObligationStatus.INTERNAL_SUPPORTED,
+        EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED,
+        EvidenceObligationStatus.UNRESOLVED,
+    }:
+        state = {
+            EvidenceObligationStatus.INTERNAL_SUPPORTED: (
+                ClaimEvidenceState.INTERNAL_SUPPORTED
+            ),
+            EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED: (
+                ClaimEvidenceState.INTERNAL_NOT_SUPPORTED
+            ),
+            EvidenceObligationStatus.UNRESOLVED: (
+                ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED
+            ),
+        }[obligation.status]
+        formal_count = 0
+        publishers = ()
+        lineage_ids = ()
+        lineage_complete = False
+    else:
+        (
+            state,
+            formal_count,
+            publishers,
+            lineage_ids,
+            lineage_complete,
+        ) = _aggregate_state(claim, ordered_relations)
     if (
         attribution_status == AttributionStatus.ATTRIBUTION_ERROR
         and not ordered_relations

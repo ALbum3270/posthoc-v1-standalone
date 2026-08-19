@@ -43,11 +43,32 @@ class MarkdownBlockKind(str, Enum):
 
 
 class CitationRequirement(str, Enum):
-    """The kind of evidence a selected assertion requires."""
+    """The kind of evidence a selected assertion requires.
+
+    ``NONE`` is retained solely so historical audit payloads remain readable.
+    The live selection protocol uses :class:`LiveCitationRequirement` and can
+    no longer manufacture a claim that exits every evidence denominator.
+    """
 
     EXTERNAL = "external"
     INTERNAL = "internal"
     NONE = "none"
+
+
+class LiveCitationRequirement(str, Enum):
+    """Evidence routes that a new model selection is allowed to propose."""
+
+    EXTERNAL = "external"
+    INTERNAL = "internal"
+
+
+class EvidenceObligationStatus(str, Enum):
+    """Independent resolution of a selected claim's evidence obligation."""
+
+    EXTERNAL_REQUIRED = "external_required"
+    INTERNAL_SUPPORTED = "internal_supported"
+    INTERNAL_NOT_SUPPORTED = "internal_not_supported"
+    UNRESOLVED = "unresolved"
 
 
 class SourceResolution(str, Enum):
@@ -63,7 +84,11 @@ class BlockDisposition(str, Enum):
     """Selection outcome retained for every report content block."""
 
     CLAIMS_SELECTED = "claims_selected"
+    # Historical first-pass value.  New runs never count it as assessed until
+    # an independent negative review has confirmed the empty selection.
     NO_VERIFIABLE_CLAIMS = "no_verifiable_claims"
+    NO_VERIFIABLE_CLAIMS_CONFIRMED = "no_verifiable_claims_confirmed"
+    SELECTION_UNRESOLVED = "selection_unresolved"
     SELECTION_FAILED = "selection_failed"
 
 
@@ -320,7 +345,7 @@ class _SelectedAssertionProposal(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    citation_requirement: CitationRequirement
+    citation_requirement: LiveCitationRequirement
     start_segment_id: str = Field(min_length=1)
     end_segment_id: str = Field(min_length=1)
 
@@ -352,6 +377,133 @@ class _BlockSelectionProposal(BaseModel):
         validation_alias="disposition",
         exclude=True,
     )
+
+
+class InternalArtifactEvidenceSpan(BaseModel):
+    """Code-resolved report-artifact evidence for an internal claim.
+
+    An internal claim may not prove itself: the resolved interval must be
+    disjoint from the selected claim surface.  That invariant is checked when
+    model pointers are resolved, not entrusted to the reviewer.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    text: str = Field(min_length=1)
+    start_char: int = Field(ge=0)
+    end_char: int = Field(ge=0)
+    start_segment_id: str = Field(min_length=1)
+    end_segment_id: str = Field(min_length=1)
+    span_registry_id: str = Field(min_length=1)
+    report_text_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    segmentation_version: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _bounds_match_text(self) -> InternalArtifactEvidenceSpan:
+        if self.end_char <= self.start_char:
+            raise ValueError("internal evidence end_char must exceed start_char")
+        if self.end_char - self.start_char != len(self.text):
+            raise ValueError("internal evidence bounds must match text length")
+        return self
+
+
+class EvidenceObligation(BaseModel):
+    """Auditable terminal routing for exactly one selected claim."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str = Field(min_length=1)
+    proposed_requirement: CitationRequirement
+    status: EvidenceObligationStatus
+    rationale: str = ""
+    internal_evidence: tuple[InternalArtifactEvidenceSpan, ...] = ()
+    failure_reason: str | None = None
+
+    @model_validator(mode="after")
+    def _payload_matches_status(self) -> EvidenceObligation:
+        if self.status is EvidenceObligationStatus.INTERNAL_SUPPORTED:
+            if not self.internal_evidence:
+                raise ValueError("internal_supported requires artifact evidence")
+            if self.failure_reason is not None:
+                raise ValueError("internal_supported cannot carry a failure")
+        elif self.internal_evidence:
+            raise ValueError(
+                "only internal_supported may retain internal artifact evidence"
+            )
+        if (
+            self.status is EvidenceObligationStatus.UNRESOLVED
+            and self.failure_reason is None
+        ):
+            raise ValueError("unresolved obligations require a failure reason")
+        if (
+            self.status is not EvidenceObligationStatus.UNRESOLVED
+            and self.failure_reason is not None
+        ):
+            raise ValueError("resolved obligations cannot carry a failure reason")
+        return self
+
+
+class BlockDenominatorAudit(BaseModel):
+    """Mechanical proof that every parsed block has a terminal disposition."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    total_blocks: int = Field(ge=0)
+    selected_block_ids: tuple[str, ...] = ()
+    confirmed_empty_block_ids: tuple[str, ...] = ()
+    unresolved_block_ids: tuple[str, ...] = ()
+    silent_bypass_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _partition_is_closed(self) -> BlockDenominatorAudit:
+        groups = (
+            self.selected_block_ids,
+            self.confirmed_empty_block_ids,
+            self.unresolved_block_ids,
+        )
+        flattened = tuple(item for group in groups for item in group)
+        if len(flattened) != len(set(flattened)):
+            raise ValueError("block denominator categories must be disjoint")
+        missing = self.total_blocks - len(flattened)
+        if missing < 0:
+            raise ValueError("block denominator exceeds parsed block count")
+        if self.silent_bypass_count != missing:
+            raise ValueError("silent_bypass_count must equal unpartitioned blocks")
+        return self
+
+
+class ClaimObligationAudit(BaseModel):
+    """Mechanical proof that no selected claim exits the evidence graph."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    selected_claim_ids: tuple[str, ...] = ()
+    externally_routed_claim_ids: tuple[str, ...] = ()
+    internally_verified_claim_ids: tuple[str, ...] = ()
+    internally_unsupported_claim_ids: tuple[str, ...] = ()
+    unresolved_claim_ids: tuple[str, ...] = ()
+    silent_bypass_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _partition_is_closed(self) -> ClaimObligationAudit:
+        if len(self.selected_claim_ids) != len(set(self.selected_claim_ids)):
+            raise ValueError("selected claim IDs must be unique")
+        selected = set(self.selected_claim_ids)
+        groups = (
+            self.externally_routed_claim_ids,
+            self.internally_verified_claim_ids,
+            self.internally_unsupported_claim_ids,
+            self.unresolved_claim_ids,
+        )
+        flattened = tuple(item for group in groups for item in group)
+        if len(flattened) != len(set(flattened)):
+            raise ValueError("claim obligation categories must be disjoint")
+        if not set(flattened).issubset(selected):
+            raise ValueError("claim obligation audit contains unknown claim IDs")
+        missing = len(selected - set(flattened))
+        if self.silent_bypass_count != missing:
+            raise ValueError("silent_bypass_count must equal unrouted claims")
+        return self
 
 
 class AtomicClaim(BaseModel):
@@ -392,12 +544,46 @@ class AtomicClaim(BaseModel):
     context_spans: tuple[ContextSpan, ...] = ()
     context_span_proposals: tuple[ContextSpanProposal, ...] = ()
     citation_requirement: CitationRequirement
+    proposed_citation_requirement: CitationRequirement | None = None
+    evidence_obligation: EvidenceObligation | None = None
     source_resolution: SourceResolution = SourceResolution.UNRESOLVED
     normalization_status: ClaimNormalizationStatus
     normalization_failure: str | None = None
 
     @model_validator(mode="after")
     def _location_fields_match_status(self) -> AtomicClaim:
+        if self.evidence_obligation is not None:
+            if self.proposed_citation_requirement is None:
+                raise ValueError(
+                    "evidence obligations require the proposed requirement"
+                )
+            if self.evidence_obligation.claim_id != self.claim_id:
+                raise ValueError("evidence obligation must belong to its claim")
+            if (
+                self.proposed_citation_requirement is not None
+                and self.evidence_obligation.proposed_requirement
+                is not self.proposed_citation_requirement
+            ):
+                raise ValueError(
+                    "evidence obligation must preserve the proposed requirement"
+                )
+            if (
+                self.evidence_obligation.status
+                is EvidenceObligationStatus.EXTERNAL_REQUIRED
+                and self.citation_requirement is not CitationRequirement.EXTERNAL
+            ):
+                raise ValueError("external_required must route to attribution")
+            if (
+                self.evidence_obligation.status
+                in {
+                    EvidenceObligationStatus.INTERNAL_SUPPORTED,
+                    EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED,
+                }
+                and self.citation_requirement is not CitationRequirement.INTERNAL
+            ):
+                raise ValueError(
+                    "internal evidence conclusions must retain the internal route"
+                )
         if self.representation_version is ClaimRepresentationVersion.LAYERED_V2:
             if self.report_surface is None:
                 raise ValueError(
@@ -462,11 +648,12 @@ class ClaimStageUsage(BaseModel):
 
 
 class ClaimDecompositionSettings(BaseModel):
-    """Mechanical capacity limits shared by the three claim stages."""
+    """Mechanical capacity limits shared by claim-registry stages."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     batch_size: int = Field(default=8, ge=1)
+    require_independent_evidence_review: bool = False
 
 
 class ClaimBatchRecord(BaseModel):
@@ -474,7 +661,13 @@ class ClaimBatchRecord(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    stage: Literal["selection", "decontextualization", "extraction"]
+    stage: Literal[
+        "selection",
+        "negative_selection_review",
+        "decontextualization",
+        "extraction",
+        "evidence_obligation",
+    ]
     batch_number: int = Field(ge=1)
     input_ids: tuple[str, ...]
     output_ids: tuple[str, ...] = ()
@@ -482,6 +675,33 @@ class ClaimBatchRecord(BaseModel):
     outcome: Literal["completed", "partial", "failed"]
     error: str | None = None
     usage: ClaimStageUsage = ClaimStageUsage()
+
+    @model_validator(mode="after")
+    def _outputs_close_the_input_scope(self) -> ClaimBatchRecord:
+        if len(self.input_ids) != len(set(self.input_ids)):
+            raise ValueError("batch input IDs must be unique")
+        output = set(self.output_ids)
+        failed = set(self.failed_input_ids)
+        if len(output) != len(self.output_ids):
+            raise ValueError("batch output IDs must be unique")
+        if len(failed) != len(self.failed_input_ids):
+            raise ValueError("batch failed IDs must be unique")
+        if output & failed:
+            raise ValueError("batch output and failed IDs must be disjoint")
+        if output | failed != set(self.input_ids):
+            raise ValueError(
+                "batch output and failed IDs must partition the input scope"
+            )
+        expected_outcome = (
+            "completed"
+            if not failed
+            else "failed"
+            if len(failed) == len(self.input_ids)
+            else "partial"
+        )
+        if self.outcome != expected_outcome:
+            raise ValueError("batch outcome must reflect failed input IDs")
+        return self
 
 
 class ClaimRegistryCoverage(BaseModel):
@@ -517,11 +737,14 @@ class ClaimDecompositionResult(BaseModel):
     selections: tuple[BlockSelection, ...]
     claims: tuple[AtomicClaim, ...]
     registry_coverage: ClaimRegistryCoverage
+    block_denominator_audit: BlockDenominatorAudit | None = None
+    claim_obligation_audit: ClaimObligationAudit | None = None
     batches: tuple[ClaimBatchRecord, ...] = ()
     diagnostics: tuple[str, ...] = ()
     selection_usage: ClaimStageUsage
     decontextualization_usage: ClaimStageUsage
     extraction_usage: ClaimStageUsage
+    evidence_review_usage: ClaimStageUsage = ClaimStageUsage()
     anchor_proposal_count: int = Field(default=0, ge=0)
     anchor_copied_from_selection_count: int = Field(default=0, ge=0)
     anchor_copied_from_selection_rate: float = Field(
@@ -542,11 +765,21 @@ class ClaimDecompositionResult(BaseModel):
         )
         if abs(self.anchor_copied_from_selection_rate - expected) > 1e-12:
             raise ValueError("anchor copy rate must match its audited counts")
+        if (
+            self.block_denominator_audit is not None
+            and self.block_denominator_audit.silent_bypass_count != 0
+        ):
+            raise ValueError("live block denominator may not silently bypass work")
+        if (
+            self.claim_obligation_audit is not None
+            and self.claim_obligation_audit.silent_bypass_count != 0
+        ):
+            raise ValueError("live claim denominator may not silently bypass work")
         return self
 
     @property
     def total_tokens(self) -> int:
-        """Return usage across all three ordered stages."""
+        """Return usage across all ordered claim-registry stages."""
 
         return sum(
             usage.token_count
@@ -554,12 +787,13 @@ class ClaimDecompositionResult(BaseModel):
                 self.selection_usage,
                 self.decontextualization_usage,
                 self.extraction_usage,
+                self.evidence_review_usage,
             )
         )
 
     @property
     def total_cost_usd(self) -> float:
-        """Return cost across all three ordered stages."""
+        """Return cost across all ordered claim-registry stages."""
 
         return sum(
             usage.cost_usd
@@ -567,6 +801,7 @@ class ClaimDecompositionResult(BaseModel):
                 self.selection_usage,
                 self.decontextualization_usage,
                 self.extraction_usage,
+                self.evidence_review_usage,
             )
         )
 
@@ -626,6 +861,62 @@ class _ExtractedAnchor(BaseModel):
         if not normalized:
             raise ValueError("anchor segment IDs must not be blank")
         return normalized
+
+
+class _NegativeReviewOutcome(str, Enum):
+    CONFIRMED_EMPTY = "confirmed_empty"
+    CLAIMS_SELECTED = "claims_selected"
+    UNCERTAIN = "uncertain"
+
+
+class _NegativeBlockReviewProposal(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    block_id: str = Field(min_length=1)
+    outcome: _NegativeReviewOutcome
+    rationale: str = ""
+    assertions: tuple[_SelectedAssertionProposal, ...] = ()
+
+    @model_validator(mode="after")
+    def _outcome_matches_assertions(self) -> _NegativeBlockReviewProposal:
+        if self.outcome is _NegativeReviewOutcome.CLAIMS_SELECTED:
+            if not self.assertions:
+                raise ValueError("claims_selected requires assertions")
+        elif self.assertions:
+            raise ValueError("only claims_selected may include assertions")
+        return self
+
+
+class _InternalEvidencePointer(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    start_segment_id: str = Field(min_length=1)
+    end_segment_id: str = Field(min_length=1)
+
+
+class _EvidenceObligationOutcome(str, Enum):
+    EXTERNAL_REQUIRED = "external_required"
+    INTERNAL_SUPPORTED = "internal_supported"
+    INTERNAL_NOT_SUPPORTED = "internal_not_supported"
+    UNCERTAIN = "uncertain"
+
+
+class _EvidenceObligationProposal(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: str = Field(min_length=1)
+    outcome: _EvidenceObligationOutcome
+    rationale: str = ""
+    evidence_spans: tuple[_InternalEvidencePointer, ...] = ()
+
+    @model_validator(mode="after")
+    def _outcome_matches_spans(self) -> _EvidenceObligationProposal:
+        if self.outcome is _EvidenceObligationOutcome.INTERNAL_SUPPORTED:
+            if not self.evidence_spans:
+                raise ValueError("internal_supported requires evidence_spans")
+        elif self.evidence_spans:
+            raise ValueError("only internal_supported may include evidence_spans")
+        return self
 
 
 _ATX_HEADING = re.compile(
@@ -879,19 +1170,23 @@ For every supplied block_id, return exactly one block entry. Put each chosen
 verification unit in its assertions array. Return an empty assertions array
 when there is no factual or report-internal assertion to check. Normative
 advice, a rhetorical transition, or a statement of writing intent alone is
-not an external factual assertion. Do not return a disposition: code mechanically derives claims_selected from a non-empty array and no_verifiable_claims from an empty array.
+not an external factual assertion. Do not return a disposition: code
+mechanically derives claims_selected from a non-empty array and
+no_verifiable_claims from an empty array.
 
-Classify each selected assertion independently on the orthogonal evidence
-dimension:
+Propose an evidence route for each selected assertion:
 - external: its truth depends on evidence outside this report;
 - internal: it can be checked against the report artifact itself;
-- none: it makes no evidence-bearing factual assertion.
+Do not select non-evidence-bearing prose. The live protocol has no "none"
+route: an assertion is either selected and receives an evidence obligation,
+or it remains outside the assertions array and its empty selection is reviewed
+independently.
 
 Do not omit a block. Selection is independent of whether a source has already
 been found. Return JSON only:
 {{"blocks":[{{"block_id":"block-0001","rationale":"...",\
 "assertions":[{{"start_segment_id":"S000001",\
-"end_segment_id":"S000001","citation_requirement":"external|internal|none"}}]}}]}}
+"end_segment_id":"S000001","citation_requirement":"external|internal"}}]}}]}}
 
 Purely structural examples: two unrelated dated events may be two units. By
 contrast, "a witness said A caused B" may remain one unit when splitting it
@@ -899,6 +1194,57 @@ would turn attributed speech into direct assertion or erase the causal link.
 
 Markdown blocks:
 {blocks}
+"""
+
+_NEGATIVE_SELECTION_REVIEW_PROMPT = """\
+Independent negative-selection review.
+
+The first selector returned no assertions for every block below. Check that
+negative decision rather than trusting an empty denominator. For each block,
+return exactly one outcome:
+- confirmed_empty: the block contains no factual or report-internal assertion
+  requiring evidence;
+- claims_selected: one or more assertions were missed; select each with the
+  same continuous segment-pointer protocol and route it external or internal;
+- uncertain: you cannot safely decide from the supplied report artifact.
+
+Do not return selected text, offsets, a "none" route, or an empty
+claims_selected result. Return JSON only:
+{{"blocks":[{{"block_id":"block-0001","outcome":"confirmed_empty|claims_selected|uncertain",\
+"rationale":"...","assertions":[{{"start_segment_id":"S000001",\
+"end_segment_id":"S000001","citation_requirement":"external|internal"}}]}}]}}
+
+Blocks whose empty selection must be reviewed:
+{blocks}
+"""
+
+_EVIDENCE_OBLIGATION_PROMPT = """\
+Independent evidence-obligation review.
+
+The selector proposed that each claim below can be checked against the report
+artifact itself. Decide whether that route is valid. This is not a support
+review against web sources.
+
+For every claim_id return exactly one outcome:
+- external_required: truth still depends on evidence outside this report;
+- internal_supported: the report artifact contains independent internal
+  evidence; return one or more exact continuous segment ranges;
+- internal_not_supported: the report artifact does not contain such evidence;
+- uncertain: the route cannot be resolved safely.
+
+The claim's own report_surface is not independent internal evidence and must
+not be returned as its proof. Do not use world knowledge and do not return
+copied evidence text or offsets. Return JSON only:
+{{"claims":[{{"claim_id":"claim-0001",\
+"outcome":"external_required|internal_supported|internal_not_supported|uncertain",\
+"rationale":"...","evidence_spans":[{{"start_segment_id":"S000001",\
+"end_segment_id":"S000001"}}]}}]}}
+
+Canonical report artifact:
+{report}
+
+Claims proposed as report-internal:
+{claims}
 """
 
 _DECONTEXTUALIZATION_PROMPT = """\
@@ -1020,6 +1366,53 @@ def build_selection_prompt(
     )
 
 
+def build_negative_selection_review_prompt(
+    report: str,
+    blocks: Sequence[MarkdownBlock],
+    *,
+    span_registry: SourceSpanRegistry | None = None,
+) -> str:
+    """Build the independent review of first-pass empty block selections."""
+
+    registry = span_registry or build_source_span_registry(report)
+    payload = [
+        _render_selection_block(report, block=block, registry=registry)
+        for block in blocks
+    ]
+    return _NEGATIVE_SELECTION_REVIEW_PROMPT.format(
+        blocks=json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    )
+
+
+def build_evidence_obligation_prompt(
+    report: str,
+    claims: Sequence[AtomicClaim],
+    *,
+    span_registry: SourceSpanRegistry | None = None,
+) -> str:
+    """Build the independent resolver for proposed internal evidence routes."""
+
+    registry = span_registry or build_source_span_registry(report)
+    payload = [
+        {
+            "claim_id": claim.claim_id,
+            "block_id": claim.block_id,
+            "claim_text": claim.claim_text,
+            "selected_text": claim.selected_text,
+            "report_surface": (
+                claim.report_surface.model_dump(mode="json")
+                if claim.report_surface is not None
+                else None
+            ),
+        }
+        for claim in claims
+    ]
+    return _EVIDENCE_OBLIGATION_PROMPT.format(
+        report=render_segmented_source(report, registry),
+        claims=json.dumps(payload, ensure_ascii=False, sort_keys=True),
+    )
+
+
 def build_decontextualization_prompt(
     report: str,
     claims: Sequence[Mapping[str, Any]],
@@ -1126,7 +1519,9 @@ def _selection_for_every_block(
                 assertions.append(
                     SelectedAssertion(
                         selected_text=resolved.source_quote,
-                        citation_requirement=assertion.citation_requirement,
+                        citation_requirement=CitationRequirement(
+                            assertion.citation_requirement.value
+                        ),
                         selection_start_char=resolved.start_char,
                         selection_end_char=resolved.end_char,
                         selection_start_segment_id=resolved.start_segment_id,
@@ -1189,6 +1584,421 @@ def _selection_for_every_block(
             )
         )
     return tuple(ordered), tuple(diagnostics)
+
+
+def _review_empty_selections(
+    blocks: Sequence[MarkdownBlock],
+    content: Any,
+    *,
+    report: str,
+    span_registry: SourceSpanRegistry,
+) -> tuple[tuple[BlockSelection, ...], tuple[str, ...]]:
+    """Resolve every provisional empty selection without trusting absence."""
+
+    block_by_id = {block.block_id: block for block in blocks}
+    raw_reviews = (
+        content.get("blocks") if isinstance(content, Mapping) else None
+    )
+    if not isinstance(raw_reviews, (list, tuple)):
+        return (
+            tuple(
+                BlockSelection(
+                    block_id=block.block_id,
+                    disposition=BlockDisposition.SELECTION_UNRESOLVED,
+                    rationale="negative selection review payload was invalid",
+                )
+                for block in blocks
+            ),
+            ("negative_selection_review_payload_invalid",),
+        )
+
+    grouped: dict[str, list[_NegativeBlockReviewProposal]] = {}
+    diagnostics: list[str] = []
+    for index, raw in enumerate(raw_reviews):
+        try:
+            proposal = _NegativeBlockReviewProposal.model_validate(raw)
+        except (TypeError, ValidationError, ValueError) as exc:
+            diagnostics.append(
+                f"negative_selection_review_entry_invalid[{index}]: {exc}"
+            )
+            continue
+        if proposal.block_id not in block_by_id:
+            diagnostics.append(
+                f"negative_selection_review_unknown_block: {proposal.block_id}"
+            )
+            continue
+        grouped.setdefault(proposal.block_id, []).append(proposal)
+
+    resolved_reviews: list[BlockSelection] = []
+    for block in blocks:
+        proposals = grouped.get(block.block_id, ())
+        if len(proposals) != 1:
+            reason = (
+                "negative selection review omitted this block"
+                if not proposals
+                else "negative selection review duplicated this block"
+            )
+            diagnostics.append(f"{reason}: {block.block_id}")
+            resolved_reviews.append(
+                BlockSelection(
+                    block_id=block.block_id,
+                    disposition=BlockDisposition.SELECTION_UNRESOLVED,
+                    rationale=reason,
+                )
+            )
+            continue
+        proposal = proposals[0]
+        if proposal.outcome is _NegativeReviewOutcome.CONFIRMED_EMPTY:
+            resolved_reviews.append(
+                BlockSelection(
+                    block_id=block.block_id,
+                    disposition=(
+                        BlockDisposition.NO_VERIFIABLE_CLAIMS_CONFIRMED
+                    ),
+                    rationale=proposal.rationale,
+                )
+            )
+            continue
+        if proposal.outcome is _NegativeReviewOutcome.UNCERTAIN:
+            resolved_reviews.append(
+                BlockSelection(
+                    block_id=block.block_id,
+                    disposition=BlockDisposition.SELECTION_UNRESOLVED,
+                    rationale=proposal.rationale or "reviewer was uncertain",
+                )
+            )
+            continue
+
+        assertions: list[SelectedAssertion] = []
+        try:
+            for assertion in proposal.assertions:
+                span = resolve_source_span(
+                    report,
+                    span_registry,
+                    start_segment_id=assertion.start_segment_id,
+                    end_segment_id=assertion.end_segment_id,
+                )
+                if not (
+                    block.start_char <= span.start_char
+                    and span.end_char <= block.end_char
+                ):
+                    raise ValueError(
+                        "negative-review assertion leaves its declared block"
+                    )
+                assertions.append(
+                    SelectedAssertion(
+                        selected_text=span.source_quote,
+                        citation_requirement=CitationRequirement(
+                            assertion.citation_requirement.value
+                        ),
+                        selection_start_char=span.start_char,
+                        selection_end_char=span.end_char,
+                        selection_start_segment_id=span.start_segment_id,
+                        selection_end_segment_id=span.end_segment_id,
+                        selection_span_registry_id=span_registry.registry_id,
+                        selection_report_text_sha256=(
+                            span_registry.source_text_sha256
+                        ),
+                        selection_segmentation_version=(
+                            span_registry.segmentation_version
+                        ),
+                    )
+                )
+        except ValueError as exc:
+            diagnostics.append(
+                "negative_selection_review_assertion_invalid"
+                f"[{block.block_id}]: {exc}"
+            )
+            resolved_reviews.append(
+                BlockSelection(
+                    block_id=block.block_id,
+                    disposition=BlockDisposition.SELECTION_UNRESOLVED,
+                    rationale="negative review returned an invalid assertion",
+                )
+            )
+            continue
+        resolved_reviews.append(
+            BlockSelection(
+                block_id=block.block_id,
+                disposition=BlockDisposition.CLAIMS_SELECTED,
+                rationale=proposal.rationale,
+                assertions=tuple(assertions),
+            )
+        )
+    return tuple(resolved_reviews), tuple(diagnostics)
+
+
+def _block_denominator_audit(
+    blocks: Sequence[MarkdownBlock],
+    selections: Sequence[BlockSelection],
+) -> BlockDenominatorAudit:
+    by_id = {selection.block_id: selection for selection in selections}
+    selected = tuple(
+        block.block_id
+        for block in blocks
+        if by_id.get(block.block_id) is not None
+        and by_id[block.block_id].disposition is BlockDisposition.CLAIMS_SELECTED
+    )
+    confirmed = tuple(
+        block.block_id
+        for block in blocks
+        if by_id.get(block.block_id) is not None
+        and by_id[block.block_id].disposition
+        is BlockDisposition.NO_VERIFIABLE_CLAIMS_CONFIRMED
+    )
+    unresolved = tuple(
+        block.block_id
+        for block in blocks
+        if by_id.get(block.block_id) is None
+        or by_id[block.block_id].disposition
+        not in {
+            BlockDisposition.CLAIMS_SELECTED,
+            BlockDisposition.NO_VERIFIABLE_CLAIMS_CONFIRMED,
+        }
+    )
+    return BlockDenominatorAudit(
+        total_blocks=len(blocks),
+        selected_block_ids=selected,
+        confirmed_empty_block_ids=confirmed,
+        unresolved_block_ids=unresolved,
+        silent_bypass_count=0,
+    )
+
+
+def _intervals_overlap(
+    first_start: int,
+    first_end: int,
+    second_start: int,
+    second_end: int,
+) -> bool:
+    return max(first_start, second_start) < min(first_end, second_end)
+
+
+def _unresolved_obligation(
+    claim: AtomicClaim,
+    *,
+    rationale: str = "",
+    reason: str,
+) -> AtomicClaim:
+    proposed = claim.proposed_citation_requirement or claim.citation_requirement
+    return claim.model_copy(
+        update={
+            "proposed_citation_requirement": proposed,
+            "evidence_obligation": EvidenceObligation(
+                claim_id=claim.claim_id,
+                proposed_requirement=proposed,
+                status=EvidenceObligationStatus.UNRESOLVED,
+                rationale=rationale,
+                failure_reason=reason,
+            ),
+        }
+    )
+
+
+def _resolve_internal_obligations(
+    report: str,
+    claims: Sequence[AtomicClaim],
+    content: Any,
+    *,
+    span_registry: SourceSpanRegistry,
+) -> tuple[tuple[AtomicClaim, ...], tuple[str, ...]]:
+    """Resolve internal proposals and promote world-dependent claims outward."""
+
+    internal = tuple(
+        claim
+        for claim in claims
+        if claim.citation_requirement is CitationRequirement.INTERNAL
+    )
+    internal_by_id = {claim.claim_id: claim for claim in internal}
+    raw_proposals = (
+        content.get("claims") if isinstance(content, Mapping) else None
+    )
+    if not isinstance(raw_proposals, (list, tuple)):
+        return (
+            tuple(
+                _unresolved_obligation(
+                    claim,
+                    reason="evidence_obligation_payload_invalid",
+                )
+                if claim.claim_id in internal_by_id
+                else claim
+                for claim in claims
+            ),
+            ("evidence_obligation_payload_invalid",),
+        )
+
+    grouped: dict[str, list[_EvidenceObligationProposal]] = {}
+    diagnostics: list[str] = []
+    for index, raw in enumerate(raw_proposals):
+        try:
+            proposal = _EvidenceObligationProposal.model_validate(raw)
+        except (TypeError, ValidationError, ValueError) as exc:
+            diagnostics.append(f"evidence_obligation_entry_invalid[{index}]: {exc}")
+            continue
+        if proposal.claim_id not in internal_by_id:
+            diagnostics.append(
+                f"evidence_obligation_unknown_claim: {proposal.claim_id}"
+            )
+            continue
+        grouped.setdefault(proposal.claim_id, []).append(proposal)
+
+    resolved: dict[str, AtomicClaim] = {}
+    for claim in internal:
+        candidates = grouped.get(claim.claim_id, ())
+        if len(candidates) != 1:
+            reason = (
+                "evidence_obligation_missing"
+                if not candidates
+                else "evidence_obligation_duplicate"
+            )
+            diagnostics.append(f"{reason}: {claim.claim_id}")
+            resolved[claim.claim_id] = _unresolved_obligation(
+                claim,
+                reason=reason,
+            )
+            continue
+        proposal = candidates[0]
+        proposed = CitationRequirement.INTERNAL
+        if proposal.outcome is _EvidenceObligationOutcome.EXTERNAL_REQUIRED:
+            resolved[claim.claim_id] = claim.model_copy(
+                update={
+                    "citation_requirement": CitationRequirement.EXTERNAL,
+                    "proposed_citation_requirement": proposed,
+                    "evidence_obligation": EvidenceObligation(
+                        claim_id=claim.claim_id,
+                        proposed_requirement=proposed,
+                        status=EvidenceObligationStatus.EXTERNAL_REQUIRED,
+                        rationale=proposal.rationale,
+                    ),
+                }
+            )
+            continue
+        if proposal.outcome is _EvidenceObligationOutcome.INTERNAL_NOT_SUPPORTED:
+            resolved[claim.claim_id] = claim.model_copy(
+                update={
+                    "proposed_citation_requirement": proposed,
+                    "evidence_obligation": EvidenceObligation(
+                        claim_id=claim.claim_id,
+                        proposed_requirement=proposed,
+                        status=EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED,
+                        rationale=proposal.rationale,
+                    ),
+                }
+            )
+            continue
+        if proposal.outcome is _EvidenceObligationOutcome.UNCERTAIN:
+            resolved[claim.claim_id] = _unresolved_obligation(
+                claim,
+                rationale=proposal.rationale,
+                reason="evidence_obligation_reviewer_uncertain",
+            )
+            continue
+
+        evidence: list[InternalArtifactEvidenceSpan] = []
+        evidence_error: str | None = None
+        for pointer in proposal.evidence_spans:
+            try:
+                span = resolve_source_span(
+                    report,
+                    span_registry,
+                    start_segment_id=pointer.start_segment_id,
+                    end_segment_id=pointer.end_segment_id,
+                )
+            except ValueError:
+                evidence_error = "internal_evidence_pointer_invalid"
+                break
+            surface = claim.report_surface
+            if surface is None:
+                evidence_error = "internal_claim_missing_report_surface"
+                break
+            if _intervals_overlap(
+                surface.start_char,
+                surface.end_char,
+                span.start_char,
+                span.end_char,
+            ):
+                evidence_error = "internal_evidence_self_reference"
+                break
+            evidence.append(
+                InternalArtifactEvidenceSpan(
+                    text=span.source_quote,
+                    start_char=span.start_char,
+                    end_char=span.end_char,
+                    start_segment_id=span.start_segment_id,
+                    end_segment_id=span.end_segment_id,
+                    span_registry_id=span_registry.registry_id,
+                    report_text_sha256=span_registry.source_text_sha256,
+                    segmentation_version=span_registry.segmentation_version,
+                )
+            )
+        if evidence_error is not None:
+            diagnostics.append(f"{evidence_error}: {claim.claim_id}")
+            resolved[claim.claim_id] = _unresolved_obligation(
+                claim,
+                rationale=proposal.rationale,
+                reason=evidence_error,
+            )
+            continue
+        resolved[claim.claim_id] = claim.model_copy(
+            update={
+                "proposed_citation_requirement": proposed,
+                "evidence_obligation": EvidenceObligation(
+                    claim_id=claim.claim_id,
+                    proposed_requirement=proposed,
+                    status=EvidenceObligationStatus.INTERNAL_SUPPORTED,
+                    rationale=proposal.rationale,
+                    internal_evidence=tuple(evidence),
+                ),
+            }
+        )
+
+    return (
+        tuple(resolved.get(claim.claim_id, claim) for claim in claims),
+        tuple(diagnostics),
+    )
+
+
+def _claim_obligation_audit(
+    claims: Sequence[AtomicClaim],
+) -> ClaimObligationAudit:
+    selected = tuple(claim.claim_id for claim in claims)
+    externally_routed = tuple(
+        claim.claim_id
+        for claim in claims
+        if claim.citation_requirement is CitationRequirement.EXTERNAL
+        and claim.evidence_obligation is not None
+        and claim.evidence_obligation.status
+        is EvidenceObligationStatus.EXTERNAL_REQUIRED
+    )
+    internally_verified = tuple(
+        claim.claim_id
+        for claim in claims
+        if claim.evidence_obligation is not None
+        and claim.evidence_obligation.status
+        is EvidenceObligationStatus.INTERNAL_SUPPORTED
+    )
+    internally_unsupported = tuple(
+        claim.claim_id
+        for claim in claims
+        if claim.evidence_obligation is not None
+        and claim.evidence_obligation.status
+        is EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED
+    )
+    unresolved = tuple(
+        claim.claim_id
+        for claim in claims
+        if claim.evidence_obligation is not None
+        and claim.evidence_obligation.status
+        is EvidenceObligationStatus.UNRESOLVED
+    )
+    return ClaimObligationAudit(
+        selected_claim_ids=selected,
+        externally_routed_claim_ids=externally_routed,
+        internally_verified_claim_ids=internally_verified,
+        internally_unsupported_claim_ids=internally_unsupported,
+        unresolved_claim_ids=unresolved,
+        silent_bypass_count=0,
+    )
 
 
 def _claim_seed(
@@ -1260,6 +2070,8 @@ def _batch_outcome(
 def _registry_coverage(
     blocks: Sequence[MarkdownBlock],
     selections: Sequence[BlockSelection],
+    *,
+    independent_review_required: bool = False,
 ) -> ClaimRegistryCoverage:
     disposition_by_id = {
         selection.block_id: selection.disposition
@@ -1269,7 +2081,18 @@ def _registry_coverage(
         block.block_id
         for block in blocks
         if disposition_by_id.get(block.block_id)
-        in {None, BlockDisposition.SELECTION_FAILED}
+        not in (
+            {
+                BlockDisposition.CLAIMS_SELECTED,
+                BlockDisposition.NO_VERIFIABLE_CLAIMS_CONFIRMED,
+            }
+            if independent_review_required
+            else {
+                BlockDisposition.CLAIMS_SELECTED,
+                BlockDisposition.NO_VERIFIABLE_CLAIMS,
+                BlockDisposition.NO_VERIFIABLE_CLAIMS_CONFIRMED,
+            }
+        )
     )
     return ClaimRegistryCoverage(
         evaluated_blocks=len(blocks) - len(unassessed),
@@ -1554,9 +2377,10 @@ async def decompose_claims(
     report: str,
     *,
     model_client: ClaimModelClient,
+    review_model_client: ClaimModelClient | None = None,
     settings: ClaimDecompositionSettings | None = None,
 ) -> ClaimDecompositionResult:
-    """Run three capacity-bounded stages without dropping an input silently."""
+    """Build a closed claim/evidence registry without silent denominator loss."""
 
     if not isinstance(report, str):
         raise TypeError("report must be text")
@@ -1570,6 +2394,7 @@ async def decompose_claims(
     diagnostics: list[str] = []
     batch_records: list[ClaimBatchRecord] = []
     selection_usages: list[ClaimStageUsage] = []
+    evidence_review_usages: list[ClaimStageUsage] = []
     ordered_selections: list[BlockSelection] = []
     for batch_number, block_batch in enumerate(
         _chunks(blocks, active_settings.batch_size),
@@ -1627,8 +2452,104 @@ async def decompose_claims(
         )
 
     selections = tuple(ordered_selections)
+    block_denominator_audit: BlockDenominatorAudit | None = None
+    if active_settings.require_independent_evidence_review:
+        empty_by_id = {
+            selection.block_id
+            for selection in selections
+            if selection.disposition is BlockDisposition.NO_VERIFIABLE_CLAIMS
+        }
+        retained = {
+            selection.block_id: selection
+            for selection in selections
+            if selection.block_id not in empty_by_id
+        }
+        empty_blocks = tuple(
+            block for block in blocks if block.block_id in empty_by_id
+        )
+        reviewed: dict[str, BlockSelection] = {}
+        for batch_number, block_batch in enumerate(
+            _chunks(empty_blocks, active_settings.batch_size),
+            start=1,
+        ):
+            input_ids = tuple(block.block_id for block in block_batch)
+            call_error: str | None = None
+            try:
+                if review_model_client is None:
+                    raise ValueError(
+                        "independent evidence review requires review_model_client"
+                    )
+                review_content, batch_usage = await _call_model(
+                    review_model_client,
+                    build_negative_selection_review_prompt(
+                        report,
+                        block_batch,
+                        span_registry=report_span_registry,
+                    ),
+                )
+            except Exception as exc:
+                review_content = None
+                batch_usage = ClaimStageUsage()
+                call_error = f"{type(exc).__name__}: {exc}"
+                diagnostics.append(
+                    f"negative_selection_review_batch_error[{batch_number}] "
+                    f"block_ids={','.join(input_ids)}: {call_error}"
+                )
+            batch_reviews, batch_diagnostics = _review_empty_selections(
+                block_batch,
+                review_content,
+                report=report,
+                span_registry=report_span_registry,
+            )
+            diagnostics.extend(batch_diagnostics)
+            reviewed.update(
+                (selection.block_id, selection)
+                for selection in batch_reviews
+            )
+            failed_ids = tuple(
+                selection.block_id
+                for selection in batch_reviews
+                if selection.disposition
+                is BlockDisposition.SELECTION_UNRESOLVED
+            )
+            output_ids = tuple(
+                selection.block_id
+                for selection in batch_reviews
+                if selection.disposition
+                is not BlockDisposition.SELECTION_UNRESOLVED
+            )
+            evidence_review_usages.append(batch_usage)
+            batch_records.append(
+                ClaimBatchRecord(
+                    stage="negative_selection_review",
+                    batch_number=batch_number,
+                    input_ids=input_ids,
+                    output_ids=output_ids,
+                    failed_input_ids=failed_ids,
+                    outcome=_batch_outcome(input_ids, failed_ids),
+                    error=call_error,
+                    usage=batch_usage,
+                )
+            )
+        selections = tuple(
+            retained.get(block.block_id)
+            or reviewed.get(block.block_id)
+            or BlockSelection(
+                block_id=block.block_id,
+                disposition=BlockDisposition.SELECTION_UNRESOLVED,
+                rationale="block was absent from the closed selection registry",
+            )
+            for block in blocks
+        )
+        block_denominator_audit = _block_denominator_audit(blocks, selections)
     selection_usage = _sum_usage(selection_usages)
-    registry_coverage = _registry_coverage(blocks, selections)
+    registry_coverage = _registry_coverage(
+        blocks,
+        selections,
+        independent_review_required=(
+            active_settings.require_independent_evidence_review
+        ),
+    )
     seed_claims = _claim_seed(selections)
     zero_usage = ClaimStageUsage()
     if not seed_claims:
@@ -1637,11 +2558,18 @@ async def decompose_claims(
             selections=selections,
             claims=(),
             registry_coverage=registry_coverage,
+            block_denominator_audit=block_denominator_audit,
+            claim_obligation_audit=(
+                _claim_obligation_audit(())
+                if active_settings.require_independent_evidence_review
+                else None
+            ),
             batches=tuple(batch_records),
             diagnostics=tuple(diagnostics),
             selection_usage=selection_usage,
             decontextualization_usage=zero_usage,
             extraction_usage=zero_usage,
+            evidence_review_usage=_sum_usage(evidence_review_usages),
         )
 
     valid_decontext: dict[
@@ -2032,6 +2960,120 @@ async def decompose_claims(
             )
         )
 
+    claim_obligation_audit: ClaimObligationAudit | None = None
+    if active_settings.require_independent_evidence_review:
+        obligation_initialized: list[AtomicClaim] = []
+        for claim in claims:
+            proposed = claim.citation_requirement
+            if proposed is CitationRequirement.EXTERNAL:
+                obligation_initialized.append(
+                    claim.model_copy(
+                        update={
+                            "proposed_citation_requirement": proposed,
+                            "evidence_obligation": EvidenceObligation(
+                                claim_id=claim.claim_id,
+                                proposed_requirement=proposed,
+                                status=(
+                                    EvidenceObligationStatus.EXTERNAL_REQUIRED
+                                ),
+                                rationale=(
+                                    "first-pass selection routed the claim to "
+                                    "external evidence"
+                                ),
+                            ),
+                        }
+                    )
+                )
+            elif proposed is CitationRequirement.INTERNAL:
+                obligation_initialized.append(
+                    claim.model_copy(
+                        update={"proposed_citation_requirement": proposed}
+                    )
+                )
+            else:
+                # Historical NONE values are readable but cannot enter a new
+                # live registry as a terminal route.
+                obligation_initialized.append(
+                    _unresolved_obligation(
+                        claim,
+                        reason="historical_none_route_rejected_in_live_run",
+                    )
+                )
+
+        internal_claims = tuple(
+            claim
+            for claim in obligation_initialized
+            if claim.citation_requirement is CitationRequirement.INTERNAL
+        )
+        resolved_internal: dict[str, AtomicClaim] = {}
+        for batch_number, claim_batch in enumerate(
+            _chunks(internal_claims, active_settings.batch_size),
+            start=1,
+        ):
+            input_ids = tuple(claim.claim_id for claim in claim_batch)
+            call_error: str | None = None
+            try:
+                if review_model_client is None:
+                    raise ValueError(
+                        "independent evidence review requires review_model_client"
+                    )
+                review_content, batch_usage = await _call_model(
+                    review_model_client,
+                    build_evidence_obligation_prompt(
+                        report,
+                        claim_batch,
+                        span_registry=report_span_registry,
+                    ),
+                )
+            except Exception as exc:
+                review_content = None
+                batch_usage = ClaimStageUsage()
+                call_error = f"{type(exc).__name__}: {exc}"
+                diagnostics.append(
+                    f"evidence_obligation_batch_error[{batch_number}] "
+                    f"claim_ids={','.join(input_ids)}: {call_error}"
+                )
+            batch_claims, batch_diagnostics = _resolve_internal_obligations(
+                report,
+                claim_batch,
+                review_content,
+                span_registry=report_span_registry,
+            )
+            diagnostics.extend(batch_diagnostics)
+            resolved_internal.update(
+                (claim.claim_id, claim) for claim in batch_claims
+            )
+            failed_ids = tuple(
+                claim.claim_id
+                for claim in batch_claims
+                if claim.evidence_obligation is None
+                or claim.evidence_obligation.status
+                is EvidenceObligationStatus.UNRESOLVED
+            )
+            output_ids = tuple(
+                claim.claim_id
+                for claim in batch_claims
+                if claim.claim_id not in set(failed_ids)
+            )
+            evidence_review_usages.append(batch_usage)
+            batch_records.append(
+                ClaimBatchRecord(
+                    stage="evidence_obligation",
+                    batch_number=batch_number,
+                    input_ids=input_ids,
+                    output_ids=output_ids,
+                    failed_input_ids=failed_ids,
+                    outcome=_batch_outcome(input_ids, failed_ids),
+                    error=call_error,
+                    usage=batch_usage,
+                )
+            )
+        claims = [
+            resolved_internal.get(claim.claim_id, claim)
+            for claim in obligation_initialized
+        ]
+        claim_obligation_audit = _claim_obligation_audit(claims)
+
     anchor_proposal_count = len(extraction_by_id)
     # Pointer extraction never asks the model to copy selected_text. Keep the
     # historical audit metric at its mechanically true value: zero copies.
@@ -2042,11 +3084,14 @@ async def decompose_claims(
         selections=selections,
         claims=tuple(claims),
         registry_coverage=registry_coverage,
+        block_denominator_audit=block_denominator_audit,
+        claim_obligation_audit=claim_obligation_audit,
         batches=tuple(batch_records),
         diagnostics=tuple(diagnostics),
         selection_usage=selection_usage,
         decontextualization_usage=decontext_usage,
         extraction_usage=extraction_usage,
+        evidence_review_usage=_sum_usage(evidence_review_usages),
         anchor_proposal_count=anchor_proposal_count,
         anchor_copied_from_selection_count=(
             anchor_copied_from_selection_count

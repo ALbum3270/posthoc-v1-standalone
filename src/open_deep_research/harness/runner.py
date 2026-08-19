@@ -651,6 +651,7 @@ def _publish_partial_result(
 
     for stage_name in (
         "claim_decomposition",
+        "evidence_obligation_resolution",
         "evaluative_diagnostics",
         "checklist_reconciliation",
         "attribution",
@@ -1045,10 +1046,13 @@ async def run_harness(
     additional_usage: dict[str, UsageRecord] = {}
 
     parsed_blocks = parse_markdown_blocks(report.canonical_draft)
+    live_claim_settings = (
+        claim_settings or ClaimDecompositionSettings()
+    ).model_copy(
+        update={"require_independent_evidence_review": True}
+    )
     claim_batch_size = (
-        claim_settings.batch_size
-        if claim_settings is not None
-        else ClaimDecompositionSettings().batch_size
+        live_claim_settings.batch_size
     )
     selection_span_registry = build_source_span_registry(
         report.canonical_draft
@@ -1092,6 +1096,7 @@ async def run_harness(
         estimate_complete=False,
         limitations=(
             "only selection prompts are constructible before selection",
+            "negative-selection review, evidence-obligation review, "
             "decontextualization, extraction, attribution, reconciliation, "
             "and verification remain unestimated at this checkpoint",
         ),
@@ -1102,11 +1107,17 @@ async def run_harness(
         stage="claim_decomposition",
         tail_reserve_controller=tail_reserve,
     )
+    budgeted_claim_review_model = run_cost.wrap(
+        verification_model,
+        stage="evidence_obligation_resolution",
+        tail_reserve_controller=tail_reserve,
+    )
     try:
         claim_decomposition = await decompose_claims(
             report.canonical_draft,
             model_client=budgeted_claim_model,
-            settings=claim_settings,
+            review_model_client=budgeted_claim_review_model,
+            settings=live_claim_settings,
         )
     except RunCostCapReached as error:
         stage_records["claim_decomposition"] = _scope_record(
@@ -1153,6 +1164,51 @@ async def run_harness(
         expected_count=claim_coverage.total_blocks,
         evaluated_count=claim_coverage.evaluated_blocks,
         unevaluated_ids=claim_coverage.unassessed_block_ids,
+    )
+    obligation_audit = claim_decomposition.claim_obligation_audit
+    if obligation_audit is None:
+        raise AssertionError("live claim decomposition requires obligation audit")
+    negative_review_input_ids = tuple(
+        input_id
+        for batch in claim_decomposition.batches
+        if batch.stage == "negative_selection_review"
+        for input_id in batch.input_ids
+    )
+    negative_review_failed_ids = tuple(
+        input_id
+        for batch in claim_decomposition.batches
+        if batch.stage == "negative_selection_review"
+        for input_id in batch.failed_input_ids
+    )
+    unresolved_obligation_ids = tuple(
+        dict.fromkeys(
+            (*negative_review_failed_ids, *obligation_audit.unresolved_claim_ids)
+        )
+    )
+    evidence_obligation_expected = (
+        len(negative_review_input_ids)
+        + len(obligation_audit.selected_claim_ids)
+    )
+    stage_records["evidence_obligation_resolution"] = _scope_record(
+        status=(
+            StageExecutionStatus.COMPLETE
+            if not unresolved_obligation_ids
+            else StageExecutionStatus.PARTIAL
+        ),
+        reason=(
+            "every empty-block review and selected-claim obligation resolved"
+            if not unresolved_obligation_ids
+            else (
+                "some empty blocks or selected claims have unresolved "
+                "evidence obligations"
+            )
+        ),
+        unit="evidence_obligation_unit",
+        expected_count=evidence_obligation_expected,
+        evaluated_count=(
+            evidence_obligation_expected - len(unresolved_obligation_ids)
+        ),
+        unevaluated_ids=unresolved_obligation_ids,
     )
     tail_reserve.observe_stage(
         "claim_decomposition",
@@ -2092,6 +2148,7 @@ async def run_harness(
         ):
             post_edit_required_stages = (
                 "post_edit_claim_decomposition",
+                "post_edit_evidence_obligation_resolution",
                 "post_edit_attribution",
                 "post_edit_initial_verification",
                 "post_edit_checklist_reconciliation",
@@ -2108,11 +2165,17 @@ async def run_harness(
                 stage="post_edit_claim_decomposition",
                 tail_reserve_controller=tail_reserve,
             )
+            budgeted_post_claim_review_model = run_cost.wrap(
+                verification_model,
+                stage="post_edit_evidence_obligation_resolution",
+                tail_reserve_controller=tail_reserve,
+            )
             try:
                 post_claims = await decompose_claims(
                     proposed_draft,
                     model_client=budgeted_post_claim_model,
-                    settings=claim_settings,
+                    review_model_client=budgeted_post_claim_review_model,
+                    settings=live_claim_settings,
                 )
             except RunCostCapReached as error:
                 stage_records["post_edit_claim_decomposition"] = _scope_record(
@@ -2165,8 +2228,78 @@ async def run_harness(
                     cost_usd=post_claims.total_cost_usd,
                 )
 
+            if post_claims is None:
+                stage_records[
+                    "post_edit_evidence_obligation_resolution"
+                ] = _scope_record(
+                    status=StageExecutionStatus.NOT_RUN,
+                    reason=(
+                        "not run because the edited claim registry was not "
+                        "available"
+                    ),
+                )
+            else:
+                post_obligation_audit = post_claims.claim_obligation_audit
+                if post_obligation_audit is None:
+                    raise AssertionError(
+                        "edited live registry requires obligation audit"
+                    )
+                post_negative_review_input_ids = tuple(
+                    input_id
+                    for batch in post_claims.batches
+                    if batch.stage == "negative_selection_review"
+                    for input_id in batch.input_ids
+                )
+                post_negative_review_failed_ids = tuple(
+                    input_id
+                    for batch in post_claims.batches
+                    if batch.stage == "negative_selection_review"
+                    for input_id in batch.failed_input_ids
+                )
+                post_unresolved_obligation_ids = tuple(
+                    dict.fromkeys(
+                        (
+                            *post_negative_review_failed_ids,
+                            *post_obligation_audit.unresolved_claim_ids,
+                        )
+                    )
+                )
+                post_evidence_obligation_expected = (
+                    len(post_negative_review_input_ids)
+                    + len(post_obligation_audit.selected_claim_ids)
+                )
+                stage_records[
+                    "post_edit_evidence_obligation_resolution"
+                ] = _scope_record(
+                    status=(
+                        StageExecutionStatus.COMPLETE
+                        if not post_unresolved_obligation_ids
+                        else StageExecutionStatus.PARTIAL
+                    ),
+                    reason=(
+                        "every edited empty-block review and selected-claim "
+                        "obligation resolved"
+                        if not post_unresolved_obligation_ids
+                        else (
+                            "some edited blocks or claims have unresolved "
+                            "evidence obligations"
+                        )
+                    ),
+                    unit="evidence_obligation_unit",
+                    expected_count=post_evidence_obligation_expected,
+                    evaluated_count=(
+                        post_evidence_obligation_expected
+                        - len(post_unresolved_obligation_ids)
+                    ),
+                    unevaluated_ids=post_unresolved_obligation_ids,
+                )
+
             post_claim_stage_complete = (
                 stage_records["post_edit_claim_decomposition"].status
+                is StageExecutionStatus.COMPLETE
+                and stage_records[
+                    "post_edit_evidence_obligation_resolution"
+                ].status
                 is StageExecutionStatus.COMPLETE
             )
             if post_claim_stage_complete and post_claims is not None:

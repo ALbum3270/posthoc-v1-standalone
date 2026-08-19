@@ -72,12 +72,14 @@ class EvidenceTailReserveAudit(BaseModel):
     stage_observations: tuple[TailStageObservation, ...] = ()
     mandatory_stages: tuple[str, ...] = (
         "claim_decomposition",
+        "evidence_obligation_resolution",
         "attribution",
         "initial_verification",
         "checklist_reconciliation",
         "deterministic_rendering",
         "audit_editing",
         "post_edit_claim_decomposition",
+        "post_edit_evidence_obligation_resolution",
         "post_edit_attribution",
         "post_edit_initial_verification",
         "post_edit_checklist_reconciliation",
@@ -107,12 +109,14 @@ class EvidenceTailReserveController:
     mandatory_stages = frozenset(
         {
             "claim_decomposition",
+            "evidence_obligation_resolution",
             "attribution",
             "initial_verification",
             "checklist_reconciliation",
             "deterministic_rendering",
             "audit_editing",
             "post_edit_claim_decomposition",
+            "post_edit_evidence_obligation_resolution",
             "post_edit_attribution",
             "post_edit_initial_verification",
             "post_edit_checklist_reconciliation",

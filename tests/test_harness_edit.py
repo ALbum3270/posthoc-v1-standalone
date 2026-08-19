@@ -13,6 +13,8 @@ from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
     ClaimNormalizationStatus,
+    EvidenceObligation,
+    EvidenceObligationStatus,
     MarkdownBlock,
     MarkdownBlockKind,
     parse_markdown_blocks,
@@ -207,6 +209,50 @@ class CapAfterFirstEditor:
             ),
             completed_stages=("audit_editing",),
         )
+
+
+def test_editor_targets_unresolved_internal_evidence_obligations():
+    draft = "# Report\n\nA report-internal conclusion."
+    block = parse_markdown_blocks(draft)[1]
+    claim = AtomicClaim(
+        claim_id="claim-internal",
+        block_id=block.block_id,
+        selected_text=block.text,
+        claim_text=block.text,
+        anchor_text=block.text,
+        start_char=block.start_char,
+        end_char=block.end_char,
+        citation_requirement=CitationRequirement.INTERNAL,
+        proposed_citation_requirement=CitationRequirement.INTERNAL,
+        evidence_obligation=EvidenceObligation(
+            claim_id="claim-internal",
+            proposed_requirement=CitationRequirement.INTERNAL,
+            status=EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED,
+            rationale="No independent report-artifact span supports it.",
+        ),
+        normalization_status=ClaimNormalizationStatus.LOCATED,
+    )
+    result = VerificationResult(
+        claims=(
+            _verification(
+                claim,
+                ClaimEvidenceState.INTERNAL_NOT_SUPPORTED,
+            ),
+        )
+    )
+
+    audit = audit_editorial_admission(result, blocks=(block,))
+
+    assert audit.target_claim_ids == ("claim-internal",)
+    assert audit.eligible_target_claim_ids == ("claim-internal",)
+    prompt = build_editorial_prompt(
+        (block,),
+        verification=result,
+    )
+    assert '"claim_id": "claim-internal"' in prompt
+    assert '"evidence_state": "internal_not_supported"' in prompt
+    assert '"status": "internal_not_supported"' in prompt
+    assert "No independent report-artifact span supports it." in prompt
 
 
 def test_noop_remove_gets_one_block_local_correction_attempt():

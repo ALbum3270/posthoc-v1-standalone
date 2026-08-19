@@ -30,12 +30,20 @@ def test_an_enhancement_pass_can_never_touch_the_tail_reserve():
         assert tail.reserve_for_call(stage, None) == pytest.approx(0.10), stage
 
 
-def test_a_mandatory_stage_may_consume_the_reserve_it_belongs_to():
+@pytest.mark.parametrize(
+    "stage",
+    (
+        "attribution",
+        "evidence_obligation_resolution",
+        "post_edit_evidence_obligation_resolution",
+    ),
+)
+def test_a_mandatory_stage_may_consume_the_reserve_it_belongs_to(stage):
     """The reserve exists to be spent on exactly this work."""
 
     tail = controller(0.10)
 
-    protected = tail.reserve_for_call("attribution", 0.04)
+    protected = tail.reserve_for_call(stage, 0.04)
 
     # 0.04 of the 0.10 reserve is released for this call; 0.06 stays protected.
     assert protected == pytest.approx(0.06)

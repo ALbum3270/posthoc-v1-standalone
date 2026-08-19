@@ -657,6 +657,12 @@ def _warning_label(verification: ClaimVerification) -> str:
         return f"〔未核验：{detail}〕"
     if state == ClaimEvidenceState.NORMALIZATION_FAILED:
         return ""
+    if state == ClaimEvidenceState.INTERNAL_SUPPORTED:
+        return ""
+    if state == ClaimEvidenceState.INTERNAL_NOT_SUPPORTED:
+        return "〔报告内部依据不支持〕"
+    if state == ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED:
+        return "〔证据义务未决〕"
     raise ValueError(f"unsupported claim evidence state: {state}")
 
 
@@ -1105,7 +1111,14 @@ def render_verified_report(
 
     for entry in ordered:
         claim = entry.claim
-        if claim.citation_requirement != CitationRequirement.EXTERNAL:
+        if (
+            claim.citation_requirement != CitationRequirement.EXTERNAL
+            and entry.state
+            not in {
+                ClaimEvidenceState.INTERNAL_NOT_SUPPORTED,
+                ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED,
+            }
+        ):
             continue
         if (
             claim.normalization_status
