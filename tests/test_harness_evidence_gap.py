@@ -38,13 +38,27 @@ from open_deep_research.harness.notes import (
     QuoteSpan,
     create_note,
 )
+from open_deep_research.harness.truth_conditions import (
+    ElementAssessmentExecutionStatus,
+    ElementVerificationVerdict,
+    ElementizationProposal,
+    ElementizationReview,
+    ElementizationSemanticStatus,
+    ExecutionCompleteness,
+    aggregate_truth_condition_claim,
+    build_truth_condition_registry,
+    select_truth_condition_registry,
+    truth_condition_registry_sha256,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
     VerificationRecordStatus,
     VerificationResult,
     VerificationVerdict,
+    VerifiedElementRelation,
     VerifiedSourceRelation,
+    build_claim_verification,
 )
 
 
@@ -1257,6 +1271,137 @@ def test_same_relation_budget_failure_cannot_replace_completed_verdict():
     )
 
 
+def test_element_merge_keeps_attribution_candidate_denominator_without_relation():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    first_note = _note(
+        ledger,
+        "https://first.example/record",
+        "The event occurred.",
+    )
+    second_note = _note(
+        ledger,
+        "https://second.example/record",
+        "A second record exists.",
+    )
+    first_candidate = _candidate(first_note)
+    second_candidate = _candidate(second_note)
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.selected_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=(claim.selected_text,),
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=(claim.selected_text,),
+                rationale="One condition closes the claim denominator.",
+            ),
+        ),
+    )
+    element = registry.entries[0].elements[0]
+    element_relation = VerifiedElementRelation(
+        claim_id=claim.claim_id,
+        element_id=element.element_id,
+        element_text=element.text,
+        source_id=first_note.source_id,
+        status=ElementAssessmentExecutionStatus.COMPLETE,
+        semantic_verdict=ElementVerificationVerdict.SUPPORTS,
+        source_quote="The event occurred.",
+        span=QuoteSpan(start_char=0, end_char=len("The event occurred.")),
+        location_status=NoteLocationStatus.LOCATABLE,
+        is_formal_supporting_evidence=True,
+    )
+    relation = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id=first_note.source_id,
+        url=first_note.url,
+        publisher_domain_proxy="first.example",
+        candidate_note_ids=(first_note.note_id,),
+        candidate_source_ids=(first_note.source_id,),
+        status=VerificationRecordStatus.COMPLETED,
+        semantic_verdict=VerificationVerdict.SUPPORTS,
+        explanation="All registered elements are supported.",
+        is_formal_supporting_evidence=True,
+        element_relations=(element_relation,),
+    )
+    initial_aggregate = aggregate_truth_condition_claim(
+        registry.entries[0],
+        (element_relation.as_assessment(),),
+        expected_source_ids=(first_note.source_id,),
+    )
+    initial = VerificationResult(
+        claims=(
+            build_claim_verification(
+                claim,
+                (relation,),
+                required_sources=2,
+                attribution_status=AttributionStatus.CANDIDATE_SOURCES,
+                truth_condition_aggregate=initial_aggregate,
+            ),
+        ),
+        truth_condition_registry_sha256=truth_condition_registry_sha256(
+            registry
+        ),
+    )
+    merged_attribution = AttributionResult(
+        attributions=(
+            ClaimAttribution(
+                claim=claim,
+                status=AttributionStatus.CANDIDATE_SOURCES,
+                candidates=(first_candidate, second_candidate),
+            ),
+        ),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+
+    empty_refreshed = VerificationResult(
+        claims=(),
+        truth_condition_registry_sha256=(
+            truth_condition_registry_sha256(
+                select_truth_condition_registry(registry, ())
+            )
+        ),
+    )
+    merged, _ = _merge_verifications(
+        initial,
+        empty_refreshed,
+        merged_attribution=merged_attribution,
+        truth_condition_registry=registry,
+    )
+
+    aggregate = merged.claims[0].truth_condition_aggregate
+    assert aggregate is not None
+    assert aggregate.elements[0].expected_source_ids == (
+        first_note.source_id,
+        second_note.source_id,
+    )
+    assert aggregate.elements[0].execution_completeness is (
+        ExecutionCompleteness.PARTIAL
+    )
+    assert aggregate.elements[0].unresolved_source_ids == (
+        second_note.source_id,
+    )
+    # The merged audit is derived from the final relation denominator.  It
+    # must not retain the pre-gap zero-count snapshot after a relation exists.
+    assert merged.independence.unresolved_relation_count == 1
+
+    with pytest.raises(ValueError, match="initial verification uses a different"):
+        _merge_verifications(
+            initial.model_copy(
+                update={"truth_condition_registry_sha256": None}
+            ),
+            empty_refreshed,
+            merged_attribution=merged_attribution,
+            truth_condition_registry=registry,
+        )
+
+
 class SearchAndReadNetwork:
     def __init__(self, url):
         self.url = url
@@ -2026,4 +2171,125 @@ def test_same_brand_on_another_domain_is_rejected_before_read():
     )
     assert result.final_verification.claims[0].state == (
         ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
+    )
+
+
+def test_recovery_element_intent_survives_query_read_and_acquisition():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    initial_attribution, legacy_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.claim_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=("The event occurred.",),
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=("The event occurred.",),
+                rationale="One atomic event is the complete denominator.",
+            ),
+        ),
+    )
+    entry = registry.entries[0]
+    target_element_id = entry.elements[0].element_id
+    aggregate = aggregate_truth_condition_claim(
+        entry,
+        (),
+        expected_source_ids=(),
+    )
+    initial_verification = VerificationResult(
+        claims=(
+            legacy_verification.claims[0].model_copy(
+                update={"truth_condition_aggregate": aggregate}
+            ),
+        ),
+        truth_condition_registry_sha256=truth_condition_registry_sha256(
+            registry
+        ),
+    )
+    selected_url = "https://new.example/element-record"
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "dated record of the event",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": selected_url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "new",
+                    "independence_rationale": "new publishing organization",
+                }
+            ]
+        },
+    )
+    note_model = ScriptedModel({"notes": []})
+    estimated_prompts: list[str] = []
+
+    def estimate_tokens(_client, prompt):
+        estimated_prompts.append(prompt)
+        return 1
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=note_model,
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=SearchAndReadNetwork(selected_url),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            truth_condition_registry=registry,
+            explicit_target_claim_ids=(claim.claim_id,),
+            explicit_target_element_ids={
+                claim.claim_id: (target_element_id,)
+            },
+            estimate_input_tokens=estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.searches[0].query.target_element_ids == (
+        target_element_id,
+    )
+    assert result.read_selections[0].target_element_ids == (
+        target_element_id,
+    )
+    assert result.acquisitions[0].target_element_ids == (
+        target_element_id,
+    )
+    assert target_element_id in note_model.prompts[0]
+    assert "The event occurred." in note_model.prompts[0]
+    assert any(
+        target_element_id in prompt
+        and "registered truth-condition element" in prompt
+        for prompt in estimated_prompts
     )

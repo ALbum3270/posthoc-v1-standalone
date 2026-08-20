@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from open_deep_research.harness.stages import (
+    LEGACY_MANDATORY_PIPELINE_STAGES,
     MANDATORY_PIPELINE_STAGES,
     PostDraftExecutionAudit,
     QualityReviewStatus,
@@ -227,6 +228,31 @@ def test_historical_publication_shape_is_read_but_not_reemitted():
     assert "mandatory_publication_stages" not in emitted
 
 
+def test_historical_audit_without_a_mandatory_stage_field_stays_readable():
+    """The new elementization denominator is not retroactive."""
+
+    legacy_stages = {
+        name: complete("claim", 3)
+        for name in LEGACY_MANDATORY_PIPELINE_STAGES
+    }
+    audit = PostDraftExecutionAudit.model_validate(
+        {
+            "stages": {
+                name: record.model_dump(mode="json")
+                for name, record in legacy_stages.items()
+            },
+            "pipeline_complete": True,
+            "pipeline_completion_reason": "legacy stages completed",
+        }
+    )
+
+    assert audit.pipeline_complete is True
+    assert (
+        audit.mandatory_pipeline_stages
+        == LEGACY_MANDATORY_PIPELINE_STAGES
+    )
+
+
 def test_an_ineligible_bundle_carries_no_footnote_definitions():
     """An incomplete run must not ship artifacts that read as verified.
 
@@ -320,6 +346,77 @@ def test_the_invariant_is_quiet_when_every_completed_stage_produced_output():
     assert stages_claiming_completion_without_output(audit) == ()
 
 
+@pytest.mark.parametrize(
+    "stage_name",
+    (
+        "truth_condition_elementization",
+        "post_edit_truth_condition_elementization",
+    ),
+)
+def test_completed_elementization_requires_its_registry_payload(
+    stage_name: str,
+):
+    """A legacy claim payload is not output from elementization."""
+
+    from open_deep_research.harness.stages import (
+        stages_claiming_completion_without_output,
+    )
+
+    audit = {
+        "posthoc_evidence": {
+            "claim_decomposition": {"claims": []},
+            "stage_execution": {
+                "stages": {
+                    stage_name: {
+                        "status": "complete",
+                        "expected_scope": {
+                            "unit": "external_claim",
+                            "count": 0,
+                        },
+                        "evaluated_scope": {
+                            "unit": "external_claim",
+                            "count": 0,
+                        },
+                    }
+                }
+            },
+        }
+    }
+
+    assert stages_claiming_completion_without_output(audit) == (stage_name,)
+
+
+def test_completed_editorial_transaction_requires_its_payload():
+    from open_deep_research.harness.stages import (
+        stages_claiming_completion_without_output,
+    )
+
+    audit = {
+        "posthoc_evidence": {
+            "editorial_transaction": None,
+            "stage_execution": {
+                "stages": {
+                    "editorial_transaction_acceptance": {
+                        "status": "complete",
+                        "expected_scope": {
+                            "unit": "editorial_proposal",
+                            "count": 1,
+                        },
+                        "evaluated_scope": {
+                            "unit": "editorial_proposal",
+                            "count": 1,
+                        },
+                    }
+                }
+            },
+        }
+    }
+
+    assert stages_claiming_completion_without_output(audit) == (
+        "editorial_transaction_acceptance",
+    )
+
+
 def test_invariant_catches_gap_payload_whose_routes_do_not_match_completion():
     """A non-null payload is not proof that 58 target claims were evaluated."""
 
@@ -350,6 +447,48 @@ def test_invariant_catches_gap_payload_whose_routes_do_not_match_completion():
                         "evaluated_scope": {
                             "unit": "target_claim",
                             "count": 58,
+                        },
+                        "unevaluated_ids": [],
+                    }
+                }
+            },
+        }
+    }
+
+    assert stages_claiming_completion_without_output(audit) == (
+        "evidence_gap",
+    )
+
+
+def test_historical_gap_fallback_does_not_count_failed_search_as_routed():
+    from open_deep_research.harness.stages import (
+        stages_claiming_completion_without_output,
+    )
+
+    audit = {
+        "posthoc_evidence": {
+            "evidence_gap": {
+                "target_claim_ids": ["claim-0001"],
+                # Historical payload: no routed_target_claim_ids field.
+                "cached_candidate_hints": [],
+                "searches": [
+                    {
+                        "query": {"claim_ids": ["claim-0001"]},
+                        "error": "provider timeout",
+                    }
+                ],
+            },
+            "stage_execution": {
+                "stages": {
+                    "evidence_gap": {
+                        "status": "complete",
+                        "expected_scope": {
+                            "unit": "target_claim",
+                            "count": 1,
+                        },
+                        "evaluated_scope": {
+                            "unit": "target_claim",
+                            "count": 1,
                         },
                         "unevaluated_ids": [],
                     }
@@ -489,6 +628,91 @@ def test_an_empty_scope_from_a_truncated_upstream_is_demoted():
     )
     # The fabricated denominator is dropped rather than kept at zero.
     assert adjusted["attribution"].expected_scope is None
+
+
+@pytest.mark.parametrize(
+    ("upstream_stage", "downstream_stage"),
+    (
+        ("claim_decomposition", "truth_condition_elementization"),
+        (
+            "post_edit_claim_decomposition",
+            "post_edit_truth_condition_elementization",
+        ),
+    ),
+)
+def test_truncated_claim_registry_demotes_vacuous_elementization(
+    upstream_stage: str,
+    downstream_stage: str,
+):
+    from open_deep_research.harness.stages import demote_vacuous_completions
+
+    stages = {
+        upstream_stage: StageExecutionRecord(
+            status=StageExecutionStatus.PARTIAL,
+            reason="claim denominator was truncated",
+        ),
+        downstream_stage: StageExecutionRecord(
+            status=StageExecutionStatus.COMPLETE,
+            reason="no claims to elementize",
+            expected_scope=StageScope(unit="external_claim", count=0),
+            evaluated_scope=StageScope(unit="external_claim", count=0),
+        ),
+    }
+
+    adjusted = demote_vacuous_completions(stages)
+
+    assert adjusted[downstream_stage].status is StageExecutionStatus.NOT_RUN
+    assert adjusted[downstream_stage].expected_scope is None
+    assert f"{upstream_stage} did not complete" in (
+        adjusted[downstream_stage].reason
+    )
+
+
+@pytest.mark.parametrize(
+    "incomplete_upstream",
+    (
+        "post_edit_claim_decomposition",
+        "post_edit_truth_condition_elementization",
+        "post_edit_evidence_obligation_resolution",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
+    ),
+)
+def test_incomplete_post_edit_scope_demotes_vacuous_transaction_acceptance(
+    incomplete_upstream: str,
+):
+    from open_deep_research.harness.stages import demote_vacuous_completions
+
+    upstreams = (
+        "post_edit_claim_decomposition",
+        "post_edit_truth_condition_elementization",
+        "post_edit_evidence_obligation_resolution",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
+    )
+    stages = {name: complete("claim", 1) for name in upstreams}
+    stages[incomplete_upstream] = StageExecutionRecord(
+        status=StageExecutionStatus.PARTIAL,
+        reason="post-edit audit was truncated",
+        expected_scope=StageScope(unit="claim", count=1),
+        evaluated_scope=StageScope(unit="claim", count=0),
+        unevaluated_ids=("claim-0001",),
+    )
+    stages["editorial_transaction_acceptance"] = StageExecutionRecord(
+        status=StageExecutionStatus.COMPLETE,
+        reason="no proposal remained",
+        expected_scope=StageScope(unit="editorial_proposal", count=0),
+        evaluated_scope=StageScope(unit="editorial_proposal", count=0),
+    )
+
+    adjusted = demote_vacuous_completions(stages)
+
+    transaction = adjusted["editorial_transaction_acceptance"]
+    assert transaction.status is StageExecutionStatus.NOT_RUN
+    assert transaction.expected_scope is None
+    assert f"{incomplete_upstream} did not complete" in transaction.reason
 
 
 def test_attribution_empty_scope_is_demoted_when_obligation_review_truncated():

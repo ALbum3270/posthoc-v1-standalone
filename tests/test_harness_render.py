@@ -22,13 +22,25 @@ from open_deep_research.harness.render import (
     ReaderReportStyle,
     render_verified_report,
 )
+from open_deep_research.harness.truth_conditions import (
+    ElementAssessmentExecutionStatus,
+    ElementSourceAssessment,
+    ElementVerificationVerdict,
+    ElementizationProposal,
+    ElementizationReview,
+    ElementizationSemanticStatus,
+    aggregate_truth_condition_claim,
+    build_truth_condition_registry,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
     VerificationRecordStatus,
     VerificationResult,
     VerificationVerdict,
+    VerifiedElementRelation,
     VerifiedSourceRelation,
+    build_claim_verification,
 )
 _FIXTURE_PATH = (
     Path(__file__).parent / "fixtures" / "harness_posthoc_b1407b.json"
@@ -107,6 +119,7 @@ def _verified(
     state: ClaimEvidenceState,
     *relations: VerifiedSourceRelation,
     required: int = 2,
+    truth_condition_aggregate=None,
 ) -> ClaimVerification:
     publishers = tuple(
         sorted(
@@ -146,7 +159,223 @@ def _verified(
                 }
             )
         ),
+        truth_condition_aggregate=truth_condition_aggregate,
     )
+
+
+def test_truth_condition_summary_distinguishes_partial_from_full_support() -> None:
+    draft = "Alpha acquired Beta for $2 billion."
+    claim = _claim(draft, "claim-1", draft)
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.claim_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=("Alpha acquired Beta.", "The price was $2 billion."),
+                rationale="proposal",
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=("Alpha acquired Beta.", "The price was $2 billion."),
+                rationale="independent review",
+            ),
+        ),
+    )
+    entry = registry.entries[0]
+    aggregate = aggregate_truth_condition_claim(
+        entry,
+        (
+            ElementSourceAssessment(
+                claim_id=claim.claim_id,
+                element_id=entry.elements[0].element_id,
+                source_id="source-shared",
+                execution_status=ElementAssessmentExecutionStatus.COMPLETE,
+                verdict=ElementVerificationVerdict.SUPPORTS,
+                evidence_located=True,
+                formal_supporting_evidence=True,
+            ),
+            ElementSourceAssessment(
+                claim_id=claim.claim_id,
+                element_id=entry.elements[1].element_id,
+                source_id="source-shared",
+                execution_status=ElementAssessmentExecutionStatus.COMPLETE,
+                verdict=ElementVerificationVerdict.NOT_ENOUGH_INFORMATION,
+            ),
+        ),
+        expected_source_ids=("source-shared",),
+    )
+    quote = "Alpha acquired Beta."
+    relation = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id="source-shared",
+        url="https://source.example/article",
+        publisher_domain_proxy="source.example",
+        candidate_note_ids=("note-1",),
+        candidate_source_ids=("source-shared",),
+        status=VerificationRecordStatus.COMPLETED,
+        semantic_verdict=VerificationVerdict.NOT_ENOUGH_INFORMATION,
+        element_relations=(
+            VerifiedElementRelation(
+                claim_id=claim.claim_id,
+                element_id=entry.elements[0].element_id,
+                element_text=entry.elements[0].text,
+                source_id="source-shared",
+                status=ElementAssessmentExecutionStatus.COMPLETE,
+                semantic_verdict=ElementVerificationVerdict.SUPPORTS,
+                source_quote=quote,
+                span=QuoteSpan(start_char=0, end_char=len(quote)),
+                location_status=NoteLocationStatus.LOCATABLE,
+                is_formal_supporting_evidence=True,
+            ),
+            VerifiedElementRelation(
+                claim_id=claim.claim_id,
+                element_id=entry.elements[1].element_id,
+                element_text=entry.elements[1].text,
+                source_id="source-shared",
+                status=ElementAssessmentExecutionStatus.COMPLETE,
+                semantic_verdict=(
+                    ElementVerificationVerdict.NOT_ENOUGH_INFORMATION
+                ),
+            ),
+        ),
+    )
+    verification = VerificationResult(
+        claims=(
+            build_claim_verification(
+                claim,
+                (relation,),
+                required_sources=2,
+                truth_condition_aggregate=aggregate,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(draft, verification)
+
+    assert rendered.summary.claims_with_located_support == 1
+    assert rendered.summary.truth_condition_claims == 1
+    assert rendered.summary.truth_condition_fully_supported == 0
+    assert rendered.summary.truth_condition_partially_supported == 1
+    assert "真值条件覆盖：完整支持 0/1；部分支持 1" in (
+        rendered.evidence_summary_line
+    )
+    assert "〔部分真值条件获得支持，其余未获支持〕" in rendered.markdown
+
+
+def test_full_truth_support_keeps_partial_execution_visible() -> None:
+    draft = "Alpha acquired Beta."
+    claim = _claim(draft, "claim-execution", draft)
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.claim_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=("Alpha acquired Beta.",),
+                rationale="proposal",
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=("Alpha acquired Beta.",),
+                rationale="independent review",
+            ),
+        ),
+    )
+    element = registry.entries[0].elements[0]
+    aggregate = aggregate_truth_condition_claim(
+        registry.entries[0],
+        (
+            ElementSourceAssessment(
+                claim_id=claim.claim_id,
+                element_id=element.element_id,
+                source_id="source-a",
+                execution_status=ElementAssessmentExecutionStatus.COMPLETE,
+                verdict=ElementVerificationVerdict.SUPPORTS,
+                evidence_located=True,
+                formal_supporting_evidence=True,
+            ),
+            ElementSourceAssessment(
+                claim_id=claim.claim_id,
+                element_id=element.element_id,
+                source_id="source-b",
+                execution_status=ElementAssessmentExecutionStatus.MODEL_ERROR,
+                diagnostic="provider timeout",
+            ),
+        ),
+        expected_source_ids=("source-a", "source-b"),
+    )
+    quote = "Alpha acquired Beta."
+    support = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id="source-a",
+        url="https://source-a.example/report",
+        publisher_domain_proxy="source-a.example",
+        candidate_note_ids=("note-a",),
+        candidate_source_ids=("source-a",),
+        status=VerificationRecordStatus.COMPLETED,
+        semantic_verdict=VerificationVerdict.SUPPORTS,
+        source_quote=quote,
+        span=QuoteSpan(start_char=0, end_char=len(quote)),
+        location_status=NoteLocationStatus.LOCATABLE,
+        is_formal_supporting_evidence=True,
+        element_relations=(
+            VerifiedElementRelation(
+                claim_id=claim.claim_id,
+                element_id=element.element_id,
+                element_text=element.text,
+                source_id="source-a",
+                status=ElementAssessmentExecutionStatus.COMPLETE,
+                semantic_verdict=ElementVerificationVerdict.SUPPORTS,
+                source_quote=quote,
+                span=QuoteSpan(start_char=0, end_char=len(quote)),
+                location_status=NoteLocationStatus.LOCATABLE,
+                is_formal_supporting_evidence=True,
+            ),
+        ),
+    )
+    failed = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id="source-b",
+        url="https://source-b.example/report",
+        publisher_domain_proxy="source-b.example",
+        candidate_note_ids=("note-b",),
+        candidate_source_ids=("source-b",),
+        status=VerificationRecordStatus.VERIFICATION_MODEL_ERROR,
+        error="provider timeout",
+        element_relations=(
+            VerifiedElementRelation(
+                claim_id=claim.claim_id,
+                element_id=element.element_id,
+                element_text=element.text,
+                source_id="source-b",
+                status=ElementAssessmentExecutionStatus.MODEL_ERROR,
+                error="provider timeout",
+            ),
+        ),
+    )
+    verification = VerificationResult(
+        claims=(
+            build_claim_verification(
+                claim,
+                (support, failed),
+                required_sources=2,
+                truth_condition_aggregate=aggregate,
+            ),
+        )
+    )
+
+    rendered = render_verified_report(draft, verification)
+
+    assert rendered.summary.truth_condition_fully_supported == 1
+    assert rendered.summary.truth_condition_execution_partial == 1
+    assert rendered.summary.unverified == 1
+    assert "真值条件执行：完整 0/1；部分 1" in rendered.evidence_summary_line
+    assert "〔真值条件核验执行部分完成〕" in rendered.markdown
 
 
 def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
@@ -181,6 +410,11 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
         "start_char": 10,
         "end_char": 41,
     }
+    assert "element_ids" not in rendered.footnotes[0].model_dump(mode="json")
+    assert not any(
+        key.startswith("truth_condition_")
+        for key in rendered.summary.model_dump(mode="json")
+    )
     assert "〔单一发布方支持〕" not in rendered.markdown
     assert rendered.evidence_legend_line in rendered.markdown
     assert (

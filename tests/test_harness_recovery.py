@@ -52,13 +52,26 @@ from open_deep_research.harness.source_leads import (
     inventory_source_lead_candidates,
 )
 from open_deep_research.harness.tools import SearchResult
+from open_deep_research.harness.truth_conditions import (
+    ElementAssessmentExecutionStatus,
+    ElementSourceAssessment,
+    ElementVerificationVerdict,
+    ElementizationProposal,
+    ElementizationReview,
+    ElementizationSemanticStatus,
+    aggregate_truth_condition_claim,
+    build_truth_condition_registry,
+    truth_condition_registry_sha256,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
+    VerifiedElementRelation,
     VerificationRecordStatus,
     VerificationResult,
     VerificationVerdict,
     VerifiedSourceRelation,
+    build_claim_verification,
 )
 
 
@@ -192,6 +205,239 @@ def _decision(claim_id, action):
         "query": f"{claim_id} dated record" if research else None,
         "selected_source_lead_id": None,
     }
+
+
+def _element_recovery_fixture():
+    claim_verification = _verification("claim-0001")
+    claim = claim_verification.claim
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.claim_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=("The specific assertion occurred.",),
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=("The specific assertion occurred.",),
+                rationale="The assertion has one atomic truth condition.",
+            ),
+        ),
+    )
+    aggregate = aggregate_truth_condition_claim(
+        registry.entries[0],
+        (),
+        expected_source_ids=(),
+    )
+    verification = VerificationResult(
+        claims=(
+            build_claim_verification(
+                claim,
+                (),
+                required_sources=2,
+                truth_condition_aggregate=aggregate,
+            ),
+        ),
+        truth_condition_registry_sha256=truth_condition_registry_sha256(
+            registry
+        ),
+    )
+    return verification, registry, registry.entries[0].elements[0].element_id
+
+
+def test_triage_preserves_registered_actionable_element_intent():
+    verification, registry, element_id = _element_recovery_fixture()
+    response = _decision("claim-0001", "research_more")
+    response["target_element_ids"] = [element_id]
+    model = ScriptedTriageModel([response])
+
+    result = asyncio.run(
+        triage_evidence_recovery(
+            "Specific assertion claim-0001.",
+            checklist=_checklist(),
+            verification=verification,
+            model_client=model,
+            truth_condition_registry=registry,
+        )
+    )
+
+    assert result.status is RecoveryTriageStatus.COMPLETE
+    assert result.decisions[0].target_element_ids == (element_id,)
+    assert element_id in model.prompts[0]
+    assert "The specific assertion occurred." in model.prompts[0]
+
+
+def test_triage_rejects_unknown_element_without_losing_claim_scope():
+    verification, registry, _element_id = _element_recovery_fixture()
+    response = _decision("claim-0001", "research_more")
+    response["target_element_ids"] = ["claim-0001::tc-9999"]
+
+    result = asyncio.run(
+        triage_evidence_recovery(
+            "Specific assertion claim-0001.",
+            checklist=_checklist(),
+            verification=verification,
+            model_client=ScriptedTriageModel([response]),
+            truth_condition_registry=registry,
+        )
+    )
+
+    assert result.status is RecoveryTriageStatus.FAILED
+    assert result.failed_claim_ids == ("claim-0001",)
+    assert any(
+        "recovery_triage_invalid_target_elements" in diagnostic
+        for diagnostic in result.diagnostics
+    )
+
+
+def test_recovery_summary_records_element_and_coverage_transition():
+    initial, registry, element_id = _element_recovery_fixture()
+    entry = registry.entries[0]
+    quote = "The specific assertion occurred."
+    element_relation = VerifiedElementRelation(
+        claim_id="claim-0001",
+        element_id=element_id,
+        element_text=entry.elements[0].text,
+        source_id="source-new",
+        status=ElementAssessmentExecutionStatus.COMPLETE,
+        semantic_verdict=ElementVerificationVerdict.SUPPORTS,
+        source_quote=quote,
+        span=QuoteSpan(start_char=0, end_char=len(quote)),
+        location_status=NoteLocationStatus.LOCATABLE,
+        is_formal_supporting_evidence=True,
+    )
+    relation = VerifiedSourceRelation(
+        claim_id="claim-0001",
+        source_id="source-new",
+        url="https://new.example/record",
+        publisher_domain_proxy="new.example",
+        candidate_note_ids=("note-new",),
+        candidate_source_ids=("source-new",),
+        status=VerificationRecordStatus.COMPLETED,
+        semantic_verdict=VerificationVerdict.SUPPORTS,
+        explanation="The registered element is supported.",
+        source_quote=quote,
+        span=QuoteSpan(start_char=0, end_char=len(quote)),
+        location_status=NoteLocationStatus.LOCATABLE,
+        is_formal_supporting_evidence=True,
+        element_relations=(element_relation,),
+    )
+    final_aggregate = aggregate_truth_condition_claim(
+        entry,
+        (element_relation.as_assessment(),),
+        expected_source_ids=("source-new",),
+    )
+    final = VerificationResult(
+        claims=(
+            build_claim_verification(
+                initial.claims[0].claim,
+                (relation,),
+                required_sources=2,
+                truth_condition_aggregate=final_aggregate,
+            ),
+        ),
+        truth_condition_registry_sha256=truth_condition_registry_sha256(
+            registry
+        ),
+    )
+    triage = RecoveryTriageResult(
+        status=RecoveryTriageStatus.COMPLETE,
+        target_claim_ids=("claim-0001",),
+        decisions=(
+            RecoveryTriageDecision(
+                claim_id="claim-0001",
+                target_element_ids=(element_id,),
+                action=RecoveryTriageAction.RESEARCH_MORE,
+                importance=RecoveryImportance.CENTRAL,
+                importance_reason="The assertion is answer-bearing.",
+                evidence_need="A record addressing the assertion",
+                preferred_source_role="underlying record",
+                query="focused query",
+                query_route=RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK,
+            ),
+        ),
+        canonical_draft_sha256=hashlib.sha256(b"draft").hexdigest(),
+        claim_registry_sha256=hashlib.sha256(b"registry").hexdigest(),
+    )
+    pass_result = EvidenceGapResult(
+        target_claim_ids=("claim-0001",),
+        searches=(
+            GapSearchRecord(
+                query=GapSearchQuery(
+                    claim_ids=("claim-0001",),
+                    target_element_ids=(element_id,),
+                    item_id="what-1",
+                    query="focused query",
+                )
+            ),
+        ),
+        information_yield=EvidenceGapInformationAudit(
+            pass_completed_within_budget=True
+        ),
+        stop_reason=EvidenceGapStopReason.COMPLETED,
+        stop_detail="single pass completed",
+        final_attribution=AttributionResult(
+            attributions=(),
+            stop_reason=AttributionStopReason.COMPLETED,
+        ),
+        final_verification=final,
+    )
+
+    result = summarize_evidence_recovery(
+        triage=triage,
+        pass_result=pass_result,
+        initial_verification=initial,
+        cached_source_urls=(),
+    )
+
+    attempt = result.attempts[0]
+    assert attempt.target_element_ids == (element_id,)
+    assert attempt.element_state_transitions == {
+        element_id: "unresolved->supported"
+    }
+    assert attempt.remaining_unresolved_element_ids == ()
+    assert attempt.coverage_transition == "unresolved->fully_supported"
+
+    still_not_supported = aggregate_truth_condition_claim(
+        entry,
+        (
+            ElementSourceAssessment(
+                claim_id="claim-0001",
+                element_id=element_id,
+                source_id="source-new",
+                execution_status=ElementAssessmentExecutionStatus.COMPLETE,
+                verdict=ElementVerificationVerdict.DOES_NOT_SUPPORT,
+            ),
+        ),
+        expected_source_ids=("source-new",),
+    )
+    unresolved_pass = pass_result.model_copy(
+        update={
+            "final_verification": final.model_copy(
+                update={
+                    "claims": (
+                        final.claims[0].model_copy(
+                            update={
+                                "truth_condition_aggregate": still_not_supported
+                            }
+                        ),
+                    )
+                }
+            )
+        }
+    )
+    unresolved_result = summarize_evidence_recovery(
+        triage=triage,
+        pass_result=unresolved_pass,
+        initial_verification=initial,
+        cached_source_urls=(),
+    )
+    assert unresolved_result.attempts[0].remaining_unresolved_element_ids == (
+        element_id,
+    )
 
 
 def test_finance_11_shape_routes_material_facts_to_research_before_editing():

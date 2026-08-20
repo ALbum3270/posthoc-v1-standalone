@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -22,6 +23,7 @@ from open_deep_research.harness.attribution import (
     AttributionSettings,
     AttributionStatus,
     AttributionStopReason,
+    ClaimAttribution,
     attribute_claims,
 )
 from open_deep_research.harness.checklist import (
@@ -72,6 +74,7 @@ from open_deep_research.harness.evidence_gap import (
     run_evidence_gap_round,
 )
 from open_deep_research.harness.edit import (
+    EditorialAction,
     EditorialAdmissionAudit,
     EditorialModelClient,
     EditorialRevisionResult,
@@ -80,6 +83,21 @@ from open_deep_research.harness.edit import (
     audit_editorial_admission,
     editorial_preservation_context,
     revise_audited_draft,
+)
+from open_deep_research.harness.editor_transaction import (
+    AuditUnitInput,
+    CharacterEdit,
+    EditorialIntent,
+    EditorialTransactionAudit,
+    EditorialTransactionResult,
+    TransactionDecision,
+    TransactionExecutionStatus,
+    audit_unit_input_from_claim,
+    build_editorial_affected_scope,
+    build_editorial_change_manifest,
+    build_transaction_review_request,
+    build_transaction_reviewer_prompt,
+    parse_transaction_review,
 )
 from open_deep_research.harness.evaluative import (
     EvaluativeDiagnosticStatus,
@@ -95,6 +113,9 @@ from open_deep_research.harness.loop import (
     quote_quality_metrics,
     run_research_loop,
 )
+from open_deep_research.harness.numeric_consistency import (
+    NumericConsistencyStatus,
+)
 from open_deep_research.harness.render import (
     InitialCollectionSnapshot,
     ReaderReportStyle,
@@ -109,6 +130,7 @@ from open_deep_research.harness.reconcile import (
 from open_deep_research.harness.recovery import (
     EvidenceRecoveryResult,
     EvidenceRecoveryStopReason,
+    RecoveryTriageAction,
     RecoveryTriageModelClient,
     RecoveryTriageResult,
     RecoveryTriageSettings,
@@ -122,7 +144,14 @@ from open_deep_research.harness.source_spans import (
     build_source_span_registry,
 )
 from open_deep_research.harness.tools import TavilyClient
+from open_deep_research.harness.truth_conditions import (
+    ElementizationSemanticStatus,
+    ElementizationExecutionStatus,
+    ExecutionCompleteness,
+)
 from open_deep_research.harness.verify import (
+    ClaimEvidenceState,
+    ClaimVerification,
     VerificationBudget,
     VerificationModelClient,
     VerificationRecordStatus,
@@ -187,6 +216,7 @@ class HarnessRunResult(BaseModel):
     evidence_recovery: EvidenceRecoveryResult | None = None
     editorial_admission: EditorialAdmissionAudit | None
     editorial_revision: EditorialRevisionResult | None
+    editorial_transaction: EditorialTransactionAudit | None = None
     posthoc_retrieval_budget: PosthocRetrievalBudgetAudit | None
     run_cost_budget: RunCostBudgetAudit
     stop_diagnostic: RunStopDiagnostic
@@ -456,6 +486,47 @@ def _scope_record(
     )
 
 
+def _truth_condition_execution_record(
+    decomposition: ClaimDecompositionResult,
+) -> StageExecutionRecord:
+    """Record execution closure without equating it to semantic completeness."""
+
+    expected_ids = tuple(claim.claim_id for claim in decomposition.claims)
+    registry = decomposition.truth_condition_registry
+    complete_ids = (
+        tuple(
+            entry.claim_id
+            for entry in registry.entries
+            if entry.execution_status is ElementizationExecutionStatus.COMPLETE
+        )
+        if registry is not None
+        else ()
+    )
+    complete_set = set(complete_ids)
+    unevaluated_ids = tuple(
+        claim_id for claim_id in expected_ids if claim_id not in complete_set
+    )
+    return _scope_record(
+        status=(
+            StageExecutionStatus.COMPLETE
+            if registry is not None and not unevaluated_ids
+            else StageExecutionStatus.PARTIAL
+        ),
+        reason=(
+            "every claim received an independently reviewed truth-condition "
+            "denominator; incomplete or uncertain semantic reviews remain "
+            "visible in the registry"
+            if registry is not None and not unevaluated_ids
+            else "some claims did not complete independent truth-condition "
+            "review; they cannot acquire full-support status"
+        ),
+        unit="claim_truth_condition_denominator",
+        expected_count=len(expected_ids),
+        evaluated_count=len(complete_ids),
+        unevaluated_ids=unevaluated_ids,
+    )
+
+
 def _evidence_gap_execution_record(
     result: EvidenceGapResult,
 ) -> StageExecutionRecord:
@@ -586,16 +657,400 @@ def _estimate_cost(model_client: Any, prompt: str) -> float | None:
         return None
 
 
+def _editorial_character_edits(
+    revision: EditorialRevisionResult,
+    *,
+    blocks: tuple[Any, ...],
+) -> tuple[CharacterEdit, ...]:
+    """Project accepted block replacements onto stable character ranges."""
+
+    block_by_id = {block.block_id: block for block in blocks}
+    edits: list[CharacterEdit] = []
+    for block_edit in revision.block_edits:
+        block = block_by_id.get(block_edit.block_id)
+        if block is None:
+            raise ValueError(
+                f"editorial transaction refers to unknown block {block_edit.block_id}"
+            )
+        if block.text != block_edit.original_text:
+            raise ValueError(
+                f"editorial transaction block text changed before manifest: "
+                f"{block_edit.block_id}"
+            )
+        if block_edit.original_text == block_edit.replacement_text:
+            # retain_with_label may legitimately leave a block unchanged.
+            # It is an editorial decision, but not part of the byte mutation
+            # transaction and therefore cannot become a no-op manifest edit.
+            continue
+        edits.append(
+            CharacterEdit(
+                start_char=block.start_char,
+                end_char=block.end_char,
+                original_text=block_edit.original_text,
+                replacement_text=block_edit.replacement_text,
+            )
+        )
+    return tuple(edits)
+
+
+def _transaction_audit_units(
+    decomposition: ClaimDecompositionResult,
+    attribution: AttributionResult,
+    verification: VerificationResult,
+) -> tuple[AuditUnitInput, ...]:
+    """Retain every claim in transaction scope, including audit failures."""
+
+    attribution_by_id = {
+        record.claim.claim_id: record for record in attribution.attributions
+    }
+    verification_by_id = {
+        record.claim.claim_id: record for record in verification.claims
+    }
+    units: list[AuditUnitInput] = []
+    for claim in decomposition.claims:
+        attribution_record = attribution_by_id.get(claim.claim_id)
+        record = verification_by_id.get(claim.claim_id)
+        units.append(
+            audit_unit_input_from_claim(
+                claim,
+                audit_payload={
+                    "claim": claim.model_dump(mode="json"),
+                    "attribution": (
+                        attribution_record.model_dump(mode="json")
+                        if attribution_record is not None
+                        else None
+                    ),
+                    "verification": (
+                        record.model_dump(mode="json")
+                        if record is not None
+                        else None
+                    ),
+                },
+            )
+        )
+    return tuple(units)
+
+
+def _changed_scope_audit_diagnostics(
+    affected_scope: Any,
+) -> tuple[str, ...]:
+    """Prove that every changed post unit received a closed fresh audit.
+
+    This check deliberately says nothing about whether a source supports the
+    edited prose; that remains the independent transaction reviewer's job. It
+    only prevents a provider error, partial candidate denominator, incomplete
+    truth-condition registry, or unlocated verification result from being
+    mistaken for permission to commit changed bytes.
+    """
+
+    diagnostics: list[str] = []
+    for unit in affected_scope.affected_post_units:
+        prefix = f"post unit {unit.unit_ref}"
+        try:
+            raw_attribution = unit.audit_payload.get("attribution")
+            raw_verification = unit.audit_payload.get("verification")
+            if raw_attribution is None:
+                diagnostics.append(f"{prefix}: attribution record missing")
+                continue
+            if raw_verification is None:
+                diagnostics.append(f"{prefix}: verification record missing")
+                continue
+            attribution = ClaimAttribution.model_validate(raw_attribution)
+            verification = ClaimVerification.model_validate(raw_verification)
+        except Exception as error:
+            diagnostics.append(
+                f"{prefix}: invalid audit payload: {type(error).__name__}: {error}"
+            )
+            continue
+
+        if attribution.status in {
+            AttributionStatus.ATTRIBUTION_ERROR,
+            AttributionStatus.CANDIDATE_SOURCES_WITH_ERRORS,
+        }:
+            diagnostics.append(
+                f"{prefix}: attribution denominator is {attribution.status.value}"
+            )
+            continue
+
+        aggregate = verification.truth_condition_aggregate
+        if aggregate is None:
+            diagnostics.append(f"{prefix}: truth-condition aggregate missing")
+            continue
+        if (
+            aggregate.elementization_execution_status
+            is not ElementizationExecutionStatus.COMPLETE
+            or aggregate.elementization_semantic_status
+            is not ElementizationSemanticStatus.COMPLETE
+        ):
+            diagnostics.append(
+                f"{prefix}: truth-condition elementization is not complete"
+            )
+            continue
+
+        if attribution.status is AttributionStatus.NO_CANDIDATE_SOURCE:
+            if (
+                verification.claim.citation_requirement
+                is CitationRequirement.INTERNAL
+            ):
+                if verification.relations:
+                    diagnostics.append(
+                        f"{prefix}: internal-evidence claim unexpectedly has "
+                        "external source relations"
+                    )
+                if verification.state not in {
+                    ClaimEvidenceState.INTERNAL_SUPPORTED,
+                    ClaimEvidenceState.INTERNAL_NOT_SUPPORTED,
+                    ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED,
+                }:
+                    diagnostics.append(
+                        f"{prefix}: internal-evidence claim has mismatched "
+                        f"verification state {verification.state.value}"
+                    )
+            elif verification.state is not ClaimEvidenceState.NO_CANDIDATE_SOURCE:
+                diagnostics.append(
+                    f"{prefix}: clean no-candidate attribution has mismatched "
+                    f"verification state {verification.state.value}"
+                )
+            continue
+
+        expected_source_ids = {
+            candidate.source_id for candidate in attribution.candidates
+        }
+        relation_source_ids = {
+            relation.source_id for relation in verification.relations
+        }
+        if relation_source_ids != expected_source_ids:
+            diagnostics.append(
+                f"{prefix}: verification source denominator does not match "
+                "attribution candidates"
+            )
+            continue
+        numeric_failures = tuple(
+            (
+                f"{relation.source_id}:claim"
+                if element_id is None
+                else f"{relation.source_id}:{element_id}"
+            )
+            for relation in verification.relations
+            for element_id, status in (
+                (
+                    None,
+                    relation.numeric_consistency_status,
+                ),
+                *(
+                    (
+                        element.element_id,
+                        element.numeric_consistency_status,
+                    )
+                    for element in relation.element_relations
+                ),
+            )
+            if status
+            in {
+                NumericConsistencyStatus.MISMATCH,
+                NumericConsistencyStatus.SOURCE_VALUES_NOT_RECOGNIZED,
+            }
+        )
+        if numeric_failures:
+            diagnostics.append(
+                f"{prefix}: numeric evidence mismatch remains in changed "
+                "scope: " + ", ".join(numeric_failures)
+            )
+            continue
+        if aggregate.execution_completeness is not ExecutionCompleteness.COMPLETE:
+            diagnostics.append(
+                f"{prefix}: verification execution is "
+                f"{aggregate.execution_completeness.value}"
+            )
+    return tuple(diagnostics)
+
+
+def _affected_ref_by_registry_locator(
+    inputs: tuple[AuditUnitInput, ...],
+    affected_units: tuple[Any, ...],
+) -> dict[str, str]:
+    """Recover local locators without making them cross-draft identities."""
+
+    result: dict[str, str] = {}
+    for unit_input in inputs:
+        locator = unit_input.registry_locator
+        if locator is None:
+            continue
+        matches = [
+            unit
+            for unit in affected_units
+            if (
+                unit.report_surface.start_char
+                == unit_input.report_surface.start_char
+                and unit.report_surface.end_char
+                == unit_input.report_surface.end_char
+                and unit.report_surface.text_sha256
+                == unit_input.report_surface.text_sha256
+                and unit.semantic_text == unit_input.semantic_text
+            )
+        ]
+        if len(matches) > 1:
+            raise ValueError(
+                f"ambiguous affected transaction unit for locator {locator}"
+            )
+        if matches:
+            result[locator] = matches[0].unit_ref
+    return result
+
+
+async def _review_editorial_transaction(
+    *,
+    original_draft: str,
+    proposed_draft: str,
+    revision: EditorialRevisionResult,
+    pre_decomposition: ClaimDecompositionResult,
+    pre_attribution: AttributionResult,
+    pre_verification: VerificationResult,
+    post_decomposition: ClaimDecompositionResult,
+    post_attribution: AttributionResult,
+    post_verification: VerificationResult,
+    model_client: VerificationModelClient,
+    comparison_payload: Mapping[str, Any],
+) -> EditorialTransactionAudit:
+    """Run an independent, failure-safe semantic mutation transaction."""
+
+    original_sha256 = hashlib.sha256(original_draft.encode("utf-8")).hexdigest()
+    proposed_sha256 = hashlib.sha256(proposed_draft.encode("utf-8")).hexdigest()
+    manifest = None
+    affected_scope = None
+    review_request = None
+    try:
+        changes = _editorial_character_edits(
+            revision,
+            blocks=pre_decomposition.blocks,
+        )
+        manifest = build_editorial_change_manifest(
+            original_draft,
+            proposed_draft,
+            edits=changes,
+        )
+        pre_units = _transaction_audit_units(
+            pre_decomposition,
+            pre_attribution,
+            pre_verification,
+        )
+        post_units = _transaction_audit_units(
+            post_decomposition,
+            post_attribution,
+            post_verification,
+        )
+        affected_scope = build_editorial_affected_scope(
+            manifest,
+            original_draft=original_draft,
+            proposed_draft=proposed_draft,
+            pre_units=pre_units,
+            post_units=post_units,
+        )
+        incomplete_audit = _changed_scope_audit_diagnostics(affected_scope)
+        if incomplete_audit:
+            return EditorialTransactionAudit(
+                original_draft_sha256=original_sha256,
+                proposed_draft_sha256=proposed_sha256,
+                manifest=manifest,
+                affected_scope=affected_scope,
+                diagnostics=(
+                    "editorial_transaction_changed_scope_incomplete: "
+                    + "; ".join(incomplete_audit),
+                ),
+            )
+        pre_refs = _affected_ref_by_registry_locator(
+            pre_units,
+            affected_scope.affected_pre_units,
+        )
+        target_intents: dict[str, EditorialIntent] = {}
+        for block_edit in revision.block_edits:
+            if block_edit.original_text == block_edit.replacement_text:
+                continue
+            for decision in block_edit.decisions:
+                target_ref = pre_refs.get(decision.claim_id)
+                if target_ref is None:
+                    raise ValueError(
+                        "editorial target is absent from the affected semantic "
+                        f"scope: {decision.claim_id}"
+                    )
+                target_intents[target_ref] = EditorialIntent(decision.action.value)
+        review_request = build_transaction_review_request(
+            affected_scope,
+            target_intents=target_intents,
+        )
+        prompt = build_transaction_reviewer_prompt(
+            review_request,
+            affected_scope=affected_scope,
+            audit_payload=comparison_payload,
+        )
+        response = model_client.generate(prompt)
+        if inspect.isawaitable(response):
+            response = await response
+        if isinstance(response, Mapping) and "content" in response:
+            content = response["content"]
+            token_count = max(0, int(response.get("token_count", 0)))
+            cost_usd = max(0.0, float(response.get("cost_usd", 0.0)))
+        else:
+            content = response
+            token_count = 0
+            cost_usd = 0.0
+        result = parse_transaction_review(content, request=review_request)
+        return EditorialTransactionAudit(
+            original_draft_sha256=original_sha256,
+            proposed_draft_sha256=proposed_sha256,
+            manifest=manifest,
+            affected_scope=affected_scope,
+            review_request=review_request,
+            result=result,
+            token_count=token_count,
+            cost_usd=cost_usd,
+            diagnostics=result.diagnostics,
+        )
+    except RunCostCapReached as error:
+        return EditorialTransactionAudit(
+            original_draft_sha256=original_sha256,
+            proposed_draft_sha256=proposed_sha256,
+            manifest=manifest,
+            affected_scope=affected_scope,
+            review_request=review_request,
+            diagnostics=(
+                "editorial_transaction_not_run_budget: "
+                f"{type(error).__name__}: {error}",
+            ),
+        )
+    except Exception as error:
+        return EditorialTransactionAudit(
+            original_draft_sha256=original_sha256,
+            proposed_draft_sha256=proposed_sha256,
+            manifest=manifest,
+            affected_scope=affected_scope,
+            review_request=review_request,
+            diagnostics=(
+                "editorial_transaction_failed: "
+                f"{type(error).__name__}: {error}",
+            ),
+        )
+
+
 def _partial_usage(
     run_cost_audit: RunCostBudgetAudit,
     *,
     checklist_usage: UsageRecord,
     collection_usage: UsageRecord,
     report: ReportDraft,
+    claim_decomposition: ClaimDecompositionResult | None,
+    evaluative_diagnostics: EvaluativeDiagnosticResult | None,
+    checklist_reconciliation: ChecklistReportReconciliation | None,
+    attribution: AttributionResult | None,
+    verification: VerificationResult | None,
 ) -> dict[str, UsageRecord]:
     """Expose measured cost even when a stage did not return its own envelope."""
 
     stage_cost = run_cost_audit.stage_cost_usd
+
+    def _cost_for(*stage_names: str) -> float:
+        return sum(stage_cost.get(stage_name, 0.0) for stage_name in stage_names)
+
     usage = {
         "checklist": checklist_usage,
         "collection": collection_usage,
@@ -604,13 +1059,45 @@ def _partial_usage(
             cost_usd=report.cost_usd,
         ),
         "decomposition_attribution": UsageRecord(
-            cost_usd=stage_cost.get("decomposition_attribution", 0.0)
+            # The completed-run report exposes this historical aggregate, but
+            # the run-cost controller deliberately records the actual model
+            # stage that owned each call.  A cutoff must aggregate those real
+            # keys instead of looking for a synthetic key the controller never
+            # writes.
+            cost_usd=_cost_for(
+                "claim_decomposition",
+                "truth_condition_elementization",
+                "evidence_obligation_resolution",
+                "evaluative_diagnostics",
+                "attribution",
+            ),
+            token_count=(
+                (
+                    claim_decomposition.total_tokens
+                    if claim_decomposition is not None
+                    else 0
+                )
+                + (
+                    evaluative_diagnostics.total_tokens
+                    if evaluative_diagnostics is not None
+                    else 0
+                )
+                + (attribution.total_tokens if attribution is not None else 0)
+            ),
         ),
         "reconciliation": UsageRecord(
-            cost_usd=stage_cost.get("reconciliation", 0.0)
+            cost_usd=_cost_for("checklist_reconciliation"),
+            token_count=(
+                checklist_reconciliation.total_tokens
+                if checklist_reconciliation is not None
+                else 0
+            ),
         ),
         "verification": UsageRecord(
-            cost_usd=stage_cost.get("verification", 0.0)
+            cost_usd=_cost_for("initial_verification"),
+            token_count=(
+                verification.total_tokens if verification is not None else 0
+            ),
         ),
         "evidence_gap": UsageRecord(
             cost_usd=stage_cost.get("evidence_gap", 0.0)
@@ -651,6 +1138,7 @@ def _publish_partial_result(
 
     for stage_name in (
         "claim_decomposition",
+        "truth_condition_elementization",
         "evidence_obligation_resolution",
         "evaluative_diagnostics",
         "checklist_reconciliation",
@@ -716,6 +1204,11 @@ def _publish_partial_result(
         checklist_usage=checklist_usage,
         collection_usage=collection_usage,
         report=report,
+        claim_decomposition=claim_decomposition,
+        evaluative_diagnostics=evaluative_diagnostics,
+        checklist_reconciliation=checklist_reconciliation,
+        attribution=attribution,
+        verification=verification,
     )
     usage_audit = {
         name: record.model_dump(mode="json")
@@ -1043,6 +1536,7 @@ async def run_harness(
     evidence_recovery: EvidenceRecoveryResult | None = None
     editorial_revision: EditorialRevisionResult | None = None
     editorial_admission: EditorialAdmissionAudit | None = None
+    editorial_transaction: EditorialTransactionAudit | None = None
     additional_usage: dict[str, UsageRecord] = {}
 
     parsed_blocks = parse_markdown_blocks(report.canonical_draft)
@@ -1112,11 +1606,19 @@ async def run_harness(
         stage="evidence_obligation_resolution",
         tail_reserve_controller=tail_reserve,
     )
+    budgeted_truth_condition_review_model = run_cost.wrap(
+        verification_model,
+        stage="truth_condition_elementization",
+        tail_reserve_controller=tail_reserve,
+    )
     try:
         claim_decomposition = await decompose_claims(
             report.canonical_draft,
             model_client=budgeted_claim_model,
             review_model_client=budgeted_claim_review_model,
+            truth_condition_review_model_client=(
+                budgeted_truth_condition_review_model
+            ),
             settings=live_claim_settings,
         )
     except RunCostCapReached as error:
@@ -1164,6 +1666,9 @@ async def run_harness(
         expected_count=claim_coverage.total_blocks,
         evaluated_count=claim_coverage.evaluated_blocks,
         unevaluated_ids=claim_coverage.unassessed_block_ids,
+    )
+    stage_records["truth_condition_elementization"] = (
+        _truth_condition_execution_record(claim_decomposition)
     )
     obligation_audit = claim_decomposition.claim_obligation_audit
     if obligation_audit is None:
@@ -1556,6 +2061,7 @@ async def run_harness(
             corroboration_targets=corroboration_targets,
             estimate_input_tokens=verification_input_token_estimator,
             estimate_cost_usd=effective_verification_cost_estimator,
+            registry=claim_decomposition.truth_condition_registry,
         )
     except RunCostCapReached as error:
         stage_records["initial_verification"] = _scope_record(
@@ -1704,6 +2210,9 @@ async def run_harness(
                 budget=effective_evidence_gap_budget,
                 attribution_settings=attribution_settings,
                 verification_settings=verification_settings,
+                truth_condition_registry=(
+                    claim_decomposition.truth_condition_registry
+                ),
                 corroboration_targets=corroboration_targets,
                 estimate_input_tokens=evidence_gap_input_token_estimator,
                 estimate_cost_usd=evidence_gap_cost_estimator,
@@ -1801,6 +2310,9 @@ async def run_harness(
                 budget=effective_disagreement_budget,
                 attribution_settings=attribution_settings,
                 verification_settings=verification_settings,
+                truth_condition_registry=(
+                    claim_decomposition.truth_condition_registry
+                ),
                 corroboration_targets=corroboration_targets,
                 estimate_input_tokens=evidence_gap_input_token_estimator,
                 estimate_cost_usd=evidence_gap_cost_estimator,
@@ -1888,6 +2400,9 @@ async def run_harness(
                 settings=recovery_triage_settings,
                 source_cache=ledger.source_cache,
                 source_links=ledger.source_links,
+                truth_condition_registry=(
+                    claim_decomposition.truth_condition_registry
+                ),
             )
         except RunCostCapReached as error:
             stage_records["recovery_triage"] = _scope_record(
@@ -1938,6 +2453,11 @@ async def run_harness(
                 cost_usd=recovery_triage.total_cost_usd,
             )
             research_ids = recovery_triage.research_target_claim_ids
+            recovery_target_elements = {
+                decision.claim_id: decision.target_element_ids
+                for decision in recovery_triage.decisions
+                if decision.action is RecoveryTriageAction.RESEARCH_MORE
+            }
             if research_ids:
                 effective_recovery_budget = evidence_recovery_budget
                 recovery_remaining = run_cost.remaining_cost_usd
@@ -1995,12 +2515,21 @@ async def run_harness(
                         budget=effective_recovery_budget,
                         attribution_settings=attribution_settings,
                         verification_settings=verification_settings,
+                        truth_condition_registry=(
+                            claim_decomposition.truth_condition_registry
+                        ),
                         corroboration_targets=corroboration_targets,
                         estimate_input_tokens=(
                             evidence_gap_input_token_estimator
                         ),
                         estimate_cost_usd=evidence_gap_cost_estimator,
                         explicit_target_claim_ids=research_ids,
+                        explicit_target_element_ids=(
+                            recovery_target_elements
+                            if claim_decomposition.truth_condition_registry
+                            is not None
+                            else None
+                        ),
                         plan_prompt_builder=recovery_plan_builder,
                         ledger_event_prefix="recovery",
                     )
@@ -2077,6 +2606,10 @@ async def run_harness(
     pre_edit_draft = report.canonical_draft
     post_edit_required_stages: tuple[str, ...] = ()
     post_edit_evaluative_diagnostics: EvaluativeDiagnosticResult | None = None
+    post_edit_candidate_claims: ClaimDecompositionResult | None = None
+    post_edit_candidate_attribution: AttributionResult | None = None
+    post_edit_candidate_verification: VerificationResult | None = None
+    post_edit_candidate_reconciliation: ChecklistReportReconciliation | None = None
 
     if editor_model is not None:
         editorial_admission = audit_editorial_admission(
@@ -2148,10 +2681,12 @@ async def run_harness(
         ):
             post_edit_required_stages = (
                 "post_edit_claim_decomposition",
+                "post_edit_truth_condition_elementization",
                 "post_edit_evidence_obligation_resolution",
                 "post_edit_attribution",
                 "post_edit_initial_verification",
                 "post_edit_checklist_reconciliation",
+                "editorial_transaction_acceptance",
             )
             proposed_draft = editorial_revision.edited_draft
             proposed_blocks = parse_markdown_blocks(proposed_draft)
@@ -2170,11 +2705,19 @@ async def run_harness(
                 stage="post_edit_evidence_obligation_resolution",
                 tail_reserve_controller=tail_reserve,
             )
+            budgeted_post_truth_condition_review_model = run_cost.wrap(
+                verification_model,
+                stage="post_edit_truth_condition_elementization",
+                tail_reserve_controller=tail_reserve,
+            )
             try:
                 post_claims = await decompose_claims(
                     proposed_draft,
                     model_client=budgeted_post_claim_model,
                     review_model_client=budgeted_post_claim_review_model,
+                    truth_condition_review_model_client=(
+                        budgeted_post_truth_condition_review_model
+                    ),
                     settings=live_claim_settings,
                 )
             except RunCostCapReached as error:
@@ -2186,6 +2729,15 @@ async def run_harness(
                     evaluated_count=0,
                     unevaluated_ids=tuple(
                         block.block_id for block in proposed_blocks
+                    ),
+                )
+                stage_records[
+                    "post_edit_truth_condition_elementization"
+                ] = _scope_record(
+                    status=StageExecutionStatus.NOT_RUN,
+                    reason=(
+                        "not run because the edited claim registry was not "
+                        "available"
                     ),
                 )
             else:
@@ -2206,6 +2758,9 @@ async def run_harness(
                     evaluated_count=coverage.evaluated_blocks,
                     unevaluated_ids=coverage.unassessed_block_ids,
                 )
+                stage_records[
+                    "post_edit_truth_condition_elementization"
+                ] = _truth_condition_execution_record(post_claims)
                 additional_usage["post_edit_claim_decomposition"] = UsageRecord(
                     token_count=post_claims.total_tokens,
                     cost_usd=post_claims.total_cost_usd,
@@ -2471,11 +3026,7 @@ async def run_harness(
                 stage_records["post_edit_attribution"].status
                 is StageExecutionStatus.COMPLETE
             )
-            if (
-                post_attr_complete
-                and post_attribution is not None
-                and post_claims is not None
-            ):
+            if post_attribution is not None and post_claims is not None:
                 post_relation_ids = tuple(
                     f"{item.claim.claim_id}|{candidate.source_id}"
                     for item in post_attribution.attributions
@@ -2526,6 +3077,7 @@ async def run_harness(
                         corroboration_targets=post_targets,
                         estimate_input_tokens=verification_input_token_estimator,
                         estimate_cost_usd=post_cost_estimator,
+                        registry=post_claims.truth_condition_registry,
                     )
                 except RunCostCapReached as error:
                     stage_records[
@@ -2683,21 +3235,155 @@ async def run_harness(
                     ),
                 )
 
-            # Committing bytes and declaring them publication-eligible are two
-            # separate gates. A complete claim registry plus complete attribution
-            # and an actual (possibly partial) verification result bind every
-            # rendered status to the edited draft. Global stage completeness is
-            # still assessed below and keeps pipeline_complete false whenever
-            # any original or re-audit work is incomplete.
-            post_edit_registry_coherent = (
-                post_claim_stage_complete
-                and post_attr_complete
-                and post_claims is not None
+            post_edit_candidate_claims = post_claims
+            post_edit_candidate_attribution = post_attribution
+            post_edit_candidate_verification = post_verification
+            post_edit_candidate_reconciliation = post_reconciliation
+
+            # A fresh audit is evidence about the candidate, not permission to
+            # mutate the report.  Claim/block IDs are regenerated after edits,
+            # so an independent transaction compares hash-bound affected
+            # semantic surfaces and closes every target/preserved/post unit.
+            # A complete negative review is a successful rollback; any protocol,
+            # provider, or budget failure also rolls back while preserving the
+            # candidate audit below.
+            transaction_prerequisites = (
+                post_claims is not None
                 and post_attribution is not None
                 and post_verification is not None
                 and post_reconciliation is not None
             )
-            if post_edit_registry_coherent:
+            if transaction_prerequisites:
+                budgeted_transaction_model = run_cost.wrap(
+                    verification_model,
+                    stage="editorial_transaction_acceptance",
+                    tail_reserve_controller=tail_reserve,
+                )
+                editorial_transaction = await _review_editorial_transaction(
+                    original_draft=pre_edit_draft,
+                    proposed_draft=proposed_draft,
+                    revision=editorial_revision,
+                    pre_decomposition=pre_edit_claim_decomposition,
+                    pre_attribution=pre_edit_attribution,
+                    pre_verification=pre_edit_verification,
+                    post_decomposition=post_claims,
+                    post_attribution=post_attribution,
+                    post_verification=post_verification,
+                    model_client=budgeted_transaction_model,
+                    comparison_payload={
+                        "editorial_revision": editorial_revision.model_dump(
+                            mode="json"
+                        ),
+                        "pre_checklist_reconciliation": (
+                            pre_edit_reconciliation.model_dump(mode="json")
+                        ),
+                        "post_checklist_reconciliation": (
+                            post_reconciliation.model_dump(mode="json")
+                        ),
+                        "post_stage_records": {
+                            name: stage_records[name].model_dump(mode="json")
+                            for name in (
+                                "post_edit_claim_decomposition",
+                                "post_edit_truth_condition_elementization",
+                                "post_edit_evidence_obligation_resolution",
+                                "post_edit_attribution",
+                                "post_edit_initial_verification",
+                                "post_edit_checklist_reconciliation",
+                            )
+                            if name in stage_records
+                        },
+                    },
+                )
+                transaction_result = editorial_transaction.result
+                transaction_status = (
+                    transaction_result.execution_status
+                    if transaction_result is not None
+                    else TransactionExecutionStatus.FAILED
+                )
+                transaction_not_run_budget = (
+                    transaction_result is None
+                    and any(
+                        diagnostic.startswith(
+                            "editorial_transaction_not_run_budget:"
+                        )
+                        for diagnostic in editorial_transaction.diagnostics
+                    )
+                )
+                transaction_stage_status = (
+                    StageExecutionStatus.NOT_RUN
+                    if transaction_not_run_budget
+                    else {
+                        TransactionExecutionStatus.COMPLETE: (
+                            StageExecutionStatus.COMPLETE
+                        ),
+                        TransactionExecutionStatus.PARTIAL: (
+                            StageExecutionStatus.PARTIAL
+                        ),
+                        TransactionExecutionStatus.FAILED: (
+                            StageExecutionStatus.FAILED
+                        ),
+                    }[transaction_status]
+                )
+                stage_records["editorial_transaction_acceptance"] = (
+                    _scope_record(
+                        status=transaction_stage_status,
+                        reason=(
+                            "independent transaction review accepted the "
+                            "candidate edit"
+                            if editorial_transaction.may_commit
+                            else "independent transaction review completed "
+                            "with rollback"
+                            if transaction_status
+                            is TransactionExecutionStatus.COMPLETE
+                            else "; ".join(editorial_transaction.diagnostics)
+                        ),
+                        unit="editorial_proposal",
+                        expected_count=1,
+                        evaluated_count=(
+                            1
+                            if transaction_status
+                            is TransactionExecutionStatus.COMPLETE
+                            else 0
+                        ),
+                        unevaluated_ids=(
+                            ()
+                            if transaction_status
+                            is TransactionExecutionStatus.COMPLETE
+                            else (editorial_revision.edited_draft_sha256,)
+                        ),
+                    )
+                )
+                additional_usage["editorial_transaction_acceptance"] = (
+                    UsageRecord(
+                        token_count=editorial_transaction.token_count,
+                        cost_usd=editorial_transaction.cost_usd,
+                    )
+                )
+            else:
+                editorial_transaction = EditorialTransactionAudit(
+                    original_draft_sha256=hashlib.sha256(
+                        pre_edit_draft.encode("utf-8")
+                    ).hexdigest(),
+                    proposed_draft_sha256=hashlib.sha256(
+                        proposed_draft.encode("utf-8")
+                    ).hexdigest(),
+                    diagnostics=(
+                        "editorial_transaction_not_run: candidate re-audit "
+                        "did not produce every required registry",
+                    ),
+                )
+                stage_records["editorial_transaction_acceptance"] = (
+                    _scope_record(
+                        status=StageExecutionStatus.NOT_RUN,
+                        reason=editorial_transaction.diagnostics[0],
+                        unit="editorial_proposal",
+                        expected_count=1,
+                        evaluated_count=0,
+                        unevaluated_ids=(editorial_revision.edited_draft_sha256,),
+                    )
+                )
+
+            if editorial_transaction.may_commit:
                 report = report.model_copy(
                     update={"canonical_draft": proposed_draft}
                 )
@@ -3045,6 +3731,42 @@ async def run_harness(
                 if editorial_revision is not None
                 else None
             ),
+            "editorial_transaction": (
+                editorial_transaction.model_dump(mode="json")
+                if editorial_transaction is not None
+                else None
+            ),
+            "post_edit_candidate": (
+                {
+                    "claim_decomposition": (
+                        post_edit_candidate_claims.model_dump(mode="json")
+                        if post_edit_candidate_claims is not None
+                        else None
+                    ),
+                    "attribution": (
+                        post_edit_candidate_attribution.model_dump(mode="json")
+                        if post_edit_candidate_attribution is not None
+                        else None
+                    ),
+                    "verification": (
+                        post_edit_candidate_verification.model_dump(mode="json")
+                        if post_edit_candidate_verification is not None
+                        else None
+                    ),
+                    "checklist_report_reconciliation": (
+                        post_edit_candidate_reconciliation.model_dump(mode="json")
+                        if post_edit_candidate_reconciliation is not None
+                        else None
+                    ),
+                    "committed": bool(
+                        editorial_transaction is not None
+                        and editorial_transaction.may_commit
+                    ),
+                }
+                if editorial_revision is not None
+                and editorial_revision.requires_reaudit
+                else None
+            ),
             "editorial_admission": (
                 editorial_admission.model_dump(mode="json")
                 if editorial_admission is not None
@@ -3182,6 +3904,7 @@ async def run_harness(
         evidence_recovery=evidence_recovery,
         editorial_admission=editorial_admission,
         editorial_revision=editorial_revision,
+        editorial_transaction=editorial_transaction,
         posthoc_retrieval_budget=posthoc_budget_audit,
         run_cost_budget=run_cost_audit,
         stop_diagnostic=stop_diagnostic,

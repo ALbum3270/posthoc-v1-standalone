@@ -42,6 +42,7 @@ from open_deep_research.harness.source_leads import (
     SourceLeadCandidate,
     inventory_source_lead_candidates,
 )
+from open_deep_research.harness.truth_conditions import TruthConditionRegistry
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
@@ -147,6 +148,7 @@ class RecoveryTriageDecision(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     claim_id: str = Field(min_length=1)
+    target_element_ids: tuple[str, ...] = ()
     action: RecoveryTriageAction
     importance: RecoveryImportance
     importance_reason: str = Field(min_length=1)
@@ -173,6 +175,18 @@ class RecoveryTriageDecision(BaseModel):
             return None
         normalized = value.strip()
         return normalized or None
+
+    @field_validator("target_element_ids")
+    @classmethod
+    def _target_elements_are_unique(
+        cls, value: tuple[str, ...]
+    ) -> tuple[str, ...]:
+        cleaned = tuple(element_id.strip() for element_id in value)
+        if any(not element_id for element_id in cleaned):
+            raise ValueError("target_element_ids cannot contain blanks")
+        if len(set(cleaned)) != len(cleaned):
+            raise ValueError("target_element_ids must be unique")
+        return cleaned
 
     @model_validator(mode="after")
     def _query_intent_belongs_only_to_research(self) -> RecoveryTriageDecision:
@@ -218,6 +232,13 @@ class RecoveryTriageDecision(BaseModel):
         ):
             raise ValueError(
                 "only research_more may carry a retrieval intent"
+            )
+        if (
+            self.action is not RecoveryTriageAction.RESEARCH_MORE
+            and self.target_element_ids
+        ):
+            raise ValueError(
+                "only research_more may carry target_element_ids"
             )
         return self
 
@@ -389,6 +410,7 @@ class RecoveryClaimAttempt(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     claim_id: str
+    target_element_ids: tuple[str, ...] = ()
     query_route: RecoveryQueryRoute
     selected_source_lead_id: str | None = None
     source_document_hint: str | None = None
@@ -404,6 +426,9 @@ class RecoveryClaimAttempt(BaseModel):
     unread_candidate_urls: tuple[str, ...] = ()
     new_completed_relation_count: int = Field(ge=0)
     new_completed_verdict_counts: dict[str, int] = Field(default_factory=dict)
+    element_state_transitions: dict[str, str] = Field(default_factory=dict)
+    remaining_unresolved_element_ids: tuple[str, ...] = ()
+    coverage_transition: str | None = None
     attempted: bool
 
 
@@ -457,6 +482,17 @@ class EvidenceRecoveryResult(BaseModel):
         attempts = tuple(attempt.claim_id for attempt in self.attempts)
         if attempts != targets:
             raise ValueError("one recovery attempt record is required per target")
+        decision_by_id = {
+            decision.claim_id: decision for decision in self.triage.decisions
+        }
+        if any(
+            attempt.target_element_ids
+            != decision_by_id[attempt.claim_id].target_element_ids
+            for attempt in self.attempts
+        ):
+            raise ValueError(
+                "recovery attempts must preserve triage target element IDs"
+            )
         if set(self.attempted_claim_ids) | set(
             self.unattempted_claim_ids
         ) != set(targets):
@@ -497,6 +533,7 @@ class _RawDecision(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     claim_id: str
+    target_element_ids: tuple[str, ...] = ()
     action: RecoveryTriageAction
     importance: RecoveryImportance
     importance_reason: str
@@ -526,6 +563,9 @@ agreement: a later source may support, contradict, fail to support, or provide
 insufficient information, and all four are useful outcomes.
 
 For research_more, also provide:
+- target_element_ids: a non-empty subset of the registered actionable element
+  IDs this retrieval should address. Use an empty array only when the prompt
+  explicitly marks the claim as legacy_whole_claim;
 - evidence_need: the exact date, amount, legal status, event, attribution, or
   other proposition the source must address;
 - preferred_source_role: the useful role of a source, such as an original
@@ -542,8 +582,8 @@ fallback. A registered lead is only a clue, not evidence and not proof that a
 source is original. Original records are useful for their own contents, while
 independent reporting can still be needed for explanation and cross-checking;
 do not let an official source monopolize interpretive claims. For other
-actions, all four retrieval-intent fields and selected_source_lead_id must be
-null.
+actions, target_element_ids must be empty and all four retrieval-intent fields
+and selected_source_lead_id must be null.
 
 The source-lead object records whether the full inventory was mechanically
 truncated to fit a serialized-character capacity. This is not a relevance or
@@ -553,6 +593,7 @@ absence, and use the direct-search fallback when no shown clue is useful.
 
 Return exactly one entry per claim_id:
 {{"decisions":[{{"claim_id":"claim-0001",\
+"target_element_ids":["claim-0001::tc-0001"],\
 "action":"research_more|edit_directly|leave_as_is",\
 "importance":"central|supporting|incidental",\
 "importance_reason":"how it contributes to the user's question",\
@@ -703,6 +744,7 @@ def build_recovery_triage_prompt(
     checklist: ResearchChecklist,
     source_leads: Sequence[SourceLeadCandidate] = (),
     source_lead_prompt_char_limit: int = 80_000,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> str:
     """Build the semantic triage prompt without any source allowlist."""
 
@@ -714,6 +756,7 @@ def build_recovery_triage_prompt(
         targets,
         checklist=checklist,
         source_lead_projection=projection,
+        truth_condition_registry=truth_condition_registry,
     )
 
 
@@ -722,15 +765,60 @@ def _build_recovery_triage_prompt(
     *,
     checklist: ResearchChecklist,
     source_lead_projection: _SourceLeadPromptProjection,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> str:
     """Build one prompt from a previously measured source-lead projection."""
 
+    registry_by_claim = {
+        entry.claim_id: entry
+        for entry in (
+            truth_condition_registry.entries
+            if truth_condition_registry is not None
+            else ()
+        )
+    }
     claims = [
         {
             "claim_id": target.claim.claim_id,
             "claim_text": target.claim.claim_text,
             "anchor_text": target.claim.anchor_text,
             "evidence_state": target.state.value,
+            "truth_condition_protocol": (
+                "truth_condition_elements_v1"
+                if target.truth_condition_aggregate is not None
+                else "legacy_whole_claim"
+            ),
+            "truth_condition_coverage": (
+                target.truth_condition_aggregate.coverage_state.value
+                if target.truth_condition_aggregate is not None
+                else None
+            ),
+            "actionable_truth_conditions": [
+                {
+                    "element_id": element.element_id,
+                    "text": element.text,
+                    "semantic_state": next(
+                        aggregate.semantic_state.value
+                        for aggregate in target.truth_condition_aggregate.elements
+                        if aggregate.element_id == element.element_id
+                    ),
+                }
+                for element in (
+                    registry_by_claim[target.claim.claim_id].elements
+                    if target.claim.claim_id in registry_by_claim
+                    else ()
+                )
+                if target.truth_condition_aggregate is not None
+                and element.element_id
+                in {
+                    *target.truth_condition_aggregate.not_supported_element_ids,
+                    *target.truth_condition_aggregate.contradicted_element_ids,
+                    *target.truth_condition_aggregate.conflicted_element_ids,
+                    *target.truth_condition_aggregate.unresolved_element_ids,
+                }
+            ]
+            if target.claim.claim_id in registry_by_claim
+            else [],
             "relations": [
                 {
                     "url": relation.url,
@@ -797,6 +885,9 @@ def _parse_triage_batch(
     state_by_id = {
         target.claim.claim_id: target.state for target in targets
     }
+    target_by_id = {
+        target.claim.claim_id: target for target in targets
+    }
     source_lead_by_id = {lead.lead_id: lead for lead in source_leads}
     diagnostics: list[str] = []
     failed: set[str] = set()
@@ -860,6 +951,35 @@ def _parse_triage_batch(
                 f"recovery_triage_unknown_claim: {decision.claim_id}"
             )
             continue
+        aggregate = target_by_id[decision.claim_id].truth_condition_aggregate
+        if decision.action is RecoveryTriageAction.RESEARCH_MORE:
+            if aggregate is None:
+                if decision.target_element_ids:
+                    diagnostics.append(
+                        "recovery_triage_legacy_claim_has_element_ids: "
+                        f"{decision.claim_id}"
+                    )
+                    failed.add(decision.claim_id)
+                    continue
+            else:
+                actionable_ids = {
+                    *aggregate.not_supported_element_ids,
+                    *aggregate.contradicted_element_ids,
+                    *aggregate.conflicted_element_ids,
+                    *aggregate.unresolved_element_ids,
+                }
+                selected_ids = set(decision.target_element_ids)
+                if not selected_ids or not selected_ids.issubset(
+                    actionable_ids
+                ):
+                    diagnostics.append(
+                        "recovery_triage_invalid_target_elements: "
+                        f"{decision.claim_id}; selected="
+                        f"{sorted(selected_ids)}; actionable="
+                        f"{sorted(actionable_ids)}"
+                    )
+                    failed.add(decision.claim_id)
+                    continue
         if (
             state_by_id[decision.claim_id] is ClaimEvidenceState.REFUTED
             and decision.action is RecoveryTriageAction.RESEARCH_MORE
@@ -902,6 +1022,7 @@ async def triage_evidence_recovery(
     settings: RecoveryTriageSettings | None = None,
     source_cache: Mapping[str, str] | None = None,
     source_links: Mapping[str, Sequence[SourceLinkRecord]] | None = None,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> RecoveryTriageResult:
     """Assess all completed evidence anomalies without changing any bytes."""
 
@@ -969,6 +1090,7 @@ async def triage_evidence_recovery(
                 batch,
                 checklist=checklist,
                 source_lead_projection=source_lead_projection,
+                truth_condition_registry=truth_condition_registry,
             )
             prompt_chars = len(prompt)
             phase = "model_call_or_response_processing"
@@ -1148,6 +1270,13 @@ def summarize_evidence_recovery(
     final_relations = _completed_relations_by_claim(
         pass_result.final_verification
     )
+    initial_claims = {
+        claim.claim.claim_id: claim for claim in initial_verification.claims
+    }
+    final_claims = {
+        claim.claim.claim_id: claim
+        for claim in pass_result.final_verification.claims
+    }
     cached_urls = set(cached_source_urls)
     decision_by_id = {
         decision.claim_id: decision for decision in triage.decisions
@@ -1208,6 +1337,50 @@ def summarize_evidence_recovery(
                 else "none"
             )
             verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
+        initial_aggregate = initial_claims[
+            claim_id
+        ].truth_condition_aggregate
+        final_aggregate = final_claims[
+            claim_id
+        ].truth_condition_aggregate
+        initial_element_states = {
+            element.element_id: element.semantic_state.value
+            for element in (
+                initial_aggregate.elements
+                if initial_aggregate is not None
+                else ()
+            )
+        }
+        final_element_states = {
+            element.element_id: element.semantic_state.value
+            for element in (
+                final_aggregate.elements
+                if final_aggregate is not None
+                else ()
+            )
+        }
+        element_transitions = {
+            element_id: (
+                f"{initial_element_states.get(element_id, 'missing')}->"
+                f"{final_element_states.get(element_id, 'missing')}"
+            )
+            for element_id in decision.target_element_ids
+        }
+        # "Unresolved" here means the recovery issue remains actionable, not
+        # only the narrow ElementSemanticState.UNRESOLVED enum value. A target
+        # that is still contradicted, conflicted, or not supported after the
+        # pass has not been repaired and must not disappear from the audit.
+        remaining_unresolved = tuple(
+            element_id
+            for element_id in decision.target_element_ids
+            if final_element_states.get(element_id) != "supported"
+        )
+        coverage_transition = (
+            f"{initial_aggregate.coverage_state.value}->"
+            f"{final_aggregate.coverage_state.value}"
+            if initial_aggregate is not None and final_aggregate is not None
+            else None
+        )
         attempted = bool(searches or hints)
         if decision.query_route is RecoveryQueryRoute.DIRECT_SEARCH_FALLBACK:
             source_chain_access = (
@@ -1235,6 +1408,7 @@ def summarize_evidence_recovery(
         attempts.append(
             RecoveryClaimAttempt(
                 claim_id=claim_id,
+                target_element_ids=decision.target_element_ids,
                 query_route=decision.query_route,
                 selected_source_lead_id=decision.selected_source_lead_id,
                 source_document_hint=decision.source_document_hint,
@@ -1259,6 +1433,9 @@ def summarize_evidence_recovery(
                 unread_candidate_urls=unread_urls,
                 new_completed_relation_count=len(new_relations),
                 new_completed_verdict_counts=verdict_counts,
+                element_state_transitions=element_transitions,
+                remaining_unresolved_element_ids=remaining_unresolved,
+                coverage_transition=coverage_transition,
                 attempted=attempted,
             )
         )

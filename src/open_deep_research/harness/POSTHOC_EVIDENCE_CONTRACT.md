@@ -106,6 +106,61 @@ common ownership, syndicated or republished material, and one brand operating
 multiple domains remain unresolved and visible as audit limitations. No
 domain or organization wordlist is used to guess those relationships.
 
+## Truth-condition denominator and verification axes
+
+`atomic-v1` claim records remain the report-location and attribution unit. A
+live run additionally creates a `truth_condition_elements_v1` registry for
+every selected claim. The decontextualization model proposes the conditions;
+an independent review model may correct or complete them; code assigns stable
+element IDs and proves that complete, incomplete, and unresolved outcomes
+partition the selected claim denominator. A failed or omitted review remains
+unresolved and can never silently fall back to a successful whole-claim
+verdict. Historical verifier replay explicitly uses the legacy whole-claim
+protocol and is not relabelled as element gold.
+
+One claim/source verifier call returns every registered element. It does not
+make one provider call per element. Semantic outcomes (supported, unsupported,
+contradicted, conflicted, unresolved), execution completeness, and overall
+claim coverage are separate axes. A claim is fully supported only when its
+independently reviewed element denominator is complete and every element has
+formal located support. Numeric alignment is checked against each element and
+its exact source span; an unrecognized numeric surface cannot become formal
+support.
+
+If a selected continuous span exceeds the mechanical segment or character
+capacity, the same claim and complete source receive at most one narrowing
+retry. The model may return a replacement verdict or `cannot_narrow`.
+`cannot_narrow` is an execution disposition, not a semantic verdict, and the
+first rejected result plus measured capacity failure remains in diagnostics.
+An unlocated contradiction cannot make a claim `REFUTED`.
+
+Recovery triage sees the registered unresolved, unsupported, contradicted, or
+conflicted elements and must bind `research_more` to a registered subset. Code
+preserves those IDs through the search query, read selection, source
+acquisition, and note prompt, then records element and coverage transitions.
+Unknown IDs are recoverable protocol failures; code does not invent a search
+intent or source ranking.
+
+## Transactional editorial mutation
+
+An editor response is a proposal, not permission to mutate the canonical
+draft. Code builds a change manifest from Python-character ranges, exact text
+hashes, Markdown structure, and context-span closure; regenerated claim and
+block ordinals are never treated as cross-draft identity. The complete
+candidate claim, attribution, truth-condition, verification, and checklist
+audits remain in `audit.json` even when the proposal is rejected.
+
+Only changed post-edit semantic units must have a mechanically closed fresh
+audit. An independent transaction reviewer then closes three denominators:
+editorial targets, neighbouring facts that must be preserved, and every
+affected post-edit unit. It must establish bidirectional lineage, declared
+target resolution, no degradation of preserved facts, no unexplained new
+material, and preservation or evidence-backed narrowing of the answer. Only a
+complete `accept` result commits the entire proposal. A semantic rejection is
+a completed rollback; malformed output, provider failure, or budget denial is
+an incomplete rollback. Unchanged regions do not veto a locally safe edit,
+and no quality judgement becomes an artifact-publication gate.
+
 ## Evidence states and FEVER compatibility
 
 Fine-grained evidence states remain authoritative. A deterministic coarse

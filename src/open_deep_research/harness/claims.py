@@ -30,6 +30,17 @@ from open_deep_research.harness.source_spans import (
     render_segmented_source,
     resolve_source_span,
 )
+from open_deep_research.harness.truth_conditions import (
+    ElementizationExecutionStatus,
+    ElementizationFailure,
+    ElementizationProposal,
+    ElementizationReview,
+    ElementizationStage,
+    TruthConditionRegistry,
+    build_elementization_review_prompt,
+    build_truth_condition_registry,
+    parse_elementization_reviews,
+)
 
 
 class MarkdownBlockKind(str, Enum):
@@ -665,6 +676,7 @@ class ClaimBatchRecord(BaseModel):
         "selection",
         "negative_selection_review",
         "decontextualization",
+        "truth_condition_review",
         "extraction",
         "evidence_obligation",
     ]
@@ -745,6 +757,14 @@ class ClaimDecompositionResult(BaseModel):
     decontextualization_usage: ClaimStageUsage
     extraction_usage: ClaimStageUsage
     evidence_review_usage: ClaimStageUsage = ClaimStageUsage()
+    truth_condition_registry: TruthConditionRegistry | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
+    truth_condition_review_usage: ClaimStageUsage | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     anchor_proposal_count: int = Field(default=0, ge=0)
     anchor_copied_from_selection_count: int = Field(default=0, ge=0)
     anchor_copied_from_selection_rate: float = Field(
@@ -775,6 +795,21 @@ class ClaimDecompositionResult(BaseModel):
             and self.claim_obligation_audit.silent_bypass_count != 0
         ):
             raise ValueError("live claim denominator may not silently bypass work")
+        if (self.truth_condition_registry is None) != (
+            self.truth_condition_review_usage is None
+        ):
+            raise ValueError(
+                "truth-condition registry and review usage must activate together"
+            )
+        if self.truth_condition_registry is not None:
+            claim_ids = tuple(claim.claim_id for claim in self.claims)
+            registry_ids = tuple(
+                entry.claim_id for entry in self.truth_condition_registry.entries
+            )
+            if registry_ids != claim_ids:
+                raise ValueError(
+                    "truth-condition registry must exactly match claim order"
+                )
         return self
 
     @property
@@ -788,7 +823,9 @@ class ClaimDecompositionResult(BaseModel):
                 self.decontextualization_usage,
                 self.extraction_usage,
                 self.evidence_review_usage,
+                self.truth_condition_review_usage,
             )
+            if usage is not None
         )
 
     @property
@@ -802,7 +839,9 @@ class ClaimDecompositionResult(BaseModel):
                 self.decontextualization_usage,
                 self.extraction_usage,
                 self.evidence_review_usage,
+                self.truth_condition_review_usage,
             )
+            if usage is not None
         )
 
 
@@ -827,6 +866,9 @@ class _DecontextualizedClaim(BaseModel):
     claim_id: str
     claim_text: str = Field(min_length=1)
     context_spans: tuple[ContextSpanProposal, ...] = ()
+    # Parsed separately so a malformed optional proposal cannot invalidate the
+    # decontextualized claim or suppress its report artifact.
+    truth_conditions: Any = None
 
     @field_validator("context_spans", mode="before")
     @classmethod
@@ -1263,9 +1305,16 @@ will require each proposed text to have one unique occurrence and will assign
 its absolute start_char/end_char mechanically. If the selected assertion is
 already self-contained, context_spans must be empty.
 
+Also propose a truth_conditions string array containing the material semantic
+conditions that must all hold for claim_text to be supported. Preserve the
+claim's relationships, qualifications, scope, and attribution; a related fact
+is not a substitute for a condition in the claim. Do not create element IDs.
+Code assigns IDs only after a separate reviewer has corrected the full list.
+This proposal does not decide support and does not replace source verification.
+
 Return exactly one entry per claim_id as JSON only:
 {{"claims":[{{"claim_id":"claim-0001","claim_text":"...",\
-"context_spans":["..."]}}]}}
+"context_spans":["..."],"truth_conditions":["..."]}}]}}
 
 Purely structural example: in "A group opened a facility. It expanded the
 facility.", the second assertion may become "The group expanded the
@@ -2378,6 +2427,7 @@ async def decompose_claims(
     *,
     model_client: ClaimModelClient,
     review_model_client: ClaimModelClient | None = None,
+    truth_condition_review_model_client: ClaimModelClient | None = None,
     settings: ClaimDecompositionSettings | None = None,
 ) -> ClaimDecompositionResult:
     """Build a closed claim/evidence registry without silent denominator loss."""
@@ -2570,6 +2620,13 @@ async def decompose_claims(
             decontextualization_usage=zero_usage,
             extraction_usage=zero_usage,
             evidence_review_usage=_sum_usage(evidence_review_usages),
+            # A live, successfully established empty claim denominator is not
+            # the same thing as a historical payload that predates
+            # truth-condition elementization.  Reserve ``None`` for the
+            # latter so downstream verification cannot silently select its
+            # legacy whole-claim protocol for this run.
+            truth_condition_registry=build_truth_condition_registry({}),
+            truth_condition_review_usage=zero_usage,
         )
 
     valid_decontext: dict[
@@ -2580,6 +2637,19 @@ async def decompose_claims(
             tuple[ContextSpanProposal, ...],
         ],
     ] = {}
+    # Registry identity is the exact report surface for every selected claim,
+    # including claims whose later normalization fails.  Decontextualized text
+    # remains a semantic aid; using it as identity would make ordinary pronoun
+    # resolution fail the verifier's exact report binding and would let failed
+    # claims disappear from the element denominator.
+    truth_condition_claim_surfaces: dict[str, str] = {
+        str(claim["claim_id"]): str(claim["selected_text"])
+        for claim in seed_claims
+    }
+    truth_condition_claim_glosses: dict[str, str] = {}
+    truth_condition_claim_contexts: dict[str, tuple[str, ...]] = {}
+    truth_condition_proposals: dict[str, ElementizationProposal] = {}
+    truth_condition_proposal_failures: dict[str, ElementizationFailure] = {}
     failures: dict[str, AtomicClaim] = {}
     decontext_usages: list[ClaimStageUsage] = []
     for batch_number, claim_batch in enumerate(
@@ -2670,6 +2740,36 @@ async def decompose_claims(
                 )
                 failed_ids.append(claim_id)
                 continue
+            truth_condition_claim_glosses[claim_id] = decontext.claim_text
+            if "truth_conditions" in decontext.model_fields_set:
+                try:
+                    truth_condition_proposals[claim_id] = (
+                        ElementizationProposal(
+                            claim_id=claim_id,
+                            elements=decontext.truth_conditions,
+                            rationale=(
+                                "proposed during claim decontextualization"
+                            ),
+                        )
+                    )
+                except (TypeError, ValidationError, ValueError) as exc:
+                    diagnostic = (
+                        "invalid truth_conditions proposal: "
+                        f"{type(exc).__name__}: {exc}"
+                    )
+                    truth_condition_proposal_failures[claim_id] = (
+                        ElementizationFailure(
+                            claim_id=claim_id,
+                            stage=ElementizationStage.PROPOSAL,
+                            execution_status=(
+                                ElementizationExecutionStatus.INVALID_RESPONSE
+                            ),
+                            diagnostic=diagnostic,
+                        )
+                    )
+                    diagnostics.append(
+                        f"truth_condition_proposal_invalid: {claim_id}"
+                    )
             valid_spans, context_error = _locate_context_spans(
                 report,
                 decontext.context_spans,
@@ -2691,6 +2791,9 @@ async def decompose_claims(
                 valid_spans,
                 decontext.context_spans,
             )
+            truth_condition_claim_contexts[claim_id] = tuple(
+                span.text for span in valid_spans
+            )
             output_ids.append(claim_id)
         batch_records.append(
             ClaimBatchRecord(
@@ -2706,6 +2809,156 @@ async def decompose_claims(
         )
 
     decontext_usage = _sum_usage(decontext_usages)
+    truth_condition_registry: TruthConditionRegistry | None = None
+    truth_condition_review_usage: ClaimStageUsage | None = None
+    if truth_condition_claim_surfaces:
+        for claim_id in truth_condition_claim_surfaces:
+            if (
+                claim_id not in truth_condition_proposals
+                and claim_id not in truth_condition_proposal_failures
+            ):
+                diagnostics.append(
+                    f"truth_condition_proposal_missing: {claim_id}"
+                )
+
+        truth_condition_reviews: list[ElementizationReview] = []
+        truth_condition_failures: list[ElementizationFailure] = list(
+            truth_condition_proposal_failures.values()
+        )
+        truth_condition_review_usages: list[ClaimStageUsage] = []
+        ordered_proposals = tuple(
+            truth_condition_proposals[claim_id]
+            for claim_id in truth_condition_claim_surfaces
+            if claim_id in truth_condition_proposals
+        )
+        for batch_number, proposal_batch in enumerate(
+            _chunks(ordered_proposals, active_settings.batch_size),
+            start=1,
+        ):
+            input_ids = tuple(item.claim_id for item in proposal_batch)
+            call_error: str | None = None
+            parsed_reviews: tuple[ElementizationReview, ...] = ()
+            batch_failures: tuple[ElementizationFailure, ...] = ()
+            element_review_model = (
+                truth_condition_review_model_client or review_model_client
+            )
+            if element_review_model is None:
+                batch_usage = ClaimStageUsage()
+                call_error = "review_model_client was not provided"
+                batch_failures = tuple(
+                    ElementizationFailure(
+                        claim_id=claim_id,
+                        stage=ElementizationStage.REVIEW,
+                        execution_status=ElementizationExecutionStatus.NOT_RUN,
+                        diagnostic=call_error,
+                    )
+                    for claim_id in input_ids
+                )
+            else:
+                try:
+                    review_content, batch_usage = await _call_model(
+                        element_review_model,
+                        build_elementization_review_prompt(
+                            {
+                                claim_id: truth_condition_claim_surfaces[
+                                    claim_id
+                                ]
+                                for claim_id in input_ids
+                            },
+                            proposal_batch,
+                            claim_contexts={
+                                claim_id: truth_condition_claim_contexts.get(
+                                    claim_id, ()
+                                )
+                                for claim_id in input_ids
+                            },
+                            claim_glosses={
+                                claim_id: truth_condition_claim_glosses[
+                                    claim_id
+                                ]
+                                for claim_id in input_ids
+                                if claim_id in truth_condition_claim_glosses
+                            },
+                        ),
+                    )
+                except Exception as exc:
+                    batch_usage = ClaimStageUsage()
+                    call_error = f"{type(exc).__name__}: {exc}"
+                    batch_failures = tuple(
+                        ElementizationFailure(
+                            claim_id=claim_id,
+                            stage=ElementizationStage.REVIEW,
+                            execution_status=(
+                                ElementizationExecutionStatus.MODEL_ERROR
+                            ),
+                            diagnostic=call_error,
+                        )
+                        for claim_id in input_ids
+                    )
+                else:
+                    try:
+                        review_json = json.dumps(
+                            review_content,
+                            ensure_ascii=False,
+                        )
+                    except (TypeError, ValueError) as exc:
+                        review_json = ""
+                        diagnostics.append(
+                            "truth_condition_review_payload_unserializable"
+                            f"[{batch_number}]: {exc}"
+                        )
+                    parsed = parse_elementization_reviews(
+                        review_json,
+                        input_ids,
+                    )
+                    parsed_reviews = parsed.reviews
+                    batch_failures = parsed.failures
+                    diagnostics.extend(
+                        "truth_condition_review_"
+                        f"batch[{batch_number}]: {diagnostic}"
+                        for diagnostic in parsed.diagnostics
+                    )
+            if call_error is not None:
+                diagnostics.append(
+                    f"truth_condition_review_batch_error[{batch_number}] "
+                    f"claim_ids={','.join(input_ids)}: {call_error}"
+                )
+            truth_condition_review_usages.append(batch_usage)
+            truth_condition_reviews.extend(parsed_reviews)
+            truth_condition_failures.extend(batch_failures)
+            failed_ids = tuple(item.claim_id for item in batch_failures)
+            batch_records.append(
+                ClaimBatchRecord(
+                    stage="truth_condition_review",
+                    batch_number=batch_number,
+                    input_ids=input_ids,
+                    output_ids=tuple(
+                        claim_id
+                        for claim_id in input_ids
+                        if claim_id not in set(failed_ids)
+                    ),
+                    failed_input_ids=failed_ids,
+                    outcome=_batch_outcome(input_ids, failed_ids),
+                    error=call_error,
+                    usage=batch_usage,
+                )
+            )
+
+        truth_condition_review_usage = _sum_usage(
+            truth_condition_review_usages
+        )
+        truth_condition_registry = build_truth_condition_registry(
+            truth_condition_claim_surfaces,
+            proposals=tuple(truth_condition_proposals.values()),
+            reviews=tuple(truth_condition_reviews),
+            failures=tuple(truth_condition_failures),
+        )
+    else:
+        # A genuinely claim-free live run still has a closed zero denominator.
+        # ``None`` is reserved for historical payloads that predate this
+        # protocol; emitting it here would silently select legacy verification.
+        truth_condition_registry = build_truth_condition_registry({})
+        truth_condition_review_usage = ClaimStageUsage()
     extraction_usages: list[ClaimStageUsage] = []
     extraction_by_id: dict[str, _ExtractedAnchor] = {}
     duplicate_extraction_ids: set[str] = set()
@@ -3092,6 +3345,8 @@ async def decompose_claims(
         decontextualization_usage=decontext_usage,
         extraction_usage=extraction_usage,
         evidence_review_usage=_sum_usage(evidence_review_usages),
+        truth_condition_registry=truth_condition_registry,
+        truth_condition_review_usage=truth_condition_review_usage,
         anchor_proposal_count=anchor_proposal_count,
         anchor_copied_from_selection_count=(
             anchor_copied_from_selection_count

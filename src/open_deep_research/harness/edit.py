@@ -28,11 +28,17 @@ from pydantic import (
 
 from open_deep_research.harness.budget import RunCostCapReached
 from open_deep_research.harness.claims import (
+    CitationRequirement,
     ClaimNormalizationStatus,
     MarkdownBlock,
 )
 from open_deep_research.harness.checklist import ResearchChecklist
 from open_deep_research.harness.jsonio import loads_lenient
+from open_deep_research.harness.truth_conditions import (
+    ElementizationExecutionStatus,
+    ElementizationSemanticStatus,
+    ExecutionCompleteness,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
@@ -519,9 +525,19 @@ def _relation_payload(claim: ClaimVerification) -> list[dict[str, Any]]:
             ),
             "explanation": relation.explanation,
             "source_quote": relation.source_quote,
+            "numeric_consistency_status": (
+                relation.numeric_consistency_status.value
+            ),
+            "numeric_consistency_detail": (
+                relation.numeric_consistency_detail
+            ),
             "is_formal_supporting_evidence": (
                 relation.is_formal_supporting_evidence
             ),
+            "element_relations": [
+                element.model_dump(mode="json")
+                for element in relation.element_relations
+            ],
         }
         for relation in claim.relations
     ]
@@ -577,6 +593,39 @@ def _claim_audit_failure_reasons(
         reasons.append(f"normalization_failed:{detail}")
     elif claim.state in _INCOMPLETE_CLAIM_STATES:
         reasons.append(f"claim_state:{claim.state.value}")
+    aggregate = claim.truth_condition_aggregate
+    if aggregate is not None:
+        if (
+            aggregate.elementization_execution_status
+            is not ElementizationExecutionStatus.COMPLETE
+        ):
+            reasons.append(
+                "truth_condition_elementization_execution:"
+                f"{aggregate.elementization_execution_status.value}"
+            )
+        if (
+            aggregate.elementization_semantic_status
+            is not ElementizationSemanticStatus.COMPLETE
+        ):
+            semantic_status = (
+                aggregate.elementization_semantic_status.value
+                if aggregate.elementization_semantic_status is not None
+                else "unresolved"
+            )
+            reasons.append(
+                "truth_condition_elementization_semantic:"
+                f"{semantic_status}"
+            )
+        if (
+            aggregate.execution_completeness
+            is not ExecutionCompleteness.COMPLETE
+            and claim.state is not ClaimEvidenceState.NO_CANDIDATE_SOURCE
+            and claim.claim.citation_requirement is not CitationRequirement.INTERNAL
+        ):
+            reasons.append(
+                "truth_condition_verification_execution:"
+                f"{aggregate.execution_completeness.value}"
+            )
     for relation in claim.relations:
         if relation.status is not VerificationRecordStatus.COMPLETED:
             reasons.append(
@@ -724,6 +773,13 @@ def build_editorial_prompt(
                         "claim_text": claim.claim.claim_text,
                         "anchor_text": claim.claim.anchor_text,
                         "evidence_state": claim.state.value,
+                        "truth_condition_aggregate": (
+                            claim.truth_condition_aggregate.model_dump(
+                                mode="json"
+                            )
+                            if claim.truth_condition_aggregate is not None
+                            else None
+                        ),
                         "evidence_obligation": (
                             claim.claim.evidence_obligation.model_dump(
                                 mode="json"

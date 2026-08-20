@@ -282,7 +282,9 @@ class _SeamVerificationModel:
                     "explanation": "Synthetic seam verdict.",
                 }
             )
-        return _envelope({"results": results})
+        return _envelope(
+            {"results": base._element_aware_verifier_results(prompt, results)}
+        )
 
 
 class _SeamRecoveryModel:
@@ -293,9 +295,20 @@ class _SeamRecoveryModel:
         decisions = []
         for claim_id in claim_ids:
             research = claim_id == "claim-0001"
+            target_element_ids = tuple(
+                dict.fromkeys(
+                    re.findall(
+                        rf'({re.escape(claim_id)}::tc-[0-9]+)',
+                        prompt,
+                    )
+                )
+            )
             decisions.append(
                 {
                     "claim_id": claim_id,
+                    "target_element_ids": (
+                        list(target_element_ids) if research else []
+                    ),
                     "action": "research_more" if research else "edit_directly",
                     "importance": "central",
                     "importance_reason": "The claim is in the requested answer.",
@@ -400,6 +413,16 @@ def _attribution_stage(prompt: str, call: int) -> str:
 
 
 def _verification_stage(prompt: str, call: int) -> str:
+    if prompt.startswith(
+        "Independently review each proposed truth-condition"
+    ):
+        return (
+            "post_edit_truth_condition_elementization"
+            if "A narrower supported fact." in prompt
+            else "truth_condition_elementization"
+        )
+    if prompt.startswith("Independently review one proposed edit"):
+        return "editorial_transaction_acceptance"
     if prompt.startswith("Independent negative-selection review"):
         return (
             "post_edit_evidence_obligation_resolution"
@@ -414,9 +437,21 @@ def _verification_stage(prompt: str, call: int) -> str:
         )
     if "A narrower supported fact." in prompt:
         return "post_edit_initial_verification"
-    # The first call is now the negative-selection reviewer; the first actual
-    # source-verification call is therefore ordinal 1.
-    return "initial_verification" if call <= 1 else "evidence_gap"
+    if prompt.startswith(
+        (
+            "Verify each report statement independently",
+            "Verify every registered truth-condition element",
+        )
+    ):
+        # The source identity is stable test data; unlike a call ordinal it is
+        # unaffected when a new independent review stage is inserted ahead of
+        # verification.
+        return (
+            "evidence_gap"
+            if "https://alternative.example/record" in prompt
+            else "initial_verification"
+        )
+    return "evidence_gap"
 
 
 def _constant_stage(stage: str) -> Callable[[str, int], str]:

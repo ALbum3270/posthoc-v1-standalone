@@ -83,8 +83,19 @@ class StageExecutionRecord(BaseModel):
         return self
 
 
+LEGACY_MANDATORY_PIPELINE_STAGES = (
+    "claim_decomposition",
+    "evidence_obligation_resolution",
+    "attribution",
+    "initial_verification",
+    "checklist_reconciliation",
+    "deterministic_rendering",
+)
+
+
 MANDATORY_PIPELINE_STAGES = (
     "claim_decomposition",
+    "truth_condition_elementization",
     "evidence_obligation_resolution",
     "attribution",
     "initial_verification",
@@ -121,6 +132,19 @@ class PostDraftExecutionAudit(BaseModel):
         old = data.pop("mandatory_publication_stages", None)
         if "mandatory_pipeline_stages" not in data and old is not None:
             data["mandatory_pipeline_stages"] = old
+        elif "mandatory_pipeline_stages" not in data:
+            # Audits written before the mandatory-stage field existed cannot
+            # name the later truth-condition stage.  Infer the historical
+            # denominator only when the stage ledger itself is historical;
+            # current ledgers that contain the stage keep the current default.
+            stages = data.get("stages")
+            if (
+                isinstance(stages, dict)
+                and "truth_condition_elementization" not in stages
+            ):
+                data["mandatory_pipeline_stages"] = (
+                    LEGACY_MANDATORY_PIPELINE_STAGES
+                )
         old = data.pop("publication_eligible", None)
         if "pipeline_complete" not in data and old is not None:
             data["pipeline_complete"] = old
@@ -224,6 +248,7 @@ def publication_audit(
 # pass ending from every requested target actually being evaluated.
 STAGE_AUDIT_PAYLOAD_KEYS = {
     "claim_decomposition": "claim_decomposition",
+    "truth_condition_elementization": "claim_decomposition",
     "evidence_obligation_resolution": "claim_decomposition",
     "attribution": "attribution",
     "initial_verification": "verification",
@@ -237,12 +262,14 @@ STAGE_AUDIT_PAYLOAD_KEYS = {
         "post_edit_evaluative_claim_diagnostics"
     ),
     "post_edit_claim_decomposition": "claim_decomposition",
+    "post_edit_truth_condition_elementization": "claim_decomposition",
     "post_edit_evidence_obligation_resolution": "claim_decomposition",
     "post_edit_attribution": "attribution",
     "post_edit_initial_verification": "verification",
     "post_edit_checklist_reconciliation": (
         "checklist_report_reconciliation"
     ),
+    "editorial_transaction_acceptance": "editorial_transaction",
 }
 
 
@@ -258,6 +285,12 @@ def _evidence_gap_routed_claim_ids(payload: dict) -> tuple[str, ...]:
             routed.append(str(hint["claim_id"]))
     for search in payload.get("searches") or ():
         if not isinstance(search, dict):
+            continue
+        if search.get("error") is not None:
+            # Historical payloads predate routed_target_claim_ids.  A provider
+            # failure recorded the requested query but performed no substantive
+            # route; counting it would recreate the old failed-search-is-done
+            # bug inside the compatibility invariant itself.
             continue
         query = search.get("query") or {}
         if not isinstance(query, dict):
@@ -281,6 +314,15 @@ def stages_claiming_completion_without_output(
 
     posthoc = audit.get("posthoc_evidence") or {}
     stages = (posthoc.get("stage_execution") or {}).get("stages") or {}
+    pre_edit_payloads = posthoc.get("pre_edit_evidence")
+    post_edit_stages = {
+        "post_edit_claim_decomposition",
+        "post_edit_truth_condition_elementization",
+        "post_edit_evidence_obligation_resolution",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
+    }
     offenders = []
     for stage_name, payload_key in sorted(STAGE_AUDIT_PAYLOAD_KEYS.items()):
         record = stages.get(stage_name)
@@ -289,14 +331,29 @@ def stages_claiming_completion_without_output(
         if record.get("status") != StageExecutionStatus.COMPLETE.value:
             continue
         payload = posthoc.get(payload_key)
-        if (
-            stage_name == "evaluative_diagnostics"
-            and posthoc.get("pre_edit_evidence") is not None
-        ):
-            payload = posthoc["pre_edit_evidence"].get(
-                "evaluative_claim_diagnostics"
-            )
+        if stage_name in post_edit_stages:
+            payload = (posthoc.get("post_edit_candidate") or {}).get(payload_key)
+        elif isinstance(pre_edit_payloads, dict) and payload_key in pre_edit_payloads:
+            # Once an edit is proposed, top-level claim/evidence payloads may
+            # describe the committed post-edit report.  Initial stage records
+            # still belong to the frozen pre-edit execution, whose exact
+            # payloads live here.  Resolve all initial stages consistently;
+            # special-casing only diagnostics previously made a committed gap
+            # pass look as though it completed without output.
+            payload = pre_edit_payloads.get(payload_key)
         if payload is None:
+            offenders.append(stage_name)
+            continue
+        if stage_name in {
+            "truth_condition_elementization",
+            "post_edit_truth_condition_elementization",
+        } and (
+            not isinstance(payload, dict)
+            or payload.get("truth_condition_registry") is None
+        ):
+            # The claim-decomposition payload predates elementization.  A
+            # merely non-null legacy claim registry therefore cannot prove
+            # that the new denominator was actually established.
             offenders.append(stage_name)
             continue
         expected_scope = record.get("expected_scope") or {}
@@ -327,6 +384,7 @@ def stages_claiming_completion_without_output(
 # claims exist if decomposition built the registry; verification can only know
 # how many relations exist if attribution proposed them.
 STAGE_SCOPE_DEPENDS_ON = {
+    "truth_condition_elementization": "claim_decomposition",
     "evidence_obligation_resolution": "claim_decomposition",
     # Historical audits have no evidence-obligation stage, so retain the
     # original decomposition dependency as well as the new live dependency.
@@ -343,6 +401,9 @@ STAGE_SCOPE_DEPENDS_ON = {
     "post_edit_evidence_obligation_resolution": (
         "post_edit_claim_decomposition"
     ),
+    "post_edit_truth_condition_elementization": (
+        "post_edit_claim_decomposition"
+    ),
     "post_edit_attribution": (
         "post_edit_claim_decomposition",
         "post_edit_evidence_obligation_resolution",
@@ -350,6 +411,14 @@ STAGE_SCOPE_DEPENDS_ON = {
     "post_edit_evaluative_diagnostics": "post_edit_claim_decomposition",
     "post_edit_initial_verification": "post_edit_attribution",
     "post_edit_checklist_reconciliation": "post_edit_claim_decomposition",
+    "editorial_transaction_acceptance": (
+        "post_edit_claim_decomposition",
+        "post_edit_truth_condition_elementization",
+        "post_edit_evidence_obligation_resolution",
+        "post_edit_attribution",
+        "post_edit_initial_verification",
+        "post_edit_checklist_reconciliation",
+    ),
 }
 
 

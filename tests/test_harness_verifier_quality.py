@@ -22,6 +22,12 @@ FIXTURE = (
     Path(__file__).parent / "fixtures" / "harness_verifier_finance18_review.json"
 )
 CASES_SHA256 = "b15bc254aaa7d704440e48175761d004650cb81e898b39291ee0fa5a19ca761d"
+FINANCE24_FIXTURE = (
+    Path(__file__).parent / "fixtures" / "harness_verifier_finance24_review.json"
+)
+FINANCE24_CASES_SHA256 = (
+    "7fb0161938bd8e532ca4509c435d5a012709ca4e47f96e05764fb1e6875e6382"
+)
 
 
 def _load_fixture() -> tuple[tuple[FrozenVerifierCase, ...], tuple[VerifierGold, ...]]:
@@ -50,6 +56,31 @@ def test_finance18_verifier_challenge_freezes_the_tenfold_error() -> None:
     assert known[0].original_verdict is VerificationVerdict.SUPPORTS
     assert "$900 million" in known[0].evidence_quote
     assert all(item.review_status is VerifierGoldStatus.PENDING_REVIEW for item in gold)
+
+
+def test_finance24_frozen_44_case_denominator_is_hash_and_id_closed() -> None:
+    payload = json.loads(FINANCE24_FIXTURE.read_text(encoding="utf-8"))
+    canonical_cases = json.dumps(
+        payload["cases"],
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    cases = tuple(
+        FrozenVerifierCase.model_validate(item) for item in payload["cases"]
+    )
+    gold = tuple(VerifierGold.model_validate(item) for item in payload["gold"])
+
+    assert hashlib.sha256(canonical_cases).hexdigest() == FINANCE24_CASES_SHA256
+    assert payload["cases_sha256"] == FINANCE24_CASES_SHA256
+    assert len(cases) == len(gold) == 44
+    assert tuple(item.case_id for item in cases) == tuple(
+        item.case_id for item in gold
+    )
+    assert all(
+        item.review_status is not VerifierGoldStatus.PENDING_REVIEW
+        for item in gold
+    )
 
 
 def test_pending_verifier_gold_produces_no_accuracy_or_hidden_negatives() -> None:

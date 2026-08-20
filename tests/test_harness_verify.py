@@ -37,8 +37,18 @@ from open_deep_research.harness.source_provenance import (
     SourceLineageStatus,
     SourceRole,
 )
+from open_deep_research.harness.truth_conditions import (
+    ClaimCoverageState,
+    ElementAssessmentExecutionStatus,
+    ElementizationProposal,
+    ElementizationReview,
+    ElementizationSemanticStatus,
+    ExecutionCompleteness,
+    build_truth_condition_registry,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
+    ClaimVerification,
     VerificationBudget,
     VerificationRecordStatus,
     VerificationResult,
@@ -326,6 +336,94 @@ def _result(
     }
 
 
+def _capacity_result(
+    claim_id: str,
+    disposition: str,
+    verdict: str | None = None,
+    segment_range: tuple[str, str] | None = None,
+) -> dict[str, object]:
+    return {
+        "claim_id": claim_id,
+        "disposition": disposition,
+        "verdict": verdict,
+        "start_segment_id": (
+            segment_range[0] if segment_range is not None else None
+        ),
+        "end_segment_id": (
+            segment_range[1] if segment_range is not None else None
+        ),
+        "explanation": "Auditable capacity retry outcome.",
+    }
+
+
+def _truth_registry(
+    *claims_and_elements: tuple[AtomicClaim, tuple[str, ...]],
+    semantic_status: ElementizationSemanticStatus = (
+        ElementizationSemanticStatus.COMPLETE
+    ),
+):
+    surfaces = {
+        claim.claim_id: (
+            claim.report_surface.text
+            if claim.report_surface is not None
+            else claim.selected_text
+        )
+        for claim, _ in claims_and_elements
+    }
+    proposals = tuple(
+        ElementizationProposal(
+            claim_id=claim.claim_id,
+            elements=elements,
+            rationale="proposal",
+        )
+        for claim, elements in claims_and_elements
+    )
+    reviews = tuple(
+        ElementizationReview(
+            claim_id=claim.claim_id,
+            semantic_status=semantic_status,
+            elements=elements,
+            missing_conditions=(
+                ()
+                if semantic_status is ElementizationSemanticStatus.COMPLETE
+                else ("The registered denominator may omit a condition.",)
+            ),
+            rationale="independent review",
+        )
+        for claim, elements in claims_and_elements
+    )
+    return build_truth_condition_registry(
+        surfaces,
+        proposals=proposals,
+        reviews=reviews,
+    )
+
+
+def _element_result(
+    element_id: str,
+    verdict: str,
+    segment_range: tuple[str, str] | None = None,
+) -> dict[str, object]:
+    return {
+        "element_id": element_id,
+        "verdict": verdict,
+        "start_segment_id": (
+            segment_range[0] if segment_range is not None else None
+        ),
+        "end_segment_id": (
+            segment_range[1] if segment_range is not None else None
+        ),
+        "explanation": "Element-level semantic judgement.",
+    }
+
+
+def _element_claim_result(
+    claim_id: str,
+    *elements: dict[str, object],
+) -> dict[str, object]:
+    return {"claim_id": claim_id, "elements": list(elements)}
+
+
 def test_groups_by_url_sorts_claim_ids_and_never_exceeds_twenty() -> None:
     url = "https://one.example/full"
     source = (
@@ -366,6 +464,17 @@ def test_groups_by_url_sorts_claim_ids_and_never_exceeds_twenty() -> None:
         for prompt in model.prompts
     )
     assert len(result.claims) == 21
+    legacy_payload = result.model_dump(mode="json")
+    assert "truth_condition_registry_sha256" not in legacy_payload
+    assert all(
+        "truth_condition_aggregate" not in item
+        for item in legacy_payload["claims"]
+    )
+    assert all(
+        "element_relations" not in relation
+        for item in legacy_payload["claims"]
+        for relation in item["relations"]
+    )
     assert all(
         claim.state == ClaimEvidenceState.SUPPORTED_SINGLE_PUBLISHER
         for claim in result.claims
@@ -892,7 +1001,8 @@ def test_oversized_verifier_range_is_rejected_whole_without_truncation() -> None
                     ("S000001", "S000013"),
                 )
             ]
-        }
+        },
+        {"results": [_capacity_result(claim.claim_id, "cannot_narrow")]},
     )
 
     result = asyncio.run(
@@ -916,6 +1026,11 @@ def test_oversized_verifier_range_is_rejected_whole_without_truncation() -> None
     assert "span_too_many_segments" in relation.error
     assert relation.start_segment_id == "S000001"
     assert relation.end_segment_id == "S000013"
+    assert result.claims[0].state is ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE
+    assert len(model.prompts) == 2
+    assert result.usage[1].outcome == "capacity_retry_cannot_narrow"
+    assert any("capacity_retry_attempted" in item for item in result.diagnostics)
+    assert any('"segment_count": 13' in item for item in result.diagnostics)
 
 
 def test_oversized_verifier_range_gets_one_semantic_compact_retry() -> None:
@@ -930,7 +1045,12 @@ def test_oversized_verifier_range_gets_one_semantic_compact_retry() -> None:
         },
         {
             "results": [
-                _result(claim.claim_id, "supports", ("S000006", "S000006"))
+                _capacity_result(
+                    claim.claim_id,
+                    "replacement",
+                    "supports",
+                    ("S000006", "S000006"),
+                )
             ]
         },
     )
@@ -955,7 +1075,377 @@ def test_oversized_verifier_range_gets_one_semantic_compact_retry() -> None:
     assert relation.source_quote == "Sentence 6."
     assert len(result.usage) == 2
     assert result.usage[1].retry is True
-    assert "CAPACITY RETRY (one bounded retry only)" in model.prompts[1]
+    assert result.usage[1].outcome == "capacity_retry_replacement"
+    assert '"disposition":"replacement|cannot_narrow"' in model.prompts[1]
+    assert any("capacity_retry_replacement" in item for item in result.diagnostics)
+
+
+def test_capacity_retry_may_revise_semantic_verdict() -> None:
+    claim = _claim("claim-capacity-revise")
+    url = "https://capacity-revise.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000001", "S000013"))
+            ]
+        },
+        {
+            "results": [
+                _capacity_result(
+                    claim.claim_id,
+                    "replacement",
+                    "does_not_support",
+                )
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-revise"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.COMPLETED
+    assert relation.semantic_verdict is VerificationVerdict.DOES_NOT_SUPPORT
+    assert relation.start_segment_id is None
+    assert result.claims[0].state is ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT
+    assert result.usage[1].outcome == "capacity_retry_replacement"
+
+
+def test_capacity_retry_may_return_compact_located_contradiction() -> None:
+    claim = _claim("claim-capacity-contradiction")
+    url = "https://capacity-contradiction.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000001", "S000013"))
+            ]
+        },
+        {
+            "results": [
+                _capacity_result(
+                    claim.claim_id,
+                    "replacement",
+                    "contradicts",
+                    ("S000006", "S000006"),
+                )
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(
+                        claim=claim,
+                        url=url,
+                        note_id="note-contradiction",
+                    ),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.COMPLETED
+    assert relation.semantic_verdict is VerificationVerdict.CONTRADICTS
+    assert relation.source_quote == "Sentence 6."
+    assert result.claims[0].state is ClaimEvidenceState.REFUTED
+
+
+def test_capacity_retry_second_oversized_range_is_not_retried_again() -> None:
+    claim = _claim("claim-capacity-exhausted")
+    url = "https://capacity-exhausted.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000001", "S000013"))
+            ]
+        },
+        {
+            "results": [
+                _capacity_result(
+                    claim.claim_id,
+                    "replacement",
+                    "supports",
+                    ("S000001", "S000013"),
+                )
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-exhausted"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+    assert len(model.prompts) == 2
+    assert len(result.usage) == 2
+    assert result.usage[1].outcome == "capacity_retry_exhausted"
+    assert any("capacity_retry_exhausted" in item for item in result.diagnostics)
+
+
+def test_capacity_retry_provider_error_preserves_original_relation() -> None:
+    claim = _claim("claim-capacity-provider-error")
+    url = "https://capacity-provider-error.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000001", "S000013"))
+            ]
+        },
+        RuntimeError("retry provider unavailable"),
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-provider"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+    assert relation.semantic_verdict is VerificationVerdict.SUPPORTS
+    assert len(model.prompts) == 2
+    assert result.usage[1].outcome == "capacity_retry_model_error"
+    assert any("retry provider unavailable" in item for item in result.diagnostics)
+
+
+def test_capacity_retry_budget_denial_preserves_original_relation() -> None:
+    claim = _claim("claim-capacity-budget")
+    url = "https://capacity-budget.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000001", "S000013"))
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-budget"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+            budget=VerificationBudget(max_tokens=11),
+            estimate_input_tokens=lambda prompt: 1,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+    assert relation.semantic_verdict is VerificationVerdict.SUPPORTS
+    assert len(model.prompts) == 1
+    assert len(result.usage) == 1
+    assert any("capacity_retry_not_run" in item for item in result.diagnostics)
+
+
+def test_capacity_retry_only_retries_oversized_claim_from_batch() -> None:
+    oversized = _claim("claim-batch-oversized")
+    compact = _claim("claim-batch-compact")
+    url = "https://capacity-batch.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(
+                    oversized.claim_id,
+                    "supports",
+                    ("S000001", "S000013"),
+                ),
+                _result(
+                    compact.claim_id,
+                    "supports",
+                    ("S000002", "S000002"),
+                ),
+            ]
+        },
+        {
+            "results": [
+                _capacity_result(
+                    oversized.claim_id,
+                    "replacement",
+                    "supports",
+                    ("S000006", "S000006"),
+                )
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    oversized,
+                    _candidate(claim=oversized, url=url, note_id="note-over"),
+                ),
+                _attribution(
+                    compact,
+                    _candidate(claim=compact, url=url, note_id="note-compact"),
+                ),
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    by_id = {entry.claim.claim_id: entry for entry in result.claims}
+    assert by_id[oversized.claim_id].relations[0].source_quote == "Sentence 6."
+    assert by_id[compact.claim_id].relations[0].source_quote == "Sentence 2."
+    assert len(model.prompts) == 2
+    assert oversized.claim_id in model.prompts[1]
+    assert compact.claim_id not in model.prompts[1]
+
+
+def test_capacity_retry_handles_single_segment_character_limit() -> None:
+    claim = _claim("claim-capacity-characters")
+    url = "https://capacity-characters.example/article"
+    source = "x" * 2_001
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000001", "S000001"))
+            ]
+        },
+        {"results": [_capacity_result(claim.claim_id, "cannot_narrow")]},
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-characters"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+    assert relation.error is not None
+    assert "span_too_many_chars" in relation.error
+    assert any('"char_count": 2001' in item for item in result.diagnostics)
+
+
+def test_malformed_retry_then_oversized_range_gets_capacity_retry() -> None:
+    claim = _claim("claim-malformed-then-capacity")
+    url = "https://malformed-capacity.example/article"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": None,
+                    "end_segment_id": None,
+                    "explanation": "Malformed evidentiary result.",
+                }
+            ]
+        },
+        {
+            "results": [
+                _result(claim.claim_id, "supports", ("S000001", "S000013"))
+            ]
+        },
+        {"results": [_capacity_result(claim.claim_id, "cannot_narrow")]},
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-malformed"),
+                )
+            ],
+            source_cache={url: source},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+    assert len(model.prompts) == 3
+    assert [entry.retry for entry in result.usage] == [False, True, True]
+    assert result.usage[2].outcome == "capacity_retry_cannot_narrow"
+
+
+def test_unlocatable_contradiction_does_not_refute_claim() -> None:
+    claim = _claim("claim-unlocatable-contradiction")
+    url = "https://unlocatable-contradiction.example/article"
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _result(
+                    claim.claim_id,
+                    "contradicts",
+                    ("S999998", "S999999"),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-unlocatable"),
+                )
+            ],
+            source_cache={url: "One cached sentence."},
+            model_client=model,
+        )
+    )
+
+    relation = result.claims[0].relations[0]
+    assert relation.status is VerificationRecordStatus.QUOTE_UNLOCATABLE
+    assert relation.semantic_verdict is VerificationVerdict.CONTRADICTS
+    assert result.claims[0].state is ClaimEvidenceState.VERIFICATION_INCOMPLETE
 
 
 def test_no_candidate_and_all_admission_or_model_failures_remain_distinct() -> None:
@@ -1400,3 +1890,400 @@ def test_historical_domain_proxy_corroboration_is_explicitly_reclassified() -> N
     assert verified.historical_domain_proxy_corroboration_reclassified is True
     assert verified.independent_lineage_count == 0
     assert migrated.independence.method == "confirmed_source_lineage_v1"
+
+
+def test_element_registry_verifies_all_elements_in_one_claim_source_call() -> None:
+    claim = _claim("claim-elements", "Alpha acquired Beta for $2 billion.")
+    registry = _truth_registry(
+        (claim, ("Alpha acquired Beta.", "The price was $2 billion."))
+    )
+    element_ids = tuple(item.element_id for item in registry.entries[0].elements)
+    url = "https://elements.example/report"
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    *(
+                        _element_result(element_id, "supports", ("S000001", "S000001"))
+                        for element_id in element_ids
+                    ),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=url, note_id="note-elements"),
+                )
+            ],
+            source_cache={url: "Alpha acquired Beta for $2 billion."},
+            model_client=model,
+            registry=registry,
+        )
+    )
+
+    assert len(model.prompts) == 1
+    assert all(element_id in model.prompts[0] for element_id in element_ids)
+    relation = result.claims[0].relations[0]
+    assert [item.element_id for item in relation.element_relations] == list(element_ids)
+    assert all(item.is_formal_supporting_evidence for item in relation.element_relations)
+    assert relation.is_formal_supporting_evidence is True
+    aggregate = result.claims[0].truth_condition_aggregate
+    assert aggregate is not None
+    assert aggregate.coverage_state is ClaimCoverageState.FULLY_SUPPORTED
+    assert aggregate.execution_completeness is ExecutionCompleteness.COMPLETE
+    assert result.truth_condition_registry_sha256 is not None
+
+    tampered = result.claims[0].model_dump(mode="json")
+    tampered["state"] = ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT.value
+    with pytest.raises(ValidationError, match="evidence state"):
+        ClaimVerification.model_validate(tampered)
+
+
+def test_element_registry_partial_support_is_not_full_claim_support() -> None:
+    claim = _claim("claim-partial", "Alpha acquired Beta for $2 billion.")
+    registry = _truth_registry(
+        (claim, ("Alpha acquired Beta.", "The price was $2 billion."))
+    )
+    first, second = (item.element_id for item in registry.entries[0].elements)
+    url = "https://partial.example/report"
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    _element_result(first, "supports", ("S000001", "S000001")),
+                    _element_result(second, "does_not_support"),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, _candidate(claim=claim, url=url, note_id="n"))],
+            source_cache={url: "Alpha acquired Beta."},
+            model_client=model,
+            registry=registry,
+        )
+    )
+
+    assert result.claims[0].relations[0].is_formal_supporting_evidence is False
+    aggregate = result.claims[0].truth_condition_aggregate
+    assert aggregate is not None
+    assert aggregate.coverage_state is ClaimCoverageState.PARTIALLY_SUPPORTED
+    assert aggregate.execution_completeness is ExecutionCompleteness.COMPLETE
+
+
+def test_element_support_can_close_claim_across_different_sources() -> None:
+    claim = _claim("claim-split-elements", "Alpha acquired Beta for $2 billion.")
+    registry = _truth_registry(
+        (claim, ("Alpha acquired Beta.", "The price was $2 billion."))
+    )
+    first, second = (item.element_id for item in registry.entries[0].elements)
+    first_url = "https://first-elements.example/report"
+    second_url = "https://second-elements.example/report"
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    _element_result(first, "supports", ("S000001", "S000001")),
+                    _element_result(second, "does_not_support"),
+                )
+            ]
+        },
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    _element_result(first, "does_not_support"),
+                    _element_result(second, "supports", ("S000001", "S000001")),
+                )
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [
+                _attribution(
+                    claim,
+                    _candidate(claim=claim, url=first_url, note_id="first"),
+                    _candidate(claim=claim, url=second_url, note_id="second"),
+                )
+            ],
+            source_cache={
+                first_url: "Alpha acquired Beta.",
+                second_url: "The price was $2 billion.",
+            },
+            model_client=model,
+            registry=registry,
+        )
+    )
+
+    verification = result.claims[0]
+    assert not any(
+        relation.is_formal_supporting_evidence for relation in verification.relations
+    )
+    assert verification.truth_condition_aggregate is not None
+    assert (
+        verification.truth_condition_aggregate.coverage_state
+        is ClaimCoverageState.FULLY_SUPPORTED
+    )
+    assert verification.state is ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
+    # The legacy counter retains its whole claim-source meaning. The two
+    # element-source supports remain in the nested aggregate instead.
+    assert verification.formal_supporting_evidence_count == 0
+    assert verification.publisher_domain_proxy_count == 2
+
+
+def test_element_denominator_error_recovers_only_the_bad_claim() -> None:
+    first_claim = _claim("claim-element-good", "Alpha acquired Beta.")
+    second_claim = _claim("claim-element-bad", "The price was $2 billion.")
+    registry = _truth_registry(
+        (first_claim, ("Alpha acquired Beta.",)),
+        (second_claim, ("The price was $2 billion.", "It was paid in 2024.")),
+    )
+    first_id = registry.entries[0].elements[0].element_id
+    second_ids = tuple(item.element_id for item in registry.entries[1].elements)
+    url = "https://element-recovery.example/report"
+    source = "Alpha acquired Beta. The price was $2 billion. It was paid in 2024."
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _element_claim_result(
+                    first_claim.claim_id,
+                    _element_result(first_id, "supports", ("S000001", "S000001")),
+                ),
+                _element_claim_result(
+                    second_claim.claim_id,
+                    _element_result(second_ids[0], "supports", ("S000002", "S000002")),
+                    _element_result(second_ids[0], "supports", ("S000002", "S000002")),
+                ),
+            ]
+        },
+        {
+            "results": [
+                _element_claim_result(
+                    second_claim.claim_id,
+                    _element_result(second_ids[0], "supports", ("S000002", "S000002")),
+                    _element_result(second_ids[1], "supports", ("S000003", "S000003")),
+                )
+            ]
+        },
+    )
+    attributions = [
+        _attribution(
+            claim,
+            _candidate(claim=claim, url=url, note_id=f"note-{claim.claim_id}"),
+        )
+        for claim in (first_claim, second_claim)
+    ]
+
+    result = asyncio.run(
+        verify_attributions(
+            attributions,
+            source_cache={url: source},
+            model_client=model,
+            registry=registry,
+        )
+    )
+
+    assert len(model.prompts) == 2
+    assert '"claim_id": "claim-element-good"' not in model.prompts[1]
+    assert result.usage[0].outcome == "element_partial_malformed"
+    assert result.usage[1].retry is True
+    assert len(result.claims[0].relations) == 1
+    assert len(result.claims[1].relations) == 1
+    assert all(
+        item.truth_condition_aggregate is not None
+        and item.truth_condition_aggregate.coverage_state
+        is ClaimCoverageState.FULLY_SUPPORTED
+        for item in result.claims
+    )
+
+
+def test_element_numeric_value_missing_from_quote_is_not_formal_support() -> None:
+    claim = _claim("claim-element-number", "The transfer was $10 billion.")
+    registry = _truth_registry((claim, ("The transfer was $10 billion.",)))
+    element_id = registry.entries[0].elements[0].element_id
+    url = "https://numeric-element.example/report"
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    _element_result(element_id, "supports", ("S000001", "S000001")),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, _candidate(claim=claim, url=url, note_id="n"))],
+            source_cache={url: "The source describes the transfer without a value."},
+            model_client=model,
+            registry=registry,
+        )
+    )
+
+    element = result.claims[0].relations[0].element_relations[0]
+    assert (
+        element.numeric_consistency_status
+        is NumericConsistencyStatus.SOURCE_VALUES_NOT_RECOGNIZED
+    )
+    assert element.is_formal_supporting_evidence is False
+    aggregate = result.claims[0].truth_condition_aggregate
+    assert aggregate is not None
+    assert aggregate.coverage_state is ClaimCoverageState.UNRESOLVED
+
+
+def test_element_capacity_retry_is_once_per_claim_source_not_per_element() -> None:
+    claim = _claim("claim-element-capacity", "Two related conditions hold.")
+    registry = _truth_registry((claim, ("Condition one holds.", "Condition two holds.")))
+    element_ids = tuple(item.element_id for item in registry.entries[0].elements)
+    url = "https://element-capacity.example/report"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    *(
+                        _element_result(
+                            element_id,
+                            "supports",
+                            ("S000001", "S000013"),
+                        )
+                        for element_id in element_ids
+                    ),
+                )
+            ]
+        },
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "disposition": "cannot_narrow",
+                    "elements": [],
+                    "explanation": "No sufficient compact ranges.",
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, _candidate(claim=claim, url=url, note_id="n"))],
+            source_cache={url: source},
+            model_client=model,
+            registry=registry,
+        )
+    )
+
+    assert len(model.prompts) == 2
+    assert result.usage[1].outcome == "element_capacity_retry_cannot_narrow"
+    relation = result.claims[0].relations[0]
+    assert len(relation.element_relations) == 2
+    assert all(
+        item.status is ElementAssessmentExecutionStatus.QUOTE_UNLOCATABLE
+        for item in relation.element_relations
+    )
+    aggregate = result.claims[0].truth_condition_aggregate
+    assert aggregate is not None
+    assert aggregate.coverage_state is ClaimCoverageState.UNRESOLVED
+    assert aggregate.execution_completeness is ExecutionCompleteness.FAILED
+
+
+def test_element_malformed_recovery_still_enters_capacity_retry_path() -> None:
+    claim = _claim("claim-element-malformed-capacity", "One condition holds.")
+    registry = _truth_registry((claim, ("One condition holds.",)))
+    element_id = registry.entries[0].elements[0].element_id
+    url = "https://element-malformed-capacity.example/report"
+    source = " ".join(f"Sentence {index}." for index in range(1, 14))
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    _element_result(element_id, "supports"),
+                )
+            ]
+        },
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    _element_result(
+                        element_id,
+                        "supports",
+                        ("S000001", "S000013"),
+                    ),
+                )
+            ]
+        },
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "disposition": "cannot_narrow",
+                    "elements": [],
+                    "explanation": "No sufficient compact range.",
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, _candidate(claim=claim, url=url, note_id="n"))],
+            source_cache={url: source},
+            model_client=model,
+            registry=registry,
+        )
+    )
+
+    assert len(model.prompts) == 3
+    assert [record.retry for record in result.usage] == [False, True, True]
+    assert result.usage[-1].outcome == "element_capacity_retry_cannot_narrow"
+
+
+def test_incomplete_elementization_cannot_become_fully_supported_in_verifier() -> None:
+    claim = _claim("claim-element-incomplete", "Alpha acquired Beta for $2 billion.")
+    registry = _truth_registry(
+        (claim, ("Alpha acquired Beta.",)),
+        semantic_status=ElementizationSemanticStatus.INCOMPLETE,
+    )
+    element_id = registry.entries[0].elements[0].element_id
+    url = "https://element-incomplete.example/report"
+    model = ScriptedVerificationModel(
+        {
+            "results": [
+                _element_claim_result(
+                    claim.claim_id,
+                    _element_result(element_id, "supports", ("S000001", "S000001")),
+                )
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        verify_attributions(
+            [_attribution(claim, _candidate(claim=claim, url=url, note_id="n"))],
+            source_cache={url: "Alpha acquired Beta."},
+            model_client=model,
+            registry=registry,
+        )
+    )
+
+    aggregate = result.claims[0].truth_condition_aggregate
+    assert aggregate is not None
+    assert aggregate.coverage_state is ClaimCoverageState.PARTIALLY_SUPPORTED
+    assert result.claims[0].relations[0].is_formal_supporting_evidence is False

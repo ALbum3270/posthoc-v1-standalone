@@ -43,11 +43,18 @@ from open_deep_research.harness.notes import (
     ResearchNote,
     create_note,
 )
+from open_deep_research.harness.source_provenance import SourceLineageStatus
 from open_deep_research.harness.tools import (
     SearchResult,
     TavilyClient,
     read_with_links,
     search,
+)
+from open_deep_research.harness.truth_conditions import (
+    TruthConditionRegistry,
+    aggregate_truth_condition_claim,
+    select_truth_condition_registry,
+    truth_condition_registry_sha256,
 )
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
@@ -58,6 +65,7 @@ from open_deep_research.harness.verify import (
     VerificationResult,
     VerificationSettings,
     VerificationVerdict,
+    PublisherIndependenceAudit,
     VerifiedSourceRelation,
     build_claim_verification,
     build_verification_prompt,
@@ -127,8 +135,27 @@ class GapSearchQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     claim_ids: tuple[str, ...] = Field(min_length=1)
+    target_element_ids: tuple[str, ...] = ()
     item_id: str
     query: str
+
+    @field_validator("target_element_ids")
+    @classmethod
+    def _element_ids_are_unique(
+        cls, value: tuple[str, ...]
+    ) -> tuple[str, ...]:
+        if len(set(value)) != len(value) or any(not item.strip() for item in value):
+            raise ValueError("target_element_ids must be unique and non-blank")
+        return value
+
+    @model_validator(mode="after")
+    def _element_ids_belong_to_claims(self) -> GapSearchQuery:
+        if any(
+            element_id.split("::tc-", 1)[0] not in set(self.claim_ids)
+            for element_id in self.target_element_ids
+        ):
+            raise ValueError("target elements must belong to routed claims")
+        return self
 
 
 class DeferredGapTarget(BaseModel):
@@ -176,8 +203,20 @@ class GapReadSelection(BaseModel):
     url: str
     item_id: str
     claim_ids: tuple[str, ...]
+    target_element_ids: tuple[str, ...] = ()
     publisher_identity: str
     independence_rationale: str
+
+    @model_validator(mode="after")
+    def _element_ids_belong_to_claims(self) -> GapReadSelection:
+        if len(set(self.target_element_ids)) != len(self.target_element_ids):
+            raise ValueError("target_element_ids must be unique")
+        if any(
+            element_id.split("::tc-", 1)[0] not in set(self.claim_ids)
+            for element_id in self.target_element_ids
+        ):
+            raise ValueError("target elements must belong to selected claims")
+        return self
 
 
 class GapSourceAcquisition(BaseModel):
@@ -187,12 +226,24 @@ class GapSourceAcquisition(BaseModel):
 
     url: str
     claim_ids: tuple[str, ...]
+    target_element_ids: tuple[str, ...] = ()
     publisher_identity: str
     cache_hit: bool
     source_chars: int = Field(default=0, ge=0)
     note_ids: tuple[str, ...] = ()
     outcome: str
     error: str | None = None
+
+    @model_validator(mode="after")
+    def _element_ids_belong_to_claims(self) -> GapSourceAcquisition:
+        if len(set(self.target_element_ids)) != len(self.target_element_ids):
+            raise ValueError("target_element_ids must be unique")
+        if any(
+            element_id.split("::tc-", 1)[0] not in set(self.claim_ids)
+            for element_id in self.target_element_ids
+        ):
+            raise ValueError("target elements must belong to acquired claims")
+        return self
 
 
 class ProtectedCompletedRelation(BaseModel):
@@ -877,6 +928,11 @@ def _target_payload(
             "claim_id": target.claim.claim_id,
             "claim_text": target.claim.claim_text,
             "state": target.state.value,
+            "truth_condition_aggregate": (
+                target.truth_condition_aggregate.model_dump(mode="json")
+                if target.truth_condition_aggregate is not None
+                else None
+            ),
             "corroboration_target": target.corroboration_target,
             "formal_publisher_domain_proxies": list(
                 target.publisher_domain_proxies
@@ -968,6 +1024,7 @@ def build_evidence_gap_read_prompt(
     candidates = [
         {
             "query_claim_ids": list(record.query.claim_ids),
+            "target_element_ids": list(record.query.target_element_ids),
             "allowed_item_id": record.query.item_id,
             "title": result.title,
             "url": result.url,
@@ -993,9 +1050,27 @@ def build_evidence_gap_note_prompt(
     source_text: str,
     claims: Sequence[AtomicClaim],
     checklist: ResearchChecklist,
+    target_element_ids: Sequence[str] = (),
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> str:
     """Build one full-source note pass without changing checklist state."""
 
+    selected_element_ids = set(target_element_ids)
+    elements_by_claim = {
+        entry.claim_id: [
+            {
+                "element_id": element.element_id,
+                "text": element.text,
+            }
+            for element in entry.elements
+            if element.element_id in selected_element_ids
+        ]
+        for entry in (
+            truth_condition_registry.entries
+            if truth_condition_registry is not None
+            else ()
+        )
+    }
     return _NOTE_PROMPT.format(
         item_ids=json.dumps(
             [item.item_id for item in checklist.items],
@@ -1003,7 +1078,13 @@ def build_evidence_gap_note_prompt(
         ),
         claims=json.dumps(
             [
-                {"claim_id": claim.claim_id, "claim_text": claim.claim_text}
+                {
+                    "claim_id": claim.claim_id,
+                    "claim_text": claim.claim_text,
+                    "target_truth_conditions": elements_by_claim.get(
+                        claim.claim_id, []
+                    ),
+                }
                 for claim in claims
             ],
             ensure_ascii=False,
@@ -1022,6 +1103,7 @@ def _estimate_verification_group(
     batch_size: int,
     tracker: _BudgetTracker,
     verification_model: VerificationModelClient,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> tuple[int, int, float]:
     batch_count = 0
     tokens = 0
@@ -1031,6 +1113,7 @@ def _estimate_verification_group(
             url=url,
             source_text=source_text,
             claims=claims[start : start + batch_size],
+            registry=truth_condition_registry,
         )
         estimated_tokens, estimated_cost = tracker._estimate(
             verification_model,
@@ -1053,6 +1136,7 @@ def _reserve_verification_budget(
     max_reads: int,
     verification_model: VerificationModelClient,
     verification_settings: VerificationSettings,
+    truth_condition_registry: TruthConditionRegistry | None = None,
     prerequisite_stage: str | None = None,
     prerequisite_estimated_tokens: int = 0,
     prerequisite_estimated_cost_usd: float = 0.0,
@@ -1106,6 +1190,7 @@ def _reserve_verification_budget(
             batch_size=verification_settings.batch_size,
             tracker=tracker,
             verification_model=verification_model,
+            truth_condition_registry=truth_condition_registry,
         )
         if url in hint_claims_by_url:
             cached_batch_count += batches
@@ -1152,6 +1237,7 @@ def _parse_plan(
     notes: Sequence[ResearchNote],
     checklist: ResearchChecklist,
     max_queries: int,
+    target_element_ids_by_claim: Mapping[str, tuple[str, ...]] | None = None,
 ) -> tuple[
     tuple[CachedCandidateHint, ...],
     tuple[GapSearchQuery, ...],
@@ -1354,6 +1440,13 @@ def _parse_plan(
         accepted_queries.append(
             GapSearchQuery(
                 claim_ids=claim_ids,
+                target_element_ids=tuple(
+                    element_id
+                    for claim_id in claim_ids
+                    for element_id in (
+                        (target_element_ids_by_claim or {}).get(claim_id, ())
+                    )
+                ),
                 item_id=query.item_id,
                 query=query.query,
             )
@@ -1424,12 +1517,22 @@ def _parse_reads(
     target_by_id = {target.claim.claim_id: target for target in targets}
     item_ids = {item.item_id for item in checklist.items}
     allowed: dict[str, set[tuple[str, str]]] = {}
+    routed_elements: dict[tuple[str, str, str], list[str]] = {}
     for record in searches:
         for result in record.results:
             allowed.setdefault(result.url, set()).update(
                 (claim_id, record.query.item_id)
                 for claim_id in record.query.claim_ids
             )
+            for claim_id in record.query.claim_ids:
+                key = (result.url, record.query.item_id, claim_id)
+                values = routed_elements.setdefault(key, [])
+                for element_id in record.query.target_element_ids:
+                    if (
+                        element_id.split("::tc-", 1)[0] == claim_id
+                        and element_id not in values
+                    ):
+                        values.append(element_id)
     accepted: list[GapReadSelection] = []
     rejected: list[dict[str, Any]] = []
     identities_by_claim: dict[str, set[str]] = {
@@ -1541,6 +1644,14 @@ def _parse_reads(
                 url=proposal.url.strip(),
                 item_id=proposal.item_id,
                 claim_ids=tuple(accepted_claim_ids),
+                target_element_ids=tuple(
+                    element_id
+                    for claim_id in accepted_claim_ids
+                    for element_id in routed_elements.get(
+                        (proposal.url, proposal.item_id, claim_id),
+                        (),
+                    )
+                ),
                 publisher_identity=proposal.publisher_identity.strip(),
                 independence_rationale=(
                     proposal.independence_rationale.strip()
@@ -1812,8 +1923,32 @@ def _merge_verifications(
     refreshed_targets: VerificationResult,
     *,
     merged_attribution: AttributionResult,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> tuple[VerificationResult, VerificationMergeAudit]:
     """Add source relations without allowing failed refreshes to erase work."""
+
+    if truth_condition_registry is not None:
+        registry_hash = truth_condition_registry_sha256(truth_condition_registry)
+        refreshed_registry_hash = truth_condition_registry_sha256(
+            select_truth_condition_registry(
+                truth_condition_registry,
+                tuple(
+                    claim.claim.claim_id for claim in refreshed_targets.claims
+                ),
+            )
+        )
+        for label, result_hash, expected_hash in (
+            ("initial", initial.truth_condition_registry_sha256, registry_hash),
+            (
+                "refreshed",
+                refreshed_targets.truth_condition_registry_sha256,
+                refreshed_registry_hash,
+            ),
+        ):
+            if result_hash != expected_hash:
+                raise ValueError(
+                    f"{label} verification uses a different truth-condition registry"
+                )
 
     refreshed_by_id = {
         result.claim.claim_id: result
@@ -1858,20 +1993,70 @@ def _merge_verifications(
                     relation_by_identity[identity] = relation
 
         attribution = attribution_by_id[claim_id]
+        merged_relations = tuple(relation_by_identity.values())
+        truth_condition_aggregate = None
+        if truth_condition_registry is not None:
+            registry_entry = truth_condition_registry.entry_for(claim_id)
+            if registry_entry is None:
+                raise ValueError(
+                    "truth-condition registry omitted evidence-gap claim "
+                    f"{claim_id}"
+                )
+            truth_condition_aggregate = aggregate_truth_condition_claim(
+                registry_entry,
+                tuple(
+                    element.as_assessment()
+                    for relation in merged_relations
+                    for element in relation.element_relations
+                ),
+                expected_source_ids=tuple(
+                    dict.fromkeys(
+                        candidate.source_id
+                        for candidate in attribution.candidates
+                    )
+                ),
+            )
         claims.append(
             build_claim_verification(
                 original.claim,
-                tuple(relation_by_identity.values()),
+                merged_relations,
                 required_sources=original.corroboration_target,
                 attribution_status=attribution.status,
+                truth_condition_aggregate=truth_condition_aggregate,
             )
         )
 
+    unique_relations = {
+        (relation.source_id, relation.url): relation
+        for claim in claims
+        for relation in claim.relations
+    }
+    confirmed_lineages = sum(
+        relation.source_lineage is not None
+        and relation.source_lineage.status is SourceLineageStatus.CONFIRMED
+        for relation in unique_relations.values()
+    )
+    proposed_lineages = sum(
+        relation.source_lineage is not None
+        and relation.source_lineage.status is SourceLineageStatus.PROPOSED
+        for relation in unique_relations.values()
+    )
     merged = VerificationResult(
         claims=tuple(claims),
         usage=initial.usage + refreshed_targets.usage,
         diagnostics=initial.diagnostics + refreshed_targets.diagnostics,
-        independence=initial.independence,
+        independence=PublisherIndependenceAudit(
+            confirmed_assessment_count=confirmed_lineages,
+            proposed_assessment_count=proposed_lineages,
+            unresolved_relation_count=(
+                len(unique_relations) - confirmed_lineages - proposed_lineages
+            ),
+        ),
+        truth_condition_registry_sha256=(
+            truth_condition_registry_sha256(truth_condition_registry)
+            if truth_condition_registry is not None
+            else initial.truth_condition_registry_sha256
+        ),
     )
     initial_completed = _completed_relation_identities(initial)
     final_completed = _completed_relation_identities(merged)
@@ -1922,11 +2107,15 @@ async def run_evidence_gap_round(
     budget: EvidenceGapBudget,
     attribution_settings: AttributionSettings | None = None,
     verification_settings: VerificationSettings | None = None,
+    truth_condition_registry: TruthConditionRegistry | None = None,
     corroboration_targets: Mapping[str, int] | None = None,
     required_independent_sources: Mapping[str, int] | None = None,
     estimate_input_tokens: Callable[[Any, str], int] | None = None,
     estimate_cost_usd: Callable[[Any, str], float] | None = None,
     explicit_target_claim_ids: Sequence[str] | None = None,
+    explicit_target_element_ids: (
+        Mapping[str, Sequence[str]] | None
+    ) = None,
     plan_prompt_builder: Callable[..., str] | None = None,
     ledger_event_prefix: str = "gap",
 ) -> EvidenceGapResult:
@@ -1948,6 +2137,10 @@ async def run_evidence_gap_round(
             return "gap_stop" if name == "stop" else name
         return f"{ledger_event_prefix}_{name}"
 
+    if explicit_target_element_ids is not None and explicit_target_claim_ids is None:
+        raise ValueError(
+            "explicit target elements require explicit target claim IDs"
+        )
     if explicit_target_claim_ids is None:
         targets = tuple(
             result
@@ -1984,6 +2177,35 @@ async def run_evidence_gap_round(
                 + ", ".join(unknown)
             )
         targets = tuple(available[claim_id] for claim_id in requested)
+    target_element_ids_by_claim: dict[str, tuple[str, ...]] = {}
+    if explicit_target_element_ids is not None:
+        if truth_condition_registry is None:
+            raise ValueError(
+                "explicit target elements require a truth-condition registry"
+            )
+        supplied_claim_ids = set(explicit_target_element_ids)
+        requested_claim_ids = {target.claim.claim_id for target in targets}
+        if supplied_claim_ids != requested_claim_ids:
+            raise ValueError(
+                "explicit target-element mapping must cover exactly the "
+                "explicit target claims"
+            )
+        for claim_id in tuple(target.claim.claim_id for target in targets):
+            entry = truth_condition_registry.entry_for(claim_id)
+            if entry is None:
+                raise ValueError(
+                    f"truth-condition registry omitted target {claim_id}"
+                )
+            selected = tuple(
+                dict.fromkeys(explicit_target_element_ids[claim_id])
+            )
+            registered = {element.element_id for element in entry.elements}
+            if not selected or not set(selected).issubset(registered):
+                raise ValueError(
+                    "explicit target elements must be a non-empty registered "
+                    f"subset for {claim_id}"
+                )
+            target_element_ids_by_claim[claim_id] = selected
     initial_states = {
         result.claim.claim_id: result.state
         for result in targets
@@ -2058,6 +2280,7 @@ async def run_evidence_gap_round(
                 notes=ledger.notes,
                 checklist=checklist,
                 max_queries=budget.max_search_queries,
+                target_element_ids_by_claim=target_element_ids_by_claim,
             )
         except (TypeError, ValidationError, ValueError) as exc:
             hints = ()
@@ -2171,6 +2394,7 @@ async def run_evidence_gap_round(
             max_reads=budget.max_reads,
             verification_model=verification_model,
             verification_settings=active_verification_settings,
+            truth_condition_registry=truth_condition_registry,
             prerequisite_stage=(
                 "read_selection" if read_prompt is not None else None
             ),
@@ -2280,6 +2504,7 @@ async def run_evidence_gap_round(
                     GapSourceAcquisition(
                         url=selection.url,
                         claim_ids=selection.claim_ids,
+                        target_element_ids=selection.target_element_ids,
                         publisher_identity=selection.publisher_identity,
                         cache_hit=False,
                         outcome="read_error",
@@ -2305,6 +2530,7 @@ async def run_evidence_gap_round(
                     GapSourceAcquisition(
                         url=selection.url,
                         claim_ids=selection.claim_ids,
+                        target_element_ids=selection.target_element_ids,
                         publisher_identity=selection.publisher_identity,
                         cache_hit=True,
                         source_chars=len(source_text),
@@ -2345,6 +2571,7 @@ async def run_evidence_gap_round(
                 max_reads=budget.max_reads,
                 verification_model=verification_model,
                 verification_settings=active_verification_settings,
+                truth_condition_registry=truth_condition_registry,
                 admitted_read_source_claims=prospective_sources,
             )
             verification_reserve_history.append(verification_reserve)
@@ -2357,6 +2584,8 @@ async def run_evidence_gap_round(
                         source_text=source_text,
                         claims=selection_claims,
                         checklist=checklist,
+                        target_element_ids=selection.target_element_ids,
+                        truth_condition_registry=truth_condition_registry,
                     ),
                     stage="note_extraction",
                 )
@@ -2372,6 +2601,7 @@ async def run_evidence_gap_round(
                     GapSourceAcquisition(
                         url=selection.url,
                         claim_ids=selection.claim_ids,
+                        target_element_ids=selection.target_element_ids,
                         publisher_identity=selection.publisher_identity,
                         cache_hit=cache_hit,
                         source_chars=len(source_text),
@@ -2400,6 +2630,7 @@ async def run_evidence_gap_round(
                     GapSourceAcquisition(
                         url=selection.url,
                         claim_ids=selection.claim_ids,
+                        target_element_ids=selection.target_element_ids,
                         publisher_identity=selection.publisher_identity,
                         cache_hit=False,
                         source_chars=len(source_text),
@@ -2462,6 +2693,7 @@ async def run_evidence_gap_round(
                 GapSourceAcquisition(
                     url=selection.url,
                     claim_ids=selection.claim_ids,
+                    target_element_ids=selection.target_element_ids,
                     publisher_identity=selection.publisher_identity,
                     cache_hit=cache_hit,
                     source_chars=len(source_text),
@@ -2501,6 +2733,7 @@ async def run_evidence_gap_round(
             max_reads=budget.max_reads,
             verification_model=verification_model,
             verification_settings=active_verification_settings,
+            truth_condition_registry=truth_condition_registry,
             admitted_read_source_claims=admitted_read_source_claims,
         )
         verification_reserve_history.append(verification_reserve)
@@ -2600,9 +2833,29 @@ async def run_evidence_gap_round(
                 },
                 estimate_input_tokens=verification_token_estimator,
                 estimate_cost_usd=verification_cost_estimator,
+                registry=(
+                    select_truth_condition_registry(
+                        truth_condition_registry,
+                        incremental_claim_ids,
+                    )
+                    if truth_condition_registry is not None
+                    else None
+                ),
             )
         else:
-            refreshed_verification = VerificationResult(claims=())
+            refreshed_verification = VerificationResult(
+                claims=(),
+                truth_condition_registry_sha256=(
+                    truth_condition_registry_sha256(
+                        select_truth_condition_registry(
+                            truth_condition_registry,
+                            (),
+                        )
+                    )
+                    if truth_condition_registry is not None
+                    else None
+                ),
+            )
         if any(
             relation.status
             is VerificationRecordStatus.VERIFICATION_NOT_RUN_BUDGET
@@ -2618,6 +2871,7 @@ async def run_evidence_gap_round(
             initial_verification,
             refreshed_verification,
             merged_attribution=merged_attribution,
+            truth_condition_registry=truth_condition_registry,
         )
         if (
             tracker.tokens_used >= budget.max_tokens

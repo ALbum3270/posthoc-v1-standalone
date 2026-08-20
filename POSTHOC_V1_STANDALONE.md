@@ -10,9 +10,11 @@ The executable entry point is `run_harness.py`. Its pipeline is:
 1. model-authored checklist;
 2. model-directed search, read, recall, and settlement loop;
 3. one whole-report draft;
-4. claim decomposition, checklist reconciliation, attribution, and verification;
+4. claim decomposition, independent truth-condition review, checklist
+   reconciliation, attribution, and element-level verification;
 5. bounded evidence-gap, disagreement, and recovery passes;
-6. optional audited editing followed by a complete re-audit when bytes change;
+6. optional audited editing followed by a hash/range-bound transaction review
+   and complete changed-region re-audit before any bytes commit;
 7. deterministic report, source companion, and audit publication.
 
 The default reader artifact uses `clean-reader-v2`: `report.md` contains the
@@ -33,7 +35,9 @@ PYTHONPATH=src python -m pytest -q tests/
 ```
 
 The branch starts from the last pre-v2 architecture commit and carries only
-three later provider-independent reliability fixes relevant to v1: charged
-usage preservation on model failure, one bounded model-selected retry for an
-oversized evidence span, and recoverable rejection of unusable search-result
-URLs.
+provider-independent reliability changes relevant to this pipeline. In
+addition to charged-usage preservation and recoverable provider failures, the
+live path now closes the truth-condition denominator, keeps semantic verdicts
+separate from execution completeness, preserves element intent through
+recovery, performs one bounded model-selected retry for oversized evidence
+spans, and rolls unsafe editorial proposals back while retaining their audit.

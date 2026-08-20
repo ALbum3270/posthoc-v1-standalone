@@ -10,6 +10,9 @@ from harness_pipeline_driver import (
 from open_deep_research.harness.stages import MANDATORY_PIPELINE_STAGES
 from open_deep_research.harness import runner as harness_runner
 from open_deep_research.harness.stages import StageExecutionStatus
+from open_deep_research.harness.stages import (
+    stages_claiming_completion_without_output,
+)
 from open_deep_research.harness.budget import RunCostBudget
 from open_deep_research.harness.claims import parse_markdown_blocks
 from open_deep_research.harness.edit import EditorialSettings
@@ -53,6 +56,7 @@ def test_seam_driver_reaches_the_complete_edit_and_reaudit_pipeline(tmp_path):
     for stage in POST_DRAFT_SEAM_STAGES:
         assert stage in stages
         assert stages[stage]["status"] == "complete", stage
+    assert stages_claiming_completion_without_output(audit) == ()
 
 
 @pytest.mark.parametrize("rejected_stage", POST_DRAFT_SEAM_STAGES)
@@ -89,6 +93,86 @@ def test_cost_cap_at_each_post_draft_seam_is_recoverable(
         # edit, cascade, or trip the absolute run cap. Its own scope record is
         # the durable explanation; the fixed five need not be incomplete.
         assert stages[rejected_stage]["status"] != "complete"
+
+
+def test_partial_bundle_usage_aggregates_real_stage_cost_keys(tmp_path):
+    result = asyncio.run(
+        FullPipelineSeamDriver(
+            tmp_path,
+            rejected_stage="initial_verification",
+        ).run("partial-usage-stage-keys")
+    )
+    audit = _audit(result)
+    stage_cost = audit["run_cost_budget"]["stage_cost_usd"]
+
+    decomposition_attribution_cost = sum(
+        stage_cost.get(stage, 0.0)
+        for stage in (
+            "claim_decomposition",
+            "truth_condition_elementization",
+            "evidence_obligation_resolution",
+            "evaluative_diagnostics",
+            "attribution",
+        )
+    )
+    assert decomposition_attribution_cost > 0.0
+    assert audit["usage"]["decomposition_attribution"][
+        "cost_usd"
+    ] == pytest.approx(decomposition_attribution_cost)
+    assert audit["usage"]["reconciliation"]["cost_usd"] == pytest.approx(
+        stage_cost["checklist_reconciliation"]
+    )
+    assert audit["usage"]["decomposition_attribution"]["token_count"] > 0
+    assert audit["usage"]["reconciliation"]["token_count"] > 0
+    # The rejected call was never issued, so the verification bucket is
+    # truthful rather than inheriting a neighbouring stage's cost.
+    assert audit["usage"]["verification"]["cost_usd"] == 0.0
+    assert audit["usage"]["verification"]["token_count"] == 0
+
+
+def test_changed_region_verification_failure_rolls_back_candidate_bytes(
+    tmp_path,
+):
+    result = asyncio.run(
+        FullPipelineSeamDriver(
+            tmp_path,
+            rejected_stage="post_edit_initial_verification",
+        ).run("changed-region-verification-failure")
+    )
+    audit = _audit(result)["posthoc_evidence"]
+
+    assert result.editorial_revision is not None
+    assert result.editorial_revision.committed_after_reaudit is False
+    assert "A narrower supported fact." not in result.report.canonical_draft
+    assert audit["post_edit_candidate"] is not None
+    assert audit["editorial_transaction"]["affected_scope"] is not None
+    assert audit["editorial_transaction"]["diagnostics"][0].startswith(
+        "editorial_transaction_changed_scope_incomplete:"
+    )
+    assert audit["stage_execution"]["stages"][
+        "editorial_transaction_acceptance"
+    ]["status"] == "failed"
+
+
+def test_transaction_budget_denial_is_not_run_and_rolls_back(tmp_path):
+    result = asyncio.run(
+        FullPipelineSeamDriver(
+            tmp_path,
+            rejected_stage="editorial_transaction_acceptance",
+        ).run("transaction-budget-denial")
+    )
+    audit = _audit(result)["posthoc_evidence"]
+
+    assert result.editorial_revision is not None
+    assert result.editorial_revision.committed_after_reaudit is False
+    assert "A narrower supported fact." not in result.report.canonical_draft
+    assert audit["post_edit_candidate"] is not None
+    assert audit["editorial_transaction"]["diagnostics"][0].startswith(
+        "editorial_transaction_not_run_budget:"
+    )
+    assert audit["stage_execution"]["stages"][
+        "editorial_transaction_acceptance"
+    ]["status"] == "not_run"
 
 
 def test_unrouted_disagreement_selection_is_partial_and_bundle_survives(tmp_path):

@@ -8,7 +8,20 @@ from types import SimpleNamespace
 import pytest
 
 import run_harness as harness_cli
-from open_deep_research.harness.claims import parse_markdown_blocks
+from open_deep_research.harness.attribution import (
+    AttributionStatus,
+    CandidateSource,
+    ClaimAttribution,
+)
+from open_deep_research.harness.claims import (
+    AtomicClaim,
+    CitationRequirement,
+    ClaimNormalizationStatus,
+    EvidenceObligation,
+    EvidenceObligationStatus,
+    SourceResolution,
+    parse_markdown_blocks,
+)
 from open_deep_research.harness.disagreement import (
     DisagreementBudget,
     DisagreementResult,
@@ -18,15 +31,36 @@ from open_deep_research.harness.disagreement import (
 )
 from open_deep_research.harness.evidence_gap import EvidenceGapBudget
 from open_deep_research.harness.loop import LoopBudget, StopReason
+from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
+from open_deep_research.harness.numeric_consistency import (
+    NumericConsistencyStatus,
+)
 from open_deep_research.harness.recovery import EvidenceRecoveryStopReason
 from open_deep_research.harness.runner import (
+    _changed_scope_audit_diagnostics,
     _publish_artifact_bundle,
     _scope_record,
     run_harness,
 )
 from open_deep_research.harness.stages import StageExecutionStatus
 from open_deep_research.harness.source_spans import build_source_span_registry
-from open_deep_research.harness.verify import ClaimEvidenceState
+from open_deep_research.harness.truth_conditions import (
+    ElementAssessmentExecutionStatus,
+    ElementVerificationVerdict,
+    ElementizationProposal,
+    ElementizationReview,
+    ElementizationSemanticStatus,
+    aggregate_truth_condition_claim,
+    build_truth_condition_registry,
+)
+from open_deep_research.harness.verify import (
+    ClaimEvidenceState,
+    VerificationRecordStatus,
+    VerificationVerdict,
+    VerifiedElementRelation,
+    VerifiedSourceRelation,
+    build_claim_verification,
+)
 
 
 def _selection_pointer(draft: str, text: str) -> dict[str, str]:
@@ -45,8 +79,125 @@ def _selection_pointer(draft: str, text: str) -> dict[str, str]:
     }
 
 
+def _element_aware_verifier_results(
+    prompt: str,
+    results: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Adapt one scripted semantic outcome to the production element wire."""
+
+    if not prompt.startswith("Verify every registered truth-condition"):
+        return results
+    payload_text = prompt.split("Claims and registered elements:\n", 1)[1].split(
+        "\n\nBEGIN COMPLETE CACHED SOURCE", 1
+    )[0]
+    claims = json.loads(payload_text)
+    result_by_id = {str(item["claim_id"]): item for item in results}
+    adapted = []
+    for claim in claims:
+        result = result_by_id[claim["claim_id"]]
+        adapted.append(
+            {
+                "claim_id": claim["claim_id"],
+                "elements": [
+                    {
+                        "element_id": element["element_id"],
+                        "verdict": result["verdict"],
+                        "start_segment_id": result.get("start_segment_id"),
+                        "end_segment_id": result.get("end_segment_id"),
+                        "explanation": result.get("explanation", ""),
+                    }
+                    for element in claim["elements"]
+                ],
+            }
+        )
+    return adapted
+
+
 def _evidence_review_response(prompt: str):
     """Shared offline response for the new independent review protocols."""
+
+    if prompt.startswith("Independently review each proposed truth-condition"):
+        payload = json.loads(prompt.split("CLAIMS_AND_PROPOSALS:\n", 1)[1])
+        return {
+            "content": json.dumps(
+                {
+                    "claims": [
+                        {
+                            "claim_id": item["claim_id"],
+                            "semantic_status": "complete",
+                            "elements": item["proposal"],
+                            "missing_conditions": [],
+                            "rationale": "synthetic complete denominator",
+                        }
+                        for item in payload
+                    ]
+                }
+            ),
+            "token_count": 0,
+            "cost_usd": 0.0,
+        }
+
+    if prompt.startswith("Independently review one proposed edit"):
+        request_text = prompt.split("Closed review request:\n", 1)[1].split(
+            "\n\nMechanically affected scope:", 1
+        )[0]
+        request = json.loads(request_text)
+        post_refs = request["post_refs"]
+        retained_pre_refs = [
+            target["pre_ref"]
+            for target in request["targets"]
+            if target["intended_action"] != "remove"
+        ] + request["preserved_pre_refs"]
+        return {
+            "content": json.dumps(
+                {
+                    "manifest_sha256": request["manifest_sha256"],
+                    "targets": [
+                        {
+                            "pre_ref": target["pre_ref"],
+                            "outcome": (
+                                "retained"
+                                if target["intended_action"]
+                                == "retain_with_label"
+                                else "resolved"
+                            ),
+                            "post_refs": (
+                                []
+                                if target["intended_action"] == "remove"
+                                else post_refs
+                            ),
+                            "rationale": "synthetic target improved",
+                        }
+                        for target in request["targets"]
+                    ],
+                    "preserved": [
+                        {
+                            "pre_ref": pre_ref,
+                            "outcome": "preserved",
+                            "post_refs": post_refs,
+                            "rationale": "synthetic neighbouring fact preserved",
+                        }
+                        for pre_ref in request["preserved_pre_refs"]
+                    ],
+                    "post_units": [
+                        {
+                            "post_ref": post_ref,
+                            "lineage": "derived_from_pre",
+                            "pre_refs": retained_pre_refs,
+                            "assessment": "acceptable",
+                            "rationale": "synthetic post unit has closed lineage",
+                        }
+                        for post_ref in post_refs
+                    ],
+                    "answer_preservation": "narrowed_with_evidence",
+                    "answer_preservation_rationale": (
+                        "synthetic edited answer remains responsive"
+                    ),
+                }
+            ),
+            "token_count": 0,
+            "cost_usd": 0.0,
+        }
 
     if prompt.startswith("Independent negative-selection review"):
         block_ids = tuple(
@@ -226,6 +377,7 @@ class ClaimModel:
                         "claim_id": "claim-0001",
                         "claim_text": paragraph.text,
                         "context_spans": [],
+                        "truth_conditions": [paragraph.text],
                     }
                 ]
             }
@@ -347,6 +499,14 @@ class ResearchMoreRecoveryModel:
                     "decisions": [
                         {
                             "claim_id": claim_id,
+                            "target_element_ids": list(
+                                dict.fromkeys(
+                                    re.findall(
+                                        rf'({re.escape(claim_id)}::tc-[0-9]+)',
+                                        prompt,
+                                    )
+                                )
+                            ),
                             "action": "research_more",
                             "importance": "central",
                             "importance_reason": (
@@ -419,11 +579,13 @@ class MixedRequirementClaimModel:
                         "claim_id": "claim-0001",
                         "claim_text": external.text,
                         "context_spans": [],
+                        "truth_conditions": [external.text],
                     },
                     {
                         "claim_id": "claim-0002",
                         "claim_text": internal.text,
                         "context_spans": [],
+                        "truth_conditions": [internal.text],
                     },
                 ]
             }
@@ -636,19 +798,18 @@ class EvidenceVerificationModel:
         if review is not None:
             return review
         self.events.append("verification")
+        results = [
+            {
+                "claim_id": "claim-0001",
+                "verdict": "supports",
+                "start_segment_id": "S000001",
+                "end_segment_id": "S000001",
+                "explanation": "The full source supports it.",
+            }
+        ]
         return {
             "content": json.dumps(
-                {
-                    "results": [
-                        {
-                            "claim_id": "claim-0001",
-                            "verdict": "supports",
-                            "start_segment_id": "S000001",
-                            "end_segment_id": "S000001",
-                            "explanation": "The full source supports it.",
-                        }
-                    ]
-                }
+                {"results": _element_aware_verifier_results(prompt, results)}
             ),
             "token_count": 9,
             "cost_usd": 0.03,
@@ -708,6 +869,7 @@ class ReauditClaimModel:
                         "claim_id": "claim-0001",
                         "claim_text": paragraph.text,
                         "context_spans": [],
+                        "truth_conditions": [paragraph.text],
                     }
                 ]
             }
@@ -762,7 +924,13 @@ class AuditEditVerificationModel:
             ),
         }
         return {
-            "content": json.dumps({"results": [result]}),
+            "content": json.dumps(
+                {
+                    "results": _element_aware_verifier_results(
+                        prompt, [result]
+                    )
+                }
+            ),
             "token_count": 8,
             "cost_usd": 0.01,
         }
@@ -871,6 +1039,7 @@ class AdjacentEvidenceClaimModel:
                         "claim_id": f"claim-{index:04d}",
                         "claim_text": claim_text,
                         "context_spans": [],
+                        "truth_conditions": [claim_text],
                     }
                     for index, claim_text in enumerate(claim_texts, start=1)
                 ]
@@ -945,21 +1114,18 @@ class AdjacentEvidenceVerificationModel:
         if review is not None:
             return review
         self.calls += 1
+        results = [
+            {
+                "claim_id": "claim-0001",
+                "verdict": "supports",
+                "start_segment_id": "S000001",
+                "end_segment_id": "S000001",
+                "explanation": "The source directly states the retained fact.",
+            }
+        ]
         return {
             "content": json.dumps(
-                {
-                    "results": [
-                        {
-                            "claim_id": "claim-0001",
-                            "verdict": "supports",
-                            "start_segment_id": "S000001",
-                            "end_segment_id": "S000001",
-                            "explanation": (
-                                "The source directly states the retained fact."
-                            ),
-                        }
-                    ]
-                }
+                {"results": _element_aware_verifier_results(prompt, results)}
             ),
             "token_count": 8,
             "cost_usd": 0.01,
@@ -1081,6 +1247,7 @@ class TwoBlockReauditClaimModel:
                         "claim_id": f"claim-{index:04d}",
                         "claim_text": block.text,
                         "context_spans": [],
+                        "truth_conditions": [block.text],
                     }
                     for index, block in enumerate(blocks[1:], start=1)
                 ]
@@ -1157,32 +1324,29 @@ class TwoBlockPartialVerificationModel:
             return review
         self.calls += 1
         first_verdict = "does_not_support" if self.calls == 1 else "supports"
+        results = [
+            {
+                "claim_id": "claim-0001",
+                "verdict": first_verdict,
+                "start_segment_id": (
+                    None if self.calls == 1 else "S000001"
+                ),
+                "end_segment_id": (
+                    None if self.calls == 1 else "S000001"
+                ),
+                "explanation": "First claim audit outcome.",
+            },
+            {
+                "claim_id": "claim-0002",
+                "verdict": "supports",
+                "start_segment_id": "S000001",
+                "end_segment_id": "S999999",
+                "explanation": "The proposed range is intentionally invalid.",
+            },
+        ]
         return {
             "content": json.dumps(
-                {
-                    "results": [
-                        {
-                            "claim_id": "claim-0001",
-                            "verdict": first_verdict,
-                            "start_segment_id": (
-                                None if self.calls == 1 else "S000001"
-                            ),
-                            "end_segment_id": (
-                                None if self.calls == 1 else "S000001"
-                            ),
-                            "explanation": "First claim audit outcome.",
-                        },
-                        {
-                            "claim_id": "claim-0002",
-                            "verdict": "supports",
-                            "start_segment_id": "S000001",
-                            "end_segment_id": "S999999",
-                            "explanation": (
-                                "The proposed range is intentionally invalid."
-                            ),
-                        },
-                    ]
-                }
+                {"results": _element_aware_verifier_results(prompt, results)}
             ),
             "token_count": 8,
             "cost_usd": 0.01,
@@ -1201,28 +1365,21 @@ class TwoBlockEditorialVerificationModel:
             return review
         self.calls += 1
         after_edit = self.calls == 2
+        results = [
+            {
+                "claim_id": claim_id,
+                "verdict": (
+                    "supports" if after_edit else "does_not_support"
+                ),
+                "start_segment_id": "S000001" if after_edit else None,
+                "end_segment_id": "S000001" if after_edit else None,
+                "explanation": "Audited block outcome.",
+            }
+            for claim_id in ("claim-0001", "claim-0002")
+        ]
         return {
             "content": json.dumps(
-                {
-                    "results": [
-                        {
-                            "claim_id": claim_id,
-                            "verdict": (
-                                "supports"
-                                if after_edit
-                                else "does_not_support"
-                            ),
-                            "start_segment_id": (
-                                "S000001" if after_edit else None
-                            ),
-                            "end_segment_id": (
-                                "S000001" if after_edit else None
-                            ),
-                            "explanation": "Audited block outcome.",
-                        }
-                        for claim_id in ("claim-0001", "claim-0002")
-                    ]
-                }
+                {"results": _element_aware_verifier_results(prompt, results)}
             ),
             "token_count": 8,
             "cost_usd": 0.01,
@@ -1803,9 +1960,10 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     assert "start_char" not in sources_markdown
     assert "end_char" not in sources_markdown
     assert result.verification.claims[0].relations[0].model_quote is None
-    assert result.verification.claims[0].relations[0].source_quote == (
-        "ExactSourceEvidence 2026."
-    )
+    assert result.verification.claims[0].relations[0].source_quote is None
+    assert result.verification.claims[0].relations[0].element_relations[
+        0
+    ].source_quote == "ExactSourceEvidence 2026."
     audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
     assert audit["usage"]["verification"] == {
         "cost_usd": 0.03,
@@ -1817,6 +1975,187 @@ def test_runner_wires_verified_source_quote_into_code_owned_footnote(tmp_path):
     assert audit["artifacts"]["sources_sha256"] == hashlib.sha256(
         result.sources_path.read_bytes()
     ).hexdigest()
+
+
+def test_changed_scope_accepts_closed_internal_evidence_route_for_review() -> None:
+    """Internal claims have no external candidates by design, not by failure."""
+
+    text = "A report-internal conclusion."
+    claim = AtomicClaim(
+        claim_id="claim-internal",
+        block_id="block-0001",
+        selected_text=text,
+        claim_text=text,
+        anchor_text=text,
+        start_char=0,
+        end_char=len(text),
+        citation_requirement=CitationRequirement.INTERNAL,
+        proposed_citation_requirement=CitationRequirement.INTERNAL,
+        evidence_obligation=EvidenceObligation(
+            claim_id="claim-internal",
+            proposed_requirement=CitationRequirement.INTERNAL,
+            status=EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED,
+            rationale="The report artifact did not establish this conclusion.",
+        ),
+        normalization_status=ClaimNormalizationStatus.LOCATED,
+    )
+    registry = build_truth_condition_registry(
+        {claim.claim_id: text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=(text,),
+                rationale="proposal",
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=(text,),
+                rationale="independent review",
+            ),
+        ),
+    )
+    aggregate = aggregate_truth_condition_claim(
+        registry.entries[0],
+        (),
+        expected_source_ids=(),
+    )
+    attribution = ClaimAttribution(
+        claim=claim,
+        status=AttributionStatus.NO_CANDIDATE_SOURCE,
+    )
+    verification = build_claim_verification(
+        claim,
+        (),
+        required_sources=1,
+        attribution_status=attribution.status,
+        truth_condition_aggregate=aggregate,
+    )
+    affected = SimpleNamespace(
+        affected_post_units=(
+            SimpleNamespace(
+                unit_ref="post-unit-internal",
+                audit_payload={
+                    "attribution": attribution.model_dump(mode="json"),
+                    "verification": verification.model_dump(mode="json"),
+                },
+            ),
+        )
+    )
+
+    assert _changed_scope_audit_diagnostics(affected) == ()
+
+
+def test_changed_scope_numeric_mismatch_rolls_back_before_semantic_review() -> None:
+    """A completed verifier call cannot authorize known numeric corruption."""
+
+    text = "The transfer was $8 billion."
+    claim = AtomicClaim(
+        claim_id="claim-numeric",
+        block_id="block-0001",
+        selected_text=text,
+        claim_text=text,
+        anchor_text=text,
+        start_char=0,
+        end_char=len(text),
+        citation_requirement=CitationRequirement.EXTERNAL,
+        normalization_status=ClaimNormalizationStatus.LOCATED,
+    )
+    registry = build_truth_condition_registry(
+        {claim.claim_id: text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=(text,),
+                rationale="proposal",
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=(text,),
+                rationale="independent review",
+            ),
+        ),
+    )
+    candidate = CandidateSource(
+        note_id="note-1",
+        source_id="source-1",
+        item_id="item-1",
+        publisher="example.org",
+        url="https://example.org/source",
+        location_status=NoteLocationStatus.LOCATABLE,
+        resolution=SourceResolution.DIRECT,
+    )
+    attribution = ClaimAttribution(
+        claim=claim,
+        status=AttributionStatus.CANDIDATE_SOURCES,
+        candidates=(candidate,),
+    )
+    element = registry.entries[0].elements[0]
+    element_relation = VerifiedElementRelation(
+        claim_id=claim.claim_id,
+        element_id=element.element_id,
+        element_text=element.text,
+        source_id="source-1",
+        status=ElementAssessmentExecutionStatus.COMPLETE,
+        semantic_verdict=ElementVerificationVerdict.SUPPORTS,
+        source_quote="The transfer was $800 million.",
+        span=QuoteSpan(start_char=0, end_char=30),
+        location_status=NoteLocationStatus.LOCATABLE,
+        numeric_consistency_status=NumericConsistencyStatus.MISMATCH,
+        numeric_consistency_detail="$8 billion != $800 million",
+        is_formal_supporting_evidence=False,
+    )
+    relation = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id="source-1",
+        url=candidate.url,
+        publisher_domain_proxy="example.org",
+        candidate_note_ids=(candidate.note_id,),
+        candidate_source_ids=(candidate.source_id,),
+        status=VerificationRecordStatus.COMPLETED,
+        semantic_verdict=VerificationVerdict.SUPPORTS,
+        source_quote="The transfer was $800 million.",
+        span=QuoteSpan(start_char=0, end_char=30),
+        location_status=NoteLocationStatus.LOCATABLE,
+        numeric_consistency_status=NumericConsistencyStatus.MISMATCH,
+        numeric_consistency_detail="$8 billion != $800 million",
+        is_formal_supporting_evidence=False,
+        element_relations=(element_relation,),
+    )
+    aggregate = aggregate_truth_condition_claim(
+        registry.entries[0],
+        (element_relation.as_assessment(),),
+        expected_source_ids=(candidate.source_id,),
+    )
+    verification = build_claim_verification(
+        claim,
+        (relation,),
+        required_sources=1,
+        attribution_status=attribution.status,
+        truth_condition_aggregate=aggregate,
+    )
+    affected = SimpleNamespace(
+        affected_post_units=(
+            SimpleNamespace(
+                unit_ref="post-unit-numeric",
+                audit_payload={
+                    "attribution": attribution.model_dump(mode="json"),
+                    "verification": verification.model_dump(mode="json"),
+                },
+            ),
+        )
+    )
+
+    diagnostics = _changed_scope_audit_diagnostics(affected)
+
+    assert len(diagnostics) == 1
+    assert "numeric evidence mismatch remains in changed scope" in diagnostics[0]
+    assert "source-1:claim" in diagnostics[0]
 
 
 def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
@@ -1893,13 +2232,16 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
     for stage in (
         "audit_editing",
         "post_edit_claim_decomposition",
+        "post_edit_truth_condition_elementization",
         "post_edit_attribution",
         "post_edit_initial_verification",
         "post_edit_checklist_reconciliation",
+        "editorial_transaction_acceptance",
     ):
         assert stages[stage]["status"] == "complete", stage
     assert posthoc["stage_execution"]["mandatory_pipeline_stages"] == [
         "claim_decomposition",
+        "truth_condition_elementization",
         "evidence_obligation_resolution",
         "attribution",
         "initial_verification",
@@ -1907,10 +2249,12 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
         "deterministic_rendering",
         "audit_editing",
         "post_edit_claim_decomposition",
+        "post_edit_truth_condition_elementization",
         "post_edit_evidence_obligation_resolution",
         "post_edit_attribution",
         "post_edit_initial_verification",
         "post_edit_checklist_reconciliation",
+        "editorial_transaction_acceptance",
     ]
 
 
@@ -2093,7 +2437,7 @@ def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(
     assert result.quality_review_passed is None
     assert result.publication_eligible is False
     assert result.verification.claims[1].state is (
-        ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE
+        ClaimEvidenceState.VERIFICATION_INCOMPLETE
     )
     assert "pipeline_complete=false" in result.rendered_report.markdown
 

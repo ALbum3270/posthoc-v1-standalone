@@ -12,9 +12,11 @@ from open_deep_research.harness.claims import (
     BlockSelection,
     CitationRequirement,
     ClaimDerivationStatus,
+    ClaimDecompositionResult,
     ClaimDecompositionSettings,
     ClaimNormalizationStatus,
     ClaimRepresentationVersion,
+    ClaimStageUsage,
     EvidenceObligationStatus,
     MarkdownBlockKind,
     SelectedAssertion,
@@ -28,6 +30,10 @@ from open_deep_research.harness.claims import (
     source_inheritance_allowed,
 )
 from open_deep_research.harness.source_spans import build_source_span_registry
+from open_deep_research.harness.truth_conditions import (
+    ElementizationExecutionStatus,
+    ElementizationSemanticStatus,
+)
 
 
 class ScriptedClaimModel:
@@ -334,11 +340,266 @@ It expanded the facility in 2022.
     assert result.anchor_proposal_count == 1
     assert result.anchor_copied_from_selection_count == 0
     assert result.anchor_copied_from_selection_rate == 0.0
+    assert result.truth_condition_registry is not None
+    assert result.truth_condition_registry.entries[0].claim_text == (
+        "It expanded the facility in 2022."
+    )
+    assert result.truth_condition_registry.entries[0].claim_text != (
+        claim.claim_text
+    )
+    assert result.truth_condition_registry.denominator.unresolved_claim_ids == (
+        "claim-0001",
+    )
+    assert result.truth_condition_registry.denominator.silent_bypass_count == 0
+    assert result.truth_condition_review_usage is not None
+    assert result.truth_condition_review_usage.token_count == 0
 
     assert "Do not add facts" in model.prompts[1]
     assert "otherwise make\nthe assertion stronger" in model.prompts[1]
     assert "Do not copy anchor text" in model.prompts[2]
     assert '"start_char":0' not in model.prompts[2]
+
+
+def test_truth_conditions_are_independently_reviewed_in_one_batch() -> None:
+    report = "Alpha acquired Beta for $2 billion in 2024."
+    block = parse_markdown_blocks(report)[0]
+    pointer = _pointer(report, report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {
+                            **pointer,
+                            "citation_requirement": "external",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": report,
+                    "context_spans": [],
+                    "truth_conditions": [
+                        "Alpha acquired Beta.",
+                        "The price was $2 billion.",
+                    ],
+                }
+            ]
+        },
+        {"claims": [{"claim_id": "claim-0001", **pointer}]},
+    )
+    review_model = ScriptedClaimModel(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "semantic_status": "complete",
+                    "elements": [
+                        "Alpha acquired Beta.",
+                        "The price was $2 billion.",
+                        "The acquisition occurred in 2024.",
+                    ],
+                    "missing_conditions": [],
+                    "rationale": "The proposal omitted the time condition.",
+                }
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            review_model_client=review_model,
+        )
+    )
+
+    assert result.claims[0].normalization_status is ClaimNormalizationStatus.LOCATED
+    assert result.truth_condition_registry is not None
+    entry = result.truth_condition_registry.entries[0]
+    assert entry.semantic_status is ElementizationSemanticStatus.COMPLETE
+    assert entry.proposal_elements == (
+        "Alpha acquired Beta.",
+        "The price was $2 billion.",
+    )
+    assert [element.element_id for element in entry.elements] == [
+        "claim-0001::tc-0001",
+        "claim-0001::tc-0002",
+        "claim-0001::tc-0003",
+    ]
+    assert result.truth_condition_registry.denominator.complete_claim_ids == (
+        "claim-0001",
+    )
+    assert result.truth_condition_review_usage is not None
+    assert result.truth_condition_review_usage.token_count == 10
+    assert result.total_tokens == 40
+    review_batches = [
+        batch
+        for batch in result.batches
+        if batch.stage == "truth_condition_review"
+    ]
+    assert len(review_batches) == 1
+    assert review_batches[0].input_ids == ("claim-0001",)
+    assert review_batches[0].outcome == "completed"
+    assert len(review_model.prompts) == 1
+    assert "Do not assume the proposal is correct" in review_model.prompts[0]
+    assert "element IDs" in model.prompts[1]
+
+
+def test_truth_condition_review_failure_is_unresolved_without_losing_claim() -> None:
+    report = "A material event occurred."
+    block = parse_markdown_blocks(report)[0]
+    pointer = _pointer(report, report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {**pointer, "citation_requirement": "external"}
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": report,
+                    "context_spans": [],
+                    "truth_conditions": ["A material event occurred."],
+                }
+            ]
+        },
+        {"claims": [{"claim_id": "claim-0001", **pointer}]},
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            review_model_client=FailingClaimModel(),
+        )
+    )
+
+    assert len(result.claims) == 1
+    assert result.claims[0].normalization_status is ClaimNormalizationStatus.LOCATED
+    assert result.truth_condition_registry is not None
+    entry = result.truth_condition_registry.entries[0]
+    assert entry.execution_status is ElementizationExecutionStatus.MODEL_ERROR
+    assert entry.semantic_status is None
+    assert entry.proposal_elements == ("A material event occurred.",)
+    assert result.truth_condition_registry.denominator.unresolved_claim_ids == (
+        "claim-0001",
+    )
+    assert result.truth_condition_registry.denominator.silent_bypass_count == 0
+    assert result.truth_condition_review_usage is not None
+    assert result.truth_condition_review_usage.token_count == 0
+    review_batch = next(
+        batch
+        for batch in result.batches
+        if batch.stage == "truth_condition_review"
+    )
+    assert review_batch.outcome == "failed"
+    assert any(
+        diagnostic.startswith("truth_condition_review_batch_error[1]")
+        for diagnostic in result.diagnostics
+    )
+
+
+def test_malformed_truth_condition_proposal_does_not_fail_decontextualization() -> None:
+    report = "A material event occurred."
+    block = parse_markdown_blocks(report)[0]
+    pointer = _pointer(report, report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {**pointer, "citation_requirement": "external"}
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": report,
+                    "context_spans": [],
+                    "truth_conditions": {"not": "an array"},
+                }
+            ]
+        },
+        {"claims": [{"claim_id": "claim-0001", **pointer}]},
+    )
+    unused_review_model = ScriptedClaimModel()
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            review_model_client=unused_review_model,
+        )
+    )
+
+    assert result.claims[0].normalization_status is ClaimNormalizationStatus.LOCATED
+    assert result.truth_condition_registry is not None
+    assert result.truth_condition_registry.entries[0].execution_status is (
+        ElementizationExecutionStatus.INVALID_RESPONSE
+    )
+    assert result.truth_condition_registry.denominator.unresolved_claim_ids == (
+        "claim-0001",
+    )
+    assert unused_review_model.prompts == []
+    assert "truth_condition_proposal_invalid: claim-0001" in result.diagnostics
+
+
+def test_legacy_decomposition_payload_without_truth_fields_still_validates() -> None:
+    report = "A material event occurred."
+    block = parse_markdown_blocks(report)[0]
+    pointer = _pointer(report, report)
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {**pointer, "citation_requirement": "external"}
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": report,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {"claims": [{"claim_id": "claim-0001", **pointer}]},
+    )
+    result = asyncio.run(decompose_claims(report, model_client=model))
+    legacy_payload = result.model_dump(mode="json")
+    legacy_payload.pop("truth_condition_registry")
+    legacy_payload.pop("truth_condition_review_usage")
+
+    restored = ClaimDecompositionResult.model_validate(legacy_payload)
+
+    assert restored.truth_condition_registry is None
+    assert restored.truth_condition_review_usage is None
+    assert restored.total_tokens == result.total_tokens == 30
+    restored_payload = restored.model_dump(mode="json")
+    assert "truth_condition_registry" not in restored_payload
+    assert "truth_condition_review_usage" not in restored_payload
 
 
 def test_each_stage_omission_has_a_claim_specific_diagnostic() -> None:
@@ -400,6 +661,10 @@ def test_each_stage_omission_has_a_claim_specific_diagnostic() -> None:
     result = asyncio.run(decompose_claims(report, model_client=model))
 
     by_id = {claim.claim_id: claim for claim in result.claims}
+    assert result.truth_condition_registry is not None
+    assert tuple(
+        entry.claim_id for entry in result.truth_condition_registry.entries
+    ) == tuple(claim.claim_id for claim in result.claims)
     assert by_id["claim-0001"].normalization_status == (
         ClaimNormalizationStatus.LOCATED
     )
@@ -607,6 +872,39 @@ def test_selection_omission_is_retained_as_failed_disposition() -> None:
     assert result.selections[1].block_id == blocks[1].block_id
     assert result.claims == ()
     assert any("selection omitted this block" in item for item in result.diagnostics)
+
+
+def test_live_claim_free_run_has_explicit_closed_truth_condition_denominator() -> None:
+    """A real empty denominator must not masquerade as a legacy payload."""
+
+    report = "# Overview"
+    block = parse_markdown_blocks(report)[0]
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "disposition": "no_verifiable_claims",
+                    "rationale": "heading contains no factual assertion",
+                    "assertions": [],
+                }
+            ]
+        }
+    )
+
+    result = asyncio.run(decompose_claims(report, model_client=model))
+
+    assert result.registry_coverage.is_complete is True
+    assert result.claims == ()
+    assert result.truth_condition_registry is not None
+    assert result.truth_condition_registry.entries == ()
+    denominator = result.truth_condition_registry.denominator
+    assert denominator.selected_claim_ids == ()
+    assert denominator.complete_claim_ids == ()
+    assert denominator.unresolved_claim_ids == ()
+    assert denominator.silent_bypass_count == 0
+    assert result.truth_condition_review_usage == ClaimStageUsage()
+    assert len(model.prompts) == 1
 
 
 def test_live_selection_rejects_historical_none_route() -> None:

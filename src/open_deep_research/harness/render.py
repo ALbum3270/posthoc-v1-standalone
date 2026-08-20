@@ -23,7 +23,14 @@ from open_deep_research.harness.budget_diagnostics import (
 from open_deep_research.harness.concentration import (
     DomainProxyConcentrationAudit,
 )
+from open_deep_research.harness.notes import QuoteSpan
 from open_deep_research.harness.reconcile import ChecklistCoverageSummary
+from open_deep_research.harness.truth_conditions import (
+    ClaimCoverageState,
+    ElementAssessmentExecutionStatus,
+    ElementVerificationVerdict,
+    ExecutionCompleteness,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
@@ -119,6 +126,29 @@ class RenderedFootnote(BaseModel):
     semantic_verdicts: tuple[VerificationVerdict, ...]
     claim_ids: tuple[str, ...]
     claim_anchors: tuple[str, ...]
+    element_ids: tuple[str, ...] = Field(
+        default=(),
+        exclude_if=lambda value: not value,
+    )
+
+
+class _RenderableEvidence(BaseModel):
+    """One located quote, flattened from either verification protocol.
+
+    Element-v2 keeps truth-condition judgements below the source relation.  The
+    renderer flattens only for presentation; the audit retains the nested
+    denominator and no child verdict is promoted into a whole-claim verdict.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    source_id: str
+    url: str
+    publisher_domain_proxy: str
+    semantic_verdict: VerificationVerdict
+    source_quote: str
+    span: QuoteSpan
+    element_ids: tuple[str, ...] = ()
 
 
 class EvidenceBundleValidation(BaseModel):
@@ -231,6 +261,75 @@ class EvidenceSummary(BaseModel):
     claim_normalization_failed: int = Field(ge=0)
     attribution_error: int = Field(ge=0)
     unverified: int = Field(ge=0)
+    # These fields are additive and default to zero so historical audit
+    # payloads remain readable.  The older located-support counts answer only
+    # whether at least one usable quote exists; they must not be read as proof
+    # that every material condition of a compound claim was supported.
+    truth_condition_claims: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_fully_supported: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_partially_supported: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_mixed: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_not_supported: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_contradicted: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_conflicted: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_unresolved: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_execution_complete: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_execution_partial: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_execution_failed: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_execution_not_run: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_execution_incomplete_overlap: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
     settled_without_located_evidence: int = Field(ge=0)
     settled_without_located_evidence_item_ids: tuple[str, ...] = ()
     rejected_exhausted_without_collection_attempt: int = Field(ge=0)
@@ -245,16 +344,29 @@ class EvidenceSummary(BaseModel):
 
     @model_validator(mode="after")
     def _unverified_total_matches_components(self) -> EvidenceSummary:
-        components = (
+        legacy_components = (
             self.verification_incomplete
             + self.verification_not_run
             + self.support_quote_unlocatable
             + self.claim_normalization_failed
             + self.attribution_error
         )
-        if self.unverified != components:
+        truth_execution_incomplete = (
+            self.truth_condition_execution_partial
+            + self.truth_condition_execution_failed
+            + self.truth_condition_execution_not_run
+        )
+        overlap = self.truth_condition_execution_incomplete_overlap
+        if overlap > min(legacy_components, truth_execution_incomplete):
             raise ValueError(
-                "unverified must equal its reader-facing component counts"
+                "truth-condition incomplete overlap exceeds either scope"
+            )
+        if self.unverified != (
+            legacy_components + truth_execution_incomplete - overlap
+        ):
+            raise ValueError(
+                "unverified must equal the union of legacy and element "
+                "execution-incomplete claim scopes"
             )
         if (
             self.single_domain_proxy_support
@@ -271,6 +383,33 @@ class EvidenceSummary(BaseModel):
         ):
             raise ValueError(
                 "located-support total must match publisher-support counts"
+            )
+        truth_condition_partition = (
+            self.truth_condition_fully_supported
+            + self.truth_condition_partially_supported
+            + self.truth_condition_mixed
+            + self.truth_condition_not_supported
+            + self.truth_condition_contradicted
+            + self.truth_condition_conflicted
+            + self.truth_condition_unresolved
+        )
+        if truth_condition_partition != self.truth_condition_claims:
+            raise ValueError(
+                "truth-condition coverage counts must partition their claims"
+            )
+        if self.truth_condition_claims > self.external_claims:
+            raise ValueError(
+                "truth-condition claims cannot exceed external claim scope"
+            )
+        truth_condition_execution_partition = (
+            self.truth_condition_execution_complete
+            + self.truth_condition_execution_partial
+            + self.truth_condition_execution_failed
+            + self.truth_condition_execution_not_run
+        )
+        if truth_condition_execution_partition != self.truth_condition_claims:
+            raise ValueError(
+                "truth-condition execution counts must partition their claims"
             )
         return self
 
@@ -373,6 +512,11 @@ def _render_sources_document(
                 f"- 原文：[查看原文][{source_alias_by_url[footnote.url]}]",
             ]
         )
+        if footnote.element_ids:
+            lines.append(
+                "- 真值条件："
+                + "、".join(f"`{element_id}`" for element_id in footnote.element_ids)
+            )
         if len(footnote.claim_anchors) > 1:
             lines.extend(["- 用于多个正文锚点："])
             for anchor in footnote.claim_anchors:
@@ -579,16 +723,69 @@ def _located_relation(relation: VerifiedSourceRelation) -> bool:
 
 def _renderable_relations(
     verification: ClaimVerification,
-) -> tuple[VerifiedSourceRelation, ...]:
-    relations = [
-        relation
-        for relation in verification.relations
-        if _located_relation(relation)
-        and (
-            relation.is_formal_supporting_evidence
-            or relation.semantic_verdict == VerificationVerdict.CONTRADICTS
-        )
-    ]
+) -> tuple[_RenderableEvidence, ...]:
+    relations: list[_RenderableEvidence] = []
+    for relation in verification.relations:
+        if relation.element_relations:
+            for element in relation.element_relations:
+                if (
+                    element.status
+                    is not ElementAssessmentExecutionStatus.COMPLETE
+                    or element.source_quote is None
+                    or element.span is None
+                    or element.semantic_verdict
+                    not in {
+                        ElementVerificationVerdict.SUPPORTS,
+                        ElementVerificationVerdict.CONTRADICTS,
+                    }
+                    or (
+                        element.semantic_verdict
+                        is ElementVerificationVerdict.SUPPORTS
+                        and not element.is_formal_supporting_evidence
+                    )
+                ):
+                    continue
+                relations.append(
+                    _RenderableEvidence(
+                        source_id=relation.source_id,
+                        url=relation.url,
+                        publisher_domain_proxy=(
+                            relation.publisher_domain_proxy
+                        ),
+                        semantic_verdict=VerificationVerdict(
+                            element.semantic_verdict.value
+                        ),
+                        source_quote=element.source_quote,
+                        span=element.span,
+                        element_ids=(element.element_id,),
+                    )
+                )
+            continue
+        if (
+            _located_relation(relation)
+            and relation.semantic_verdict
+            in {
+                VerificationVerdict.SUPPORTS,
+                VerificationVerdict.CONTRADICTS,
+            }
+            and (
+                relation.is_formal_supporting_evidence
+                or relation.semantic_verdict is VerificationVerdict.CONTRADICTS
+            )
+        ):
+            assert relation.source_quote is not None
+            assert relation.span is not None
+            assert relation.semantic_verdict is not None
+            relations.append(
+                _RenderableEvidence(
+                    source_id=relation.source_id,
+                    url=relation.url,
+                    publisher_domain_proxy=relation.publisher_domain_proxy,
+                    semantic_verdict=relation.semantic_verdict,
+                    source_quote=relation.source_quote,
+                    span=relation.span,
+                )
+            )
     return tuple(
         sorted(
             relations,
@@ -629,6 +826,48 @@ def _unverified_reasons(verification: ClaimVerification) -> tuple[str, ...]:
 
 def _warning_label(verification: ClaimVerification) -> str:
     state = verification.state
+    # These states are decided before, or independently from, external source
+    # verification.  An empty element-source denominator must not replace the
+    # more actionable reason (for example, "no candidate source") with a
+    # generic execution warning.
+    if state is ClaimEvidenceState.NO_CANDIDATE_SOURCE:
+        return "〔未找到候选来源〕"
+    if state is ClaimEvidenceState.ATTRIBUTION_ERROR:
+        return "〔未核验：归因错误〕"
+    if state is ClaimEvidenceState.NORMALIZATION_FAILED:
+        return ""
+    if state is ClaimEvidenceState.INTERNAL_SUPPORTED:
+        return ""
+    if state is ClaimEvidenceState.INTERNAL_NOT_SUPPORTED:
+        return "〔报告内部依据不支持〕"
+    if state is ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED:
+        return "〔证据义务未决〕"
+    aggregate = verification.truth_condition_aggregate
+    if aggregate is not None:
+        coverage = aggregate.coverage_state
+        details: list[str] = []
+        if coverage is ClaimCoverageState.PARTIALLY_SUPPORTED:
+            details.append("部分真值条件获得支持，其余未获支持")
+        elif coverage is ClaimCoverageState.MIXED:
+            details.append("部分真值条件获得支持，另有条件被反驳")
+        elif coverage is ClaimCoverageState.NOT_SUPPORTED:
+            details.append("真值条件未获支持")
+        elif coverage is ClaimCoverageState.CONTRADICTED:
+            details.append("所检来源反驳真值条件")
+        elif coverage is ClaimCoverageState.CONFLICTED:
+            details.append("真值条件来源冲突")
+        elif coverage is ClaimCoverageState.UNRESOLVED:
+            details.append("真值条件或其核验未决")
+        execution_detail = {
+            ExecutionCompleteness.COMPLETE: None,
+            ExecutionCompleteness.PARTIAL: "真值条件核验执行部分完成",
+            ExecutionCompleteness.FAILED: "真值条件核验执行失败",
+            ExecutionCompleteness.NOT_RUN: "真值条件核验未运行",
+        }[aggregate.execution_completeness]
+        if execution_detail is not None:
+            details.append(execution_detail)
+        if details:
+            return "〔" + "；".join(details) + "〕"
     if state == ClaimEvidenceState.CORROBORATED:
         return "〔经来源谱系评估的交叉支持〕"
     if state in {
@@ -642,10 +881,6 @@ def _warning_label(verification: ClaimVerification) -> str:
         return "〔所检来源反驳〕"
     if state == ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT:
         return "〔所检来源未支持〕"
-    if state == ClaimEvidenceState.NO_CANDIDATE_SOURCE:
-        return "〔未找到候选来源〕"
-    if state == ClaimEvidenceState.ATTRIBUTION_ERROR:
-        return "〔未核验：归因错误〕"
     if state == ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE:
         return "〔未核验：支持性引文无法定位〕"
     if state in {
@@ -655,14 +890,6 @@ def _warning_label(verification: ClaimVerification) -> str:
         reasons = _unverified_reasons(verification)
         detail = "、".join(reasons) if reasons else "核验未完成"
         return f"〔未核验：{detail}〕"
-    if state == ClaimEvidenceState.NORMALIZATION_FAILED:
-        return ""
-    if state == ClaimEvidenceState.INTERNAL_SUPPORTED:
-        return ""
-    if state == ClaimEvidenceState.INTERNAL_NOT_SUPPORTED:
-        return "〔报告内部依据不支持〕"
-    if state == ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED:
-        return "〔证据义务未决〕"
     raise ValueError(f"unsupported claim evidence state: {state}")
 
 
@@ -717,6 +944,54 @@ def _summary(
         verification.publisher_domain_proxy_count == 0
         for verification in external
     )
+    truth_condition_coverage = {
+        state: sum(
+            verification.truth_condition_aggregate is not None
+            and verification.truth_condition_aggregate.coverage_state is state
+            for verification in external
+        )
+        for state in ClaimCoverageState
+    }
+    truth_condition_claims = sum(truth_condition_coverage.values())
+    truth_condition_execution = {
+        state: sum(
+            verification.truth_condition_aggregate is not None
+            and verification.truth_condition_aggregate.execution_completeness
+            is state
+            for verification in external
+        )
+        for state in ExecutionCompleteness
+    }
+    claims_with_incomplete_execution = sum(
+        verification.state
+        in {
+            ClaimEvidenceState.VERIFICATION_INCOMPLETE,
+            ClaimEvidenceState.VERIFICATION_NOT_RUN,
+            ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE,
+            ClaimEvidenceState.NORMALIZATION_FAILED,
+            ClaimEvidenceState.ATTRIBUTION_ERROR,
+        }
+        or (
+            verification.truth_condition_aggregate is not None
+            and verification.truth_condition_aggregate.execution_completeness
+            is not ExecutionCompleteness.COMPLETE
+        )
+        for verification in external
+    )
+    truth_condition_execution_incomplete_overlap = sum(
+        verification.state
+        in {
+            ClaimEvidenceState.VERIFICATION_INCOMPLETE,
+            ClaimEvidenceState.VERIFICATION_NOT_RUN,
+            ClaimEvidenceState.SUPPORT_QUOTE_UNLOCATABLE,
+            ClaimEvidenceState.NORMALIZATION_FAILED,
+            ClaimEvidenceState.ATTRIBUTION_ERROR,
+        }
+        and verification.truth_condition_aggregate is not None
+        and verification.truth_condition_aggregate.execution_completeness
+        is not ExecutionCompleteness.COMPLETE
+        for verification in external
+    )
     return EvidenceSummary(
         external_claims=len(external),
         claims_with_located_support=(
@@ -737,12 +1012,43 @@ def _summary(
         support_quote_unlocatable=support_quote_unlocatable,
         claim_normalization_failed=claim_normalization_failed,
         attribution_error=attribution_error,
-        unverified=(
-            verification_incomplete
-            + verification_not_run
-            + support_quote_unlocatable
-            + claim_normalization_failed
-            + attribution_error
+        unverified=claims_with_incomplete_execution,
+        truth_condition_claims=truth_condition_claims,
+        truth_condition_fully_supported=truth_condition_coverage[
+            ClaimCoverageState.FULLY_SUPPORTED
+        ],
+        truth_condition_partially_supported=truth_condition_coverage[
+            ClaimCoverageState.PARTIALLY_SUPPORTED
+        ],
+        truth_condition_mixed=truth_condition_coverage[
+            ClaimCoverageState.MIXED
+        ],
+        truth_condition_not_supported=truth_condition_coverage[
+            ClaimCoverageState.NOT_SUPPORTED
+        ],
+        truth_condition_contradicted=truth_condition_coverage[
+            ClaimCoverageState.CONTRADICTED
+        ],
+        truth_condition_conflicted=truth_condition_coverage[
+            ClaimCoverageState.CONFLICTED
+        ],
+        truth_condition_unresolved=truth_condition_coverage[
+            ClaimCoverageState.UNRESOLVED
+        ],
+        truth_condition_execution_complete=truth_condition_execution[
+            ExecutionCompleteness.COMPLETE
+        ],
+        truth_condition_execution_partial=truth_condition_execution[
+            ExecutionCompleteness.PARTIAL
+        ],
+        truth_condition_execution_failed=truth_condition_execution[
+            ExecutionCompleteness.FAILED
+        ],
+        truth_condition_execution_not_run=truth_condition_execution[
+            ExecutionCompleteness.NOT_RUN
+        ],
+        truth_condition_execution_incomplete_overlap=(
+            truth_condition_execution_incomplete_overlap
         ),
         settled_without_located_evidence=(
             settled_without_located_evidence
@@ -859,6 +1165,25 @@ def _summary_line(
         conflict = (
             "来源冲突 0（仅表示现有候选中未发现；未执行分歧探测）"
         )
+    truth_condition_summary = ""
+    if summary.truth_condition_claims:
+        truth_condition_summary = (
+            "真值条件覆盖："
+            f"完整支持 {summary.truth_condition_fully_supported}/"
+            f"{summary.truth_condition_claims}；"
+            f"部分支持 {summary.truth_condition_partially_supported}；"
+            f"支持与反驳并存 {summary.truth_condition_mixed}；"
+            f"未支持 {summary.truth_condition_not_supported}；"
+            f"整体反驳 {summary.truth_condition_contradicted}；"
+            f"条件冲突 {summary.truth_condition_conflicted}；"
+            f"未决 {summary.truth_condition_unresolved}；"
+            "真值条件执行："
+            f"完整 {summary.truth_condition_execution_complete}/"
+            f"{summary.truth_condition_claims}；"
+            f"部分 {summary.truth_condition_execution_partial}；"
+            f"失败 {summary.truth_condition_execution_failed}；"
+            f"未运行 {summary.truth_condition_execution_not_run}；"
+        )
     return (
         "> 证据摘要："
         f"{coverage_prefix}"
@@ -870,6 +1195,7 @@ def _summary_line(
         f"{summary.multiple_domain_proxy_support}；"
         f"经来源谱系评估的交叉支持 {summary.corroborated}；"
         f"无可定位支持引文 {summary.zero_located_support}；"
+        f"{truth_condition_summary}"
         f"{conflict}；"
         f"所检来源反驳 {summary.refuted}；"
         f"所检来源未支持 {summary.inspected_not_supporting}；"
@@ -1133,7 +1459,7 @@ def render_verified_report(
             continue
 
         relations = _renderable_relations(entry)
-        relation_numbers: list[tuple[VerifiedSourceRelation, int]] = []
+        relation_numbers: list[tuple[_RenderableEvidence, int]] = []
         for relation in relations:
             if relation.span is None or relation.source_quote is None:
                 continue
@@ -1163,6 +1489,7 @@ def render_verified_report(
                     semantic_verdicts=(relation.semantic_verdict,),
                     claim_ids=(claim.claim_id,),
                     claim_anchors=(claim.anchor_text,),
+                    element_ids=relation.element_ids,
                 )
                 footnote_by_key[key] = existing
             elif (
@@ -1197,6 +1524,11 @@ def render_verified_report(
                         "claim_anchors": tuple(
                             dict.fromkeys(
                                 (*existing.claim_anchors, claim.anchor_text)
+                            )
+                        ),
+                        "element_ids": tuple(
+                            dict.fromkeys(
+                                (*existing.element_ids, *relation.element_ids)
                             )
                         ),
                     }
@@ -1315,6 +1647,10 @@ def render_verified_report(
             for entry in verification.claims
             for relation in entry.relations
             if relation.is_formal_supporting_evidence
+            or any(
+                element.is_formal_supporting_evidence
+                for element in relation.element_relations
+            )
         }
     )
     if formal_support_relation_count == 0:

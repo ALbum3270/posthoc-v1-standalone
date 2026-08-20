@@ -26,6 +26,7 @@ from open_deep_research.harness.evidence_gap import (
 from open_deep_research.harness.jsonio import loads_lenient
 from open_deep_research.harness.ledger import ResearchLedger
 from open_deep_research.harness.tools import TavilyClient
+from open_deep_research.harness.truth_conditions import TruthConditionRegistry
 from open_deep_research.harness.verify import (
     ClaimVerification,
     VerificationModelClient,
@@ -633,6 +634,7 @@ async def run_disagreement_detection(
     budget: DisagreementBudget,
     attribution_settings: AttributionSettings | None = None,
     verification_settings: VerificationSettings | None = None,
+    truth_condition_registry: TruthConditionRegistry | None = None,
     corroboration_targets: Mapping[str, int] | None = None,
     estimate_input_tokens: Callable[[Any, str], int] | None = None,
     estimate_cost_usd: Callable[[Any, str], float] | None = None,
@@ -822,6 +824,7 @@ async def run_disagreement_detection(
         ),
         attribution_settings=attribution_settings,
         verification_settings=verification_settings,
+        truth_condition_registry=truth_condition_registry,
         corroboration_targets=corroboration_targets,
         estimate_input_tokens=estimate_input_tokens,
         estimate_cost_usd=estimate_cost_usd,

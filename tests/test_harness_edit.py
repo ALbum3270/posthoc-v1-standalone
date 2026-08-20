@@ -32,6 +32,13 @@ from open_deep_research.harness.edit import (
     revise_audited_draft,
 )
 from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
+from open_deep_research.harness.truth_conditions import (
+    ElementizationProposal,
+    ElementizationReview,
+    ElementizationSemanticStatus,
+    aggregate_truth_condition_claim,
+    build_truth_condition_registry,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
@@ -232,12 +239,34 @@ def test_editor_targets_unresolved_internal_evidence_obligations():
         ),
         normalization_status=ClaimNormalizationStatus.LOCATED,
     )
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.selected_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=(claim.selected_text,),
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=(claim.selected_text,),
+                rationale="The internal assertion is one complete condition.",
+            ),
+        ),
+    )
+    aggregate = aggregate_truth_condition_claim(
+        registry.entries[0],
+        (),
+        expected_source_ids=(),
+    )
     result = VerificationResult(
         claims=(
             _verification(
                 claim,
                 ClaimEvidenceState.INTERNAL_NOT_SUPPORTED,
-            ),
+            ).model_copy(update={"truth_condition_aggregate": aggregate}),
         )
     )
 
