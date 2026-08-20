@@ -335,6 +335,37 @@ def test_prompts_assign_semantics_to_models_and_ids_to_code() -> None:
     assert "domain" not in proposal_prompt.lower()
 
 
+def test_elementization_prompts_check_every_material_semantic_axis() -> None:
+    proposals = tuple(
+        _proposal(claim_id, f"condition for {claim_id}") for claim_id in CLAIMS
+    )
+    prompts = (
+        build_elementization_proposal_prompt(CLAIMS),
+        build_elementization_review_prompt(CLAIMS, proposals),
+    )
+    semantic_axes = (
+        "entity identity and relationship direction",
+        "number, unit, and comparison",
+        "attribution",
+        "negation and exception",
+        "time and order",
+        "causality",
+        "purpose, use, and disposition",
+        "modality, uncertainty, and qualification",
+    )
+
+    for prompt in prompts:
+        normalized = prompt.lower()
+        for axis in semantic_axes:
+            assert axis in normalized
+        assert "only retain material conditions actually asserted" in normalized
+        assert "omit an axis when it is not asserted" in normalized
+        assert "not a field-specific vocabulary" in normalized
+        assert "not code, must decide" in normalized
+        assert "do not add json keys or flags for the axes" in normalized
+        assert '"axis_checks"' not in normalized
+
+
 def test_formal_support_requires_located_supporting_evidence() -> None:
     with pytest.raises(ValidationError):
         ElementSourceAssessment(

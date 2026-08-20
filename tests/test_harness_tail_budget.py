@@ -35,7 +35,10 @@ def test_an_enhancement_pass_can_never_touch_the_tail_reserve():
     (
         "attribution",
         "evidence_obligation_resolution",
+        "truth_condition_elementization",
+        "post_edit_truth_condition_elementization",
         "post_edit_evidence_obligation_resolution",
+        "editorial_transaction_acceptance",
     ),
 )
 def test_a_mandatory_stage_may_consume_the_reserve_it_belongs_to(stage):
@@ -47,6 +50,12 @@ def test_a_mandatory_stage_may_consume_the_reserve_it_belongs_to(stage):
 
     # 0.04 of the 0.10 reserve is released for this call; 0.06 stays protected.
     assert protected == pytest.approx(0.06)
+
+
+def test_audit_and_controller_use_the_same_mandatory_stage_set():
+    tail = controller()
+
+    assert set(tail.audit().mandatory_stages) == tail.mandatory_stages
 
 
 def test_an_uncalibrated_mandatory_call_is_not_starved_by_its_own_reserve():

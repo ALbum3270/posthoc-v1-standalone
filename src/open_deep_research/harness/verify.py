@@ -81,6 +81,7 @@ _INDEPENDENCE_LIMITATIONS = (
     "unresolved_or_model_proposed_lineage_never_establishes_independence",
     "shared_upstream_evidence_can_limit_substantive_independence",
 )
+_ELEMENT_SUPPORT_PROJECTION_VERSION = "whole-claim-element-support-v2"
 
 
 class VerificationVerdict(str, Enum):
@@ -109,6 +110,9 @@ class ClaimEvidenceState(str, Enum):
     CORROBORATED = "corroborated"
     SUPPORTED_MULTIPLE_DOMAIN_PROXIES = "supported_multiple_domain_proxies"
     SUPPORTED_SINGLE_DOMAIN_PROXY = "supported_single_domain_proxy"
+    SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE = (
+        "supported_distributed_element_evidence"
+    )
     # Source compatibility for callers using former Python member names.
     SUPPORTED_SINGLE_PUBLISHER = "supported_single_domain_proxy"
     # Source compatibility for callers using the former Python member name.
@@ -420,8 +424,20 @@ class ClaimVerification(BaseModel):
     )
     relations: tuple[VerifiedSourceRelation, ...] = ()
     formal_supporting_evidence_count: int = Field(ge=0)
+    # These historical publisher fields count sources that each support the
+    # complete claim. Element-level evidence is disclosed separately so a
+    # union of partial sources cannot masquerade as whole-claim corroboration.
     publisher_domain_proxy_count: int = Field(ge=0)
     publisher_domain_proxies: tuple[str, ...] = ()
+    element_supporting_domain_proxy_count: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    element_supporting_domain_proxies: tuple[str, ...] = Field(
+        default=(),
+        exclude_if=lambda value: not value,
+    )
     independent_lineage_count: int = Field(default=0, ge=0)
     independent_lineage_ids: tuple[str, ...] = ()
     lineage_assessment_complete: bool = False
@@ -430,6 +446,175 @@ class ClaimVerification(BaseModel):
         default=None,
         exclude_if=lambda value: value is None,
     )
+    element_support_projection_version: str | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
+    historical_element_support_projection_reclassified: bool = Field(
+        default=False,
+        exclude_if=lambda value: not value,
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_historical_element_support_projection(
+        cls,
+        value: Any,
+    ) -> Any:
+        """Read the immediately preceding element-support projection safely.
+
+        That payload shape had a truth-condition aggregate but projected every
+        source supporting at least one element into the historical whole-claim
+        publisher fields.  The replacement schema separates whole-claim from
+        element-only support.  Migration is deliberately narrow: both new
+        element-support fields and the projection version must be absent, and
+        every old projected field must match the old deterministic algorithm.
+        Consequently a current, versioned payload with a tampered counter is
+        rejected by the normal after-validator rather than silently repaired.
+        """
+
+        if not isinstance(value, Mapping):
+            return value
+        if value.get("truth_condition_aggregate") is None:
+            return value
+        if value.get("element_support_projection_version") is not None:
+            return value
+        if (
+            "element_supporting_domain_proxy_count" in value
+            or "element_supporting_domain_proxies" in value
+        ):
+            return value
+
+        try:
+            claim = AtomicClaim.model_validate(value.get("claim"))
+            relations = tuple(
+                VerifiedSourceRelation.model_validate(relation)
+                for relation in value.get("relations", ())
+            )
+            aggregate = ClaimTruthConditionAggregate.model_validate(
+                value.get("truth_condition_aggregate")
+            )
+            historical_projection = _historical_aggregate_element_state(
+                claim,
+                relations,
+                aggregate,
+            )
+        except Exception:
+            # Preserve the original input so ordinary field validation reports
+            # the malformed payload instead of disguising it as a migration.
+            return value
+
+        obligation = claim.evidence_obligation
+        if obligation is not None and obligation.status in {
+            EvidenceObligationStatus.INTERNAL_SUPPORTED,
+            EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED,
+            EvidenceObligationStatus.UNRESOLVED,
+        }:
+            historical_state = {
+                EvidenceObligationStatus.INTERNAL_SUPPORTED: (
+                    ClaimEvidenceState.INTERNAL_SUPPORTED
+                ),
+                EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED: (
+                    ClaimEvidenceState.INTERNAL_NOT_SUPPORTED
+                ),
+                EvidenceObligationStatus.UNRESOLVED: (
+                    ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED
+                ),
+            }[obligation.status]
+            historical_projection = (
+                historical_state,
+                0,
+                (),
+                (),
+                False,
+            )
+
+        (
+            historical_state,
+            historical_formal_count,
+            historical_publishers,
+            historical_lineage_ids,
+            historical_lineage_complete,
+        ) = historical_projection
+        try:
+            supplied_state = ClaimEvidenceState(value.get("state"))
+        except (TypeError, ValueError):
+            return value
+        attribution_error_override = (
+            supplied_state is ClaimEvidenceState.ATTRIBUTION_ERROR
+            and not relations
+        )
+        historical_shape_matches = (
+            (supplied_state is historical_state or attribution_error_override)
+            and value.get("formal_supporting_evidence_count")
+            == historical_formal_count
+            and value.get("publisher_domain_proxy_count")
+            == len(historical_publishers)
+            and tuple(value.get("publisher_domain_proxies", ()))
+            == historical_publishers
+            and value.get("independent_lineage_count", 0)
+            == len(historical_lineage_ids)
+            and tuple(value.get("independent_lineage_ids", ()))
+            == historical_lineage_ids
+            and value.get("lineage_assessment_complete", False)
+            is historical_lineage_complete
+        )
+        if not historical_shape_matches:
+            return value
+
+        if obligation is not None and obligation.status in {
+            EvidenceObligationStatus.INTERNAL_SUPPORTED,
+            EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED,
+            EvidenceObligationStatus.UNRESOLVED,
+        }:
+            current_projection = (
+                historical_state,
+                0,
+                (),
+                (),
+                (),
+                False,
+            )
+        else:
+            current_projection = _aggregate_element_state(
+                claim,
+                relations,
+                aggregate,
+            )
+        (
+            current_state,
+            current_formal_count,
+            current_publishers,
+            current_element_publishers,
+            current_lineage_ids,
+            current_lineage_complete,
+        ) = current_projection
+        if attribution_error_override:
+            current_state = ClaimEvidenceState.ATTRIBUTION_ERROR
+
+        migrated = dict(value)
+        migrated.update(
+            {
+                "state": current_state.value,
+                "formal_supporting_evidence_count": current_formal_count,
+                "publisher_domain_proxy_count": len(current_publishers),
+                "publisher_domain_proxies": current_publishers,
+                "element_supporting_domain_proxy_count": len(
+                    current_element_publishers
+                ),
+                "element_supporting_domain_proxies": (
+                    current_element_publishers
+                ),
+                "independent_lineage_count": len(current_lineage_ids),
+                "independent_lineage_ids": current_lineage_ids,
+                "lineage_assessment_complete": current_lineage_complete,
+                "element_support_projection_version": (
+                    _ELEMENT_SUPPORT_PROJECTION_VERSION
+                ),
+                "historical_element_support_projection_reclassified": True,
+            }
+        )
+        return migrated
 
     @model_validator(mode="after")
     def _aggregate_counts_match_evidence_state(self) -> ClaimVerification:
@@ -437,6 +622,12 @@ class ClaimVerification(BaseModel):
             self.publisher_domain_proxies
         ):
             raise ValueError("domain proxy count must match proxy IDs")
+        if self.element_supporting_domain_proxy_count != len(
+            self.element_supporting_domain_proxies
+        ):
+            raise ValueError(
+                "element-supporting domain proxy count must match proxy IDs"
+            )
         if self.independent_lineage_count != len(self.independent_lineage_ids):
             raise ValueError("lineage count must match lineage IDs")
         if (
@@ -451,11 +642,71 @@ class ClaimVerification(BaseModel):
         ):
             raise ValueError("multi-domain support requires two domain proxies")
         if (
+            self.state
+            is ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+            and (
+                self.formal_supporting_evidence_count != 0
+                or self.publisher_domain_proxy_count != 0
+                or self.element_supporting_domain_proxy_count < 1
+                or sum(
+                    any(
+                        element.is_formal_supporting_evidence
+                        for element in relation.element_relations
+                    )
+                    for relation in self.relations
+                )
+                < 2
+            )
+        ):
+            raise ValueError(
+                "distributed element support requires element-level evidence "
+                "and no whole-claim support relation"
+            )
+        if (
             self.truth_condition_aggregate is not None
             and self.truth_condition_aggregate.claim_id != self.claim.claim_id
         ):
             raise ValueError("truth-condition aggregate must belong to claim")
         aggregate = self.truth_condition_aggregate
+        if aggregate is None:
+            if self.element_support_projection_version is not None:
+                raise ValueError(
+                    "element-support projection version requires a "
+                    "truth-condition aggregate"
+                )
+            if self.historical_element_support_projection_reclassified:
+                raise ValueError(
+                    "historical element-support reclassification requires a "
+                    "truth-condition aggregate"
+                )
+        elif (
+            self.element_support_projection_version
+            != _ELEMENT_SUPPORT_PROJECTION_VERSION
+        ):
+            raise ValueError(
+                "truth-condition aggregate requires the current "
+                "element-support projection version"
+            )
+        if aggregate is None and (
+            self.state
+            is ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+            or self.element_supporting_domain_proxy_count != 0
+            or self.element_supporting_domain_proxies
+        ):
+            raise ValueError(
+                "element-level support requires a truth-condition aggregate"
+            )
+        if (
+            aggregate is not None
+            and self.state
+            is ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+            and aggregate.coverage_state
+            is not ClaimCoverageState.FULLY_SUPPORTED
+        ):
+            raise ValueError(
+                "distributed element support requires fully supported truth "
+                "conditions"
+            )
         if aggregate is not None:
             relation_source_ids = tuple(
                 relation.source_id for relation in self.relations
@@ -526,7 +777,7 @@ class ClaimVerification(BaseModel):
                         ClaimEvidenceState.EVIDENCE_OBLIGATION_UNRESOLVED
                     ),
                 }[obligation.status]
-                expected_projection = (expected_state, 0, (), (), False)
+                expected_projection = (expected_state, 0, (), (), (), False)
             else:
                 expected_projection = _aggregate_element_state(
                     self.claim,
@@ -537,6 +788,7 @@ class ClaimVerification(BaseModel):
                 expected_state,
                 expected_formal_count,
                 expected_publishers,
+                expected_element_publishers,
                 expected_lineage_ids,
                 expected_lineage_complete,
             ) = expected_projection
@@ -553,6 +805,10 @@ class ClaimVerification(BaseModel):
                 or self.publisher_domain_proxies != expected_publishers
                 or self.publisher_domain_proxy_count
                 != len(expected_publishers)
+                or self.element_supporting_domain_proxies
+                != expected_element_publishers
+                or self.element_supporting_domain_proxy_count
+                != len(expected_element_publishers)
                 or self.independent_lineage_ids != expected_lineage_ids
                 or self.independent_lineage_count
                 != len(expected_lineage_ids)
@@ -1971,7 +2227,7 @@ def _aggregate_state(
     return aggregate(ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT, 0, ())
 
 
-def _aggregate_element_state(
+def _historical_aggregate_element_state(
     claim: AtomicClaim,
     relations: Sequence[VerifiedSourceRelation],
     aggregate: ClaimTruthConditionAggregate,
@@ -1982,7 +2238,7 @@ def _aggregate_element_state(
     tuple[str, ...],
     bool,
 ]:
-    """Project the authoritative element aggregate onto legacy claim fields."""
+    """Reproduce the previous projection only to authenticate old payloads."""
 
     whole_formal_relations = tuple(
         relation for relation in relations if relation.is_formal_supporting_evidence
@@ -2033,6 +2289,107 @@ def _aggregate_element_state(
         return result(ClaimEvidenceState.NORMALIZATION_FAILED)
     if not relations:
         return result(ClaimEvidenceState.NO_CANDIDATE_SOURCE)
+    coverage = aggregate.coverage_state
+    if coverage is ClaimCoverageState.FULLY_SUPPORTED:
+        whole_lineages = {
+            relation.source_lineage.lineage_id
+            for relation in whole_formal_relations
+            if relation.source_lineage is not None
+            and relation.source_lineage.establishes_independence
+        }
+        if len(whole_lineages) >= 2:
+            return result(ClaimEvidenceState.CORROBORATED)
+        if len(publishers) >= 2:
+            return result(ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES)
+        return result(ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY)
+    if coverage in {
+        ClaimCoverageState.CONFLICTED,
+        ClaimCoverageState.MIXED,
+    }:
+        return result(ClaimEvidenceState.CONFLICTING_EVIDENCE)
+    if coverage is ClaimCoverageState.CONTRADICTED:
+        return result(ClaimEvidenceState.REFUTED)
+    if coverage in {
+        ClaimCoverageState.PARTIALLY_SUPPORTED,
+        ClaimCoverageState.NOT_SUPPORTED,
+    }:
+        return result(ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT)
+    return result(ClaimEvidenceState.VERIFICATION_INCOMPLETE)
+
+
+def _aggregate_element_state(
+    claim: AtomicClaim,
+    relations: Sequence[VerifiedSourceRelation],
+    aggregate: ClaimTruthConditionAggregate,
+) -> tuple[
+    ClaimEvidenceState,
+    int,
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[str, ...],
+    bool,
+]:
+    """Project element evidence without inflating whole-claim support counts."""
+
+    whole_formal_relations = tuple(
+        relation for relation in relations if relation.is_formal_supporting_evidence
+    )
+    supporting_relations = tuple(
+        relation
+        for relation in relations
+        if any(
+            element.is_formal_supporting_evidence
+            for element in relation.element_relations
+        )
+    )
+    whole_publishers = tuple(
+        sorted(
+            {
+                relation.publisher_domain_proxy
+                for relation in whole_formal_relations
+            }
+        )
+    )
+    element_publishers = tuple(
+        sorted({relation.publisher_domain_proxy for relation in supporting_relations})
+    )
+    lineage_ids = tuple(
+        sorted(
+            {
+                relation.source_lineage.lineage_id
+                for relation in whole_formal_relations
+                if relation.source_lineage is not None
+                and relation.source_lineage.establishes_independence
+            }
+        )
+    )
+    lineage_complete = bool(whole_formal_relations) and all(
+        relation.source_lineage is not None
+        and relation.source_lineage.status is SourceLineageStatus.CONFIRMED
+        for relation in whole_formal_relations
+    )
+
+    def result(state: ClaimEvidenceState) -> tuple[
+        ClaimEvidenceState,
+        int,
+        tuple[str, ...],
+        tuple[str, ...],
+        tuple[str, ...],
+        bool,
+    ]:
+        return (
+            state,
+            len(whole_formal_relations),
+            whole_publishers,
+            element_publishers,
+            lineage_ids,
+            lineage_complete,
+        )
+
+    if claim.normalization_status is ClaimNormalizationStatus.NORMALIZATION_FAILED:
+        return result(ClaimEvidenceState.NORMALIZATION_FAILED)
+    if not relations:
+        return result(ClaimEvidenceState.NO_CANDIDATE_SOURCE)
 
     coverage = aggregate.coverage_state
     if coverage is ClaimCoverageState.FULLY_SUPPORTED:
@@ -2047,9 +2404,13 @@ def _aggregate_element_state(
         }
         if len(whole_lineages) >= 2:
             return result(ClaimEvidenceState.CORROBORATED)
-        if len(publishers) >= 2:
+        if len(whole_publishers) >= 2:
             return result(ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES)
-        return result(ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY)
+        if whole_formal_relations:
+            return result(ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY)
+        return result(
+            ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+        )
     if coverage in {
         ClaimCoverageState.CONFLICTED,
         ClaimCoverageState.MIXED,
@@ -2104,6 +2465,7 @@ def build_claim_verification(
         }[obligation.status]
         formal_count = 0
         publishers = ()
+        element_publishers = ()
         lineage_ids = ()
         lineage_complete = False
     else:
@@ -2115,11 +2477,13 @@ def build_claim_verification(
                 lineage_ids,
                 lineage_complete,
             ) = _aggregate_state(claim, ordered_relations)
+            element_publishers = ()
         else:
             (
                 state,
                 formal_count,
                 publishers,
+                element_publishers,
                 lineage_ids,
                 lineage_complete,
             ) = _aggregate_element_state(
@@ -2140,10 +2504,17 @@ def build_claim_verification(
         formal_supporting_evidence_count=formal_count,
         publisher_domain_proxy_count=len(publishers),
         publisher_domain_proxies=publishers,
+        element_supporting_domain_proxy_count=len(element_publishers),
+        element_supporting_domain_proxies=element_publishers,
         independent_lineage_count=len(lineage_ids),
         independent_lineage_ids=lineage_ids,
         lineage_assessment_complete=lineage_complete,
         truth_condition_aggregate=truth_condition_aggregate,
+        element_support_projection_version=(
+            _ELEMENT_SUPPORT_PROJECTION_VERSION
+            if truth_condition_aggregate is not None
+            else None
+        ),
     )
 
 

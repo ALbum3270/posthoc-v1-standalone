@@ -2610,6 +2610,7 @@ async def run_harness(
     post_edit_candidate_attribution: AttributionResult | None = None
     post_edit_candidate_verification: VerificationResult | None = None
     post_edit_candidate_reconciliation: ChecklistReportReconciliation | None = None
+    post_edit_transaction_prerequisites_complete = False
 
     if editor_model is not None:
         editorial_admission = audit_editorial_admission(
@@ -3247,13 +3248,29 @@ async def run_harness(
             # A complete negative review is a successful rollback; any protocol,
             # provider, or budget failure also rolls back while preserving the
             # candidate audit below.
-            transaction_prerequisites = (
+            transaction_registries_available = (
                 post_claims is not None
                 and post_attribution is not None
                 and post_verification is not None
                 and post_reconciliation is not None
             )
-            if transaction_prerequisites:
+            transaction_prerequisite_stage_names = tuple(
+                stage
+                for stage in post_edit_required_stages
+                if stage != "editorial_transaction_acceptance"
+            )
+            incomplete_transaction_prerequisite_stages = tuple(
+                stage
+                for stage in transaction_prerequisite_stage_names
+                if stage not in stage_records
+                or stage_records[stage].status
+                is not StageExecutionStatus.COMPLETE
+            )
+            post_edit_transaction_prerequisites_complete = (
+                transaction_registries_available
+                and not incomplete_transaction_prerequisite_stages
+            )
+            if post_edit_transaction_prerequisites_complete:
                 budgeted_transaction_model = run_cost.wrap(
                     verification_model,
                     stage="editorial_transaction_acceptance",
@@ -3360,6 +3377,24 @@ async def run_harness(
                     )
                 )
             else:
+                incomplete_stage_detail = ", ".join(
+                    (
+                        f"{stage}="
+                        f"{stage_records[stage].status.value}"
+                        if stage in stage_records
+                        else f"{stage}=missing"
+                    )
+                    for stage in incomplete_transaction_prerequisite_stages
+                )
+                transaction_diagnostic = (
+                    "editorial_transaction_not_run: candidate re-audit "
+                    "prerequisite stages did not all complete; candidate "
+                    f"rolled back ({incomplete_stage_detail})"
+                    if incomplete_stage_detail
+                    else "editorial_transaction_not_run: candidate re-audit "
+                    "did not produce every required registry; candidate "
+                    "rolled back"
+                )
                 editorial_transaction = EditorialTransactionAudit(
                     original_draft_sha256=hashlib.sha256(
                         pre_edit_draft.encode("utf-8")
@@ -3367,10 +3402,7 @@ async def run_harness(
                     proposed_draft_sha256=hashlib.sha256(
                         proposed_draft.encode("utf-8")
                     ).hexdigest(),
-                    diagnostics=(
-                        "editorial_transaction_not_run: candidate re-audit "
-                        "did not produce every required registry",
-                    ),
+                    diagnostics=(transaction_diagnostic,),
                 )
                 stage_records["editorial_transaction_acceptance"] = (
                     _scope_record(
@@ -3383,7 +3415,10 @@ async def run_harness(
                     )
                 )
 
-            if editorial_transaction.may_commit:
+            if (
+                post_edit_transaction_prerequisites_complete
+                and editorial_transaction.may_commit
+            ):
                 report = report.model_copy(
                     update={"canonical_draft": proposed_draft}
                 )
@@ -3411,7 +3446,11 @@ async def run_harness(
             )
         elif (
             editorial_revision is not None
-            and editorial_revision.committed_after_reaudit
+            and post_edit_transaction_prerequisites_complete
+            and editorial_transaction is not None
+            and editorial_transaction.result is not None
+            and editorial_transaction.result.execution_status
+            is TransactionExecutionStatus.COMPLETE
         ):
             tail_reserve.checkpoint(
                 TailCheckpointName.MANDATORY_TAIL_COMPLETE,

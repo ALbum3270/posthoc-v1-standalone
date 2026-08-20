@@ -29,6 +29,7 @@ from open_deep_research.harness.truth_conditions import (
     ClaimCoverageState,
     ElementAssessmentExecutionStatus,
     ElementVerificationVerdict,
+    ElementizationSemanticStatus,
     ExecutionCompleteness,
 )
 from open_deep_research.harness.verify import (
@@ -243,6 +244,16 @@ class EvidenceSummary(BaseModel):
             "multi_publisher_support",
         ),
     )
+    element_level_support: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    distributed_element_support: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
     zero_located_support: int = Field(
         ge=0,
         validation_alias=AliasChoices(
@@ -330,6 +341,26 @@ class EvidenceSummary(BaseModel):
         ge=0,
         exclude_if=lambda value: value == 0,
     )
+    truth_condition_elementization_complete: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_elementization_incomplete: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_elementization_uncertain: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
+    truth_condition_elementization_unresolved: int = Field(
+        default=0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+    )
     settled_without_located_evidence: int = Field(ge=0)
     settled_without_located_evidence_item_ids: tuple[str, ...] = ()
     rejected_exhausted_without_collection_attempt: int = Field(ge=0)
@@ -371,6 +402,7 @@ class EvidenceSummary(BaseModel):
         if (
             self.single_domain_proxy_support
             + self.multiple_domain_proxy_support
+            + self.element_level_support
             + self.zero_located_support
             != self.external_claims
         ):
@@ -380,9 +412,15 @@ class EvidenceSummary(BaseModel):
         if self.claims_with_located_support != (
             self.single_domain_proxy_support
             + self.multiple_domain_proxy_support
+            + self.element_level_support
         ):
             raise ValueError(
                 "located-support total must match publisher-support counts"
+            )
+        if self.distributed_element_support > self.element_level_support:
+            raise ValueError(
+                "distributed element support must be a subset of "
+                "element-level support"
             )
         truth_condition_partition = (
             self.truth_condition_fully_supported
@@ -410,6 +448,19 @@ class EvidenceSummary(BaseModel):
         if truth_condition_execution_partition != self.truth_condition_claims:
             raise ValueError(
                 "truth-condition execution counts must partition their claims"
+            )
+        elementization_partition = (
+            self.truth_condition_elementization_complete
+            + self.truth_condition_elementization_incomplete
+            + self.truth_condition_elementization_uncertain
+            + self.truth_condition_elementization_unresolved
+        )
+        # A zero partition is the historical payload shape from before this
+        # disclosure existed. New summaries always emit a complete partition.
+        if elementization_partition not in {0, self.truth_condition_claims}:
+            raise ValueError(
+                "truth-condition elementization counts must partition their "
+                "claims"
             )
         return self
 
@@ -824,6 +875,31 @@ def _unverified_reasons(verification: ClaimVerification) -> tuple[str, ...]:
     )
 
 
+def _truth_condition_process_limitations(
+    verification: ClaimVerification,
+) -> tuple[str, ...]:
+    """Return non-verdict limitations that must survive label formatting."""
+
+    aggregate = verification.truth_condition_aggregate
+    if aggregate is None:
+        return ()
+    details: list[str] = []
+    semantic_status = aggregate.elementization_semantic_status
+    if semantic_status is ElementizationSemanticStatus.INCOMPLETE:
+        details.append("真值条件拆分不完整")
+    elif semantic_status is ElementizationSemanticStatus.UNCERTAIN:
+        details.append("真值条件拆分完整性未决")
+    execution_detail = {
+        ExecutionCompleteness.COMPLETE: None,
+        ExecutionCompleteness.PARTIAL: "真值条件核验执行部分完成",
+        ExecutionCompleteness.FAILED: "真值条件核验执行失败",
+        ExecutionCompleteness.NOT_RUN: "真值条件核验未运行",
+    }[aggregate.execution_completeness]
+    if execution_detail is not None:
+        details.append(execution_detail)
+    return tuple(details)
+
+
 def _warning_label(verification: ClaimVerification) -> str:
     state = verification.state
     # These states are decided before, or independently from, external source
@@ -846,7 +922,19 @@ def _warning_label(verification: ClaimVerification) -> str:
     if aggregate is not None:
         coverage = aggregate.coverage_state
         details: list[str] = []
-        if coverage is ClaimCoverageState.PARTIALLY_SUPPORTED:
+        semantic_status = aggregate.elementization_semantic_status
+        semantic_denominator_unresolved = semantic_status in {
+            ElementizationSemanticStatus.INCOMPLETE,
+            ElementizationSemanticStatus.UNCERTAIN,
+        }
+        if (
+            coverage is ClaimCoverageState.PARTIALLY_SUPPORTED
+            and semantic_denominator_unresolved
+        ):
+            details.append(
+                "真值条件支持结论仅覆盖已登记条件，不能视为完整断言支持"
+            )
+        elif coverage is ClaimCoverageState.PARTIALLY_SUPPORTED:
             details.append("部分真值条件获得支持，其余未获支持")
         elif coverage is ClaimCoverageState.MIXED:
             details.append("部分真值条件获得支持，另有条件被反驳")
@@ -858,14 +946,14 @@ def _warning_label(verification: ClaimVerification) -> str:
             details.append("真值条件来源冲突")
         elif coverage is ClaimCoverageState.UNRESOLVED:
             details.append("真值条件或其核验未决")
-        execution_detail = {
-            ExecutionCompleteness.COMPLETE: None,
-            ExecutionCompleteness.PARTIAL: "真值条件核验执行部分完成",
-            ExecutionCompleteness.FAILED: "真值条件核验执行失败",
-            ExecutionCompleteness.NOT_RUN: "真值条件核验未运行",
-        }[aggregate.execution_completeness]
-        if execution_detail is not None:
-            details.append(execution_detail)
+        details.extend(_truth_condition_process_limitations(verification))
+        if (
+            state
+            is ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+        ):
+            details.append(
+                "完整真值条件由不同来源分别支持，无单一来源支持整条断言"
+            )
         if details:
             return "〔" + "；".join(details) + "〕"
     if state == ClaimEvidenceState.CORROBORATED:
@@ -875,6 +963,14 @@ def _warning_label(verification: ClaimVerification) -> str:
         ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
     }:
         return ""
+    if (
+        state
+        is ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+    ):
+        # A truth-condition aggregate should have produced the more detailed
+        # branch above. Keep malformed historical callers visible rather than
+        # silently presenting distributed evidence as whole-claim support.
+        return "〔不同来源分别支持真值条件；无单一来源支持整条断言〕"
     if state == ClaimEvidenceState.CONFLICTING_EVIDENCE:
         return "〔来源冲突〕"
     if state == ClaimEvidenceState.REFUTED:
@@ -940,8 +1036,17 @@ def _summary(
         verification.publisher_domain_proxy_count >= 2
         for verification in external
     )
+    element_level_support = sum(
+        verification.publisher_domain_proxy_count == 0
+        and verification.element_supporting_domain_proxy_count > 0
+        for verification in external
+    )
+    distributed_element_support = count(
+        ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+    )
     zero_located_support = sum(
         verification.publisher_domain_proxy_count == 0
+        and verification.element_supporting_domain_proxy_count == 0
         for verification in external
     )
     truth_condition_coverage = {
@@ -962,6 +1067,22 @@ def _summary(
         )
         for state in ExecutionCompleteness
     }
+    truth_condition_elementization = {
+        state: sum(
+            verification.truth_condition_aggregate is not None
+            and verification.truth_condition_aggregate
+            .elementization_semantic_status
+            is state
+            for verification in external
+        )
+        for state in ElementizationSemanticStatus
+    }
+    truth_condition_elementization_unresolved = sum(
+        verification.truth_condition_aggregate is not None
+        and verification.truth_condition_aggregate.elementization_semantic_status
+        is None
+        for verification in external
+    )
     claims_with_incomplete_execution = sum(
         verification.state
         in {
@@ -995,10 +1116,14 @@ def _summary(
     return EvidenceSummary(
         external_claims=len(external),
         claims_with_located_support=(
-            single_domain_proxy_support + multiple_domain_proxy_support
+            single_domain_proxy_support
+            + multiple_domain_proxy_support
+            + element_level_support
         ),
         single_domain_proxy_support=single_domain_proxy_support,
         multiple_domain_proxy_support=multiple_domain_proxy_support,
+        element_level_support=element_level_support,
+        distributed_element_support=distributed_element_support,
         zero_located_support=zero_located_support,
         corroborated=count(ClaimEvidenceState.CORROBORATED),
         conflicting=count(ClaimEvidenceState.CONFLICTING_EVIDENCE),
@@ -1049,6 +1174,24 @@ def _summary(
         ],
         truth_condition_execution_incomplete_overlap=(
             truth_condition_execution_incomplete_overlap
+        ),
+        truth_condition_elementization_complete=(
+            truth_condition_elementization[
+                ElementizationSemanticStatus.COMPLETE
+            ]
+        ),
+        truth_condition_elementization_incomplete=(
+            truth_condition_elementization[
+                ElementizationSemanticStatus.INCOMPLETE
+            ]
+        ),
+        truth_condition_elementization_uncertain=(
+            truth_condition_elementization[
+                ElementizationSemanticStatus.UNCERTAIN
+            ]
+        ),
+        truth_condition_elementization_unresolved=(
+            truth_condition_elementization_unresolved
         ),
         settled_without_located_evidence=(
             settled_without_located_evidence
@@ -1166,7 +1309,21 @@ def _summary_line(
             "来源冲突 0（仅表示现有候选中未发现；未执行分歧探测）"
         )
     truth_condition_summary = ""
+    support_scope_summary = (
+        f"单一域名代理支持 {summary.single_domain_proxy_support}；"
+        "多个域名代理支持（不表示来源独立） "
+        f"{summary.multiple_domain_proxy_support}；"
+    )
     if summary.truth_condition_claims:
+        support_scope_summary = (
+            "单一域名代理整条断言支持 "
+            f"{summary.single_domain_proxy_support}；"
+            "多个域名代理各自整条断言支持（不表示来源独立） "
+            f"{summary.multiple_domain_proxy_support}；"
+            f"仅真值条件级支持 {summary.element_level_support}"
+            "（其中跨来源分布式完整覆盖 "
+            f"{summary.distributed_element_support}）；"
+        )
         truth_condition_summary = (
             "真值条件覆盖："
             f"完整支持 {summary.truth_condition_fully_supported}/"
@@ -1183,6 +1340,13 @@ def _summary_line(
             f"部分 {summary.truth_condition_execution_partial}；"
             f"失败 {summary.truth_condition_execution_failed}；"
             f"未运行 {summary.truth_condition_execution_not_run}；"
+            "真值条件拆分语义审查："
+            f"完整 {summary.truth_condition_elementization_complete}/"
+            f"{summary.truth_condition_claims}；"
+            f"不完整 {summary.truth_condition_elementization_incomplete}；"
+            f"完整性未决 {summary.truth_condition_elementization_uncertain}；"
+            f"未取得语义结论 "
+            f"{summary.truth_condition_elementization_unresolved}；"
         )
     return (
         "> 证据摘要："
@@ -1190,9 +1354,7 @@ def _summary_line(
         f"{claim_scope}外部可核验断言 {summary.external_claims}；"
         f"其中 {summary.claims_with_located_support} 条有至少一条"
         "可定位的支持引文；"
-        f"单一域名代理支持 {summary.single_domain_proxy_support}；"
-        "多个域名代理支持（不表示来源独立） "
-        f"{summary.multiple_domain_proxy_support}；"
+        f"{support_scope_summary}"
         f"经来源谱系评估的交叉支持 {summary.corroborated}；"
         f"无可定位支持引文 {summary.zero_located_support}；"
         f"{truth_condition_summary}"
@@ -1564,6 +1726,9 @@ def render_verified_report(
                 if pieces
                 else warning
             )
+            process_limitations = _truth_condition_process_limitations(entry)
+            if pieces and process_limitations:
+                suffix += "〔" + "；".join(process_limitations) + "〕"
         else:
             numbers = tuple(
                 dict.fromkeys(number for _, number in relation_numbers)

@@ -76,6 +76,7 @@ _TARGET_STATES = {
     ClaimEvidenceState.NO_CANDIDATE_SOURCE,
     ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
     ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
+    ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE,
     ClaimEvidenceState.CONFLICTING_EVIDENCE,
 }
 
@@ -903,6 +904,19 @@ def _publisher_proxy(url: str, fallback: str = "") -> str:
     return host or fallback.strip().casefold()
 
 
+def _supporting_publisher_proxy_sets(
+    target: ClaimVerification,
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    """Return whole-claim, element-level, and union publisher proxies."""
+
+    whole_claim = tuple(sorted(set(target.publisher_domain_proxies)))
+    element_level = tuple(
+        sorted(set(target.element_supporting_domain_proxies))
+    )
+    used = tuple(sorted(set(whole_claim) | set(element_level)))
+    return whole_claim, element_level, used
+
+
 def _identity_key(value: str) -> str:
     return "".join(
         character
@@ -923,37 +937,46 @@ def _identity_matches_proxy(identity: str, proxy: str) -> bool:
 def _target_payload(
     targets: Sequence[ClaimVerification],
 ) -> list[dict[str, Any]]:
-    return [
-        {
-            "claim_id": target.claim.claim_id,
-            "claim_text": target.claim.claim_text,
-            "state": target.state.value,
-            "truth_condition_aggregate": (
-                target.truth_condition_aggregate.model_dump(mode="json")
-                if target.truth_condition_aggregate is not None
-                else None
-            ),
-            "corroboration_target": target.corroboration_target,
-            "formal_publisher_domain_proxies": list(
-                target.publisher_domain_proxies
-            ),
-            "checked_sources": [
-                {
-                    "url": relation.url,
-                    "publisher_domain_proxy": (
-                        relation.publisher_domain_proxy
-                    ),
-                    "verdict": (
-                        relation.semantic_verdict.value
-                        if relation.semantic_verdict is not None
-                        else None
-                    ),
-                }
-                for relation in target.relations
-            ],
-        }
-        for target in targets
-    ]
+    payload: list[dict[str, Any]] = []
+    for target in targets:
+        whole_claim, element_level, used = _supporting_publisher_proxy_sets(
+            target
+        )
+        payload.append(
+            {
+                "claim_id": target.claim.claim_id,
+                "claim_text": target.claim.claim_text,
+                "state": target.state.value,
+                "truth_condition_aggregate": (
+                    target.truth_condition_aggregate.model_dump(mode="json")
+                    if target.truth_condition_aggregate is not None
+                    else None
+                ),
+                "corroboration_target": target.corroboration_target,
+                "whole_claim_supporting_publisher_domain_proxies": list(
+                    whole_claim
+                ),
+                "element_supporting_publisher_domain_proxies": list(
+                    element_level
+                ),
+                "used_supporting_publisher_domain_proxies": list(used),
+                "checked_sources": [
+                    {
+                        "url": relation.url,
+                        "publisher_domain_proxy": (
+                            relation.publisher_domain_proxy
+                        ),
+                        "verdict": (
+                            relation.semantic_verdict.value
+                            if relation.semantic_verdict is not None
+                            else None
+                        ),
+                    }
+                    for relation in target.relations
+                ],
+            }
+        )
+    return payload
 
 
 def build_evidence_gap_plan_prompt(
@@ -1348,7 +1371,8 @@ def _parse_plan(
             continue
         seen_hint_relations.add(relation_identity)
         target = target_by_id[hint.claim_id]
-        existing_publishers = set(target.publisher_domain_proxies)
+        _, _, used_publishers = _supporting_publisher_proxy_sets(target)
+        existing_publishers = set(used_publishers)
         note = note_by_id.get(hint.note_id)
         identity = hint.publisher_identity.strip().casefold()
         error: str | None = None
@@ -1612,12 +1636,16 @@ def _parse_reads(
             elif claim_id not in allowed_claim_ids:
                 claim_error = "claim was not routed to this URL by search"
             elif publisher_proxy in set(
-                target_by_id[claim_id].publisher_domain_proxies
+                _supporting_publisher_proxy_sets(
+                    target_by_id[claim_id]
+                )[2]
             ):
                 claim_error = "publisher domain proxy already supports this claim"
             elif any(
                 _identity_matches_proxy(proposal.publisher_identity, proxy)
-                for proxy in target_by_id[claim_id].publisher_domain_proxies
+                for proxy in _supporting_publisher_proxy_sets(
+                    target_by_id[claim_id]
+                )[2]
             ):
                 claim_error = "publisher identity matches an existing domain label"
             elif identity in identities_by_claim[claim_id]:
@@ -2154,6 +2182,7 @@ async def run_evidence_gap_round(
                     not in {
                         ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
                         ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
+                        ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE,
                     }
                     or result.publisher_domain_proxy_count
                     < result.corroboration_target

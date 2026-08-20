@@ -145,13 +145,14 @@ def test_changed_region_verification_failure_rolls_back_candidate_bytes(
     assert result.editorial_revision.committed_after_reaudit is False
     assert "A narrower supported fact." not in result.report.canonical_draft
     assert audit["post_edit_candidate"] is not None
-    assert audit["editorial_transaction"]["affected_scope"] is not None
+    assert audit["editorial_transaction"]["affected_scope"] is None
     assert audit["editorial_transaction"]["diagnostics"][0].startswith(
-        "editorial_transaction_changed_scope_incomplete:"
+        "editorial_transaction_not_run: candidate re-audit prerequisite "
+        "stages did not all complete"
     )
     assert audit["stage_execution"]["stages"][
         "editorial_transaction_acceptance"
-    ]["status"] == "failed"
+    ]["status"] == "not_run"
 
 
 def test_transaction_budget_denial_is_not_run_and_rolls_back(tmp_path):

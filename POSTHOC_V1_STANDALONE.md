@@ -40,4 +40,7 @@ addition to charged-usage preservation and recoverable provider failures, the
 live path now closes the truth-condition denominator, keeps semantic verdicts
 separate from execution completeness, preserves element intent through
 recovery, performs one bounded model-selected retry for oversized evidence
-spans, and rolls unsafe editorial proposals back while retaining their audit.
+spans, distinguishes whole-claim support from cross-source element coverage,
+and rolls unsafe editorial proposals back while retaining their audit. A
+completed semantic rollback closes the mandatory tail without pretending that
+the candidate edit was accepted.

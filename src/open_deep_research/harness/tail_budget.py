@@ -72,6 +72,7 @@ class EvidenceTailReserveAudit(BaseModel):
     stage_observations: tuple[TailStageObservation, ...] = ()
     mandatory_stages: tuple[str, ...] = (
         "claim_decomposition",
+        "truth_condition_elementization",
         "evidence_obligation_resolution",
         "attribution",
         "initial_verification",
@@ -79,10 +80,12 @@ class EvidenceTailReserveAudit(BaseModel):
         "deterministic_rendering",
         "audit_editing",
         "post_edit_claim_decomposition",
+        "post_edit_truth_condition_elementization",
         "post_edit_evidence_obligation_resolution",
         "post_edit_attribution",
         "post_edit_initial_verification",
         "post_edit_checklist_reconciliation",
+        "editorial_transaction_acceptance",
     )
     enhancement_stages: tuple[str, ...] = (
         "evidence_gap",
@@ -109,6 +112,7 @@ class EvidenceTailReserveController:
     mandatory_stages = frozenset(
         {
             "claim_decomposition",
+            "truth_condition_elementization",
             "evidence_obligation_resolution",
             "attribution",
             "initial_verification",
@@ -116,10 +120,12 @@ class EvidenceTailReserveController:
             "deterministic_rendering",
             "audit_editing",
             "post_edit_claim_decomposition",
+            "post_edit_truth_condition_elementization",
             "post_edit_evidence_obligation_resolution",
             "post_edit_attribution",
             "post_edit_initial_verification",
             "post_edit_checklist_reconciliation",
+            "editorial_transaction_acceptance",
         }
     )
     enhancement_stages = frozenset(

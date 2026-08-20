@@ -29,6 +29,7 @@ from open_deep_research.harness.truth_conditions import (
     ElementizationProposal,
     ElementizationReview,
     ElementizationSemanticStatus,
+    ExecutionCompleteness,
     aggregate_truth_condition_claim,
     build_truth_condition_registry,
 )
@@ -265,6 +266,359 @@ def test_truth_condition_summary_distinguishes_partial_from_full_support() -> No
     assert "〔部分真值条件获得支持，其余未获支持〕" in rendered.markdown
 
 
+def test_render_discloses_incomplete_or_uncertain_element_denominator() -> None:
+    for semantic_status, expected_label in (
+        (
+            ElementizationSemanticStatus.INCOMPLETE,
+            "真值条件拆分不完整",
+        ),
+        (
+            ElementizationSemanticStatus.UNCERTAIN,
+            "真值条件拆分完整性未决",
+        ),
+    ):
+        draft = f"Claim with {semantic_status.value} conditions."
+        claim = _claim(draft, f"claim-{semantic_status.value}", draft)
+        registry = build_truth_condition_registry(
+            {claim.claim_id: claim.claim_text},
+            proposals=(
+                ElementizationProposal(
+                    claim_id=claim.claim_id,
+                    elements=("One registered condition.",),
+                    rationale="proposal",
+                ),
+            ),
+            reviews=(
+                ElementizationReview(
+                    claim_id=claim.claim_id,
+                    semantic_status=semantic_status,
+                    elements=("One registered condition.",),
+                    missing_conditions=("The denominator is unresolved.",),
+                    rationale="independent review",
+                ),
+            ),
+        )
+        entry = registry.entries[0]
+        element = entry.elements[0]
+        assessment = ElementSourceAssessment(
+            claim_id=claim.claim_id,
+            element_id=element.element_id,
+            source_id="source-one",
+            execution_status=ElementAssessmentExecutionStatus.COMPLETE,
+            verdict=ElementVerificationVerdict.SUPPORTS,
+            evidence_located=True,
+            formal_supporting_evidence=True,
+        )
+        aggregate = aggregate_truth_condition_claim(
+            entry,
+            (assessment,),
+            expected_source_ids=("source-one",),
+        )
+        quote = "One registered condition."
+        relation = VerifiedSourceRelation(
+            claim_id=claim.claim_id,
+            source_id="source-one",
+            url="https://one.example/report",
+            publisher_domain_proxy="one.example",
+            candidate_note_ids=("note-one",),
+            candidate_source_ids=("source-one",),
+            status=VerificationRecordStatus.COMPLETED,
+            semantic_verdict=VerificationVerdict.NOT_ENOUGH_INFORMATION,
+            element_relations=(
+                VerifiedElementRelation(
+                    claim_id=claim.claim_id,
+                    element_id=element.element_id,
+                    element_text=element.text,
+                    source_id="source-one",
+                    status=ElementAssessmentExecutionStatus.COMPLETE,
+                    semantic_verdict=ElementVerificationVerdict.SUPPORTS,
+                    source_quote=quote,
+                    span=QuoteSpan(start_char=0, end_char=len(quote)),
+                    location_status=NoteLocationStatus.LOCATABLE,
+                    is_formal_supporting_evidence=True,
+                ),
+            ),
+        )
+        verification = build_claim_verification(
+            claim,
+            (relation,),
+            required_sources=2,
+            truth_condition_aggregate=aggregate,
+        )
+
+        rendered = render_verified_report(
+            draft,
+            VerificationResult(claims=(verification,)),
+        )
+
+        assert "仅覆盖已登记条件，不能视为完整断言支持" in rendered.markdown
+        assert expected_label in rendered.markdown
+        assert rendered.summary.element_level_support == 1
+        assert rendered.summary.zero_located_support == 0
+        assert "其余未获支持" not in rendered.markdown
+        if semantic_status is ElementizationSemanticStatus.INCOMPLETE:
+            assert rendered.summary.truth_condition_elementization_incomplete == 1
+        else:
+            assert rendered.summary.truth_condition_elementization_uncertain == 1
+
+
+def test_conflict_footnotes_preserve_elementization_and_execution_limits() -> None:
+    for semantic_status, expected_label in (
+        (
+            ElementizationSemanticStatus.INCOMPLETE,
+            "真值条件拆分不完整",
+        ),
+        (
+            ElementizationSemanticStatus.UNCERTAIN,
+            "真值条件拆分完整性未决",
+        ),
+    ):
+        draft = f"Conflicted claim with {semantic_status.value} conditions."
+        claim = _claim(draft, f"claim-conflict-{semantic_status.value}", draft)
+        registry = build_truth_condition_registry(
+            {claim.claim_id: claim.claim_text},
+            proposals=(
+                ElementizationProposal(
+                    claim_id=claim.claim_id,
+                    elements=("One registered condition.",),
+                    rationale="proposal",
+                ),
+            ),
+            reviews=(
+                ElementizationReview(
+                    claim_id=claim.claim_id,
+                    semantic_status=semantic_status,
+                    elements=("One registered condition.",),
+                    missing_conditions=(
+                        ("An asserted condition is missing.",)
+                        if semantic_status is ElementizationSemanticStatus.INCOMPLETE
+                        else ()
+                    ),
+                    rationale="independent review",
+                ),
+            ),
+        )
+        entry = registry.entries[0]
+        element = entry.elements[0]
+
+        def completed_relation(
+            source_id: str,
+            verdict: ElementVerificationVerdict,
+        ) -> VerifiedSourceRelation:
+            quote = (
+                "One registered condition."
+                if verdict is ElementVerificationVerdict.SUPPORTS
+                else "The registered condition did not occur."
+            )
+            child = VerifiedElementRelation(
+                claim_id=claim.claim_id,
+                element_id=element.element_id,
+                element_text=element.text,
+                source_id=source_id,
+                status=ElementAssessmentExecutionStatus.COMPLETE,
+                semantic_verdict=verdict,
+                source_quote=quote,
+                span=QuoteSpan(start_char=0, end_char=len(quote)),
+                location_status=NoteLocationStatus.LOCATABLE,
+                is_formal_supporting_evidence=(
+                    verdict is ElementVerificationVerdict.SUPPORTS
+                ),
+            )
+            return VerifiedSourceRelation(
+                claim_id=claim.claim_id,
+                source_id=source_id,
+                url=f"https://{source_id}.example/report",
+                publisher_domain_proxy=f"{source_id}.example",
+                candidate_note_ids=(f"note-{source_id}",),
+                candidate_source_ids=(source_id,),
+                status=VerificationRecordStatus.COMPLETED,
+                semantic_verdict=VerificationVerdict.NOT_ENOUGH_INFORMATION,
+                element_relations=(child,),
+            )
+
+        failed_child = VerifiedElementRelation(
+            claim_id=claim.claim_id,
+            element_id=element.element_id,
+            element_text=element.text,
+            source_id="source-failed",
+            status=ElementAssessmentExecutionStatus.MODEL_ERROR,
+            error="provider timeout",
+        )
+        failed_relation = VerifiedSourceRelation(
+            claim_id=claim.claim_id,
+            source_id="source-failed",
+            url="https://source-failed.example/report",
+            publisher_domain_proxy="source-failed.example",
+            candidate_note_ids=("note-source-failed",),
+            candidate_source_ids=("source-failed",),
+            status=VerificationRecordStatus.VERIFICATION_MODEL_ERROR,
+            error="provider timeout",
+            element_relations=(failed_child,),
+        )
+        relations = (
+            completed_relation(
+                "source-support",
+                ElementVerificationVerdict.SUPPORTS,
+            ),
+            completed_relation(
+                "source-contradict",
+                ElementVerificationVerdict.CONTRADICTS,
+            ),
+            failed_relation,
+        )
+        aggregate = aggregate_truth_condition_claim(
+            entry,
+            tuple(
+                child.as_assessment()
+                for relation in relations
+                for child in relation.element_relations
+            ),
+            expected_source_ids=(
+                "source-support",
+                "source-contradict",
+                "source-failed",
+            ),
+        )
+        verification = build_claim_verification(
+            claim,
+            relations,
+            required_sources=2,
+            truth_condition_aggregate=aggregate,
+        )
+
+        rendered = render_verified_report(
+            draft,
+            VerificationResult(claims=(verification,)),
+        )
+
+        assert verification.state is ClaimEvidenceState.CONFLICTING_EVIDENCE
+        assert aggregate.execution_completeness is ExecutionCompleteness.PARTIAL
+        assert "〔来源冲突：支持" in rendered.markdown
+        assert expected_label in rendered.markdown
+        assert "真值条件核验执行部分完成" in rendered.markdown
+
+
+def test_distributed_element_support_is_not_rendered_as_whole_claim_support() -> None:
+    draft = "Alpha acquired Beta for $2 billion."
+    claim = _claim(draft, "claim-distributed", draft)
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.claim_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=("Alpha acquired Beta.", "The price was $2 billion."),
+                rationale="proposal",
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=("Alpha acquired Beta.", "The price was $2 billion."),
+                rationale="independent review",
+            ),
+        ),
+    )
+    entry = registry.entries[0]
+    first_element, second_element = entry.elements
+
+    def element_relation(
+        *,
+        source_id: str,
+        element,
+        supports: bool,
+    ) -> VerifiedElementRelation:
+        quote = element.text if supports else None
+        return VerifiedElementRelation(
+            claim_id=claim.claim_id,
+            element_id=element.element_id,
+            element_text=element.text,
+            source_id=source_id,
+            status=ElementAssessmentExecutionStatus.COMPLETE,
+            semantic_verdict=(
+                ElementVerificationVerdict.SUPPORTS
+                if supports
+                else ElementVerificationVerdict.DOES_NOT_SUPPORT
+            ),
+            source_quote=quote,
+            span=(
+                QuoteSpan(start_char=0, end_char=len(quote))
+                if quote is not None
+                else None
+            ),
+            location_status=(
+                NoteLocationStatus.LOCATABLE if supports else None
+            ),
+            is_formal_supporting_evidence=supports,
+        )
+
+    relations = tuple(
+        VerifiedSourceRelation(
+            claim_id=claim.claim_id,
+            source_id=source_id,
+            url=f"https://{proxy}/report",
+            publisher_domain_proxy=proxy,
+            candidate_note_ids=(f"note-{source_id}",),
+            candidate_source_ids=(source_id,),
+            status=VerificationRecordStatus.COMPLETED,
+            semantic_verdict=VerificationVerdict.NOT_ENOUGH_INFORMATION,
+            element_relations=(
+                element_relation(
+                    source_id=source_id,
+                    element=first_element,
+                    supports=supports_first,
+                ),
+                element_relation(
+                    source_id=source_id,
+                    element=second_element,
+                    supports=not supports_first,
+                ),
+            ),
+        )
+        for source_id, proxy, supports_first in (
+            ("source-first", "first.example", True),
+            ("source-second", "second.example", False),
+        )
+    )
+    aggregate = aggregate_truth_condition_claim(
+        entry,
+        tuple(
+            element.as_assessment()
+            for relation in relations
+            for element in relation.element_relations
+        ),
+        expected_source_ids=("source-first", "source-second"),
+    )
+    verification = build_claim_verification(
+        claim,
+        relations,
+        required_sources=2,
+        truth_condition_aggregate=aggregate,
+    )
+
+    rendered = render_verified_report(
+        draft,
+        VerificationResult(claims=(verification,)),
+    )
+
+    assert verification.state is (
+        ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+    )
+    assert rendered.summary.single_domain_proxy_support == 0
+    assert rendered.summary.multiple_domain_proxy_support == 0
+    assert rendered.summary.element_level_support == 1
+    assert rendered.summary.distributed_element_support == 1
+    assert rendered.summary.claims_with_located_support == 1
+    assert rendered.summary.zero_located_support == 0
+    assert "多个域名代理各自整条断言支持（不表示来源独立） 0" in (
+        rendered.evidence_summary_line
+    )
+    assert "仅真值条件级支持 1（其中跨来源分布式完整覆盖 1）" in (
+        rendered.evidence_summary_line
+    )
+    assert "无单一来源支持整条断言" in rendered.markdown
+
+
 def test_full_truth_support_keeps_partial_execution_visible() -> None:
     draft = "Alpha acquired Beta."
     claim = _claim(draft, "claim-execution", draft)
@@ -427,6 +781,7 @@ def test_code_assigns_one_global_footnote_per_evidence_span() -> None:
     assert "多个域名代理支持（不表示来源独立） 0" in (
         rendered.evidence_summary_line
     )
+    assert "仅真值条件级支持" not in rendered.evidence_summary_line
     assert "经来源谱系评估的交叉支持 0" in rendered.evidence_summary_line
     assert "无可定位支持引文 0" in rendered.evidence_summary_line
     assert "1/2" not in rendered.markdown

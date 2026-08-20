@@ -107,6 +107,37 @@ class ReadSourceAudit(BaseModel):
     notes_for_checklist_item: int | None = Field(default=None, ge=0)
 
 
+class ElementOnlySupportUsageAudit(BaseModel):
+    """Sources used only for formal truth-condition evidence.
+
+    These relations are deliberately excluded from the whole-claim
+    concentration denominator.  Recording them separately prevents a source
+    that materially supports one registered condition from being mislabeled
+    as read-but-unused.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    counting_unit: Literal[
+        "formal_element_only_claim_source_relation"
+    ] = "formal_element_only_claim_source_relation"
+    claim_source_relation_count: int = Field(ge=1)
+    source_ids: tuple[str, ...] = Field(min_length=1)
+    publisher_domain_proxies: tuple[str, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _sets_are_canonical(self) -> ElementOnlySupportUsageAudit:
+        if self.source_ids != tuple(sorted(set(self.source_ids))):
+            raise ValueError("element-only source IDs must be sorted and unique")
+        if self.publisher_domain_proxies != tuple(
+            sorted(set(self.publisher_domain_proxies))
+        ):
+            raise ValueError(
+                "element-only publisher proxies must be sorted and unique"
+            )
+        return self
+
+
 class UnitDomainProxyConcentration(BaseModel):
     """Concentration and unused-source facts for one report unit."""
 
@@ -122,6 +153,10 @@ class UnitDomainProxyConcentration(BaseModel):
     distribution: DomainProxyDistribution
     is_single_publisher_domain_proxy_monopoly: bool
     monopoly_publisher_domain_proxy: str | None = None
+    element_only_support: ElementOnlySupportUsageAudit | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     read_but_unused_sources: tuple[ReadSourceAudit, ...] = ()
 
     @model_validator(mode="after")
@@ -161,6 +196,10 @@ class DomainProxyConcentrationAudit(BaseModel):
     is_viewpoint_diversity_determination: Literal[False] = False
     limitations: tuple[str, ...] = _LIMITATIONS
     overall: DomainProxyDistribution
+    element_only_support: ElementOnlySupportUsageAudit | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     sections: tuple[UnitDomainProxyConcentration, ...] = ()
     checklist_items: tuple[UnitDomainProxyConcentration, ...] = ()
     single_publisher_monopoly_section_ids: tuple[str, ...] = ()
@@ -283,6 +322,85 @@ def _formal_relations(
     )
 
 
+def _element_only_relations(
+    verification: VerificationResult,
+) -> tuple[
+    tuple[VerifiedSourceRelation, ...],
+    Mapping[str, tuple[VerifiedSourceRelation, ...]],
+    tuple[str, ...],
+]:
+    """Return claim-source relations used only at truth-condition scope."""
+
+    unique: dict[tuple[str, str], VerifiedSourceRelation] = {}
+    diagnostics: list[str] = []
+    for claim in verification.claims:
+        claim_id = claim.claim.claim_id
+        for relation in claim.relations:
+            if relation.is_formal_supporting_evidence or not any(
+                element.is_formal_supporting_evidence
+                for element in relation.element_relations
+            ):
+                continue
+            key = (claim_id, relation.source_id)
+            if key in unique:
+                diagnostics.append(
+                    "duplicate_element_only_claim_source_relation:"
+                    f"{claim_id}:{relation.source_id}"
+                )
+                continue
+            unique[key] = relation
+
+    ordered = tuple(
+        relation
+        for _, relation in sorted(
+            unique.items(),
+            key=lambda item: (
+                item[0][0],
+                item[0][1],
+                item[1].publisher_domain_proxy,
+            ),
+        )
+    )
+    by_claim: dict[str, list[VerifiedSourceRelation]] = defaultdict(list)
+    for (claim_id, _), relation in unique.items():
+        by_claim[claim_id].append(relation)
+    return (
+        ordered,
+        {
+            claim_id: tuple(
+                sorted(
+                    relations,
+                    key=lambda relation: (
+                        relation.publisher_domain_proxy,
+                        relation.source_id,
+                    ),
+                )
+            )
+            for claim_id, relations in by_claim.items()
+        },
+        tuple(diagnostics),
+    )
+
+
+def _element_only_usage(
+    relations: Sequence[VerifiedSourceRelation],
+) -> ElementOnlySupportUsageAudit | None:
+    if not relations:
+        return None
+    return ElementOnlySupportUsageAudit(
+        claim_source_relation_count=len(relations),
+        source_ids=tuple(sorted({relation.source_id for relation in relations})),
+        publisher_domain_proxies=tuple(
+            sorted(
+                {
+                    relation.publisher_domain_proxy
+                    for relation in relations
+                }
+            )
+        ),
+    )
+
+
 def _publisher_domain(url: str) -> str:
     host = (urlparse(url).hostname or "").strip(".").casefold()
     if host.startswith("www."):
@@ -338,6 +456,10 @@ def _unit(
         str,
         tuple[VerifiedSourceRelation, ...],
     ],
+    element_only_relations_by_claim: Mapping[
+        str,
+        tuple[VerifiedSourceRelation, ...],
+    ],
     source_cache: Mapping[str, str],
     notes: Sequence[ResearchNote],
 ) -> UnitDomainProxyConcentration:
@@ -350,8 +472,26 @@ def _unit(
         relation
         for _, relation in sorted(relation_by_key.items())
     )
+    element_relation_by_key: dict[
+        tuple[str, str], VerifiedSourceRelation
+    ] = {}
+    for claim_id in ordered_claim_ids:
+        for relation in element_only_relations_by_claim.get(claim_id, ()):
+            element_relation_by_key[(claim_id, relation.source_id)] = relation
+    element_only_relations = tuple(
+        relation
+        for _, relation in sorted(element_relation_by_key.items())
+    )
     distribution = _distribution(relations)
-    used_source_ids = {relation.source_id for relation in relations}
+    # The cache side is keyed by URL and derives its source identity with
+    # source_id_for_url().  Relation source_id remains an auditable provider
+    # identity, but the schema intentionally permits historical/external IDs
+    # that are not URL-derived.  Compare like with like so a formally used
+    # source cannot be mislabeled as read-but-unused.
+    used_source_ids = {
+        source_id_for_url(relation.url)
+        for relation in (*relations, *element_only_relations)
+    }
     monopoly = (
         distribution.formal_support_relation_count > 0
         and distribution.publisher_domain_proxy_count == 1
@@ -371,6 +511,7 @@ def _unit(
             if monopoly
             else None
         ),
+        element_only_support=_element_only_usage(element_only_relations),
         read_but_unused_sources=_read_sources(
             source_cache,
             notes,
@@ -391,6 +532,12 @@ def audit_domain_proxy_concentration(
     """Measure source concentration without assigning a success threshold."""
 
     formal, relations_by_claim, diagnostics = _formal_relations(verification)
+    (
+        element_only,
+        element_only_relations_by_claim,
+        element_diagnostics,
+    ) = _element_only_relations(verification)
+    diagnostics += element_diagnostics
     claim_by_id = {
         claim.claim.claim_id: claim.claim for claim in verification.claims
     }
@@ -426,6 +573,9 @@ def audit_domain_proxy_concentration(
                 block_ids=block_ids,
                 claim_ids=claim_ids,
                 relations_by_claim=relations_by_claim,
+                element_only_relations_by_claim=(
+                    element_only_relations_by_claim
+                ),
                 source_cache=source_cache,
                 notes=notes,
             )
@@ -454,6 +604,9 @@ def audit_domain_proxy_concentration(
                 block_ids=block_ids,
                 claim_ids=claim_ids,
                 relations_by_claim=relations_by_claim,
+                element_only_relations_by_claim=(
+                    element_only_relations_by_claim
+                ),
                 source_cache=source_cache,
                 notes=notes,
             )
@@ -461,6 +614,7 @@ def audit_domain_proxy_concentration(
 
     return DomainProxyConcentrationAudit(
         overall=_distribution(formal),
+        element_only_support=_element_only_usage(element_only),
         sections=tuple(sections),
         checklist_items=tuple(checklist_items),
         single_publisher_monopoly_section_ids=tuple(

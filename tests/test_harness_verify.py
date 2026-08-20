@@ -471,6 +471,11 @@ def test_groups_by_url_sorts_claim_ids_and_never_exceeds_twenty() -> None:
         for item in legacy_payload["claims"]
     )
     assert all(
+        "element_supporting_domain_proxy_count" not in item
+        and "element_supporting_domain_proxies" not in item
+        for item in legacy_payload["claims"]
+    )
+    assert all(
         "element_relations" not in relation
         for item in legacy_payload["claims"]
         for relation in item["relations"]
@@ -492,6 +497,8 @@ def test_groups_by_url_sorts_claim_ids_and_never_exceeds_twenty() -> None:
         claim.publisher_domain_proxy_count == 1
         for claim in result.claims
     )
+    restored = VerificationResult.model_validate(legacy_payload)
+    assert restored.model_dump(mode="json") == legacy_payload
     with pytest.raises(ValidationError):
         VerificationSettings(batch_size=21)
 
@@ -2036,11 +2043,56 @@ def test_element_support_can_close_claim_across_different_sources() -> None:
         verification.truth_condition_aggregate.coverage_state
         is ClaimCoverageState.FULLY_SUPPORTED
     )
-    assert verification.state is ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES
-    # The legacy counter retains its whole claim-source meaning. The two
-    # element-source supports remain in the nested aggregate instead.
+    assert verification.state is (
+        ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+    )
+    # Neither source supports the whole claim. The nested evidence union is
+    # retained separately instead of inflating whole-claim source counts.
     assert verification.formal_supporting_evidence_count == 0
-    assert verification.publisher_domain_proxy_count == 2
+    assert verification.publisher_domain_proxy_count == 0
+    assert verification.publisher_domain_proxies == ()
+    assert verification.element_supporting_domain_proxy_count == 2
+    assert verification.element_supporting_domain_proxies == (
+        "first-elements.example",
+        "second-elements.example",
+    )
+
+    # The immediately preceding audit schema projected every source supporting
+    # any element into the whole-claim publisher fields and had no projection
+    # version or element-support fields.  Preserve that exact historical shape
+    # as a real split-evidence compatibility fixture.
+    historical_payload = verification.model_dump(mode="json")
+    historical_payload.pop("element_support_projection_version")
+    historical_payload.pop("element_supporting_domain_proxy_count")
+    historical_payload.pop("element_supporting_domain_proxies")
+    historical_payload["state"] = (
+        ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES.value
+    )
+    historical_payload["publisher_domain_proxy_count"] = 2
+    historical_payload["publisher_domain_proxies"] = [
+        "first-elements.example",
+        "second-elements.example",
+    ]
+
+    restored = ClaimVerification.model_validate(historical_payload)
+
+    assert restored.state is (
+        ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+    )
+    assert restored.publisher_domain_proxy_count == 0
+    assert restored.element_supporting_domain_proxy_count == 2
+    assert restored.historical_element_support_projection_reclassified is True
+    assert restored.element_support_projection_version == (
+        "whole-claim-element-support-v2"
+    )
+
+    # A versioned current payload never enters migration.  Counter tampering is
+    # rejected instead of being silently recomputed from nested relations.
+    tampered_current = verification.model_dump(mode="json")
+    tampered_current["element_supporting_domain_proxy_count"] = 0
+    tampered_current["element_supporting_domain_proxies"] = []
+    with pytest.raises(ValidationError, match="element support|counters"):
+        ClaimVerification.model_validate(tampered_current)
 
 
 def test_element_denominator_error_recovers_only_the_bad_claim() -> None:

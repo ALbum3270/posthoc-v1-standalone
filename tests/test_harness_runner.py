@@ -936,6 +936,31 @@ class AuditEditVerificationModel:
         }
 
 
+class RollbackAuditEditVerificationModel(AuditEditVerificationModel):
+    """Complete the transaction denominator while rejecting the candidate."""
+
+    async def generate(self, prompt):
+        if prompt.startswith("Independently review one proposed edit"):
+            review = _evidence_review_response(prompt)
+            assert review is not None
+            payload = json.loads(review["content"])
+            for target in payload["targets"]:
+                target["outcome"] = "not_resolved"
+                target["rationale"] = "The proposed edit is not established safe."
+            for post_unit in payload["post_units"]:
+                post_unit["assessment"] = "degraded"
+                post_unit["rationale"] = "The proposed post unit is degraded."
+            payload["answer_preservation"] = "uncertain"
+            payload["answer_preservation_rationale"] = (
+                "The candidate does not establish a safe answer improvement."
+            )
+            return {
+                **review,
+                "content": json.dumps(payload),
+            }
+        return await super().generate(prompt)
+
+
 class AuditEditorModel:
     def __init__(self):
         self.prompts = []
@@ -2258,6 +2283,144 @@ def test_runner_reaudits_changed_draft_before_committing_editorial_revision(
     ]
 
 
+def test_complete_transaction_rollback_releases_tail_reserve(tmp_path):
+    from open_deep_research.harness.budget import RunCostBudget
+
+    events = []
+    url = "https://evidence.example/article"
+    verifier = RollbackAuditEditVerificationModel()
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=ReadThenSettleDecisionModel(events, url),
+            note_model=OneNoteModel(events),
+            write_model=AuditEditWriteModel(),
+            claim_model=ReauditClaimModel(),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=EvidenceAttributionModel(events, url),
+            verification_model=verifier,
+            editor_model=AuditEditorModel(),
+            tavily_client=ReadingTavily(url),
+            budget=LoopBudget(max_rounds=3, max_tokens=100, max_cost_usd=1),
+            run_cost_budget=RunCostBudget(
+                max_cost_usd=2.0,
+                evidence_tail_reserve_usd=0.5,
+            ),
+            output_dir=tmp_path,
+            run_id="complete-transaction-rollback",
+        )
+    )
+
+    assert result.editorial_revision is not None
+    assert result.editorial_revision.committed_after_reaudit is False
+    assert result.editorial_transaction is not None
+    assert result.editorial_transaction.result is not None
+    assert result.editorial_transaction.result.execution_status.value == "complete"
+    assert result.editorial_transaction.result.decision.value == "rollback"
+    assert result.report.canonical_draft == (
+        "# Report\n\nThe model added an unsupported detail."
+    )
+    assert result.evidence_tail_reserve.current_frozen_reserve_usd == 0.0
+    assert result.evidence_tail_reserve.checkpoints[-1].checkpoint.value == (
+        "mandatory_tail_complete"
+    )
+
+
+def test_partial_post_edit_reconciliation_blocks_transaction_and_keeps_reserve(
+    tmp_path,
+):
+    from open_deep_research.harness.budget import RunCostBudget
+
+    class SecondPassPartialCoverageModel(CoverageModel):
+        def __init__(self, events):
+            super().__init__(events)
+            self.calls = 0
+
+        async def generate(self, prompt):
+            self.calls += 1
+            if self.calls == 2:
+                self.events.append("reconciliation")
+                return {
+                    # The checklist item is omitted, so reconciliation returns
+                    # a durable result whose only record is assessment_failed.
+                    "content": json.dumps({"items": []}),
+                    "token_count": 4,
+                    "cost_usd": 0.01,
+                }
+            return await super().generate(prompt)
+
+    class TransactionTrackingVerificationModel(AuditEditVerificationModel):
+        def __init__(self):
+            super().__init__()
+            self.transaction_review_calls = 0
+
+        async def generate(self, prompt):
+            if prompt.startswith("Independently review one proposed edit"):
+                self.transaction_review_calls += 1
+            return await super().generate(prompt)
+
+    events = []
+    url = "https://evidence.example/article"
+    verifier = TransactionTrackingVerificationModel()
+    reconciliation = SecondPassPartialCoverageModel(events)
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=ReadThenSettleDecisionModel(events, url),
+            note_model=OneNoteModel(events),
+            write_model=AuditEditWriteModel(),
+            claim_model=ReauditClaimModel(),
+            reconciliation_model=reconciliation,
+            attribution_model=EvidenceAttributionModel(events, url),
+            verification_model=verifier,
+            editor_model=AuditEditorModel(),
+            tavily_client=ReadingTavily(url),
+            budget=LoopBudget(max_rounds=3, max_tokens=100, max_cost_usd=1),
+            run_cost_budget=RunCostBudget(
+                max_cost_usd=4.0,
+                evidence_tail_reserve_usd=1.5,
+            ),
+            output_dir=tmp_path,
+            run_id="partial-post-edit-reconciliation",
+        )
+    )
+
+    assert reconciliation.calls == 2
+    assert verifier.transaction_review_calls == 0
+    assert result.editorial_revision is not None
+    assert result.editorial_revision.committed_after_reaudit is False
+    assert result.editorial_transaction is not None
+    assert result.editorial_transaction.result is None
+    assert result.editorial_transaction.diagnostics == (
+        "editorial_transaction_not_run: candidate re-audit prerequisite stages "
+        "did not all complete; candidate rolled back "
+        "(post_edit_checklist_reconciliation=partial)",
+    )
+    assert result.report.canonical_draft == (
+        "# Report\n\nThe model added an unsupported detail."
+    )
+    assert result.evidence_tail_reserve.current_frozen_reserve_usd > 0.0
+    assert all(
+        checkpoint.checkpoint.value != "mandatory_tail_complete"
+        for checkpoint in result.evidence_tail_reserve.checkpoints
+    )
+
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    posthoc = audit["posthoc_evidence"]
+    stages = posthoc["stage_execution"]["stages"]
+    assert stages["post_edit_checklist_reconciliation"]["status"] == "partial"
+    assert stages["editorial_transaction_acceptance"]["status"] == "not_run"
+    assert posthoc["post_edit_candidate"][
+        "checklist_report_reconciliation"
+    ]["summary"]["assessment_failed_items"] == 1
+    assert posthoc["post_edit_candidate"]["committed"] is False
+    assert result.pipeline_complete is False
+
+
 def test_runner_edits_no_candidate_claim_using_adjacent_block_evidence(
     tmp_path,
 ):
@@ -2388,10 +2551,10 @@ def test_runner_reaudits_whole_draft_after_partial_block_edit(tmp_path):
         assert stages[stage]["status"] == "complete", stage
 
 
-def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(
+def test_runner_rolls_back_edit_when_global_candidate_reaudit_is_partial(
     tmp_path,
 ):
-    """Unrelated audit failure cannot veto safe bytes or earn publication."""
+    """A partial mandatory candidate audit cannot authorize changed bytes."""
 
     events = []
     url = "https://evidence.example/article"
@@ -2426,9 +2589,9 @@ def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(
         "claim-0002",
     )
     assert result.editorial_revision is not None
-    assert result.editorial_revision.committed_after_reaudit is True
+    assert result.editorial_revision.committed_after_reaudit is False
     assert result.report.canonical_draft == (
-        "# Report\n\nA narrower supported fact.\n\n"
+        "# Report\n\nThe model added an unsupported detail.\n\n"
         "A separate audited assertion."
     )
     assert len(editor.prompts) == 1
@@ -2436,6 +2599,9 @@ def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(
     assert result.pipeline_complete is False
     assert result.quality_review_passed is None
     assert result.publication_eligible is False
+    assert result.verification.claims[0].state is (
+        ClaimEvidenceState.CITED_SOURCES_DO_NOT_SUPPORT
+    )
     assert result.verification.claims[1].state is (
         ClaimEvidenceState.VERIFICATION_INCOMPLETE
     )
@@ -2452,7 +2618,15 @@ def test_runner_commits_locally_safe_edit_but_keeps_global_publication_gate(
     assert posthoc["stage_execution"]["stages"][
         "post_edit_initial_verification"
     ]["status"] == "partial"
-    assert posthoc["editorial_revision"]["committed_after_reaudit"] is True
+    assert posthoc["stage_execution"]["stages"][
+        "editorial_transaction_acceptance"
+    ]["status"] == "not_run"
+    assert posthoc["editorial_transaction"]["result"] is None
+    assert posthoc["editorial_transaction"]["diagnostics"][0].startswith(
+        "editorial_transaction_not_run: candidate re-audit prerequisite "
+        "stages did not all complete"
+    )
+    assert posthoc["editorial_revision"]["committed_after_reaudit"] is False
     assert audit["canonical_draft"] == result.report.canonical_draft
     assert audit["pipeline_complete"] is False
     assert audit["quality_review_passed"] is None

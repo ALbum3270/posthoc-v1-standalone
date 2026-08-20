@@ -333,6 +333,23 @@ Compact cached-note registry:
 """
 
 
+def _supporting_publisher_proxy_payload(
+    entry: ClaimVerification,
+) -> dict[str, list[str]]:
+    """Keep whole-claim and truth-condition source use distinguishable."""
+
+    whole_claim = tuple(sorted(set(entry.publisher_domain_proxies)))
+    element_level = tuple(
+        sorted(set(entry.element_supporting_domain_proxies))
+    )
+    used = tuple(sorted(set(whole_claim) | set(element_level)))
+    return {
+        "whole_claim_supporting_publisher_domain_proxies": list(whole_claim),
+        "element_supporting_publisher_domain_proxies": list(element_level),
+        "used_supporting_publisher_domain_proxies": list(used),
+    }
+
+
 def build_disagreement_selection_prompt(
     claims: Sequence[ClaimVerification],
     *,
@@ -345,9 +362,7 @@ def build_disagreement_selection_prompt(
             "claim_id": entry.claim.claim_id,
             "claim_text": entry.claim.claim_text,
             "evidence_state": entry.state.value,
-            "publisher_domain_proxies": list(
-                entry.publisher_domain_proxies
-            ),
+            **_supporting_publisher_proxy_payload(entry),
             "completed_verdicts": [
                 relation.semantic_verdict.value
                 for relation in entry.relations
@@ -390,9 +405,7 @@ def build_disagreement_plan_prompt(
         {
             "claim_id": target.claim.claim_id,
             "claim_text": target.claim.claim_text,
-            "existing_publisher_domain_proxies": list(
-                target.publisher_domain_proxies
-            ),
+            **_supporting_publisher_proxy_payload(target),
         }
         for target in targets
     ]

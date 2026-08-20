@@ -25,6 +25,7 @@ from open_deep_research.harness.disagreement import (
     DisagreementStopReason,
     PosthocRetrievalBudget,
     _attempts,
+    build_disagreement_plan_prompt,
     build_disagreement_selection_prompt,
     run_disagreement_detection,
     shared_posthoc_budget_audit,
@@ -194,6 +195,38 @@ def test_selection_is_neutral_and_excludes_non_external_claims() -> None:
         verdict.value in prompt for verdict in VerificationVerdict
     )
     assert "Zero conflicts\nis a normal result" in prompt
+
+
+def test_prompts_distinguish_whole_claim_and_element_support_publishers() -> None:
+    report = "# Report\n\nA measured value was reported."
+    claim = _claim(report)
+    _, verification = _initial((claim,))
+    entry = verification.claims[0].model_copy(
+        update={
+            "publisher_domain_proxy_count": 1,
+            "publisher_domain_proxies": ("whole.example",),
+            "element_supporting_domain_proxy_count": 1,
+            "element_supporting_domain_proxies": ("element.example",),
+        }
+    )
+
+    selection_prompt = build_disagreement_selection_prompt(
+        (entry,),
+        max_claims=1,
+    )
+    plan_prompt = build_disagreement_plan_prompt(
+        targets=(entry,),
+        notes=(),
+        checklist=_checklist(),
+        max_queries=1,
+    )
+
+    for prompt in (selection_prompt, plan_prompt):
+        assert "whole_claim_supporting_publisher_domain_proxies" in prompt
+        assert "element_supporting_publisher_domain_proxies" in prompt
+        assert "used_supporting_publisher_domain_proxies" in prompt
+        assert "whole.example" in prompt
+        assert "element.example" in prompt
 
 
 def test_finance_13_malformed_selection_is_charged_and_retried_once() -> None:

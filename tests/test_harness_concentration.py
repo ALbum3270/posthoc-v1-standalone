@@ -27,13 +27,24 @@ from open_deep_research.harness.reconcile import (
     CoverageAssessmentStatus,
 )
 from open_deep_research.harness.render import render_verified_report
+from open_deep_research.harness.truth_conditions import (
+    ElementAssessmentExecutionStatus,
+    ElementVerificationVerdict,
+    ElementizationProposal,
+    ElementizationReview,
+    ElementizationSemanticStatus,
+    aggregate_truth_condition_claim,
+    build_truth_condition_registry,
+)
 from open_deep_research.harness.verify import (
     ClaimEvidenceState,
     ClaimVerification,
     VerificationRecordStatus,
     VerificationResult,
     VerificationVerdict,
+    VerifiedElementRelation,
     VerifiedSourceRelation,
+    build_claim_verification,
 )
 
 
@@ -453,3 +464,171 @@ def test_renderer_exposes_only_reader_facing_maximum_share() -> None:
     assert "HHI" not in rendered.markdown
     assert "有效发布方" not in rendered.markdown
     assert math.isclose(audit.overall.raw_hhi, 0.5)
+
+
+def test_concentration_excludes_element_only_support_from_whole_claim_count() -> None:
+    draft = "# Report\n\nAlpha acquired Beta for $2 billion."
+    blocks = parse_markdown_blocks(draft)
+    claim = _claim(
+        draft,
+        blocks,
+        "claim-distributed",
+        "Alpha acquired Beta for $2 billion.",
+    )
+
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.claim_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=("Alpha acquired Beta.", "The price was $2 billion."),
+                rationale="proposal",
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=("Alpha acquired Beta.", "The price was $2 billion."),
+                rationale="independent review",
+            ),
+        ),
+    )
+    entry = registry.entries[0]
+    first_element, second_element = entry.elements
+
+    def element_relation(
+        source_id: str,
+        element,
+        *,
+        supports: bool,
+    ) -> VerifiedElementRelation:
+        quote = element.text if supports else None
+        return VerifiedElementRelation(
+            claim_id=claim.claim_id,
+            element_id=element.element_id,
+            element_text=element.text,
+            source_id=source_id,
+            status=ElementAssessmentExecutionStatus.COMPLETE,
+            semantic_verdict=(
+                ElementVerificationVerdict.SUPPORTS
+                if supports
+                else ElementVerificationVerdict.DOES_NOT_SUPPORT
+            ),
+            source_quote=quote,
+            span=(
+                QuoteSpan(start_char=0, end_char=len(quote))
+                if quote is not None
+                else None
+            ),
+            location_status=(
+                NoteLocationStatus.LOCATABLE if supports else None
+            ),
+            is_formal_supporting_evidence=supports,
+        )
+
+    def partial_relation(
+        source_id: str,
+        proxy: str,
+        *,
+        supports_first: bool,
+    ) -> VerifiedSourceRelation:
+        return VerifiedSourceRelation(
+            claim_id=claim.claim_id,
+            source_id=source_id,
+            url=f"https://{proxy}/report",
+            publisher_domain_proxy=proxy,
+            candidate_note_ids=(f"note-{source_id}",),
+            candidate_source_ids=(source_id,),
+            status=VerificationRecordStatus.COMPLETED,
+            semantic_verdict=VerificationVerdict.NOT_ENOUGH_INFORMATION,
+            element_relations=(
+                element_relation(
+                    source_id,
+                    first_element,
+                    supports=supports_first,
+                ),
+                element_relation(
+                    source_id,
+                    second_element,
+                    supports=not supports_first,
+                ),
+            ),
+        )
+
+    # Relation source IDs are valid audit identities but deliberately differ
+    # from the cache's URL-derived IDs.  Used/unused classification must still
+    # follow the canonical URL identity.
+    first_source_id = "external-source-first"
+    second_source_id = "historical-source-second"
+    relations = (
+        partial_relation(
+            first_source_id,
+            "first.example",
+            supports_first=True,
+        ),
+        partial_relation(
+            second_source_id,
+            "second.example",
+            supports_first=False,
+        ),
+    )
+    aggregate = aggregate_truth_condition_claim(
+        entry,
+        tuple(
+            element.as_assessment()
+            for relation in relations
+            for element in relation.element_relations
+        ),
+        expected_source_ids=(first_source_id, second_source_id),
+    )
+    verification = VerificationResult(
+        claims=(
+            build_claim_verification(
+                claim,
+                relations,
+                required_sources=2,
+                truth_condition_aggregate=aggregate,
+            ),
+        )
+    )
+    reconciliation = ChecklistReportReconciliation(
+        records=(),
+        summary=ChecklistCoverageSummary(
+            total_items=0,
+            assessed_items=0,
+            covered_items=0,
+            partially_covered_items=0,
+            not_covered_items=0,
+            assessment_failed_items=0,
+            covered_rate=0.0,
+        ),
+    )
+
+    audit = audit_domain_proxy_concentration(
+        verification,
+        blocks=blocks,
+        reconciliation=reconciliation,
+        source_cache={
+            relation.url: "Element-level evidence."
+            for relation in relations
+        },
+        notes=(),
+    )
+
+    assert audit.overall.formal_support_relation_count == 0
+    assert audit.overall.publisher_domain_proxy_count == 0
+    assert audit.element_only_support is not None
+    assert audit.element_only_support.claim_source_relation_count == 2
+    assert audit.element_only_support.source_ids == tuple(
+        sorted((first_source_id, second_source_id))
+    )
+    assert audit.element_only_support.publisher_domain_proxies == (
+        "first.example",
+        "second.example",
+    )
+    assert audit.sections[0].element_only_support == audit.element_only_support
+    assert audit.sections[0].read_but_unused_sources == ()
+    assert verification.claims[0].state is (
+        ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE
+    )

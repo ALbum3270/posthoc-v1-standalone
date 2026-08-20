@@ -46,6 +46,7 @@ from open_deep_research.harness.verify import (
     VerificationResult,
     VerificationVerdict,
     VerifiedSourceRelation,
+    build_claim_verification,
 )
 
 
@@ -263,10 +264,12 @@ def test_editor_targets_unresolved_internal_evidence_obligations():
     )
     result = VerificationResult(
         claims=(
-            _verification(
+            build_claim_verification(
                 claim,
-                ClaimEvidenceState.INTERNAL_NOT_SUPPORTED,
-            ).model_copy(update={"truth_condition_aggregate": aggregate}),
+                (),
+                required_sources=2,
+                truth_condition_aggregate=aggregate,
+            ),
         )
     )
 

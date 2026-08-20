@@ -988,6 +988,201 @@ def test_single_publisher_target_one_does_not_enter_gap_round() -> None:
     assert gap_model.prompts == []
 
 
+def test_distributed_element_support_enters_whole_claim_corroboration_gap() -> None:
+    report = "# Report\n\nThe event occurred in 2024."
+    claim = _claim(report, text="The event occurred in 2024.")
+    ledger = ResearchLedger(topic="A neutral topic")
+    notes = (
+        _note(
+            ledger,
+            "https://first.example/article",
+            "The event occurred.",
+        ),
+        _note(
+            ledger,
+            "https://second.example/article",
+            "The date was 2024.",
+        ),
+    )
+    same_element_publisher_note = _note(
+        ledger,
+        "https://first.example/alternative",
+        "Another article from the already used publisher.",
+    )
+    candidates = tuple(_candidate(note) for note in notes)
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.claim_text},
+        proposals=(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=("The event occurred.", "The date was 2024."),
+                rationale="proposal",
+            ),
+        ),
+        reviews=(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=("The event occurred.", "The date was 2024."),
+                rationale="independent review",
+            ),
+        ),
+    )
+    entry = registry.entries[0]
+    first_element, second_element = entry.elements
+
+    def element_relation(
+        candidate: CandidateSource,
+        element,
+        *,
+        supports: bool,
+    ) -> VerifiedElementRelation:
+        quote = element.text if supports else None
+        return VerifiedElementRelation(
+            claim_id=claim.claim_id,
+            element_id=element.element_id,
+            element_text=element.text,
+            source_id=candidate.source_id,
+            status=ElementAssessmentExecutionStatus.COMPLETE,
+            semantic_verdict=(
+                ElementVerificationVerdict.SUPPORTS
+                if supports
+                else ElementVerificationVerdict.DOES_NOT_SUPPORT
+            ),
+            source_quote=quote,
+            span=(
+                QuoteSpan(start_char=0, end_char=len(quote))
+                if quote is not None
+                else None
+            ),
+            location_status=(
+                NoteLocationStatus.LOCATABLE if supports else None
+            ),
+            is_formal_supporting_evidence=supports,
+        )
+
+    def partial_relation(
+        candidate: CandidateSource,
+        *,
+        supports_first: bool,
+    ) -> VerifiedSourceRelation:
+        return VerifiedSourceRelation(
+            claim_id=claim.claim_id,
+            source_id=candidate.source_id,
+            url=candidate.url,
+            publisher_domain_proxy=candidate.publisher,
+            candidate_note_ids=(candidate.note_id,),
+            candidate_source_ids=(candidate.source_id,),
+            status=VerificationRecordStatus.COMPLETED,
+            semantic_verdict=VerificationVerdict.NOT_ENOUGH_INFORMATION,
+            element_relations=(
+                element_relation(
+                    candidate,
+                    first_element,
+                    supports=supports_first,
+                ),
+                element_relation(
+                    candidate,
+                    second_element,
+                    supports=not supports_first,
+                ),
+            ),
+        )
+
+    relations = (
+        partial_relation(candidates[0], supports_first=True),
+        partial_relation(candidates[1], supports_first=False),
+    )
+    aggregate = aggregate_truth_condition_claim(
+        entry,
+        tuple(
+            element.as_assessment()
+            for relation in relations
+            for element in relation.element_relations
+        ),
+        expected_source_ids=tuple(candidate.source_id for candidate in candidates),
+    )
+    initial_attribution = AttributionResult(
+        attributions=(
+            ClaimAttribution(
+                claim=claim,
+                status=AttributionStatus.CANDIDATE_SOURCES,
+                candidates=candidates,
+            ),
+        ),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+    initial_verification = VerificationResult(
+        claims=(
+            build_claim_verification(
+                claim,
+                relations,
+                required_sources=2,
+                truth_condition_aggregate=aggregate,
+            ),
+        ),
+        truth_condition_registry_sha256=truth_condition_registry_sha256(
+            registry
+        ),
+    )
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [
+                {
+                    "claim_id": claim.claim_id,
+                    "note_id": same_element_publisher_note.note_id,
+                    "source_id": same_element_publisher_note.source_id,
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "first",
+                    "independence_rationale": "claimed alternative",
+                }
+            ],
+            "queries": [],
+        },
+    )
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            truth_condition_registry=registry,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=0,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.target_claim_ids == (claim.claim_id,)
+    assert gap_model.prompts
+    assert "supported_distributed_element_evidence" in gap_model.prompts[0]
+    assert "whole_claim_supporting_publisher_domain_proxies" in (
+        gap_model.prompts[0]
+    )
+    assert "element_supporting_publisher_domain_proxies" in (
+        gap_model.prompts[0]
+    )
+    assert "used_supporting_publisher_domain_proxies" in gap_model.prompts[0]
+    assert any(
+        entry.get("error")
+        == "publisher domain proxy already supports this claim"
+        for entry in result.rejected_entries
+    )
+
+
 def test_cached_unused_source_adds_multi_domain_support_without_corroborating():
     report = "# Report\n\nThe event occurred."
     claim = _claim(report)
@@ -2206,12 +2401,16 @@ def test_recovery_element_intent_survives_query_read_and_acquisition():
         (),
         expected_source_ids=(),
     )
-    initial_verification = VerificationResult(
-        claims=(
-            legacy_verification.claims[0].model_copy(
-                update={"truth_condition_aggregate": aggregate}
-            ),
+    element_verification = build_claim_verification(
+        claim,
+        legacy_verification.claims[0].relations,
+        required_sources=(
+            legacy_verification.claims[0].corroboration_target
         ),
+        truth_condition_aggregate=aggregate,
+    )
+    initial_verification = VerificationResult(
+        claims=(element_verification,),
         truth_condition_registry_sha256=truth_condition_registry_sha256(
             registry
         ),

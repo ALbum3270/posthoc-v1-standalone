@@ -21,6 +21,22 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 REGISTRY_VERSION = "truth-condition-elements-v1"
 
 
+_TRUTH_CONDITION_COMPLETENESS_GUIDANCE = (
+    "For each claim, explicitly consider every semantic axis in turn: entity "
+    "identity and relationship direction; number, unit, and comparison; "
+    "attribution; negation and exception; time and order; causality; purpose, "
+    "use, and disposition; and modality, uncertainty, and qualification. Only "
+    "retain material conditions actually asserted by the authoritative claim "
+    "wording. Omit an axis when it is not asserted; do not manufacture an "
+    "element merely to cover the checklist. Context may resolve references or "
+    "ellipsis but must not add a condition. This is a general semantic reasoning "
+    "checklist, not a field-specific vocabulary, an output schema, or a request "
+    "for per-axis Boolean flags. Do not add JSON keys or flags for the axes. You, "
+    "not code, must decide which asserted conditions are material and whether "
+    "the element list is complete. "
+)
+
+
 class TruthConditionProtocol(str, Enum):
     """Verification protocol selected for one run."""
 
@@ -853,7 +869,9 @@ def build_elementization_proposal_prompt(
         )
     return (
         "Propose the complete truth conditions that must all hold for each claim "
-        "to be supported. Preserve relationships, qualifications, scope, and "
+        "to be supported. "
+        + _TRUTH_CONDITION_COMPLETENESS_GUIDANCE
+        + "Preserve relationships, qualifications, scope, and "
         "attribution; do not turn related facts into substitutes for the claim. "
         "Return semantic element text only. Do not invent element IDs: code assigns "
         "them after independent review. If the claim cannot be safely decomposed, "
@@ -900,7 +918,9 @@ def build_elementization_review_prompt(
         "verbatim report_surface_text, interpreted with necessary_context, is "
         "authoritative. retrieval_gloss is a model-derived aid only and must "
         "not strengthen, weaken, or replace the report wording. Do not "
-        "assume the proposal is correct. Return the corrected full element list. "
+        "assume the proposal is correct. "
+        + _TRUTH_CONDITION_COMPLETENESS_GUIDANCE
+        + "Return the corrected full element list. "
         "Use semantic_status=complete only when the list preserves every material "
         "condition of the original claim. Use incomplete when you can identify an "
         "omission but cannot supply a complete reliable list, and uncertain when "

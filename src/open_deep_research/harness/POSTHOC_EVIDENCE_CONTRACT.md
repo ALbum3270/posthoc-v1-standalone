@@ -118,6 +118,16 @@ unresolved and can never silently fall back to a successful whole-claim
 verdict. Historical verifier replay explicitly uses the legacy whole-claim
 protocol and is not relabelled as element gold.
 
+Before declaring the denominator complete, both proposal and review prompts
+must consider every material entity relationship, number and unit,
+attribution, negation or exception, time and ordering, causality, purpose or
+disposition, and modality or qualification asserted by the report surface.
+These are model reasoning axes, not code-owned fields or a domain vocabulary.
+An axis absent from the report wording must not be manufactured merely to fill
+the checklist. An incomplete or uncertain review remains reader-visible as a
+denominator limitation even when every currently registered element has
+located support.
+
 One claim/source verifier call returns every registered element. It does not
 make one provider call per element. Semantic outcomes (supported, unsupported,
 contradicted, conflicted, unresolved), execution completeness, and overall
@@ -126,6 +136,18 @@ independently reviewed element denominator is complete and every element has
 formal located support. Numeric alignment is checked against each element and
 its exact source span; an unrecognized numeric surface cannot become formal
 support.
+
+Whole-claim source support and distributed element support are also separate
+facts. A publisher-domain proxy enters the whole-claim count only when that
+source formally supports every registered element. If different sources
+support different elements whose union closes the claim, the claim records
+`supported_distributed_element_evidence`; element-supporting domains are
+disclosed separately, no source is represented as supporting the complete
+claim, and whole-claim concentration excludes those partial relations. The
+concentration audit still records those sources as element-only use rather
+than `read_but_unused`. Gap and disagreement planning preserve the whole-claim
+and element-level sets separately, while treating their union as already used
+for publisher-novelty checks.
 
 If a selected continuous span exceeds the mechanical segment or character
 capacity, the same claim and complete source receive at most one narrowing
@@ -159,14 +181,18 @@ material, and preservation or evidence-backed narrowing of the answer. Only a
 complete `accept` result commits the entire proposal. A semantic rejection is
 a completed rollback; malformed output, provider failure, or budget denial is
 an incomplete rollback. Unchanged regions do not veto a locally safe edit,
-and no quality judgement becomes an artifact-publication gate.
+and no quality judgement becomes an artifact-publication gate. A durable but
+partial post-edit stage result is not a completed prerequisite: the transaction
+review is not called, the proposal is rolled back, and its mandatory reserve
+is retained.
 
 ## Evidence states and FEVER compatibility
 
 Fine-grained evidence states remain authoritative. A deterministic coarse
 mapping is additionally exposed:
 
-- supported by one publisher or corroborated across publishers: `SUPPORTED`;
+- supported by one complete-claim source, by a complete union of distributed
+  element evidence, or by corroborated sources: `SUPPORTED`;
 - an explicit verifier result of `contradicts`: `REFUTED`;
 - conflicting support and contradiction: `CONFLICTING`;
 - cited sources that do not support the claim, or no candidate source:
@@ -211,8 +237,9 @@ Under `clean-reader-v2`, the report starts with model-authored narrative unless
 the run was materially curtailed or obtained no formal support. Ordinary
 support appears as a compact publisher link and companion-evidence link.
 Exceptional evidence states remain visible at the claim anchor. The companion
-separately records zero, one, and multiple supporting publisher-domain proxies,
-the fixed legend, checklist coverage, and concentration diagnostics.
+separately records zero, one, and multiple whole-claim supporting
+publisher-domain proxies, element-only supporting proxies, distributed element
+coverage, the fixed legend, checklist coverage, and concentration diagnostics.
 
 Under `audit-annotated-v1`, the report retains the historical evidence header
 and verbose footnote definition. In both modes, one-publisher support is a
@@ -267,6 +294,12 @@ reserved usage. Admission estimates are calibrated from observed model usage.
 If the remaining budget cannot admit every verification call, unprocessed
 claims remain in the registry as `verification_not_run` and are visibly
 marked; they are not dropped.
+
+Truth-condition review, post-edit truth-condition review, and editorial
+transaction acceptance are mandatory-tail work and may consume the reserve
+held for them. A transaction whose independent review completes releases the
+remaining mandatory reserve whether it commits or rolls back; partial, failed,
+or unrun review does not pretend that the mandatory tail completed.
 
 ## Frozen real-run fixture
 
