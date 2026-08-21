@@ -7,12 +7,13 @@ ablation tooling, and evaluation fixtures.
 
 The executable entry point is `run_harness.py`. Its pipeline is:
 
-1. model-authored checklist;
-2. model-directed search, read, recall, and settlement loop;
+1. model-authored minimum-sufficient checklist;
+2. model-directed search, read, recall, settlement, and audited scope-narrowing
+   loop;
 3. one whole-report draft;
 4. claim decomposition, independent truth-condition review, checklist
    reconciliation, attribution, and element-level verification;
-5. bounded evidence-gap, disagreement, and recovery passes;
+5. capacity-admitted evidence-gap, disagreement, and recovery passes;
 6. optional audited editing followed by a hash/range-bound transaction review
    and complete changed-region re-audit before any bytes commit;
 7. deterministic report, source companion, and audit publication.
@@ -41,6 +42,8 @@ live path now closes the truth-condition denominator, keeps semantic verdicts
 separate from execution completeness, preserves element intent through
 recovery, performs one bounded model-selected retry for oversized evidence
 spans, distinguishes whole-claim support from cross-source element coverage,
-and rolls unsafe editorial proposals back while retaining their audit. A
+admits gap planning only when a mechanically executable candidate route remains
+funded (semantic relevance still belongs to the model), and rolls unsafe
+editorial proposals back while retaining their audit. A
 completed semantic rollback closes the mandatory tail without pretending that
 the candidate edit was accepted.

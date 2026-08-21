@@ -15,6 +15,7 @@ from open_deep_research.harness.attribution import (
     AttributionResult,
     AttributionSettings,
 )
+from open_deep_research.harness.budget import RunCostCapReached
 from open_deep_research.harness.checklist import ResearchChecklist
 from open_deep_research.harness.claims import CitationRequirement, MarkdownBlock
 from open_deep_research.harness.evidence_gap import (
@@ -387,6 +388,7 @@ def build_disagreement_plan_prompt(
     notes: Sequence[Any],
     checklist: ResearchChecklist,
     max_queries: int,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> str:
     """Plan cache-first checks without preferring any semantic verdict."""
 
@@ -401,18 +403,49 @@ def build_disagreement_plan_prompt(
         }
         for note in notes
     ]
-    target_payload = [
-        {
-            "claim_id": target.claim.claim_id,
-            "claim_text": target.claim.claim_text,
-            **_supporting_publisher_proxy_payload(target),
+    target_payload: list[dict[str, Any]] = []
+    for target in targets:
+        registry_entry = (
+            truth_condition_registry.entry_for(target.claim.claim_id)
+            if truth_condition_registry is not None
+            else None
+        )
+        aggregate_by_id = {
+            element.element_id: element
+            for element in (
+                target.truth_condition_aggregate.elements
+                if target.truth_condition_aggregate is not None
+                else ()
+            )
         }
-        for target in targets
-    ]
+        target_payload.append(
+            {
+                "claim_id": target.claim.claim_id,
+                "claim_text": target.claim.claim_text,
+                "truth_conditions": [
+                    {
+                        "element_id": element.element_id,
+                        "truth_condition": element.text,
+                        "semantic_state": (
+                            aggregate_by_id[element.element_id]
+                            .semantic_state.value
+                            if element.element_id in aggregate_by_id
+                            else "unresolved"
+                        ),
+                    }
+                    for element in (
+                        registry_entry.elements
+                        if registry_entry is not None
+                        else ()
+                    )
+                ],
+                **_supporting_publisher_proxy_payload(target),
+            }
+        )
     return _PLAN_PROMPT.format(
         max_queries=max_queries,
         item_ids=json.dumps(
-            [item.item_id for item in checklist.items],
+            list(checklist.in_scope_item_ids),
             ensure_ascii=False,
         ),
         targets=json.dumps(
@@ -702,6 +735,8 @@ async def run_disagreement_detection(
                     )
                 ),
             )
+        except RunCostCapReached:
+            raise
         except Exception as exc:
             return DisagreementResult(
                 rejected_selections=tuple(rejected),
@@ -735,6 +770,8 @@ async def run_disagreement_detection(
             if inspect.isawaitable(response):
                 response = await response
             raw_content, tokens, cost = _response_envelope(response)
+        except RunCostCapReached:
+            raise
         except Exception as exc:
             return DisagreementResult(
                 rejected_selections=tuple(rejected),

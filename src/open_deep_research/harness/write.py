@@ -67,7 +67,7 @@ class _WriteEnvelope(BaseModel):
 
 
 WRITE_PROMPT = """\
-Write the best possible canonical Markdown narrative draft from all of the
+Write the best possible canonical Markdown narrative draft using the relevant
 assembled research material below. You alone decide the draft's content,
 structure, length, and headings.
 
@@ -85,8 +85,14 @@ drafting, make your own coverage judgement about whether the narrative conveys
 each material relationship a question asks for--such as a causal account,
 sequence of turning points, actor role, scale, comparison, or qualification--
 when the notes support it. Nearby endpoint facts do not automatically answer a
-relationship. Keep your chosen structure, and never turn an absence in the
-assembled material into a conclusion about the world.
+relationship. The explicit research topic above is the controlling scope. Notes
+are evidence options, not an instruction to mention everything collected.
+Include only material that directly answers the topic or is necessary to
+understand, qualify, or connect that answer; omit tangential facts, generic
+background, and checklist-driven filler even when many notes exist for them.
+Prefer a focused synthesis over an inventory of the research process. Keep your
+chosen structure, and never turn an absence in the assembled material into a
+conclusion about the world.
 
 This is the drafting stage of a post-hoc attribution pipeline. Return narrative
 body text only:

@@ -15,6 +15,7 @@ from open_deep_research.harness.budget import (
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
     ChecklistItem,
+    ChecklistStatus,
     ResearchChecklist,
 )
 from open_deep_research.harness.claims import (
@@ -88,6 +89,37 @@ def _checklist():
             ),
         ),
     )
+
+
+def test_recovery_triage_cannot_reopen_audited_out_of_scope_questions():
+    checklist = ResearchChecklist(
+        topic="Explain the sequence and recovery.",
+        items=(
+            ChecklistItem(
+                item_id="what-1",
+                dimension=ChecklistDimension.WHAT,
+                question="What happened and what followed?",
+                priority=1,
+                corroboration_target=1,
+            ),
+            ChecklistItem(
+                item_id="where-1",
+                dimension=ChecklistDimension.WHERE,
+                question="Where was an unrelated office?",
+                priority=2,
+                corroboration_target=1,
+                status=ChecklistStatus.OUT_OF_SCOPE,
+            ),
+        ),
+    )
+
+    prompt = build_recovery_triage_prompt(
+        (_verification("claim-0001"),),
+        checklist=checklist,
+    )
+
+    assert "What happened and what followed?" in prompt
+    assert "Where was an unrelated office?" not in prompt
 
 
 def _claim(claim_id):

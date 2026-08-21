@@ -4,9 +4,17 @@ import asyncio
 import json
 from pathlib import Path
 
+import pytest
+
+from open_deep_research.harness.budget import (
+    RunCostBudget,
+    RunCostCapReached,
+    RunCostController,
+)
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
     ChecklistItem,
+    ChecklistStatus,
     ResearchChecklist,
 )
 from open_deep_research.harness.claims import (
@@ -18,6 +26,7 @@ from open_deep_research.harness.claims import (
 )
 from open_deep_research.harness.reconcile import (
     ChecklistCoverageDisposition,
+    ChecklistCoverageSummary,
     CoverageAssessmentStatus,
     reconcile_checklist_report,
 )
@@ -196,6 +205,7 @@ def test_semantic_dispositions_require_code_located_report_references() -> None:
     )
     assert rendered.checklist_coverage_line == (
         "> 清单内容覆盖（不表示来源支持）："
+        "冻结清单 3；范围排除 0（无）；"
         "已评估 3/3；完整覆盖 1/3（33.3%）；"
         "部分覆盖 1；未覆盖 1（where-1）；对账失败 0（无）。"
     )
@@ -374,3 +384,190 @@ def test_real_holdout_fixture_keeps_adjacent_mentions_not_covered() -> None:
     assert result.summary.not_covered_item_ids == expected
     assert result.summary.covered_items == 0
     assert result.summary.assessment_failed_items == 0
+
+
+def test_upstream_scope_exclusion_is_not_sent_to_or_overridden_by_model() -> None:
+    draft = "# Report\n\nAlpha answers the first item."
+    blocks = parse_markdown_blocks(draft)
+    paragraph = blocks[1]
+    claim = _claim(
+        draft,
+        claim_id="claim-1",
+        block_id=paragraph.block_id,
+        anchor="Alpha answers the first item.",
+    )
+    base = _checklist()
+    checklist = base.model_copy(
+        update={
+            "items": tuple(
+                item.model_copy(update={"status": ChecklistStatus.OUT_OF_SCOPE})
+                if item.item_id == "where-1"
+                else item
+                for item in base.items
+            )
+        }
+    )
+    model = ScriptedReconciliationModel(
+        {
+            "items": [
+                {
+                    "item_id": "what-1",
+                    "disposition": "covered",
+                    "reason": "The report directly answers it.",
+                    "claim_ids": ["claim-1"],
+                },
+                {
+                    "item_id": "how-1",
+                    "disposition": "not_covered",
+                    "reason": "The mechanism is absent.",
+                    "claim_ids": [],
+                },
+                {
+                    "item_id": "where-1",
+                    "disposition": "covered",
+                    "reason": "A model must not reopen upstream scope.",
+                    "claim_ids": ["claim-1"],
+                },
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        reconcile_checklist_report(
+            draft,
+            checklist,
+            blocks=blocks,
+            claims=(claim,),
+            model_client=model,
+        )
+    )
+
+    # Direct string checks are the stable contract: the excluded ID and
+    # question never cross the model boundary.
+    assert '"item_id":"where-1"' not in model.prompts[0]
+    assert "Where did it happen?" not in model.prompts[0]
+    assert '"item_id":"what-1"' in model.prompts[0]
+
+    records = {record.item_id: record for record in result.records}
+    excluded = records["where-1"]
+    assert excluded.assessment_status is (
+        CoverageAssessmentStatus.SCOPE_EXCLUDED
+    )
+    assert excluded.disposition is None
+    assert excluded.proposed_disposition is None
+    assert excluded.references == ()
+    assert result.summary.total_items == 3
+    assert result.summary.assessed_items == 2
+    assert result.summary.scope_excluded_items == 1
+    assert result.summary.scope_excluded_item_ids == ("where-1",)
+    assert result.summary.not_covered_item_ids == ("how-1",)
+    assert result.summary.assessment_failed_items == 0
+    assert result.summary.coverage_denominator_items == 2
+    assert result.summary.covered_rate == 0.5
+    assert result.summary.terminal_items == 3
+    assert result.diagnostics == (
+        "scope_excluded_item_proposal_ignored[2]: where-1",
+    )
+
+    rendered = render_verified_report(
+        draft,
+        VerificationResult(claims=()),
+        checklist_coverage=result.summary,
+    )
+    assert rendered.checklist_coverage_line == (
+        "> 清单内容覆盖（不表示来源支持）："
+        "冻结清单 3；范围排除 1（where-1）；"
+        "已评估 2/2；完整覆盖 1/2（50.0%）；"
+        "部分覆盖 0；未覆盖 1（how-1）；对账失败 0（无）。"
+    )
+
+
+def test_all_scope_excluded_items_skip_model_without_becoming_failures() -> None:
+    class MustNotRunModel:
+        async def generate(self, prompt):
+            raise AssertionError("scope-excluded items must not reach the model")
+
+    base = _checklist()
+    checklist = base.model_copy(
+        update={
+            "items": tuple(
+                item.model_copy(update={"status": ChecklistStatus.OUT_OF_SCOPE})
+                for item in base.items
+            )
+        }
+    )
+
+    result = asyncio.run(
+        reconcile_checklist_report(
+            "# Report",
+            checklist,
+            blocks=parse_markdown_blocks("# Report"),
+            claims=(),
+            model_client=MustNotRunModel(),
+        )
+    )
+
+    assert result.total_tokens == 0
+    assert result.total_cost_usd == 0.0
+    assert result.summary.total_items == 3
+    assert result.summary.assessed_items == 0
+    assert result.summary.assessment_failed_items == 0
+    assert result.summary.not_covered_items == 0
+    assert result.summary.scope_excluded_items == 3
+    assert result.summary.coverage_denominator_items == 0
+    assert result.summary.covered_rate == 0.0
+    assert all(
+        record.assessment_status
+        is CoverageAssessmentStatus.SCOPE_EXCLUDED
+        for record in result.records
+    )
+
+
+def test_historical_reconciliation_summary_without_scope_fields_is_readable() -> None:
+    payload = {
+        "total_items": 1,
+        "assessed_items": 1,
+        "covered_items": 1,
+        "partially_covered_items": 0,
+        "not_covered_items": 0,
+        "assessment_failed_items": 0,
+        "covered_rate": 1.0,
+        "partially_covered_item_ids": [],
+        "not_covered_item_ids": [],
+        "assessment_failed_item_ids": [],
+    }
+    historical = ChecklistCoverageSummary.model_validate(payload)
+
+    assert historical.scope_excluded_items == 0
+    assert historical.scope_excluded_item_ids == ()
+    assert historical.coverage_denominator_items == 1
+    assert historical.model_dump(mode="json") == payload
+    assert "scope_excluded_items" in (
+        ChecklistCoverageSummary.model_json_schema()["properties"]
+    )
+
+
+def test_run_cost_cap_is_not_downgraded_to_reconciliation_model_error() -> None:
+    controller = RunCostController(RunCostBudget(max_cost_usd=1))
+    cap_error = RunCostCapReached(
+        "synthetic reconciliation cap",
+        stage="checklist_reconciliation",
+        audit=controller.audit(),
+    )
+
+    class CappedReconciliationModel:
+        async def generate(self, _prompt):
+            raise cap_error
+
+    with pytest.raises(RunCostCapReached) as caught:
+        asyncio.run(
+            reconcile_checklist_report(
+                "# Report",
+                _checklist(),
+                blocks=parse_markdown_blocks("# Report"),
+                claims=(),
+                model_client=CappedReconciliationModel(),
+            )
+        )
+
+    assert caught.value is cap_error

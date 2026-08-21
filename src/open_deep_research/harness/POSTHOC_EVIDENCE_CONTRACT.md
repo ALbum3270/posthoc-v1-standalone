@@ -211,6 +211,15 @@ character bounds. A covered or partially covered judgement without at least
 one mechanically valid report location is rejected and audited rather than
 accepted on the model's assertion alone.
 
+Checklist membership remains frozen, but the collection controller may mark a
+still-open item `out_of_scope` when it is outside the user's request or no
+longer necessary to answer it. This is an audited scope judgement, not an
+evidence outcome: it must not disguise missing, weak, conflicting, or
+hard-to-find evidence. Reconciliation retains one record for every frozen item
+but excludes those model-chosen, code-validated scope terminals from the model
+prompt and the report-coverage denominator; the reconciliation model cannot
+create or reopen scope decisions.
+
 Reconciliation is observability only. Its result cannot rewrite the report or
 checklist, trigger another writing pass, suppress artifact output, or alter
 claim attribution and verification. Invalid or missing model output remains a
@@ -294,6 +303,22 @@ reserved usage. Admission estimates are calibrated from observed model usage.
 If the remaining budget cannot admit every verification call, unprocessed
 claims remain in the registry as `verification_not_run` and are visibly
 marked; they are not dropped.
+
+Evidence-gap planning receives a compact but complete target-and-note registry;
+capacity limits never truncate semantic candidates. Planning is admitted only
+when its estimated input and output headroom leave enough allowance for at
+least one mechanically executable candidate route: exact cached-source
+verification, a query-only investigation when reads are disabled, or a bounded
+web read-selection -> note -> reattribution -> verification tail. This does not
+prejudge relevance; the model may still reject every candidate. If a web route
+does not fit but a cache route does, the unpaid prompt is rebuilt with
+`max_queries=0` before the planner runs, so its advertised action space matches
+the capacity proof. Once the model chooses concrete routes, exact downstream
+prompts and source text replace the probe. Wider routes that do not fit are
+explicitly deferred rather than silently expanding work or consuming the
+verification tail. Mechanically invalid truth-condition and internal-evidence
+review items receive at most one item-local protocol retry; valid siblings are
+not rerun and a failed retry remains unresolved.
 
 Truth-condition review, post-edit truth-condition review, and editorial
 transaction acceptance are mandatory-tail work and may consume the reserve

@@ -840,7 +840,7 @@ def _build_recovery_triage_prompt(
         "topic": checklist.topic,
         "items": [
             {"item_id": item.item_id, "question": item.question}
-            for item in checklist.items
+            for item in checklist.in_scope_items
         ],
     }
     return _TRIAGE_PROMPT.format(
@@ -1206,6 +1206,7 @@ def build_recovery_gap_plan_prompt(
     notes: Sequence[ResearchNote],
     checklist: ResearchChecklist,
     max_queries: int,
+    truth_condition_registry: TruthConditionRegistry | None = None,
     triage: RecoveryTriageResult,
 ) -> str:
     """Bind ordinary bounded planning to the frozen triage query intents."""
@@ -1222,6 +1223,7 @@ def build_recovery_gap_plan_prompt(
         notes=notes,
         checklist=checklist,
         max_queries=max_queries,
+        truth_condition_registry=truth_condition_registry,
     )
     return (
         "This is the only bounded evidence-recovery pass. The target IDs and "

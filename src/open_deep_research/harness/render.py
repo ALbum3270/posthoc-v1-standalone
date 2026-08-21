@@ -1387,10 +1387,18 @@ def _checklist_coverage_line(
         if summary.assessment_failed_item_ids
         else "无"
     )
+    scope_excluded = (
+        ", ".join(summary.scope_excluded_item_ids)
+        if summary.scope_excluded_item_ids
+        else "无"
+    )
+    coverage_denominator = summary.coverage_denominator_items
     return (
         "> 清单内容覆盖（不表示来源支持）："
-        f"已评估 {summary.assessed_items}/{summary.total_items}；"
-        f"完整覆盖 {summary.covered_items}/{summary.total_items}"
+        f"冻结清单 {summary.total_items}；"
+        f"范围排除 {summary.scope_excluded_items}（{scope_excluded}）；"
+        f"已评估 {summary.assessed_items}/{coverage_denominator}；"
+        f"完整覆盖 {summary.covered_items}/{coverage_denominator}"
         f"（{summary.covered_rate:.1%}）；"
         f"部分覆盖 {summary.partially_covered_items}；"
         f"未覆盖 {summary.not_covered_items}（{uncovered}）；"

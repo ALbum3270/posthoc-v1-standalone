@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import math
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
@@ -266,9 +267,12 @@ class RunCostController:
         if not callable(estimator):
             return None
         try:
-            return max(0.0, float(estimator(prompt)))
+            estimate = float(estimator(prompt))
         except (RuntimeError, TypeError, ValueError):
             return None
+        if not math.isfinite(estimate) or estimate < 0.0:
+            return None
+        return estimate
 
     def _admit(
         self,
@@ -447,13 +451,27 @@ class _BudgetedModelClient:
 
     def estimate_cost_usd(self, prompt: str) -> float:
         estimate = self._controller._estimate(self._model_client, prompt)
-        return estimate if estimate is not None else 0.0
+        if estimate is None:
+            # ``generate`` deliberately permits one bootstrap call when a
+            # role has no calibration yet.  Capacity proofs are different:
+            # callers use this method to prove that a *sequence* of future
+            # calls fits.  Returning zero here turned "unknown" into a false
+            # proof and let the evidence-gap planner consume work reserved
+            # for its tail.
+            raise RuntimeError(
+                "model cost estimate is unavailable until the role is "
+                "calibrated"
+            )
+        return estimate
 
     def estimate_tokens(self, prompt: str) -> int:
         estimator = getattr(self._model_client, "estimate_tokens", None)
         if not callable(estimator):
-            return 0
+            raise RuntimeError("model token estimator is unavailable")
         try:
-            return max(0, int(estimator(prompt)))
-        except (RuntimeError, TypeError, ValueError):
-            return 0
+            estimate = int(estimator(prompt))
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise RuntimeError("model token estimate is unavailable") from exc
+        if estimate < 0:
+            raise RuntimeError("model token estimate must not be negative")
+        return estimate

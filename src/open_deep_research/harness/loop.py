@@ -437,7 +437,7 @@ class StatusUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     item_id: str = Field(min_length=1)
-    status: Literal["settled", "exhausted_not_found"]
+    status: Literal["settled", "exhausted_not_found", "out_of_scope"]
     reason: str = Field(min_length=1)
 
     @field_validator("item_id", "reason")
@@ -552,13 +552,24 @@ Choose terminal status updates and at most one next action for this research run
 Return this JSON shape:
 {{"decision_reason":"brief reason for the status updates or next action", "status_updates":[
   {{"item_id":"...","status":"settled","reason":"..."}},
-  {{"item_id":"...","status":"exhausted_not_found","reason":"..."}}
+  {{"item_id":"...","status":"exhausted_not_found","reason":"..."}},
+  {{"item_id":"...","status":"out_of_scope","reason":"..."}}
 ],"action":{{"action":"search|read|reanalyze|dismiss_candidates|recall|inspect_notes|inspect_source_links|recall_notes|stop", ...}}}}
 
 status_updates may contain any number of distinct checklist items. Give every
 update its own reason. status_updates accepts terminal judgements only:
-"settled" or "exhausted_not_found". Never put "unexplored" or "has_material"
-in status_updates; the system maintains those non-terminal states.
+"settled", "exhausted_not_found", or "out_of_scope". Never put "unexplored"
+or "has_material" in status_updates; the system maintains those non-terminal
+states.
+
+Use "out_of_scope" only when the checklist question is outside the user's
+request or, after understanding the request, is no longer necessary to answer
+it. It does not require a prior search because it is a scope judgement, not an
+evidence finding. Never use it to disguise missing, weak, conflicting, or
+hard-to-find evidence; those conditions call for more research, an honest
+"exhausted_not_found" after a real attempt, or leaving the item open. Checklist
+membership is frozen: "out_of_scope" records a reasoned terminal judgement and
+does not delete or rewrite the item.
 
 decision_reason is optional audit metadata for the overall choice on this
 turn. It does not make an action admissible or settle an item; state the
@@ -1782,7 +1793,7 @@ def _prepare_decision(
     if parsed.turn is not None:
         for update in parsed.turn.status_updates:
             try:
-                checklist.get(update.item_id)
+                item = checklist.get(update.item_id)
             except KeyError:
                 rejected_updates.append(
                     _rejected_update(
@@ -1792,18 +1803,40 @@ def _prepare_decision(
                     )
                 )
             else:
+                if item.is_complete:
+                    rejected_updates.append(
+                        _rejected_update(
+                            None,
+                            update.model_dump(mode="json"),
+                            "terminal checklist status is monotonic; "
+                            f"{update.item_id!r} is already "
+                            f"{item.status.value!r}",
+                        )
+                    )
+                    continue
                 valid_updates.append(update)
 
         action = parsed.turn.action
         if isinstance(action, _ItemAction):
             try:
-                checklist.get(action.item_id)
+                item = checklist.get(action.item_id)
             except KeyError:
                 rejected_action = {
                     "raw": action.model_dump(mode="json"),
                     "error": f"unknown item_id {action.item_id!r}",
                 }
                 action = None
+            else:
+                if item.is_complete:
+                    rejected_action = {
+                        "raw": action.model_dump(mode="json"),
+                        "error": (
+                            "item-scoped actions cannot target terminal "
+                            f"checklist item {action.item_id!r} "
+                            f"({item.status.value})"
+                        ),
+                    }
+                    action = None
 
     rejection_audit: list[dict[str, Any]] = []
     for rejection in rejected_updates:
@@ -2151,7 +2184,7 @@ def _apply_status_updates(
     list[dict[str, Any]],
     list[dict[str, Any]],
 ]:
-    """Apply independently reasoned model judgements with settle-time evidence."""
+    """Apply and audit independently reasoned terminal judgements."""
 
     current = checklist
     audit: list[dict[str, Any]] = []
@@ -2174,7 +2207,7 @@ def _apply_status_updates(
                     "settlement_evidence": evidence.model_dump(mode="json"),
                 }
             )
-        else:
+        elif update.status == "exhausted_not_found":
             snapshot = _exhaustion_attempt_snapshot(
                 ledger=ledger,
                 item_id=update.item_id,
@@ -2225,6 +2258,23 @@ def _apply_status_updates(
                     "exhausted_with_unread_candidates": bool(
                         snapshot.pending_unread_urls
                     ),
+                }
+            )
+        elif update.status == "out_of_scope":
+            from_status = current.get(update.item_id).status.value
+            current = current.set_status(
+                update.item_id,
+                ChecklistStatus.OUT_OF_SCOPE,
+                reason=update.reason,
+                ledger=ledger,
+            )
+            audit.append(
+                {
+                    "item_id": update.item_id,
+                    "status": update.status,
+                    "reason": update.reason,
+                    "from_status": from_status,
+                    "to_status": ChecklistStatus.OUT_OF_SCOPE.value,
                 }
             )
     return current, audit, rejected
@@ -2775,11 +2825,11 @@ async def run_research_loop(
             if action is not None:
                 action_name = action.action
             elif len(turn.status_updates) == 1:
-                action_name = (
-                    "settle"
-                    if turn.status_updates[0].status == "settled"
-                    else "mark_exhausted"
-                )
+                action_name = {
+                    "settled": "settle",
+                    "exhausted_not_found": "mark_exhausted",
+                    "out_of_scope": "mark_out_of_scope",
+                }[turn.status_updates[0].status]
             else:
                 action_name = "status_updates"
 
@@ -2804,6 +2854,28 @@ async def run_research_loop(
                     )
                 stop_reason = StopReason.ALL_ITEMS_TERMINAL
                 stop_detail = _terminal_stop_detail(ledger)
+
+            elif (
+                isinstance(action, _ItemAction)
+                and current.get(action.item_id).is_complete
+            ):
+                # Status updates and the primary action share one model turn.
+                # Recheck after applying the updates so a controller cannot
+                # terminalize an item and still spend collection work on it
+                # while some different checklist item remains open.
+                rejected_action = {
+                    "raw": action.model_dump(mode="json"),
+                    "error": (
+                        "same-turn status update made the action target "
+                        f"terminal: {action.item_id!r} "
+                        f"({current.get(action.item_id).status.value})"
+                    ),
+                }
+                summary["action_skipped"] = True
+                summary["action_skip_reason"] = (
+                    "same-turn status update made the action target terminal"
+                )
+                action = None
 
             elif isinstance(action, SearchAction):
                 query = action.query

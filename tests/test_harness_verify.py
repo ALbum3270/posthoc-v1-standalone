@@ -14,6 +14,11 @@ from open_deep_research.harness.attribution import (
     CandidateSource,
     ClaimAttribution,
 )
+from open_deep_research.harness.budget import (
+    RunCostBudget,
+    RunCostCapReached,
+    RunCostController,
+)
 from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
@@ -2339,3 +2344,31 @@ def test_incomplete_elementization_cannot_become_fully_supported_in_verifier() -
     assert aggregate is not None
     assert aggregate.coverage_state is ClaimCoverageState.PARTIALLY_SUPPORTED
     assert result.claims[0].relations[0].is_formal_supporting_evidence is False
+
+
+def test_run_cost_cap_is_not_downgraded_to_verification_model_error() -> None:
+    claim = _claim("claim-cap")
+    url = "https://cap.example/report"
+    controller = RunCostController(RunCostBudget(max_cost_usd=1))
+    cap_error = RunCostCapReached(
+        "synthetic verifier cap",
+        stage="initial_verification",
+        audit=controller.audit(),
+    )
+    model = ScriptedVerificationModel(cap_error)
+
+    with pytest.raises(RunCostCapReached) as caught:
+        asyncio.run(
+            verify_attributions(
+                [
+                    _attribution(
+                        claim,
+                        _candidate(claim=claim, url=url, note_id="note-cap"),
+                    )
+                ],
+                source_cache={url: claim.claim_text},
+                model_client=model,
+            )
+        )
+
+    assert caught.value is cap_error

@@ -28,6 +28,8 @@ from open_deep_research.harness.attribution import (
 )
 from open_deep_research.harness.checklist import (
     ChecklistModelClient,
+    ChecklistStatus,
+    ResearchChecklist,
     generate_checklist,
 )
 from open_deep_research.harness.budget import (
@@ -72,6 +74,7 @@ from open_deep_research.harness.evidence_gap import (
     EvidenceGapResult,
     EvidenceGapStopReason,
     run_evidence_gap_round,
+    select_evidence_gap_targets,
 )
 from open_deep_research.harness.edit import (
     EditorialAction,
@@ -123,6 +126,7 @@ from open_deep_research.harness.render import (
     render_verified_report,
 )
 from open_deep_research.harness.reconcile import (
+    ChecklistCoverageSummary,
     ChecklistReportReconciliation,
     ReconciliationModelClient,
     reconcile_checklist_report,
@@ -486,6 +490,67 @@ def _scope_record(
     )
 
 
+def _reconciliation_budget_denied_record(
+    checklist: ResearchChecklist,
+    error: RunCostCapReached,
+) -> StageExecutionRecord:
+    """Preserve upstream scope terminals when semantic coverage cannot run."""
+
+    scope_excluded_ids = tuple(
+        item.item_id
+        for item in checklist.items
+        if item.status is ChecklistStatus.OUT_OF_SCOPE
+    )
+    unevaluated_ids = tuple(
+        item.item_id
+        for item in checklist.items
+        if item.status is not ChecklistStatus.OUT_OF_SCOPE
+    )
+    return _scope_record(
+        status=(
+            StageExecutionStatus.PARTIAL
+            if scope_excluded_ids
+            else StageExecutionStatus.NOT_RUN
+        ),
+        reason=(
+            f"{error}; upstream scope exclusions remain terminal and only "
+            "the report-coverage denominator is unevaluated"
+        ),
+        unit="checklist_item",
+        expected_count=len(checklist.items),
+        evaluated_count=len(scope_excluded_ids),
+        unevaluated_ids=unevaluated_ids,
+    )
+
+
+def _reconciliation_stage_record(
+    summary: ChecklistCoverageSummary,
+    *,
+    draft_label: str,
+) -> StageExecutionRecord:
+    """Close reconciliation over assessed and upstream excluded items."""
+
+    complete = summary.assessment_failed_items == 0
+    return _scope_record(
+        status=(
+            StageExecutionStatus.COMPLETE
+            if complete
+            else StageExecutionStatus.PARTIAL
+        ),
+        reason=(
+            "every frozen checklist item was either reconciled against the "
+            f"{draft_label} or retained as an upstream scope exclusion"
+            if complete
+            else "some non-scope-excluded checklist items could not be "
+            f"reconciled against the {draft_label}"
+        ),
+        unit="checklist_item",
+        expected_count=summary.total_items,
+        evaluated_count=summary.terminal_items,
+        unevaluated_ids=summary.assessment_failed_item_ids,
+    )
+
+
 def _truth_condition_execution_record(
     decomposition: ClaimDecompositionResult,
 ) -> StageExecutionRecord:
@@ -655,6 +720,25 @@ def _estimate_cost(model_client: Any, prompt: str) -> float | None:
         return max(0.0, float(estimator(prompt)))
     except (RuntimeError, TypeError, ValueError):
         return None
+
+
+def _single_call_bootstrap_cost_estimator(
+    model_client: Any,
+) -> Callable[[str], float]:
+    """Adapt optional calibration to verifier's one-call admission API.
+
+    The absolute run controller deliberately permits an uncalibrated first
+    call and records it as such. Verification asks for one estimate before
+    each call, so preserve that existing bootstrap behavior there. Multi-call
+    capacity proofs such as evidence-gap planning do not use this adapter and
+    fail closed when an estimate is unknown.
+    """
+
+    def estimate(prompt: str) -> float:
+        value = _estimate_cost(model_client, prompt)
+        return value if value is not None else 0.0
+
+    return estimate
 
 
 def _editorial_character_edits(
@@ -1830,14 +1914,11 @@ async def run_harness(
             model_client=budgeted_reconciliation_model,
         )
     except RunCostCapReached as error:
-        item_ids = tuple(item.item_id for item in loop_result.checklist.items)
-        stage_records["checklist_reconciliation"] = _scope_record(
-            status=StageExecutionStatus.NOT_RUN,
-            reason=str(error),
-            unit="checklist_item",
-            expected_count=len(item_ids),
-            evaluated_count=0,
-            unevaluated_ids=item_ids,
+        stage_records[
+            "checklist_reconciliation"
+        ] = _reconciliation_budget_denied_record(
+            loop_result.checklist,
+            error,
         )
         return _publish_partial_result(
             normalized_run_id=normalized_run_id,
@@ -1854,27 +1935,15 @@ async def run_harness(
             initial_collection_snapshot=initial_collection_snapshot,
             model_names=model_names,
             claim_decomposition=claim_decomposition,
-            evaluative_diagnostics=None,
+            evaluative_diagnostics=evaluative_diagnostics,
             checklist_reconciliation=None,
             attribution=None,
             verification=None,
         )
     reconciliation_summary = checklist_report_reconciliation.summary
-    stage_records["checklist_reconciliation"] = _scope_record(
-        status=(
-            StageExecutionStatus.COMPLETE
-            if reconciliation_summary.assessment_failed_items == 0
-            else StageExecutionStatus.PARTIAL
-        ),
-        reason=(
-            "every checklist item received an auditable coverage disposition"
-            if reconciliation_summary.assessment_failed_items == 0
-            else "some checklist items could not be assessed"
-        ),
-        unit="checklist_item",
-        expected_count=reconciliation_summary.total_items,
-        evaluated_count=reconciliation_summary.assessed_items,
-        unevaluated_ids=reconciliation_summary.assessment_failed_item_ids,
+    stage_records["checklist_reconciliation"] = _reconciliation_stage_record(
+        reconciliation_summary,
+        draft_label="initial draft",
     )
     tail_reserve.observe_stage(
         "checklist_reconciliation",
@@ -1882,7 +1951,7 @@ async def run_harness(
             TailWorkUnit(
                 stage="checklist_reconciliation",
                 unit="checklist_item",
-                count=reconciliation_summary.total_items,
+                count=reconciliation_summary.coverage_denominator_items,
             ),
         ),
         token_count=checklist_report_reconciliation.total_tokens,
@@ -1937,7 +2006,7 @@ async def run_harness(
             initial_collection_snapshot=initial_collection_snapshot,
             model_names=model_names,
             claim_decomposition=claim_decomposition,
-            evaluative_diagnostics=None,
+            evaluative_diagnostics=evaluative_diagnostics,
             checklist_reconciliation=checklist_report_reconciliation,
             attribution=None,
             verification=None,
@@ -2028,7 +2097,9 @@ async def run_harness(
         and run_cost.configured
     ):
         effective_verification_cost_estimator = (
-            budgeted_verification_model.estimate_cost_usd
+            _single_call_bootstrap_cost_estimator(
+                budgeted_verification_model
+            )
         )
     candidate_relation_ids = tuple(
         f"{record.claim.claim_id}|{candidate.source_id}"
@@ -2087,7 +2158,7 @@ async def run_harness(
             initial_collection_snapshot=initial_collection_snapshot,
             model_names=model_names,
             claim_decomposition=claim_decomposition,
-            evaluative_diagnostics=None,
+            evaluative_diagnostics=evaluative_diagnostics,
             checklist_reconciliation=checklist_report_reconciliation,
             attribution=initial_attribution,
             verification=None,
@@ -2218,7 +2289,17 @@ async def run_harness(
                 estimate_cost_usd=evidence_gap_cost_estimator,
             )
         except RunCostCapReached:
+            interrupted_targets = select_evidence_gap_targets(
+                initial_verification
+            )
             evidence_gap = EvidenceGapResult(
+                target_claim_ids=tuple(
+                    target.claim.claim_id for target in interrupted_targets
+                ),
+                initial_states={
+                    target.claim.claim_id: target.state
+                    for target in interrupted_targets
+                },
                 stop_reason=EvidenceGapStopReason.BUDGET_EXHAUSTED,
                 stop_detail=(
                     "absolute run cost admission stopped this bounded "
@@ -2231,6 +2312,10 @@ async def run_harness(
         stage_records["evidence_gap"] = _evidence_gap_execution_record(
             evidence_gap
         )
+    evidence_gap_observed_cost_usd = max(
+        evidence_gap.total_cost_usd,
+        run_cost.audit().stage_cost_usd.get("evidence_gap", 0.0),
+    )
     evidence_gap_attribution = evidence_gap.final_attribution
     evidence_gap_verification = evidence_gap.final_verification
     if disagreement_budget is None:
@@ -2261,7 +2346,7 @@ async def run_harness(
                         max(
                             0.0,
                             posthoc_retrieval_budget.max_cost_usd
-                            - evidence_gap.total_cost_usd,
+                            - evidence_gap_observed_cost_usd,
                         ),
                     ),
                 }
@@ -2333,14 +2418,18 @@ async def run_harness(
         stage_records["disagreement"] = _disagreement_execution_record(
             disagreement
         )
+    disagreement_observed_cost_usd = max(
+        disagreement.total_cost_usd,
+        run_cost.audit().stage_cost_usd.get("disagreement", 0.0),
+    )
     attribution = disagreement.final_attribution
     verification = disagreement.final_verification
     posthoc_budget_audit = shared_posthoc_budget_audit(
         budget=posthoc_retrieval_budget,
         evidence_gap_tokens=evidence_gap.total_tokens,
-        evidence_gap_cost_usd=evidence_gap.total_cost_usd,
+        evidence_gap_cost_usd=evidence_gap_observed_cost_usd,
         disagreement_tokens=disagreement.total_tokens,
-        disagreement_cost_usd=disagreement.total_cost_usd,
+        disagreement_cost_usd=disagreement_observed_cost_usd,
         disagreement_reserved_tokens=(
             posthoc_allocation.disagreement_reserved_tokens
         ),
@@ -3066,7 +3155,9 @@ async def run_harness(
                 post_cost_estimator = verification_cost_estimator
                 if post_cost_estimator is None and run_cost.configured:
                     post_cost_estimator = (
-                        budgeted_post_verification_model.estimate_cost_usd
+                        _single_call_bootstrap_cost_estimator(
+                            budgeted_post_verification_model
+                        )
                     )
                 try:
                     post_verification = await verify_attributions(
@@ -3158,9 +3249,6 @@ async def run_harness(
             # partial verification registry must remain publishable as a partial
             # bundle instead of suppressing this independent audit.
             if post_claim_stage_complete and post_claims is not None:
-                item_ids = tuple(
-                    item.item_id for item in loop_result.checklist.items
-                )
                 budgeted_post_reconciliation_model = run_cost.wrap(
                     reconciliation_model,
                     stage="post_edit_checklist_reconciliation",
@@ -3177,35 +3265,17 @@ async def run_harness(
                 except RunCostCapReached as error:
                     stage_records[
                         "post_edit_checklist_reconciliation"
-                    ] = _scope_record(
-                        status=StageExecutionStatus.NOT_RUN,
-                        reason=str(error),
-                        unit="checklist_item",
-                        expected_count=len(item_ids),
-                        evaluated_count=0,
-                        unevaluated_ids=item_ids,
+                    ] = _reconciliation_budget_denied_record(
+                        loop_result.checklist,
+                        error,
                     )
                 else:
                     summary = post_reconciliation.summary
                     stage_records[
                         "post_edit_checklist_reconciliation"
-                    ] = _scope_record(
-                        status=(
-                            StageExecutionStatus.COMPLETE
-                            if summary.assessment_failed_items == 0
-                            else StageExecutionStatus.PARTIAL
-                        ),
-                        reason=(
-                            "every checklist item was reconciled against the "
-                            "edited draft"
-                            if summary.assessment_failed_items == 0
-                            else "some checklist items could not be reconciled "
-                            "against the edited draft"
-                        ),
-                        unit="checklist_item",
-                        expected_count=summary.total_items,
-                        evaluated_count=summary.assessed_items,
-                        unevaluated_ids=summary.assessment_failed_item_ids,
+                    ] = _reconciliation_stage_record(
+                        summary,
+                        draft_label="edited draft",
                     )
                     additional_usage[
                         "post_edit_checklist_reconciliation"
@@ -3219,7 +3289,7 @@ async def run_harness(
                             TailWorkUnit(
                                 stage="post_edit_checklist_reconciliation",
                                 unit="checklist_item",
-                                count=summary.total_items,
+                                count=summary.coverage_denominator_items,
                             ),
                         ),
                         token_count=post_reconciliation.total_tokens,
@@ -3641,11 +3711,11 @@ async def run_harness(
     )
     evidence_gap_usage = UsageRecord(
         token_count=evidence_gap.total_tokens,
-        cost_usd=evidence_gap.total_cost_usd,
+        cost_usd=evidence_gap_observed_cost_usd,
     )
     disagreement_usage = UsageRecord(
         token_count=disagreement.total_tokens,
-        cost_usd=disagreement.total_cost_usd,
+        cost_usd=disagreement_observed_cost_usd,
     )
     usage, usage_audit = _usage_payload(
         checklist_usage=checklist_usage,

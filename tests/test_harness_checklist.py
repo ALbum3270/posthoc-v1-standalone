@@ -54,7 +54,12 @@ def test_model_generated_checklist_is_parsed_and_prompt_is_topic_neutral():
 
     assert checklist.items == (item(),)
     assert checklist.items[0].corroboration_target == 1
-    assert "who, what, when, where, why, and how" in model.prompts[0]
+    assert "who, what, when, where, why, and how only as optional" in (
+        model.prompts[0]
+    )
+    assert "not as a coverage quota" in model.prompts[0]
+    assert "smallest checklist that is sufficient" in model.prompts[0]
+    assert "solely to populate a dimension" in model.prompts[0]
     assert "semantic research specification" in model.prompts[0]
     assert "fixed event list or a report gate" in model.prompts[0]
     assert "corroboration_target" in model.prompts[0]
@@ -158,3 +163,56 @@ def test_exhausted_not_found_is_complete_and_explicitly_not_failure():
     assert exhausted.is_failed is False
     assert checklist.is_complete is True
     assert checklist.has_failures is False
+
+
+def test_out_of_scope_is_terminal_without_changing_frozen_membership():
+    checklist = ResearchChecklist(topic="Any topic", items=(item(),))
+    ledger = FakeLedger()
+
+    narrowed = checklist.set_status(
+        "who-1",
+        ChecklistStatus.OUT_OF_SCOPE,
+        reason="This profile question is not part of the user's request",
+        ledger=ledger,
+    )
+
+    assert [entry.item_id for entry in checklist.items] == ["who-1"]
+    assert [entry.item_id for entry in narrowed.items] == ["who-1"]
+    assert checklist.get("who-1").status is ChecklistStatus.UNEXPLORED
+    assert narrowed.get("who-1").status is ChecklistStatus.OUT_OF_SCOPE
+    assert narrowed.is_complete is True
+    assert narrowed.has_failures is False
+    assert ledger.changes == [
+        {
+            "event": "status_change",
+            "item_id": "who-1",
+            "accepted": True,
+            "reason": (
+                "This profile question is not part of the user's request"
+            ),
+            "from_status": "unexplored",
+            "to_status": "out_of_scope",
+        }
+    ]
+
+    assert narrowed.request_delete(
+        "who-1",
+        reason="Terminal scope judgement is not physical deletion",
+        ledger=ledger,
+    ) is False
+    assert [entry.item_id for entry in narrowed.items] == ["who-1"]
+
+
+@pytest.mark.parametrize(
+    "historical_status",
+    ("unexplored", "has_material", "settled", "exhausted_not_found"),
+)
+def test_historical_checklist_status_payloads_remain_readable(
+    historical_status,
+):
+    payload = item().model_dump(mode="json")
+    payload["status"] = historical_status
+
+    restored = ChecklistItem.model_validate(payload)
+
+    assert restored.status.value == historical_status

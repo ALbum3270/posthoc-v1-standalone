@@ -258,10 +258,20 @@ def build_live_clients() -> LiveClients:
 
     openai = AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
     tavily = AsyncTavilyClient(api_key=tavily_api_key)
+    # Capacity admission may need an estimate before a particular semantic
+    # role has made its first call. Roles backed by the same provider model
+    # therefore share observed calibration while remaining separate clients.
+    # Distinct model names stay isolated; unknown calibration is never
+    # represented as a zero-cost estimate.
+    calibrations: dict[str, UsageCalibration] = {}
+
+    def calibration_for(model_name: str) -> UsageCalibration:
+        return calibrations.setdefault(model_name, UsageCalibration())
+
     checklist_envelope = OpenAIEnvelopeModel(
         openai,
         decision_model_name,
-        calibration=UsageCalibration(),
+        calibration=calibration_for(decision_model_name),
     )
     return LiveClients(
         openai=openai,
@@ -270,48 +280,48 @@ def build_live_clients() -> LiveClients:
         decision_model=OpenAIEnvelopeModel(
             openai,
             decision_model_name,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(decision_model_name),
         ),
         note_model=OpenAIEnvelopeModel(
             openai,
             note_model_name,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(note_model_name),
         ),
         write_model=OpenAIEnvelopeModel(
             openai,
             decision_model_name,
             json_mode=False,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(decision_model_name),
         ),
         claim_model=OpenAIEnvelopeModel(
             openai,
             claim_model_name,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(claim_model_name),
         ),
         reconciliation_model=OpenAIEnvelopeModel(
             openai,
             reconciliation_model_name,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(reconciliation_model_name),
         ),
         attribution_model=OpenAIEnvelopeModel(
             openai,
             attribution_model_name,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(attribution_model_name),
         ),
         verification_model=OpenAIEnvelopeModel(
             openai,
             verification_model_name,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(verification_model_name),
         ),
         editor_model=OpenAIEnvelopeModel(
             openai,
             editor_model_name,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(editor_model_name),
         ),
         recovery_model=OpenAIEnvelopeModel(
             openai,
             recovery_model_name,
-            calibration=UsageCalibration(),
+            calibration=calibration_for(recovery_model_name),
         ),
         decision_model_name=decision_model_name,
         note_model_name=note_model_name,

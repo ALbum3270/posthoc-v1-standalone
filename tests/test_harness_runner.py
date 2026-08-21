@@ -13,6 +13,17 @@ from open_deep_research.harness.attribution import (
     CandidateSource,
     ClaimAttribution,
 )
+from open_deep_research.harness.budget import (
+    RunCostBudget,
+    RunCostCapReached,
+    RunCostController,
+)
+from open_deep_research.harness.checklist import (
+    ChecklistDimension,
+    ChecklistItem,
+    ChecklistStatus,
+    ResearchChecklist,
+)
 from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
@@ -36,9 +47,12 @@ from open_deep_research.harness.numeric_consistency import (
     NumericConsistencyStatus,
 )
 from open_deep_research.harness.recovery import EvidenceRecoveryStopReason
+from open_deep_research.harness.reconcile import ChecklistCoverageSummary
 from open_deep_research.harness.runner import (
     _changed_scope_audit_diagnostics,
     _publish_artifact_bundle,
+    _reconciliation_budget_denied_record,
+    _reconciliation_stage_record,
     _scope_record,
     run_harness,
 )
@@ -283,6 +297,25 @@ class DecisionModel:
         }
 
 
+class OutOfScopeDecisionModel(DecisionModel):
+    async def generate(self, prompt):
+        self.events.append("decision")
+        return {
+            "content": {
+                "status_updates": [
+                    {
+                        "item_id": "what-1",
+                        "status": "out_of_scope",
+                        "reason": "The item is outside the user's request.",
+                    }
+                ],
+                "action": None,
+            },
+            "token_count": 2,
+            "cost_usd": 0.02,
+        }
+
+
 class UnusedNoteModel:
     async def generate(self, prompt):
         raise AssertionError("note model should not be called")
@@ -305,6 +338,69 @@ def test_scope_overcount_degrades_without_erasing_the_run() -> None:
     assert "evaluated_scope_cannot_exceed_expected_scope" in record.reason
     assert "observed_evaluated_count=2" in record.reason
     assert record.reason.endswith("stage claimed completion")
+
+
+def test_reconciliation_stage_scope_closes_over_upstream_exclusions() -> None:
+    summary = ChecklistCoverageSummary(
+        total_items=2,
+        assessed_items=1,
+        covered_items=1,
+        partially_covered_items=0,
+        not_covered_items=0,
+        assessment_failed_items=0,
+        scope_excluded_items=1,
+        covered_rate=1.0,
+        scope_excluded_item_ids=("where-1",),
+    )
+
+    for draft_label in ("initial draft", "edited draft"):
+        record = _reconciliation_stage_record(
+            summary,
+            draft_label=draft_label,
+        )
+        assert record.status is StageExecutionStatus.COMPLETE
+        assert record.expected_scope.count == 2
+        assert record.evaluated_scope.count == 2
+        assert record.unevaluated_ids == ()
+        assert "upstream scope exclusion" in record.reason
+
+
+def test_reconciliation_budget_denial_only_leaves_assessable_items_open() -> None:
+    checklist = ResearchChecklist(
+        topic="A topic",
+        items=(
+            ChecklistItem(
+                item_id="what-1",
+                dimension=ChecklistDimension.WHAT,
+                question="What happened?",
+                priority=1,
+                corroboration_target=1,
+                status=ChecklistStatus.SETTLED,
+            ),
+            ChecklistItem(
+                item_id="where-1",
+                dimension=ChecklistDimension.WHERE,
+                question="Where did it happen?",
+                priority=2,
+                corroboration_target=1,
+                status=ChecklistStatus.OUT_OF_SCOPE,
+            ),
+        ),
+    )
+    error = RunCostCapReached(
+        "cost cap denied the call",
+        stage="checklist_reconciliation",
+        audit=RunCostController(
+            RunCostBudget(max_cost_usd=1.0)
+        ).audit(),
+    )
+
+    record = _reconciliation_budget_denied_record(checklist, error)
+
+    assert record.status is StageExecutionStatus.PARTIAL
+    assert record.expected_scope.count == 2
+    assert record.evaluated_scope.count == 1
+    assert record.unevaluated_ids == ("what-1",)
 
 
 class WriteModel:
@@ -431,6 +527,11 @@ class CoverageModel:
             "token_count": 4,
             "cost_usd": 0.01,
         }
+
+
+class UnusedCoverageModel:
+    async def generate(self, prompt):
+        raise AssertionError("scope-excluded checklist must skip reconciliation")
 
 
 class AttributionModel:
@@ -1537,6 +1638,7 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     ) in sources_markdown
     assert (
         "清单内容覆盖（不表示来源支持）："
+        "冻结清单 1；范围排除 0（无）；"
         "已评估 1/1；完整覆盖 1/1"
     ) in sources_markdown
     assert (
@@ -1752,6 +1854,62 @@ def test_runner_executes_pipeline_and_writes_report_and_complete_audit(tmp_path)
     }
 
 
+def test_runner_counts_upstream_scope_exclusion_as_terminal_reconciliation(
+    tmp_path,
+):
+    events = []
+    draft = "# Report\n\nThe model wrote this report."
+
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=OutOfScopeDecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=WriteModel(events),
+            claim_model=ClaimModel(events, draft),
+            reconciliation_model=UnusedCoverageModel(),
+            attribution_model=AttributionModel(events),
+            verification_model=UnusedVerificationModel(),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            output_dir=tmp_path,
+            run_id="scope-excluded-reconciliation",
+        )
+    )
+
+    assert "reconciliation" not in events
+    reconciliation = result.checklist_report_reconciliation
+    assert reconciliation is not None
+    assert reconciliation.summary.total_items == 1
+    assert reconciliation.summary.scope_excluded_item_ids == ("what-1",)
+    assert reconciliation.summary.assessed_items == 0
+    assert reconciliation.summary.assessment_failed_items == 0
+    assert reconciliation.summary.not_covered_items == 0
+    assert reconciliation.summary.covered_rate == 0.0
+
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    stage = audit["posthoc_evidence"]["stage_execution"]["stages"][
+        "checklist_reconciliation"
+    ]
+    assert stage["status"] == "complete"
+    assert stage["expected_scope"] == {
+        "unit": "checklist_item",
+        "count": 1,
+    }
+    assert stage["evaluated_scope"] == {
+        "unit": "checklist_item",
+        "count": 1,
+    }
+    assert stage["unevaluated_ids"] == []
+    assert audit["posthoc_evidence"][
+        "checklist_report_reconciliation"
+    ]["records"][0]["assessment_status"] == "scope_excluded"
+    assert "范围排除 1（what-1）" in result.sources_path.read_text(
+        encoding="utf-8"
+    )
+
+
 def test_runner_recovery_accepts_mixed_external_and_internal_registry(tmp_path):
     """Only external anomalies may enter the explicit gap target contract.
 
@@ -1787,6 +1945,8 @@ def test_runner_recovery_accepts_mixed_external_and_internal_registry(tmp_path):
                 max_search_queries=1,
                 max_reads=1,
             ),
+            evidence_gap_input_token_estimator=lambda _client, _prompt: 1,
+            evidence_gap_cost_estimator=lambda _client, _prompt: 0.001,
             output_dir=tmp_path,
             run_id="recovery-wired-run",
         )
@@ -1894,6 +2054,9 @@ def test_runner_cannot_silently_bypass_a_world_fact_proposed_as_internal(
         in result.rendered_report.markdown
     )
 
+    assert result.report_path.is_file()
+    assert result.sources_path.is_file()
+    assert result.audit_path.is_file()
     audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
     decomposition = audit["posthoc_evidence"]["claim_decomposition"]
     assert decomposition["block_denominator_audit"]["silent_bypass_count"] == 0
@@ -2902,6 +3065,10 @@ def test_cli_defaults_reconciliation_to_attribution_tier(monkeypatch):
     assert clients.attribution_model.model == "attribution-tier"
     assert clients.reconciliation_model.model == "attribution-tier"
     assert clients.reconciliation_model is not clients.attribution_model
+    assert (
+        clients.reconciliation_model.calibration
+        is clients.attribution_model.calibration
+    )
 
 
 def test_json_mode_adapter_supplies_provider_required_literal() -> None:
@@ -3254,6 +3421,91 @@ def test_a_cap_that_bites_after_the_draft_still_writes_an_honest_bundle(
     )
 
     assert stages_claiming_completion_without_output(audit) == ()
+
+
+def test_mid_gap_cost_cap_preserves_scope_and_measured_spend(
+    tmp_path,
+    monkeypatch,
+):
+    """A paid gap prefix must not disappear behind a synthetic 0/0 result."""
+
+    first_prompt = "FIRST_EVIDENCE_GAP_CALL"
+    second_prompt = "SECOND_EVIDENCE_GAP_CALL"
+
+    class CapInsideGapDecisionModel(DecisionModel):
+        def estimate_cost_usd(self, prompt):
+            if prompt == second_prompt:
+                return 10.0
+            return 0.0001
+
+        async def generate(self, prompt):
+            if prompt == first_prompt:
+                self.events.append("gap-prefix")
+                return {
+                    "content": {"accepted": True},
+                    "token_count": 1,
+                    "cost_usd": 0.004,
+                }
+            if prompt == second_prompt:
+                raise AssertionError("rejected call reached the delegate")
+            return await super().generate(prompt)
+
+    async def cap_after_paid_prefix(**kwargs):
+        await kwargs["gap_model"].generate(first_prompt)
+        await kwargs["gap_model"].generate(second_prompt)
+        raise AssertionError("the second call should hit the run cost cap")
+
+    monkeypatch.setattr(
+        "open_deep_research.harness.runner.run_evidence_gap_round",
+        cap_after_paid_prefix,
+    )
+    events = []
+    draft = "# Report\n\nThe model wrote this report."
+    result = asyncio.run(
+        run_harness(
+            "A topic",
+            checklist_model=ChecklistModel(events),
+            decision_model=CapInsideGapDecisionModel(events),
+            note_model=UnusedNoteModel(),
+            write_model=WriteModel(events),
+            claim_model=ClaimModel(events, draft),
+            reconciliation_model=CoverageModel(events),
+            attribution_model=AttributionModel(events),
+            verification_model=UnusedVerificationModel(),
+            tavily_client=UnusedTavily(),
+            budget=LoopBudget(max_rounds=2, max_tokens=100, max_cost_usd=1),
+            run_cost_budget=RunCostBudget(max_cost_usd=2.0),
+            evidence_gap_budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            output_dir=tmp_path,
+            run_id="mid-gap-cap",
+        )
+    )
+
+    audit = json.loads(result.audit_path.read_text(encoding="utf-8"))
+    stage = audit["posthoc_evidence"]["stage_execution"]["stages"][
+        "evidence_gap"
+    ]
+    assert audit["completion_status"] == "partial"
+    assert stage["status"] == "partial"
+    assert stage["expected_scope"] == {"unit": "target_claim", "count": 1}
+    assert stage["evaluated_scope"] == {"unit": "target_claim", "count": 0}
+    assert stage["unevaluated_ids"] == ["claim-0001"]
+    assert audit["posthoc_evidence"]["evidence_gap"][
+        "target_claim_ids"
+    ] == ["claim-0001"]
+    stage_cost = audit["run_cost_budget"]["stage_cost_usd"]["evidence_gap"]
+    assert stage_cost == pytest.approx(0.004)
+    assert audit["usage"]["evidence_gap"]["cost_usd"] == pytest.approx(
+        stage_cost
+    )
+    assert audit["usage"]["total"]["cost_usd"] == pytest.approx(
+        audit["run_cost_budget"]["observed_total_cost_usd"]
+    )
 
 
 def test_tail_reserve_cannot_become_a_writing_admission_gate(tmp_path):

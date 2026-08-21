@@ -54,6 +54,16 @@ def test_write_report_passes_all_material_once_without_report_template() -> None
     assert "Nearby endpoint facts do not automatically answer a\nrelationship" in (
         model.prompts[0]
     )
+    assert "explicit research topic above is the controlling scope" in (
+        model.prompts[0]
+    )
+    assert "Notes\nare evidence options, not an instruction to mention everything" in (
+        model.prompts[0]
+    )
+    assert "omit tangential facts, generic\nbackground" in model.prompts[0]
+    assert "focused synthesis over an inventory" in model.prompts[0]
+    assert "using the relevant\nassembled research material" in model.prompts[0]
+    assert "from all of the\nassembled research material" not in model.prompts[0]
 
 
 def test_write_prompt_keeps_report_language_bound_to_the_research_topic() -> None:

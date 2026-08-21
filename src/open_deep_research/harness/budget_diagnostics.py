@@ -510,14 +510,21 @@ def build_run_stop_diagnostic(
 
     if not report_written:
         completion = CompletionStatus.FAILED
+    elif (
+        cap_was_binding
+        or posthoc_retrieval_limited
+        or evidence_gap_plan_unexecuted
+        or disagreement_plan_unexecuted
+    ):
+        # A canonical draft plus a refused downstream call is a partial run
+        # even when collection needed zero model-directed rounds. Checking the
+        # zero-round shortcut first used to mislabel this exact post-draft
+        # cutoff as not_started.
+        completion = CompletionStatus.PARTIAL
     elif not getattr(loop_result, "rounds_executed", 0):
         completion = CompletionStatus.NOT_STARTED
     elif (
-        not cap_was_binding
-        and not posthoc_retrieval_limited
-        and not evidence_gap_plan_unexecuted
-        and not disagreement_plan_unexecuted
-        and getattr(loop_result, "is_success", False)
+        getattr(loop_result, "is_success", False)
         and not (
         outstanding.has_outstanding_work
         )

@@ -18,6 +18,7 @@ from pydantic import (
     model_validator,
 )
 
+from open_deep_research.harness.budget import RunCostAdmissionDenied
 from open_deep_research.harness.jsonio import loads_lenient
 from open_deep_research.harness.notes import (
     NoteLocationStatus,
@@ -38,6 +39,7 @@ from open_deep_research.harness.truth_conditions import (
     ElementizationStage,
     TruthConditionRegistry,
     build_elementization_review_prompt,
+    build_elementization_review_recovery_prompt,
     build_truth_condition_registry,
     parse_elementization_reviews,
 )
@@ -1462,6 +1464,40 @@ def build_evidence_obligation_prompt(
     )
 
 
+def build_evidence_obligation_recovery_prompt(
+    report: str,
+    claims: Sequence[AtomicClaim],
+    failure_reasons: Mapping[str, str],
+    *,
+    span_registry: SourceSpanRegistry | None = None,
+) -> str:
+    """Build one strict retry for mechanically invalid obligation items."""
+
+    claim_ids = tuple(claim.claim_id for claim in claims)
+    if len(set(claim_ids)) != len(claim_ids):
+        raise ValueError("evidence-obligation recovery claim IDs must be unique")
+    if set(failure_reasons) != set(claim_ids):
+        raise ValueError("recovery requires one failure reason per claim")
+    return (
+        "This is the single bounded protocol-recovery attempt for only the "
+        "claims whose previous evidence-obligation items failed mechanical "
+        "validation. Do not emit or reconsider any valid sibling claim. Keep "
+        "the same outcome vocabulary and pointer schema, but re-evaluate the "
+        "invalid item. A self-referential or invalid pointer must not be "
+        "repeated: choose a disjoint independent internal span, or honestly "
+        "return external_required, internal_not_supported, or uncertain as "
+        "appropriate.\n"
+        "PRIOR_VALIDATION_ERRORS:\n"
+        f"{json.dumps(dict(failure_reasons), ensure_ascii=False, sort_keys=True)}"
+        "\n\n"
+        + build_evidence_obligation_prompt(
+            report,
+            claims,
+            span_registry=span_registry,
+        )
+    )
+
+
 def build_decontextualization_prompt(
     report: str,
     claims: Sequence[Mapping[str, Any]],
@@ -2839,11 +2875,12 @@ async def decompose_claims(
             call_error: str | None = None
             parsed_reviews: tuple[ElementizationReview, ...] = ()
             batch_failures: tuple[ElementizationFailure, ...] = ()
+            batch_usages: list[ClaimStageUsage] = []
             element_review_model = (
                 truth_condition_review_model_client or review_model_client
             )
             if element_review_model is None:
-                batch_usage = ClaimStageUsage()
+                batch_usages.append(ClaimStageUsage())
                 call_error = "review_model_client was not provided"
                 batch_failures = tuple(
                     ElementizationFailure(
@@ -2856,7 +2893,7 @@ async def decompose_claims(
                 )
             else:
                 try:
-                    review_content, batch_usage = await _call_model(
+                    review_content, initial_usage = await _call_model(
                         element_review_model,
                         build_elementization_review_prompt(
                             {
@@ -2882,20 +2919,23 @@ async def decompose_claims(
                         ),
                     )
                 except Exception as exc:
-                    batch_usage = ClaimStageUsage()
+                    batch_usages.append(ClaimStageUsage())
                     call_error = f"{type(exc).__name__}: {exc}"
                     batch_failures = tuple(
                         ElementizationFailure(
                             claim_id=claim_id,
                             stage=ElementizationStage.REVIEW,
                             execution_status=(
-                                ElementizationExecutionStatus.MODEL_ERROR
+                                ElementizationExecutionStatus.NOT_RUN
+                                if isinstance(exc, RunCostAdmissionDenied)
+                                else ElementizationExecutionStatus.MODEL_ERROR
                             ),
                             diagnostic=call_error,
                         )
                         for claim_id in input_ids
                     )
                 else:
+                    batch_usages.append(initial_usage)
                     try:
                         review_json = json.dumps(
                             review_content,
@@ -2918,11 +2958,142 @@ async def decompose_claims(
                         f"batch[{batch_number}]: {diagnostic}"
                         for diagnostic in parsed.diagnostics
                     )
+
+                    # A valid sibling is a completed semantic judgement, not a
+                    # reason to pay for and risk changing the whole batch.  One
+                    # bounded correction call receives only items whose first
+                    # response failed the strict review schema.  Model/provider
+                    # and budget failures remain explicit unresolved entries.
+                    recoverable_failures = tuple(
+                        item
+                        for item in batch_failures
+                        if item.execution_status
+                        is ElementizationExecutionStatus.INVALID_RESPONSE
+                    )
+                    if recoverable_failures:
+                        recovery_ids = tuple(
+                            item.claim_id for item in recoverable_failures
+                        )
+                        recovery_id_set = set(recovery_ids)
+                        recovery_proposals = tuple(
+                            item
+                            for item in proposal_batch
+                            if item.claim_id in recovery_id_set
+                        )
+                        diagnostics.append(
+                            "truth_condition_review_recovery_attempt"
+                            f"[{batch_number}] claim_ids={','.join(recovery_ids)}"
+                        )
+                        try:
+                            recovery_content, recovery_usage = await _call_model(
+                                element_review_model,
+                                build_elementization_review_recovery_prompt(
+                                    {
+                                        claim_id: truth_condition_claim_surfaces[
+                                            claim_id
+                                        ]
+                                        for claim_id in recovery_ids
+                                    },
+                                    recovery_proposals,
+                                    recoverable_failures,
+                                    claim_contexts={
+                                        claim_id: truth_condition_claim_contexts.get(
+                                            claim_id, ()
+                                        )
+                                        for claim_id in recovery_ids
+                                    },
+                                    claim_glosses={
+                                        claim_id: truth_condition_claim_glosses[
+                                            claim_id
+                                        ]
+                                        for claim_id in recovery_ids
+                                        if claim_id
+                                        in truth_condition_claim_glosses
+                                    },
+                                ),
+                            )
+                        except Exception as exc:
+                            batch_usages.append(ClaimStageUsage())
+                            recovery_error = f"{type(exc).__name__}: {exc}"
+                            call_error = (
+                                "truth-condition review local recovery failed: "
+                                f"{recovery_error}"
+                            )
+                            recovery_reviews: tuple[
+                                ElementizationReview, ...
+                            ] = ()
+                            # The retry did not produce a replacement review,
+                            # so retain each first-pass protocol failure as the
+                            # registry truth.  ``call_error`` plus the run-cost
+                            # admission audit record why the sole recovery did
+                            # not complete without erasing the original defect.
+                            recovery_failures = recoverable_failures
+                        else:
+                            batch_usages.append(recovery_usage)
+                            try:
+                                recovery_json = json.dumps(
+                                    recovery_content,
+                                    ensure_ascii=False,
+                                )
+                            except (TypeError, ValueError) as exc:
+                                recovery_json = ""
+                                diagnostics.append(
+                                    "truth_condition_review_recovery_payload_"
+                                    f"unserializable[{batch_number}]: {exc}"
+                                )
+                            recovery_parsed = parse_elementization_reviews(
+                                recovery_json,
+                                recovery_ids,
+                            )
+                            recovery_reviews = recovery_parsed.reviews
+                            recovery_failures = recovery_parsed.failures
+                            diagnostics.extend(
+                                "truth_condition_review_recovery_"
+                                f"batch[{batch_number}]: {diagnostic}"
+                                for diagnostic in recovery_parsed.diagnostics
+                            )
+
+                        review_by_id = {
+                            item.claim_id: item for item in parsed_reviews
+                        }
+                        review_by_id.update(
+                            (item.claim_id, item) for item in recovery_reviews
+                        )
+                        failure_by_id = {
+                            item.claim_id: item
+                            for item in batch_failures
+                            if item.claim_id not in recovery_id_set
+                        }
+                        failure_by_id.update(
+                            (item.claim_id, item) for item in recovery_failures
+                        )
+                        parsed_reviews = tuple(
+                            review_by_id[claim_id]
+                            for claim_id in input_ids
+                            if claim_id in review_by_id
+                        )
+                        batch_failures = tuple(
+                            failure_by_id[claim_id]
+                            for claim_id in input_ids
+                            if claim_id in failure_by_id
+                        )
+                        recovered_ids = tuple(
+                            claim_id
+                            for claim_id in recovery_ids
+                            if claim_id in review_by_id
+                        )
+                        diagnostics.append(
+                            "truth_condition_review_recovery_result"
+                            f"[{batch_number}] recovered="
+                            f"{','.join(recovered_ids) or 'none'}; unresolved="
+                            f"{','.join(item.claim_id for item in recovery_failures) or 'none'}"
+                        )
             if call_error is not None:
                 diagnostics.append(
                     f"truth_condition_review_batch_error[{batch_number}] "
                     f"claim_ids={','.join(input_ids)}: {call_error}"
                 )
+            batch_usage = _sum_usage(batch_usages)
             truth_condition_review_usages.append(batch_usage)
             truth_condition_reviews.extend(parsed_reviews)
             truth_condition_failures.extend(batch_failures)
@@ -3265,12 +3436,13 @@ async def decompose_claims(
         ):
             input_ids = tuple(claim.claim_id for claim in claim_batch)
             call_error: str | None = None
+            batch_usages: list[ClaimStageUsage] = []
             try:
                 if review_model_client is None:
                     raise ValueError(
                         "independent evidence review requires review_model_client"
                     )
-                review_content, batch_usage = await _call_model(
+                review_content, initial_usage = await _call_model(
                     review_model_client,
                     build_evidence_obligation_prompt(
                         report,
@@ -3280,19 +3452,150 @@ async def decompose_claims(
                 )
             except Exception as exc:
                 review_content = None
-                batch_usage = ClaimStageUsage()
+                batch_usages.append(ClaimStageUsage())
                 call_error = f"{type(exc).__name__}: {exc}"
                 diagnostics.append(
                     f"evidence_obligation_batch_error[{batch_number}] "
                     f"claim_ids={','.join(input_ids)}: {call_error}"
                 )
-            batch_claims, batch_diagnostics = _resolve_internal_obligations(
-                report,
-                claim_batch,
-                review_content,
-                span_registry=report_span_registry,
-            )
+                if isinstance(exc, RunCostAdmissionDenied):
+                    failure_reason = "evidence_obligation_not_run_budget"
+                elif review_model_client is None:
+                    failure_reason = (
+                        "evidence_obligation_not_run_model_unavailable"
+                    )
+                else:
+                    failure_reason = "evidence_obligation_model_error"
+                batch_claims = tuple(
+                    _unresolved_obligation(
+                        claim,
+                        reason=failure_reason,
+                    )
+                    for claim in claim_batch
+                )
+                batch_diagnostics = tuple(
+                    f"{failure_reason}: {claim.claim_id}"
+                    for claim in claim_batch
+                )
+            else:
+                batch_usages.append(initial_usage)
+                batch_claims, batch_diagnostics = (
+                    _resolve_internal_obligations(
+                        report,
+                        claim_batch,
+                        review_content,
+                        span_registry=report_span_registry,
+                    )
+                )
             diagnostics.extend(batch_diagnostics)
+
+            # Pointer/schema failures are recoverable without revisiting valid
+            # sibling decisions.  Reviewer uncertainty and a completed
+            # internal_not_supported decision are semantic outcomes, so they
+            # deliberately do not trigger another call.  Provider and budget
+            # failures on the bounded retry stay explicit unresolved records.
+            recoverable_reasons = {
+                "evidence_obligation_payload_invalid",
+                "evidence_obligation_missing",
+                "evidence_obligation_duplicate",
+                "internal_evidence_pointer_invalid",
+                "internal_evidence_self_reference",
+            }
+            recovery_candidates = tuple(
+                claim
+                for claim in batch_claims
+                if call_error is None
+                and claim.evidence_obligation is not None
+                and claim.evidence_obligation.status
+                is EvidenceObligationStatus.UNRESOLVED
+                and claim.evidence_obligation.failure_reason
+                in recoverable_reasons
+            )
+            if recovery_candidates:
+                recovery_ids = tuple(
+                    claim.claim_id for claim in recovery_candidates
+                )
+                original_by_id = {
+                    claim.claim_id: claim for claim in claim_batch
+                }
+                retry_claims = tuple(
+                    original_by_id[claim_id] for claim_id in recovery_ids
+                )
+                failure_reasons = {
+                    claim.claim_id: str(
+                        claim.evidence_obligation.failure_reason
+                    )
+                    for claim in recovery_candidates
+                    if claim.evidence_obligation is not None
+                }
+                diagnostics.append(
+                    "evidence_obligation_recovery_attempt"
+                    f"[{batch_number}] claim_ids={','.join(recovery_ids)}"
+                )
+                try:
+                    recovery_content, recovery_usage = await _call_model(
+                        review_model_client,
+                        build_evidence_obligation_recovery_prompt(
+                            report,
+                            retry_claims,
+                            failure_reasons,
+                            span_registry=report_span_registry,
+                        ),
+                    )
+                except Exception as exc:
+                    batch_usages.append(ClaimStageUsage())
+                    recovery_error = f"{type(exc).__name__}: {exc}"
+                    call_error = (
+                        "evidence-obligation local recovery failed: "
+                        f"{recovery_error}"
+                    )
+                    # Preserve the exact first-pass validation failure on the
+                    # unresolved item.  The batch error and run-cost admission
+                    # audit separately record why its sole retry did not run or
+                    # complete.
+                    recovered_batch = recovery_candidates
+                    recovery_diagnostics = (call_error,)
+                else:
+                    batch_usages.append(recovery_usage)
+                    recovered_batch, recovery_diagnostics = (
+                        _resolve_internal_obligations(
+                            report,
+                            retry_claims,
+                            recovery_content,
+                            span_registry=report_span_registry,
+                        )
+                    )
+                diagnostics.extend(
+                    "evidence_obligation_recovery_"
+                    f"batch[{batch_number}]: {diagnostic}"
+                    for diagnostic in recovery_diagnostics
+                )
+                recovered_by_id = {
+                    claim.claim_id: claim for claim in recovered_batch
+                }
+                batch_claims = tuple(
+                    recovered_by_id.get(claim.claim_id, claim)
+                    for claim in batch_claims
+                )
+                recovered_ids = tuple(
+                    claim_id
+                    for claim_id in recovery_ids
+                    if recovered_by_id[claim_id].evidence_obligation is not None
+                    and recovered_by_id[claim_id].evidence_obligation.status
+                    is not EvidenceObligationStatus.UNRESOLVED
+                )
+                unresolved_ids = tuple(
+                    claim_id
+                    for claim_id in recovery_ids
+                    if claim_id not in set(recovered_ids)
+                )
+                diagnostics.append(
+                    "evidence_obligation_recovery_result"
+                    f"[{batch_number}] recovered="
+                    f"{','.join(recovered_ids) or 'none'}; unresolved="
+                    f"{','.join(unresolved_ids) or 'none'}"
+                )
+
             resolved_internal.update(
                 (claim.claim_id, claim) for claim in batch_claims
             )
@@ -3308,6 +3611,7 @@ async def decompose_claims(
                 for claim in batch_claims
                 if claim.claim_id not in set(failed_ids)
             )
+            batch_usage = _sum_usage(batch_usages)
             evidence_review_usages.append(batch_usage)
             batch_records.append(
                 ClaimBatchRecord(

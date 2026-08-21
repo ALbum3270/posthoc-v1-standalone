@@ -140,19 +140,31 @@ def assemble_notes(
     checklist: ResearchChecklist,
     notes: Iterable[ResearchNote],
 ) -> str:
-    """Return reproducible structured text without discarding unmatched notes."""
+    """Return the reproducible writer view for the audited active scope.
+
+    ``OUT_OF_SCOPE`` questions stay out of the writer's research agenda. Notes
+    are evidence objects, however, and their collection ``item_id`` is not a
+    claim-applicability verdict.  Notes collected under an excluded question
+    therefore remain visible in a separate provenance section without
+    reintroducing that question as an answer requirement.
+    """
 
     material = list(notes)
     note_ids = _fallback_note_ids(material)
     identified = list(zip(material, note_ids, strict=True))
     known_item_ids = {item.item_id for item in checklist.items}
+    active_items = checklist.in_scope_items
+    active_item_ids = {item.item_id for item in active_items}
     by_item: dict[str, list[tuple[ResearchNote, str]]] = {
-        item_id: [] for item_id in known_item_ids
+        item_id: [] for item_id in active_item_ids
     }
+    excluded_provenance: list[tuple[ResearchNote, str]] = []
     unmatched: list[tuple[ResearchNote, str]] = []
     for note, note_id in identified:
         if note.item_id in by_item:
             by_item[note.item_id].append((note, note_id))
+        elif note.item_id in known_item_ids:
+            excluded_provenance.append((note, note_id))
         else:
             unmatched.append((note, note_id))
 
@@ -160,8 +172,43 @@ def assemble_notes(
         "# Assembled research notes",
         f"Topic: {_quoted(checklist.topic)}",
     ]
-    for item in sorted(checklist.items, key=_item_sort_key):
+    for item in sorted(active_items, key=_item_sort_key):
         lines.extend(("", *_render_item(item, by_item[item.item_id])))
+
+    if excluded_provenance:
+        lines.extend(
+            (
+                "",
+                "## evidence candidates from excluded checklist provenance",
+                (
+                    "Use these only when they directly support the controlling "
+                    "topic or an active question. Their originating questions "
+                    "are not report requirements."
+                ),
+            )
+        )
+        for number, (note, note_id) in enumerate(
+            sorted(
+                excluded_provenance,
+                key=lambda value: (
+                    value[0].item_id,
+                    *_note_sort_key(value[0]),
+                    value[1],
+                ),
+            ),
+            start=1,
+        ):
+            lines.extend(
+                (
+                    "",
+                    (
+                        f"### Evidence candidate {number} | "
+                        f"provenance_item_id={note.item_id} | "
+                        f"note_id={note_id}"
+                    ),
+                    *_render_note(note, number, note_id)[1:],
+                )
+            )
 
     if unmatched:
         lines.extend(("", "## unmatched notes"))

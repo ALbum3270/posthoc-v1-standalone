@@ -925,13 +925,65 @@ def build_elementization_review_prompt(
         "condition of the original claim. Use incomplete when you can identify an "
         "omission but cannot supply a complete reliable list, and uncertain when "
         "you cannot determine completeness. Describe omissions in "
-        "missing_conditions. This is semantic review; code will only validate the "
+        "missing_conditions. When semantic_status is incomplete, "
+        "missing_conditions must contain at least one specific omitted condition; "
+        "if no omission can be named, use uncertain instead. This is semantic "
+        "review; code will only validate the "
         "response shape and allocate IDs.\n\n"
         "Return exactly this JSON shape:\n"
         '{"claims":[{"claim_id":"...","semantic_status":"complete|incomplete|uncertain",'
         '"elements":["..."],"missing_conditions":["..."],'
         '"rationale":"..."}]}\n\n'
         f"CLAIMS_AND_PROPOSALS:\n{json.dumps(payload, ensure_ascii=False, sort_keys=True)}"
+    )
+
+
+def build_elementization_review_recovery_prompt(
+    claim_surfaces: Mapping[str, str],
+    proposals: Sequence[ElementizationProposal],
+    failures: Sequence[ElementizationFailure],
+    *,
+    claim_contexts: Mapping[str, Sequence[str]] | None = None,
+    claim_glosses: Mapping[str, str] | None = None,
+) -> str:
+    """Build one strict, item-local repair prompt for invalid review output.
+
+    This does not relax :class:`ElementizationReview`.  It narrows the second
+    call to the invalid claim IDs and exposes the mechanical validation errors
+    so the model can repair protocol shape without reconsidering valid sibling
+    judgements.
+    """
+
+    claim_ids = _clean_unique_ids(claim_surfaces, field_name="claim_surfaces keys")
+    failure_by_id = {item.claim_id: item for item in failures}
+    if len(failure_by_id) != len(failures) or set(failure_by_id) != set(claim_ids):
+        raise ValueError("recovery prompt requires one failure per claim")
+    if any(item.stage is not ElementizationStage.REVIEW for item in failures):
+        raise ValueError("recovery prompt accepts review-stage failures only")
+    if any(
+        item.execution_status is not ElementizationExecutionStatus.INVALID_RESPONSE
+        for item in failures
+    ):
+        raise ValueError("recovery prompt accepts invalid responses only")
+
+    validation_errors = {
+        claim_id: failure_by_id[claim_id].diagnostic for claim_id in claim_ids
+    }
+    return (
+        "This is the single bounded protocol-recovery attempt for only the "
+        "claims whose previous review items were invalid. Do not revisit or "
+        "emit any valid sibling claim. Keep the same semantic task and exact "
+        "schema. Re-evaluate inconsistent fields together; do not label an item "
+        "complete merely to satisfy validation. Repair each listed item in "
+        "light of its validation error.\n"
+        f"PRIOR_VALIDATION_ERRORS:\n"
+        f"{json.dumps(validation_errors, ensure_ascii=False, sort_keys=True)}\n\n"
+        + build_elementization_review_prompt(
+            claim_surfaces,
+            proposals,
+            claim_contexts=claim_contexts,
+            claim_glosses=claim_glosses,
+        )
     )
 
 

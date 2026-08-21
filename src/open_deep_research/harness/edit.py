@@ -93,7 +93,7 @@ class EditorialPreservationContext(BaseModel):
 def editorial_preservation_context(
     checklist: ResearchChecklist,
 ) -> EditorialPreservationContext:
-    """Project original research intent into editor-visible, non-gating context."""
+    """Project audited in-scope intent into editor-visible context."""
 
     return EditorialPreservationContext(
         topic=checklist.topic,
@@ -102,7 +102,7 @@ def editorial_preservation_context(
                 item_id=item.item_id,
                 question=item.question,
             )
-            for item in checklist.items
+            for item in checklist.in_scope_items
         ),
     )
 

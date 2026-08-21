@@ -1932,6 +1932,167 @@ def test_batch_status_updates_and_collection_action_run_in_the_same_round():
     assert first_round["result_count"] == 1
 
 
+def test_out_of_scope_needs_no_search_and_completes_the_run_with_audit():
+    active = checklist(second=False)
+    result, decision_model, _, client = run_loop(
+        [
+            envelope(
+                {
+                    "status_updates": [
+                        {
+                            "item_id": "what-1",
+                            "status": "out_of_scope",
+                            "reason": (
+                                "The question is not needed to answer the "
+                                "user's narrower request."
+                            ),
+                        }
+                    ],
+                    "action": None,
+                }
+            )
+        ],
+        active_checklist=active,
+    )
+
+    assert client.search_calls == []
+    assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
+    assert result.is_success is True
+    assert result.open_item_ids == ()
+    assert len(result.checklist.items) == len(active.items) == 1
+    assert result.checklist.get("what-1").status is ChecklistStatus.OUT_OF_SCOPE
+    change = result.ledger.checklist_history[-1]
+    assert change.item_id == "what-1"
+    assert change.reason == (
+        "The question is not needed to answer the user's narrower request."
+    )
+    assert change.from_status == "unexplored"
+    assert change.to_status == "out_of_scope"
+    assert result.ledger.rounds[-1].action == "mark_out_of_scope"
+
+    prompt = decision_model.prompts[0]
+    assert "It does not require a prior search" in prompt
+    assert "Never use it to disguise missing, weak, conflicting" in prompt
+    assert "Checklist\nmembership is frozen" in prompt
+    assert "does not delete or rewrite the item" in prompt
+
+
+def test_out_of_scope_terminal_update_skips_same_turn_action():
+    result, _, _, client = run_loop(
+        [
+            envelope(
+                {
+                    "status_updates": [
+                        {
+                            "item_id": "what-1",
+                            "status": "out_of_scope",
+                            "reason": "It is outside the user's request.",
+                        }
+                    ],
+                    "action": {
+                        "action": "search",
+                        "item_id": "what-1",
+                        "query": "this search must not execute",
+                    },
+                }
+            )
+        ],
+        active_checklist=checklist(second=False),
+    )
+
+    assert result.stop_reason is StopReason.ALL_ITEMS_TERMINAL
+    assert client.search_calls == []
+    audit = json.loads(result.ledger.rounds[-1].result_summary)
+    assert audit["action_skipped"] is True
+    assert audit["action_skip_reason"] == (
+        "status updates made every checklist item terminal"
+    )
+    assert audit["status_updates"] == [
+        {
+            "from_status": "unexplored",
+            "item_id": "what-1",
+            "reason": "It is outside the user's request.",
+            "status": "out_of_scope",
+            "to_status": "out_of_scope",
+        }
+    ]
+
+
+def test_terminal_status_is_monotonic_and_cannot_be_reclassified():
+    base = checklist()
+    active = base.model_copy(
+        update={
+            "items": (
+                base.items[0].model_copy(
+                    update={"status": ChecklistStatus.SETTLED}
+                ),
+                base.items[1],
+            )
+        }
+    )
+    result, _, _, client = run_loop(
+        [
+            envelope(
+                {
+                    "status_updates": [
+                        {
+                            "item_id": "what-1",
+                            "status": "out_of_scope",
+                            "reason": "This must not rewrite a terminal audit.",
+                        }
+                    ],
+                    "action": {"action": "stop"},
+                }
+            )
+        ],
+        active_checklist=active,
+    )
+
+    assert client.search_calls == []
+    assert result.checklist.get("what-1").status is ChecklistStatus.SETTLED
+    audit = json.loads(result.ledger.rounds[-1].result_summary)
+    assert audit["rejected_status_updates"][0]["item_id"] == "what-1"
+    assert "terminal checklist status is monotonic" in (
+        audit["rejected_status_updates"][0]["error"]
+    )
+
+
+def test_same_turn_scope_terminal_blocks_action_while_another_item_is_open():
+    result, _, _, client = run_loop(
+        [
+            envelope(
+                {
+                    "status_updates": [
+                        {
+                            "item_id": "what-1",
+                            "status": "out_of_scope",
+                            "reason": "It is outside the user's request.",
+                        }
+                    ],
+                    "action": {
+                        "action": "search",
+                        "item_id": "what-1",
+                        "query": "this search must not execute",
+                    },
+                }
+            ),
+            envelope({"action": "stop"}),
+        ]
+    )
+
+    assert client.search_calls == []
+    assert result.checklist.get("what-1").status is ChecklistStatus.OUT_OF_SCOPE
+    assert result.checklist.get("how-1").status is ChecklistStatus.UNEXPLORED
+    first_round = json.loads(result.ledger.rounds[0].result_summary)
+    assert first_round["action_skipped"] is True
+    assert first_round["action_skip_reason"] == (
+        "same-turn status update made the action target terminal"
+    )
+    assert "same-turn status update made the action target terminal" in (
+        first_round["rejected_action"]["error"]
+    )
+
+
 def test_discontinuous_segment_range_is_rejected_without_clamping():
     source = (
         "First continuous passage.\n\n"
@@ -2037,12 +2198,13 @@ def test_invalid_status_update_is_rejected_without_losing_valid_parts():
     first_round = json.loads(result.ledger.rounds[0].result_summary)
     assert first_round["status_updates"][0]["item_id"] == "what-1"
     assert first_round["rejected_status_updates"][0]["item_id"] == "how-1"
-    assert "Input should be 'settled' or 'exhausted_not_found'" in (
+    assert "Input should be 'settled', 'exhausted_not_found' or 'out_of_scope'" in (
         first_round["rejected_status_updates"][0]["error"]
     )
     prompt = decision_model.prompts[0]
     assert "status_updates accepts terminal judgements only" in prompt
-    assert 'Never put "unexplored" or "has_material"' in prompt
+    assert 'Never put "unexplored"' in prompt
+    assert 'or "has_material" in status_updates' in prompt
 
 
 def test_partial_success_resets_malformed_streak_but_no_executable_part_does_not():

@@ -7,6 +7,7 @@ import re
 
 import pytest
 
+from open_deep_research.harness.budget import RunCostBudget, RunCostController
 from open_deep_research.harness.claims import (
     BlockDisposition,
     BlockSelection,
@@ -510,6 +511,300 @@ def test_truth_condition_review_failure_is_unresolved_without_losing_claim() -> 
         diagnostic.startswith("truth_condition_review_batch_error[1]")
         for diagnostic in result.diagnostics
     )
+
+
+def test_truth_condition_review_retries_only_invalid_sibling_once() -> None:
+    sentences = (
+        "Alpha acquired Beta in 2024.",
+        "Gamma acquired Delta in 2025.",
+    )
+    report = " ".join(sentences)
+    block = parse_markdown_blocks(report)[0]
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, sentence),
+                            "citation_requirement": "external",
+                        }
+                        for sentence in sentences
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    "claim_text": sentence,
+                    "context_spans": [],
+                    "truth_conditions": [sentence],
+                }
+                for index, sentence in enumerate(sentences, start=1)
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    **_pointer(report, sentence),
+                }
+                for index, sentence in enumerate(sentences, start=1)
+            ]
+        },
+    )
+    review_model = ScriptedClaimModel(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "semantic_status": "complete",
+                    "elements": [sentences[0]],
+                    "missing_conditions": [],
+                    "rationale": "The condition is complete.",
+                },
+                {
+                    "claim_id": "claim-0002",
+                    "semantic_status": "incomplete",
+                    "elements": [sentences[1]],
+                    "missing_conditions": [],
+                    "rationale": "Invalid live-response shape.",
+                },
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0002",
+                    "semantic_status": "complete",
+                    "elements": [sentences[1]],
+                    "missing_conditions": [],
+                    "rationale": "The condition is complete.",
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            review_model_client=review_model,
+        )
+    )
+
+    assert result.truth_condition_registry is not None
+    assert result.truth_condition_registry.denominator.complete_claim_ids == (
+        "claim-0001",
+        "claim-0002",
+    )
+    assert result.truth_condition_registry.denominator.unresolved_claim_ids == ()
+    assert len(review_model.prompts) == 2
+    assert "single bounded protocol-recovery attempt" in review_model.prompts[1]
+    assert "claim-0001" not in review_model.prompts[1]
+    assert "claim-0002" in review_model.prompts[1]
+    assert result.truth_condition_review_usage == ClaimStageUsage(
+        token_count=20,
+        cost_usd=0.02,
+    )
+    review_batch = next(
+        batch
+        for batch in result.batches
+        if batch.stage == "truth_condition_review"
+    )
+    assert review_batch.outcome == "completed"
+    assert review_batch.usage == result.truth_condition_review_usage
+
+
+def test_truth_condition_review_recovers_all_invalid_eight_claim_live_shape() -> None:
+    sentences = tuple(
+        f"Entity {index} reported metric {index}." for index in range(1, 9)
+    )
+    report = " ".join(sentences)
+    block = parse_markdown_blocks(report)[0]
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, sentence),
+                            "citation_requirement": "external",
+                        }
+                        for sentence in sentences
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    "claim_text": sentence,
+                    "context_spans": [],
+                    "truth_conditions": [sentence],
+                }
+                for index, sentence in enumerate(sentences, start=1)
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    **_pointer(report, sentence),
+                }
+                for index, sentence in enumerate(sentences, start=1)
+            ]
+        },
+    )
+    invalid_reviews = [
+        {
+            "claim_id": f"claim-{index:04d}",
+            "semantic_status": "incomplete",
+            "elements": [sentence],
+            "missing_conditions": [],
+            "rationale": "The live batch used an invalid empty omission list.",
+        }
+        for index, sentence in enumerate(sentences, start=1)
+    ]
+    corrected_reviews = [
+        {
+            "claim_id": f"claim-{index:04d}",
+            "semantic_status": "complete",
+            "elements": [sentence],
+            "missing_conditions": [],
+            "rationale": "The condition is complete.",
+        }
+        for index, sentence in enumerate(sentences, start=1)
+    ]
+    review_model = ScriptedClaimModel(
+        {"claims": invalid_reviews},
+        {"claims": corrected_reviews},
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            review_model_client=review_model,
+        )
+    )
+
+    assert result.truth_condition_registry is not None
+    denominator = result.truth_condition_registry.denominator
+    assert len(denominator.complete_claim_ids) == 8
+    assert denominator.unresolved_claim_ids == ()
+    assert len(review_model.prompts) == 2
+    assert "missing_conditions" in review_model.prompts[1]
+    assert any(
+        diagnostic.startswith("truth_condition_review_recovery_result[1]")
+        and "unresolved=none" in diagnostic
+        for diagnostic in result.diagnostics
+    )
+
+
+def test_truth_condition_retry_budget_denial_keeps_valid_sibling_and_cost() -> None:
+    sentences = ("Alpha happened.", "Beta happened.")
+    report = " ".join(sentences)
+    block = parse_markdown_blocks(report)[0]
+    model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, sentence),
+                            "citation_requirement": "external",
+                        }
+                        for sentence in sentences
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    "claim_text": sentence,
+                    "context_spans": [],
+                    "truth_conditions": [sentence],
+                }
+                for index, sentence in enumerate(sentences, start=1)
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    **_pointer(report, sentence),
+                }
+                for index, sentence in enumerate(sentences, start=1)
+            ]
+        },
+    )
+    raw_review_model = ScriptedClaimModel(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "semantic_status": "complete",
+                    "elements": [sentences[0]],
+                    "missing_conditions": [],
+                    "rationale": "Complete.",
+                },
+                {
+                    "claim_id": "claim-0002",
+                    "semantic_status": "incomplete",
+                    "elements": [sentences[1]],
+                    "missing_conditions": [],
+                    "rationale": "Invalid.",
+                },
+            ]
+        }
+    )
+    cost = RunCostController(RunCostBudget(max_cost_usd=0.01))
+    review_model = cost.wrap(raw_review_model, stage="truth_condition_test")
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=model,
+            review_model_client=review_model,
+        )
+    )
+
+    assert result.truth_condition_registry is not None
+    entries = result.truth_condition_registry.entries
+    assert entries[0].semantic_status is ElementizationSemanticStatus.COMPLETE
+    assert entries[1].execution_status is (
+        ElementizationExecutionStatus.INVALID_RESPONSE
+    )
+    assert entries[1].diagnostic is not None
+    assert "invalid item" in entries[1].diagnostic
+    assert result.truth_condition_registry.denominator.unresolved_claim_ids == (
+        "claim-0002",
+    )
+    assert result.truth_condition_review_usage == ClaimStageUsage(
+        token_count=10,
+        cost_usd=0.01,
+    )
+    audit = cost.audit()
+    assert audit.observed_total_cost_usd == pytest.approx(0.01)
+    assert audit.admitted_call_count == 1
+    assert audit.rejected_call_count == 1
+    assert len(raw_review_model.prompts) == 1
+    review_batch = next(
+        batch
+        for batch in result.batches
+        if batch.stage == "truth_condition_review"
+    )
+    assert review_batch.error is not None
+    assert "local recovery failed" in review_batch.error
 
 
 def test_malformed_truth_condition_proposal_does_not_fail_decontextualization() -> None:
@@ -2201,6 +2496,120 @@ def test_internal_route_is_independently_promoted_to_external() -> None:
     )
 
 
+def test_evidence_obligation_retries_only_invalid_sibling_once() -> None:
+    sentences = (
+        "Alpha completed an external acquisition.",
+        "This report contains four findings.",
+    )
+    report = " ".join(sentences)
+    block = parse_markdown_blocks(report)[0]
+    claim_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, sentence),
+                            "citation_requirement": "internal",
+                        }
+                        for sentence in sentences
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    "claim_text": sentence,
+                    "context_spans": [],
+                }
+                for index, sentence in enumerate(sentences, start=1)
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": f"claim-{index:04d}",
+                    **_pointer(report, sentence),
+                }
+                for index, sentence in enumerate(sentences, start=1)
+            ]
+        },
+    )
+    review_model = ScriptedClaimModel(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "outcome": "external_required",
+                    "rationale": "The acquisition depends on outside records.",
+                    "evidence_spans": [],
+                },
+                {
+                    "claim_id": "claim-0002",
+                    "outcome": "internal_supported",
+                    "rationale": "Incorrectly cites its own surface.",
+                    "evidence_spans": [_pointer(report, sentences[1])],
+                },
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0002",
+                    "outcome": "internal_not_supported",
+                    "rationale": "No disjoint internal evidence exists.",
+                    "evidence_spans": [],
+                }
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=claim_model,
+            review_model_client=review_model,
+            settings=ClaimDecompositionSettings(
+                require_independent_evidence_review=True
+            ),
+        )
+    )
+
+    first, second = result.claims
+    assert first.evidence_obligation is not None
+    assert first.evidence_obligation.status is (
+        EvidenceObligationStatus.EXTERNAL_REQUIRED
+    )
+    assert second.evidence_obligation is not None
+    assert second.evidence_obligation.status is (
+        EvidenceObligationStatus.INTERNAL_NOT_SUPPORTED
+    )
+    assert result.claim_obligation_audit is not None
+    assert result.claim_obligation_audit.unresolved_claim_ids == ()
+    assert len(review_model.prompts) == 2
+    recovery_payload = json.loads(
+        review_model.prompts[1].split(
+            "Claims proposed as report-internal:\n",
+            1,
+        )[1]
+    )
+    assert [item["claim_id"] for item in recovery_payload] == ["claim-0002"]
+    assert result.evidence_review_usage == ClaimStageUsage(
+        token_count=20,
+        cost_usd=0.02,
+    )
+    obligation_batch = next(
+        batch for batch in result.batches if batch.stage == "evidence_obligation"
+    )
+    assert obligation_batch.outcome == "completed"
+    assert "claim's own report_surface is not independent" in (
+        review_model.prompts[1]
+    )
+
+
 def test_internal_claim_cannot_use_its_own_surface_as_evidence() -> None:
     report = "# Report\n\nThe report contains four findings."
     blocks = parse_markdown_blocks(report)
@@ -2255,6 +2664,16 @@ def test_internal_claim_cannot_use_its_own_surface_as_evidence() -> None:
                 }
             ]
         },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "outcome": "internal_supported",
+                    "rationale": "still incorrectly cites itself",
+                    "evidence_spans": [_pointer(report, paragraph.text)],
+                }
+            ]
+        },
     )
 
     result = asyncio.run(
@@ -2277,6 +2696,25 @@ def test_internal_claim_cannot_use_its_own_surface_as_evidence() -> None:
         "claim-0001",
     )
     assert result.claim_obligation_audit.silent_bypass_count == 0
+    assert len(review_model.prompts) == 3
+    assert "single bounded protocol-recovery attempt" in review_model.prompts[2]
+    assert result.evidence_review_usage == ClaimStageUsage(
+        token_count=30,
+        cost_usd=0.03,
+    )
+    obligation_batch = next(
+        batch for batch in result.batches if batch.stage == "evidence_obligation"
+    )
+    assert obligation_batch.outcome == "failed"
+    assert obligation_batch.usage == ClaimStageUsage(
+        token_count=20,
+        cost_usd=0.02,
+    )
+    assert any(
+        diagnostic.startswith("evidence_obligation_recovery_result[1]")
+        and "unresolved=claim-0001" in diagnostic
+        for diagnostic in result.diagnostics
+    )
 
 
 def test_internal_not_supported_is_a_completed_negative_conclusion() -> None:
@@ -2349,6 +2787,137 @@ def test_internal_not_supported_is_a_completed_negative_conclusion() -> None:
     assert obligation_batch.outcome == "completed"
     assert obligation_batch.output_ids == ("claim-0001",)
     assert obligation_batch.failed_input_ids == ()
+
+
+def test_evidence_obligation_budget_denial_is_not_reported_as_bad_payload() -> None:
+    report = "A world-dependent claim requires external verification."
+    block = parse_markdown_blocks(report)[0]
+    claim_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, report),
+                            "citation_requirement": "internal",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": report,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {"claim_id": "claim-0001", **_pointer(report, report)}
+            ]
+        },
+    )
+    raw_review_model = ScriptedClaimModel(
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "outcome": "external_required",
+                    "rationale": "Outside records are required.",
+                    "evidence_spans": [],
+                }
+            ]
+        }
+    )
+    cost = RunCostController(RunCostBudget(max_cost_usd=0.0))
+    review_model = cost.wrap(raw_review_model, stage="evidence_obligation_test")
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=claim_model,
+            review_model_client=review_model,
+            settings=ClaimDecompositionSettings(
+                require_independent_evidence_review=True
+            ),
+        )
+    )
+
+    obligation = result.claims[0].evidence_obligation
+    assert obligation is not None
+    assert obligation.status is EvidenceObligationStatus.UNRESOLVED
+    assert obligation.failure_reason == "evidence_obligation_not_run_budget"
+    assert "payload_invalid" not in obligation.failure_reason
+    obligation_batch = next(
+        batch for batch in result.batches if batch.stage == "evidence_obligation"
+    )
+    assert obligation_batch.outcome == "failed"
+    assert obligation_batch.error is not None
+    assert "RunCostCapReached" in obligation_batch.error
+    assert len(raw_review_model.prompts) == 0
+    audit = cost.audit()
+    assert audit.admitted_call_count == 0
+    assert audit.rejected_call_count == 1
+
+
+def test_evidence_obligation_provider_failure_is_recorded_as_model_error() -> None:
+    report = "A world-dependent claim requires external verification."
+    block = parse_markdown_blocks(report)[0]
+    claim_model = ScriptedClaimModel(
+        {
+            "blocks": [
+                {
+                    "block_id": block.block_id,
+                    "assertions": [
+                        {
+                            **_pointer(report, report),
+                            "citation_requirement": "internal",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {
+                    "claim_id": "claim-0001",
+                    "claim_text": report,
+                    "context_spans": [],
+                }
+            ]
+        },
+        {
+            "claims": [
+                {"claim_id": "claim-0001", **_pointer(report, report)}
+            ]
+        },
+    )
+
+    result = asyncio.run(
+        decompose_claims(
+            report,
+            model_client=claim_model,
+            review_model_client=FailingClaimModel(),
+            settings=ClaimDecompositionSettings(
+                require_independent_evidence_review=True
+            ),
+        )
+    )
+
+    obligation = result.claims[0].evidence_obligation
+    assert obligation is not None
+    assert obligation.status is EvidenceObligationStatus.UNRESOLVED
+    assert obligation.failure_reason == "evidence_obligation_model_error"
+    obligation_batch = next(
+        batch for batch in result.batches if batch.stage == "evidence_obligation"
+    )
+    assert obligation_batch.outcome == "failed"
+    assert obligation_batch.error is not None
+    assert "synthetic independent-review failure" in obligation_batch.error
 
 
 def test_review_prompts_keep_empty_and_internal_decisions_explicit() -> None:

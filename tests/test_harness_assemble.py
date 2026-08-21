@@ -2,6 +2,7 @@ from open_deep_research.harness.assemble import assemble_notes
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
     ChecklistItem,
+    ChecklistStatus,
     ResearchChecklist,
 )
 from open_deep_research.harness.ledger import ResearchLedger
@@ -159,3 +160,42 @@ def test_unlocatable_note_gives_writer_finding_but_never_model_quote():
     )
     assert source not in writing_prompt
     assert "Source quote: unavailable" in writing_prompt
+
+
+def test_scope_excluded_question_stays_out_but_its_evidence_is_not_deleted():
+    active = item("what-1", ChecklistDimension.WHAT, 1)
+    excluded = item("where-1", ChecklistDimension.WHERE, 2).model_copy(
+        update={"status": ChecklistStatus.OUT_OF_SCOPE}
+    )
+    checklist = ResearchChecklist(
+        topic="Explain the event's cause",
+        items=(active, excluded),
+    )
+    notes = (
+        create_note(
+            item_id="what-1",
+            finding="The active causal finding.",
+            quote="Active source quote.",
+            url="https://active.example/report",
+            source_text="Active source quote.",
+        ),
+        create_note(
+            item_id="where-1",
+            finding="The filing also identifies the liquidity shortfall.",
+            quote="The filing identifies the liquidity shortfall.",
+            url="https://excluded.example/office",
+            source_text="The filing identifies the liquidity shortfall.",
+        ),
+    )
+
+    assembled = assemble_notes(checklist, notes)
+
+    assert "The active causal finding." in assembled
+    assert excluded.question not in assembled
+    assert (
+        "## evidence candidates from excluded checklist provenance" in assembled
+    )
+    assert "provenance_item_id=where-1" in assembled
+    assert "The filing also identifies the liquidity shortfall." in assembled
+    assert "originating questions are not report requirements" in assembled
+    assert "## unmatched notes" not in assembled

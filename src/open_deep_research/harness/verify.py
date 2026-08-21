@@ -24,6 +24,7 @@ from open_deep_research.harness.attribution import (
     AttributionStatus,
     ClaimAttribution,
 )
+from open_deep_research.harness.budget import RunCostCapReached
 from open_deep_research.harness.claims import (
     AtomicClaim,
     ClaimNormalizationStatus,
@@ -1470,6 +1471,10 @@ async def _call_model(
         response = client.generate(prompt)
         if inspect.isawaitable(response):
             response = await response
+    except RunCostCapReached:
+        # A run-level refusal is control flow owned by the runner. Treating it
+        # as a verifier-provider error would hide a binding absolute cap.
+        raise
     except Exception as exc:  # provider boundary must become an audit record
         return None, 0, 0.0, f"{type(exc).__name__}: {exc}"
 

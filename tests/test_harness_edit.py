@@ -9,6 +9,12 @@ from open_deep_research.harness.budget import (
     RunCostBudgetAudit,
     RunCostCapReached,
 )
+from open_deep_research.harness.checklist import (
+    ChecklistDimension,
+    ChecklistItem,
+    ChecklistStatus,
+    ResearchChecklist,
+)
 from open_deep_research.harness.claims import (
     AtomicClaim,
     CitationRequirement,
@@ -30,6 +36,7 @@ from open_deep_research.harness.edit import (
     audit_editorial_admission,
     build_editorial_prompt,
     revise_audited_draft,
+    editorial_preservation_context,
 )
 from open_deep_research.harness.notes import NoteLocationStatus, QuoteSpan
 from open_deep_research.harness.truth_conditions import (
@@ -462,6 +469,36 @@ def test_editor_prompt_carries_the_draft_language_contract_without_gating():
     assert "same primary natural language as the\nresearch topic" in prompt
     assert "not a mechanical acceptance test" in prompt
     assert context.topic in prompt
+
+
+def test_editor_preservation_context_cannot_reopen_audited_out_of_scope_items():
+    checklist = ResearchChecklist(
+        topic="Explain the collapse.",
+        items=(
+            ChecklistItem(
+                item_id="cause-1",
+                dimension=ChecklistDimension.WHY,
+                question="What caused the collapse?",
+                priority=1,
+                corroboration_target=1,
+            ),
+            ChecklistItem(
+                item_id="office-1",
+                dimension=ChecklistDimension.WHERE,
+                question="Where was every office located?",
+                priority=5,
+                corroboration_target=1,
+                status=ChecklistStatus.OUT_OF_SCOPE,
+            ),
+        ),
+    )
+
+    context = editorial_preservation_context(checklist)
+    serialized = context.model_dump_json()
+
+    assert "What caused the collapse?" in serialized
+    assert "Where was every office located?" not in serialized
+    assert context.topic == checklist.topic
 
 
 def test_recorded_editorial_preservation_impact_needs_a_rationale():

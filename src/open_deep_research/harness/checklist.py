@@ -26,6 +26,7 @@ class ChecklistStatus(str, Enum):
     HAS_MATERIAL = "has_material"
     SETTLED = "settled"
     EXHAUSTED_NOT_FOUND = "exhausted_not_found"
+    OUT_OF_SCOPE = "out_of_scope"
 
     @property
     def is_terminal(self) -> bool:
@@ -34,6 +35,7 @@ class ChecklistStatus(str, Enum):
         return self in {
             ChecklistStatus.SETTLED,
             ChecklistStatus.EXHAUSTED_NOT_FOUND,
+            ChecklistStatus.OUT_OF_SCOPE,
         }
 
     @property
@@ -83,7 +85,7 @@ class ChecklistItem(BaseModel):
 
     @property
     def is_complete(self) -> bool:
-        """Return whether the item is in either legitimate terminal state."""
+        """Return whether the item is in a legitimate terminal state."""
 
         return self.status.is_terminal
 
@@ -138,6 +140,27 @@ class ResearchChecklist(BaseModel):
         """Return whether any checklist item represents failure."""
 
         return any(item.is_failed for item in self.items)
+
+    @property
+    def in_scope_items(self) -> tuple[ChecklistItem, ...]:
+        """Project the frozen checklist onto downstream semantic scope.
+
+        Membership and ``OUT_OF_SCOPE`` records remain in ``items`` for audit;
+        downstream research and writing models receive only this projection so
+        a completed scope decision cannot silently re-expand later.
+        """
+
+        return tuple(
+            item
+            for item in self.items
+            if item.status is not ChecklistStatus.OUT_OF_SCOPE
+        )
+
+    @property
+    def in_scope_item_ids(self) -> tuple[str, ...]:
+        """Return stable IDs for the downstream semantic scope."""
+
+        return tuple(item.item_id for item in self.in_scope_items)
 
     def get(self, item_id: str) -> ChecklistItem:
         """Return an item by id."""
@@ -239,8 +262,13 @@ class ChecklistModelClient(Protocol):
 CHECKLIST_PROMPT = """\
 Create a research checklist for the supplied topic.
 
-Use all six topic-neutral dimensions: who, what, when, where, why, and how.
-Write concrete questions that together support a thorough investigation.
+Use who, what, when, where, why, and how only as optional, topic-neutral
+classifications for questions, not as a coverage quota. Select only the
+dimensions and concrete questions materially required to answer what the user
+actually asked. Prefer the smallest checklist that is sufficient for a focused,
+accurate investigation. Do not add filler questions, generic background,
+profiles, locations, offices, or side topics solely to populate a dimension or
+make the investigation look comprehensive.
 Treat the topic itself as a semantic research specification: when materially
 present, distinguish its entities, events, time spans, causal or temporal
 relationships, comparisons, and requested effects instead of letting one broad

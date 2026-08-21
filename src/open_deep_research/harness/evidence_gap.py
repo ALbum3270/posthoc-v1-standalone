@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import math
 import unicodedata
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from enum import Enum
@@ -29,7 +30,9 @@ from open_deep_research.harness.attribution import (
     CandidateSource,
     ClaimAttribution,
     attribute_claims,
+    build_attribution_prompt,
 )
+from open_deep_research.harness.budget import RunCostCapReached
 from open_deep_research.harness.checklist import ResearchChecklist
 from open_deep_research.harness.claims import (
     AtomicClaim,
@@ -42,6 +45,7 @@ from open_deep_research.harness.ledger import ResearchLedger
 from open_deep_research.harness.notes import (
     ResearchNote,
     create_note,
+    source_id_for_url,
 )
 from open_deep_research.harness.source_provenance import SourceLineageStatus
 from open_deep_research.harness.tools import (
@@ -80,6 +84,36 @@ _TARGET_STATES = {
     ClaimEvidenceState.CONFLICTING_EVIDENCE,
 }
 
+_TERMINAL_RELATION_STATUSES = {
+    VerificationRecordStatus.COMPLETED,
+    VerificationRecordStatus.QUOTE_UNLOCATABLE,
+}
+
+
+def select_evidence_gap_targets(
+    initial_verification: VerificationResult,
+) -> tuple[ClaimVerification, ...]:
+    """Return the default frozen denominator for one evidence-gap pass."""
+
+    return tuple(
+        result
+        for result in initial_verification.claims
+        if (
+            result.claim.citation_requirement is CitationRequirement.EXTERNAL
+            and result.state in _TARGET_STATES
+            and (
+                result.state
+                not in {
+                    ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
+                    ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
+                    ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE,
+                }
+                or result.publisher_domain_proxy_count
+                < result.corroboration_target
+            )
+        )
+    )
+
 
 class EvidenceGapStopReason(str, Enum):
     """Why the single evidence-gap pass ended."""
@@ -102,6 +136,18 @@ class EvidenceGapBudget(BaseModel):
     max_reads: int = Field(default=3, ge=0, le=20)
     max_results_per_search: int = Field(default=5, ge=1, le=20)
     provider_timeout_seconds: float = Field(default=60.0, ge=1.0, le=60.0)
+    max_planning_input_tokens: int = Field(default=36_000, ge=0)
+    max_planning_prompt_chars: int = Field(default=120_000, ge=1)
+    planning_output_headroom_ratio: float = Field(
+        default=0.20,
+        ge=0.0,
+        le=1.0,
+    )
+    downstream_action_source_chars: int = Field(
+        default=4_096,
+        ge=1,
+        le=100_000,
+    )
 
 
 class EvidenceGapCallUsage(BaseModel):
@@ -116,6 +162,56 @@ class EvidenceGapCallUsage(BaseModel):
     estimated_cost_usd: float = Field(ge=0.0)
     token_count: int = Field(ge=0)
     cost_usd: float = Field(ge=0.0)
+
+
+class EvidenceGapPlanningCapacityAudit(BaseModel):
+    """Capacity proof made before the planning model may spend the pass.
+
+    Search results and page lengths do not exist yet at this boundary.  The
+    reserve therefore protects one mechanically executable candidate route:
+    exact cached-source verification, a query-only investigation when reads
+    are disabled, or bounded web read selection followed by note extraction,
+    incremental attribution, and verification. This proves capacity, not
+    semantic relevance. Exact downstream prompts and source text replace the
+    probe as soon as concrete routes exist.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    prompt_format_version: str = "compact-gap-plan-v2"
+    advertised_max_search_queries: int = Field(default=0, ge=0)
+    target_count: int = Field(ge=0)
+    cached_note_count: int = Field(ge=0)
+    prompt_chars: int = Field(ge=0)
+    estimated_planning_input_tokens: int = Field(ge=0)
+    estimated_planning_cost_usd: float = Field(ge=0.0)
+    max_planning_input_tokens: int = Field(ge=0)
+    max_planning_prompt_chars: int = Field(ge=1)
+    planning_output_headroom_tokens: int = Field(ge=0)
+    planning_output_headroom_cost_usd: float = Field(ge=0.0)
+    downstream_action_source_chars: int = Field(ge=1)
+    read_selection_estimated_tokens: int = Field(ge=0)
+    read_selection_estimated_cost_usd: float = Field(ge=0.0)
+    reattribution_estimated_tokens: int = Field(ge=0)
+    reattribution_estimated_cost_usd: float = Field(ge=0.0)
+    note_and_verification_estimated_tokens: int = Field(ge=0)
+    note_and_verification_estimated_cost_usd: float = Field(ge=0.0)
+    downstream_action_estimated_tokens: int = Field(ge=0)
+    downstream_action_estimated_cost_usd: float = Field(ge=0.0)
+    web_downstream_action_estimated_tokens: int = Field(default=0, ge=0)
+    web_downstream_action_estimated_cost_usd: float = Field(
+        default=0.0,
+        ge=0.0,
+    )
+    reserved_tokens: int = Field(ge=0)
+    reserved_cost_usd: float = Field(ge=0.0)
+    reserve_fully_funded: bool
+    limitations: tuple[str, ...] = (
+        "the selected page length is unknown until the free network read",
+        "the minimum action reserve covers one source window, not every read",
+        "a model-selected cached source can exceed the bounded action window",
+        "provider output/reasoning tokens can exceed admission estimates",
+    )
 
 
 class CachedCandidateHint(BaseModel):
@@ -300,13 +396,25 @@ class VerificationReserveAudit(BaseModel):
     prerequisite_stage: str | None = None
     prerequisite_estimated_tokens: int = Field(default=0, ge=0)
     prerequisite_estimated_cost_usd: float = Field(default=0.0, ge=0.0)
+    minimum_action_estimated_tokens: int = Field(default=0, ge=0)
+    minimum_action_estimated_cost_usd: float = Field(default=0.0, ge=0.0)
+    incremental_reattribution_estimated_tokens: int = Field(default=0, ge=0)
+    incremental_reattribution_estimated_cost_usd: float = Field(
+        default=0.0,
+        ge=0.0,
+    )
+    required_downstream_tokens: int = Field(default=0, ge=0)
+    required_downstream_cost_usd: float = Field(default=0.0, ge=0.0)
     reserved_tokens: int = Field(default=0, ge=0)
     reserved_cost_usd: float = Field(default=0.0, ge=0.0)
+    reserve_fully_funded: bool = False
     limitations: tuple[str, ...] = (
         "future source length is unknown until its free network read completes",
         "a source rejected before note extraction creates no verification reserve",
         "later reattribution can create relations outside planned query groups",
-        "admission estimates do not predict model output tokens exactly",
+        "incremental reattribution protects one estimated turn plus headroom; "
+        "later inspect or retry turns require exact admission",
+        "verification admission estimates do not predict model output tokens exactly",
     )
 
 
@@ -351,6 +459,7 @@ class EvidenceGapResult(BaseModel):
     added_note_ids: tuple[str, ...] = ()
     verification_reserve: VerificationReserveAudit | None = None
     verification_reserve_history: tuple[VerificationReserveAudit, ...] = ()
+    planning_capacity: EvidenceGapPlanningCapacityAudit | None = None
     planning_attempt_count: int = Field(default=0, ge=0)
     selected_planning_attempt: int | None = Field(default=None, ge=1)
     unused_query_slots: int = Field(default=0, ge=0)
@@ -620,6 +729,10 @@ domains owned by the same organization, aggregators, and republished or
 syndicated copies are not independent publishers. Do not use domain spelling
 alone to manufacture a second publisher.
 
+Each cached note records only the sparse checked_for_target_claim_ids list.
+For every other target claim the note is unused; this is the exact compact
+inverse of repeating every unused claim ID on every note.
+
 You have a hard budget of at most {max_queries} web search queries. Select and
 order the highest-value focused queries, putting the highest priority first.
 One query may name several claim_ids only when the same focused search can
@@ -694,7 +807,7 @@ Search candidates:
 
 
 _NOTE_PROMPT = """\
-Extract zero or more research notes from this one complete source. Return json
+Extract zero, one, or two research notes from this one complete source. Return json
 only:
 {{"notes":[{{"item_id":"existing-checklist-item",\
 "finding":"what the source says",\
@@ -704,7 +817,8 @@ Prioritize the frozen target claims, but retain useful findings for other
 listed checklist items too. One quote is one continuous verbatim passage.
 Copy it exactly: do not paraphrase, join separated passages, use ellipses,
 reorder words, or change punctuation. If two separate passages are needed,
-return two notes. Returning zero notes is legal and is not an error.
+return two notes. Never return more than two notes. Returning zero notes is
+legal and is not an error.
 
 Allowed checklist item IDs:
 {item_ids}
@@ -751,24 +865,40 @@ class _BudgetTracker:
     def _estimate(self, client: Any, prompt: str) -> tuple[int, float]:
         token_estimator = self.estimate_input_tokens
         cost_estimator = self.estimate_cost_usd
-        if token_estimator is not None:
-            tokens = max(0, int(token_estimator(client, prompt)))
-        else:
-            method = getattr(client, "estimate_tokens", None)
-            if not callable(method):
-                raise _GapBudgetExhausted(
-                    "gap token admission estimator is unavailable"
-                )
-            tokens = max(0, int(method(prompt)))
-        if cost_estimator is not None:
-            cost = max(0.0, float(cost_estimator(client, prompt)))
-        else:
-            method = getattr(client, "estimate_cost_usd", None)
-            if not callable(method):
-                raise _GapBudgetExhausted(
-                    "gap cost admission estimator is unavailable"
-                )
-            cost = max(0.0, float(method(prompt)))
+        try:
+            if token_estimator is not None:
+                tokens = int(token_estimator(client, prompt))
+            else:
+                method = getattr(client, "estimate_tokens", None)
+                if not callable(method):
+                    raise RuntimeError("estimator method is absent")
+                tokens = int(method(prompt))
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise _GapBudgetExhausted(
+                "gap token admission estimator is unavailable: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+        if tokens < 0:
+            raise _GapBudgetExhausted(
+                "gap token admission estimator returned a negative value"
+            )
+        try:
+            if cost_estimator is not None:
+                cost = float(cost_estimator(client, prompt))
+            else:
+                method = getattr(client, "estimate_cost_usd", None)
+                if not callable(method):
+                    raise RuntimeError("estimator method is absent")
+                cost = float(method(prompt))
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise _GapBudgetExhausted(
+                "gap cost admission estimator is unavailable: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+        if not math.isfinite(cost) or cost < 0.0:
+            raise _GapBudgetExhausted(
+                "gap cost admission estimator returned an invalid value"
+            )
         return tokens, cost
 
     def reserve_verification(
@@ -917,6 +1047,57 @@ def _supporting_publisher_proxy_sets(
     return whole_claim, element_level, used
 
 
+def _source_was_already_checked(
+    target: ClaimVerification,
+    *,
+    source_id: str,
+    url: str,
+) -> bool:
+    """Return whether a route would repeat an existing claim/source check."""
+
+    return any(
+        relation.status in _TERMINAL_RELATION_STATUSES
+        and (relation.source_id == source_id or relation.url == url)
+        for relation in target.relations
+    )
+
+
+def _cached_route_mechanical_error(
+    target: ClaimVerification,
+    note: ResearchNote,
+) -> str | None:
+    """Reject only code-provable cached no-ops before semantic planning."""
+
+    if note.note_id is None:
+        return "cached note has no stable note_id"
+    if _source_was_already_checked(
+        target,
+        source_id=note.source_id,
+        url=note.url,
+    ):
+        return "source was already checked for this claim"
+    used_publishers = set(_supporting_publisher_proxy_sets(target)[2])
+    if _publisher_proxy(note.url, note.publisher) in used_publishers:
+        return "publisher domain proxy already supports this claim"
+    return None
+
+
+def _has_mechanically_executable_cached_route(
+    *,
+    targets: Sequence[ClaimVerification],
+    notes: Sequence[ResearchNote],
+    source_cache: Mapping[str, str],
+) -> bool:
+    """Return whether at least one target/note pair survives code gates."""
+
+    return any(
+        note.url in source_cache
+        and _cached_route_mechanical_error(target, note) is None
+        for target in targets
+        for note in notes
+    )
+
+
 def _identity_key(value: str) -> str:
     return "".join(
         character
@@ -936,20 +1117,71 @@ def _identity_matches_proxy(identity: str, proxy: str) -> bool:
 
 def _target_payload(
     targets: Sequence[ClaimVerification],
+    *,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> list[dict[str, Any]]:
     payload: list[dict[str, Any]] = []
     for target in targets:
         whole_claim, element_level, used = _supporting_publisher_proxy_sets(
             target
         )
+        aggregate = target.truth_condition_aggregate
+        registry_entry = (
+            truth_condition_registry.entry_for(target.claim.claim_id)
+            if truth_condition_registry is not None
+            else None
+        )
+        element_text_by_id = {
+            element.element_id: element.text
+            for element in (
+                registry_entry.elements if registry_entry is not None else ()
+            )
+        }
+        for relation in target.relations:
+            for element_relation in relation.element_relations:
+                element_text_by_id.setdefault(
+                    element_relation.element_id,
+                    element_relation.element_text,
+                )
         payload.append(
             {
                 "claim_id": target.claim.claim_id,
                 "claim_text": target.claim.claim_text,
                 "state": target.state.value,
-                "truth_condition_aggregate": (
-                    target.truth_condition_aggregate.model_dump(mode="json")
-                    if target.truth_condition_aggregate is not None
+                # Preserve the model's semantic research intent at O(elements)
+                # size. Element IDs are code-owned and opaque, so a state-only
+                # ID list is not enough for a planner to focus a follow-up
+                # query. Per-source element cross-products remain omitted;
+                # ``checked_sources`` below retains the compact source view.
+                "truth_condition_summary": (
+                    {
+                        "elementization_execution_status": (
+                            aggregate.elementization_execution_status.value
+                        ),
+                        "elementization_semantic_status": (
+                            aggregate.elementization_semantic_status.value
+                            if aggregate.elementization_semantic_status is not None
+                            else None
+                        ),
+                        "coverage_state": aggregate.coverage_state.value,
+                        "execution_completeness": (
+                            aggregate.execution_completeness.value
+                        ),
+                        "elements": [
+                            {
+                                "element_id": element.element_id,
+                                "truth_condition": element_text_by_id.get(
+                                    element.element_id
+                                ),
+                                "semantic_state": element.semantic_state.value,
+                                "execution_completeness": (
+                                    element.execution_completeness.value
+                                ),
+                            }
+                            for element in aggregate.elements
+                        ],
+                    }
+                    if aggregate is not None
                     else None
                 ),
                 "corroboration_target": target.corroboration_target,
@@ -985,6 +1217,7 @@ def build_evidence_gap_plan_prompt(
     notes: Sequence[ResearchNote],
     checklist: ResearchChecklist,
     max_queries: int,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> str:
     """Expose cache and a hard query budget before allowing web search."""
 
@@ -1002,19 +1235,28 @@ def build_evidence_gap_plan_prompt(
             "finding": note.finding,
             "publisher": note.publisher,
             "location_status": note.location_status.value,
-            "unused_by_target_claim_ids": [
+            # Sparse checked IDs are the exact inverse of the old repeated
+            # ``unused_by`` arrays. Absence still means unused for a target,
+            # while growth becomes O(notes + actual relations), not
+            # O(notes * targets).
+            "checked_for_target_claim_ids": [
                 target.claim.claim_id
                 for target in targets
-                if (target.claim.claim_id, note.note_id) not in used_pairs
+                if (target.claim.claim_id, note.note_id) in used_pairs
             ],
         }
         for note in notes
     ]
+    compact_json = {
+        "ensure_ascii": False,
+        "sort_keys": True,
+        "separators": (",", ":"),
+    }
     return _PLAN_PROMPT.format(
         max_queries=max_queries,
         item_ids=json.dumps(
-            [item.item_id for item in checklist.items],
-            ensure_ascii=False,
+            list(checklist.in_scope_item_ids),
+            **compact_json,
         ),
         corroboration_targets=json.dumps(
             [
@@ -1022,17 +1264,18 @@ def build_evidence_gap_plan_prompt(
                     "item_id": item.item_id,
                     "corroboration_target": item.corroboration_target,
                 }
-                for item in checklist.items
+                for item in checklist.in_scope_items
             ],
-            ensure_ascii=False,
-            sort_keys=True,
+            **compact_json,
         ),
         targets=json.dumps(
-            _target_payload(targets),
-            ensure_ascii=False,
-            sort_keys=True,
+            _target_payload(
+                targets,
+                truth_condition_registry=truth_condition_registry,
+            ),
+            **compact_json,
         ),
-        notes=json.dumps(note_registry, ensure_ascii=False, sort_keys=True),
+        notes=json.dumps(note_registry, **compact_json),
     )
 
 
@@ -1041,6 +1284,7 @@ def build_evidence_gap_read_prompt(
     targets: Sequence[ClaimVerification],
     searches: Sequence[GapSearchRecord],
     max_reads: int,
+    truth_condition_registry: TruthConditionRegistry | None = None,
 ) -> str:
     """Ask the model to choose URLs after seeing bounded search results."""
 
@@ -1059,7 +1303,10 @@ def build_evidence_gap_read_prompt(
     return _READ_PROMPT.format(
         max_reads=max_reads,
         targets=json.dumps(
-            _target_payload(targets),
+            _target_payload(
+                targets,
+                truth_condition_registry=truth_condition_registry,
+            ),
             ensure_ascii=False,
             sort_keys=True,
         ),
@@ -1096,7 +1343,7 @@ def build_evidence_gap_note_prompt(
     }
     return _NOTE_PROMPT.format(
         item_ids=json.dumps(
-            [item.item_id for item in checklist.items],
+            list(checklist.in_scope_item_ids),
             ensure_ascii=False,
         ),
         claims=json.dumps(
@@ -1116,6 +1363,472 @@ def build_evidence_gap_note_prompt(
         url=url,
         source_text=source_text,
     )
+
+
+def _capacity_probe_source(char_count: int) -> str:
+    """Return deterministic, token-like source text of the requested size."""
+
+    prefix = "capacity-probe-unique-passage\n"
+    seed = "capacity evidence passage "
+    if char_count <= len(prefix):
+        return prefix[:char_count]
+    repeats = math.ceil((char_count - len(prefix)) / len(seed))
+    return (prefix + seed * repeats)[:char_count]
+
+
+def _bounded_web_action_allowances(
+    *,
+    targets: Sequence[ClaimVerification],
+    routed_claim_ids: Sequence[str] | None,
+    checklist: ResearchChecklist,
+    tracker: _BudgetTracker,
+    budget: EvidenceGapBudget,
+    note_model: EvidenceGapModelClient,
+    attribution_model: AttributionModelClient,
+    verification_model: VerificationModelClient,
+    attribution_settings: AttributionSettings,
+    truth_condition_registry: TruthConditionRegistry | None,
+    target_element_ids_by_claim: Mapping[str, tuple[str, ...]],
+) -> dict[str, tuple[int, float, int, float, int, float]]:
+    """Estimate one bounded two-note web tail for each routed claim."""
+
+    active_items = checklist.in_scope_items
+    if not active_items:
+        return {}
+    selected_ids = (
+        set(routed_claim_ids) if routed_claim_ids is not None else None
+    )
+    probe_url = "https://capacity.invalid/evidence"
+    probe_source = _capacity_probe_source(
+        budget.downstream_action_source_chars
+    )
+    allowances: dict[str, tuple[int, float, int, float, int, float]] = {}
+    for target in targets:
+        claim = target.claim
+        if selected_ids is not None and claim.claim_id not in selected_ids:
+            continue
+        probe_registry = (
+            select_truth_condition_registry(
+                truth_condition_registry,
+                (claim.claim_id,),
+            )
+            if truth_condition_registry is not None
+            else None
+        )
+        verification_prompt = build_verification_prompt(
+            url=probe_url,
+            source_text=probe_source,
+            claims=(claim,),
+            registry=probe_registry,
+        )
+        verification_tokens, verification_cost = tracker._estimate(
+            verification_model,
+            verification_prompt,
+        )
+        note_prompt = build_evidence_gap_note_prompt(
+            url=probe_url,
+            source_text=probe_source,
+            claims=(claim,),
+            checklist=checklist,
+            target_element_ids=target_element_ids_by_claim.get(
+                claim.claim_id,
+                (),
+            ),
+            truth_condition_registry=truth_condition_registry,
+        )
+        note_tokens, note_cost = tracker._estimate(note_model, note_prompt)
+        note_tokens += math.ceil(
+            note_tokens * budget.planning_output_headroom_ratio
+        )
+        note_cost *= 1.0 + budget.planning_output_headroom_ratio
+        probe_notes = tuple(
+            create_note(
+                item_id=active_items[0].item_id,
+                finding=f"Capacity evidence passage {ordinal}.",
+                quote=probe_source.splitlines()[0],
+                url=probe_url,
+                source_text=probe_source,
+            ).model_copy(
+                update={"note_id": f"note-capacity-probe-{ordinal}"}
+            )
+            for ordinal in (1, 2)
+        )
+        reattribution_prompt = build_attribution_prompt(
+            (claim,),
+            probe_notes,
+            page_size=attribution_settings.note_page_size,
+        )
+        reattribution_tokens, reattribution_cost = tracker._estimate(
+            attribution_model,
+            reattribution_prompt,
+        )
+        reattribution_tokens += math.ceil(
+            reattribution_tokens * budget.planning_output_headroom_ratio
+        )
+        reattribution_cost *= 1.0 + budget.planning_output_headroom_ratio
+        allowances[claim.claim_id] = (
+            note_tokens + verification_tokens,
+            note_cost + verification_cost,
+            reattribution_tokens,
+            reattribution_cost,
+            note_tokens + reattribution_tokens + verification_tokens,
+            note_cost + reattribution_cost + verification_cost,
+        )
+    return allowances
+
+
+def _planning_capacity_audit(
+    *,
+    plan_prompt: str,
+    tracker: _BudgetTracker,
+    budget: EvidenceGapBudget,
+    advertised_max_search_queries: int,
+    targets: Sequence[ClaimVerification],
+    notes: Sequence[ResearchNote],
+    source_cache: Mapping[str, str],
+    checklist: ResearchChecklist,
+    gap_model: EvidenceGapModelClient,
+    note_model: EvidenceGapModelClient,
+    attribution_model: AttributionModelClient,
+    verification_model: VerificationModelClient,
+    attribution_settings: AttributionSettings,
+    truth_condition_registry: TruthConditionRegistry | None,
+    target_element_ids_by_claim: Mapping[str, tuple[str, ...]],
+) -> EvidenceGapPlanningCapacityAudit:
+    """Protect one executable candidate route before admitting planning.
+
+    Cached verification and a new web acquisition are alternative actions.
+    This check removes only mechanically provable no-ops; the model still owns
+    relevance. If web does not fit, the caller may rebuild a cache-only prompt
+    before paying for planning. Every selected route is then preflighted
+    against exact downstream prompts.
+    """
+
+    planning_tokens, planning_cost = tracker._estimate(gap_model, plan_prompt)
+    headroom_tokens = math.ceil(
+        planning_tokens * budget.planning_output_headroom_ratio
+    )
+    headroom_cost = planning_cost * budget.planning_output_headroom_ratio
+    available_after_plan_tokens = max(0, budget.max_tokens - planning_tokens)
+    available_after_plan_cost = max(0.0, budget.max_cost_usd - planning_cost)
+
+    # kind, read tokens/cost, note+verification tokens/cost,
+    # reattribution tokens/cost, complete downstream tokens/cost
+    route_estimates: list[
+        tuple[str, int, float, int, float, int, float, int, float]
+    ] = []
+    active_items = checklist.in_scope_items
+    can_probe_search_route = bool(
+        targets
+        and active_items
+        and advertised_max_search_queries
+    )
+    can_probe_web_route = bool(can_probe_search_route and budget.max_reads)
+    probe_url = "https://capacity.invalid/evidence"
+
+    # A cache route uses exact text already owned by the ledger. Enumerate only
+    # target/note pairs that survive code-provable no-op gates. Sorting later
+    # selects the least resource pressure; this is capacity accounting, not a
+    # relevance judgement. A model-selected route is checked exactly again.
+    cached_routes = tuple(
+        (
+            target,
+            note,
+            source_cache[note.url],
+        )
+        for target in targets
+        for note in notes
+        if note.url in source_cache
+        and _cached_route_mechanical_error(target, note) is None
+    )
+    for target, note, cached_text in sorted(
+        cached_routes,
+        key=lambda route: (
+            len(route[2]),
+            route[1].url,
+            route[0].claim.claim_id,
+        ),
+    ):
+        claim = target.claim
+        probe_registry = (
+            select_truth_condition_registry(
+                truth_condition_registry,
+                (claim.claim_id,),
+            )
+            if truth_condition_registry is not None
+            else None
+        )
+        verification_prompt = build_verification_prompt(
+            url=note.url,
+            source_text=cached_text,
+            claims=(claim,),
+            registry=probe_registry,
+        )
+        verification_tokens, verification_cost = tracker._estimate(
+            verification_model,
+            verification_prompt,
+        )
+        route_estimates.append(
+            (
+                "cache",
+                0,
+                0.0,
+                verification_tokens,
+                verification_cost,
+                0,
+                0.0,
+                verification_tokens,
+                verification_cost,
+            )
+        )
+
+    if can_probe_web_route:
+        probe_query = GapSearchQuery(
+            claim_ids=(targets[0].claim.claim_id,),
+            item_id=active_items[0].item_id,
+            query="capacity probe",
+        )
+        read_prompt = build_evidence_gap_read_prompt(
+            targets=targets,
+            searches=(
+                GapSearchRecord(
+                    query=probe_query,
+                    results=(
+                        SearchResult(
+                            title="Candidate evidence route",
+                            url=probe_url,
+                            snippet="Candidate evidence passage.",
+                        ),
+                    ),
+                ),
+            ),
+            max_reads=1,
+            truth_condition_registry=truth_condition_registry,
+        )
+        read_tokens, read_cost = tracker._estimate(gap_model, read_prompt)
+        read_tokens += math.ceil(
+            read_tokens * budget.planning_output_headroom_ratio
+        )
+        read_cost *= 1.0 + budget.planning_output_headroom_ratio
+        web_allowances = _bounded_web_action_allowances(
+            targets=targets,
+            routed_claim_ids=None,
+            checklist=checklist,
+            tracker=tracker,
+            budget=budget,
+            note_model=note_model,
+            attribution_model=attribution_model,
+            verification_model=verification_model,
+            attribution_settings=attribution_settings,
+            truth_condition_registry=truth_condition_registry,
+            target_element_ids_by_claim=target_element_ids_by_claim,
+        )
+        for (
+            note_and_verification_tokens,
+            note_and_verification_cost,
+            route_reattribution_tokens,
+            route_reattribution_cost,
+            downstream_tokens,
+            downstream_cost,
+        ) in web_allowances.values():
+            route_estimates.append(
+                (
+                    "web",
+                    read_tokens,
+                    read_cost,
+                    note_and_verification_tokens,
+                    note_and_verification_cost,
+                    route_reattribution_tokens,
+                    route_reattribution_cost,
+                    downstream_tokens,
+                    downstream_cost,
+                )
+            )
+    elif can_probe_search_route:
+        # A query-only disagreement pass cannot create formal evidence, but it
+        # remains an explicit investigation attempt used by the bounded
+        # disagreement audit. Search is provider-bounded and model-free after
+        # planning, so output headroom is the only downstream capacity needed.
+        route_estimates.append(
+            ("search", 0, 0.0, 0, 0.0, 0, 0.0, 0, 0.0)
+        )
+
+    def route_fits(
+        route: tuple[str, int, float, int, float, int, float, int, float],
+    ) -> bool:
+        return (
+            headroom_tokens + route[1] + route[7]
+            <= available_after_plan_tokens
+            and headroom_cost + route[2] + route[8]
+            <= available_after_plan_cost + 1e-12
+        )
+
+    feasible_cache = [
+        route
+        for route in route_estimates
+        if route[0] == "cache" and route_fits(route)
+    ]
+    feasible_other = [
+        route
+        for route in route_estimates
+        if route[0] != "cache" and route_fits(route)
+    ]
+    web_routes = [route for route in route_estimates if route[0] == "web"]
+    search_routes = [route for route in route_estimates if route[0] == "search"]
+    cache_routes = [route for route in route_estimates if route[0] == "cache"]
+    # If the prompt advertises web queries, its capacity proof must be a full
+    # web route. Cache can be used as the cheaper alternative only by a
+    # cache-only prompt (the caller may rebuild one before spending planning).
+    if can_probe_web_route:
+        # Web is an advertised semantic option, so a cache route cannot serve
+        # as its resource proof. Preserve one complete web route before the
+        # planner may choose between web and cache.
+        route_pool = feasible_other or web_routes
+    elif can_probe_search_route:
+        # Disagreement can deliberately run as a query-only investigation
+        # when reads are disabled. Preserve that existing bounded behavior.
+        route_pool = [
+            route for route in feasible_other if route[0] == "search"
+        ] or search_routes
+    else:
+        route_pool = feasible_cache or cache_routes
+
+    def route_pressure(
+        route: tuple[str, int, float, int, float, int, float, int, float],
+    ) -> tuple[float, float, int, float]:
+        needed_tokens = headroom_tokens + route[1] + route[7]
+        needed_cost = headroom_cost + route[2] + route[8]
+        token_ratio = (
+            needed_tokens / available_after_plan_tokens
+            if available_after_plan_tokens
+            else (0.0 if needed_tokens == 0 else math.inf)
+        )
+        cost_ratio = (
+            needed_cost / available_after_plan_cost
+            if available_after_plan_cost
+            else (0.0 if needed_cost <= 1e-12 else math.inf)
+        )
+        return (
+            max(token_ratio, cost_ratio),
+            token_ratio + cost_ratio,
+            needed_tokens,
+            needed_cost,
+        )
+
+    chosen = min(route_pool, key=route_pressure) if route_pool else None
+    # Once the planner actually selects web search, cache is no longer a
+    # substitute for that route's note/attribution/verification tail. Keep a
+    # separate conservative one-claim web allowance for the post-plan seam.
+    minimum_web_route = (
+        min(web_routes, key=route_pressure) if web_routes else None
+    )
+    web_downstream_action_tokens = (
+        minimum_web_route[7] if minimum_web_route is not None else 0
+    )
+    web_downstream_action_cost = (
+        minimum_web_route[8] if minimum_web_route is not None else 0.0
+    )
+    read_tokens = chosen[1] if chosen is not None else 0
+    read_cost = chosen[2] if chosen is not None else 0.0
+    action_tokens = chosen[3] if chosen is not None else 0
+    action_cost = chosen[4] if chosen is not None else 0.0
+    reattribution_tokens = chosen[5] if chosen is not None else 0
+    reattribution_cost = chosen[6] if chosen is not None else 0.0
+    downstream_action_tokens = chosen[7] if chosen is not None else 0
+    downstream_action_cost = chosen[8] if chosen is not None else 0.0
+    desired_tokens = headroom_tokens + read_tokens + downstream_action_tokens
+    desired_cost = headroom_cost + read_cost + downstream_action_cost
+    requested_tokens = min(desired_tokens, available_after_plan_tokens)
+    requested_cost = min(desired_cost, available_after_plan_cost)
+    reserved_tokens, reserved_cost = tracker.reserve_verification(
+        tokens=requested_tokens,
+        cost_usd=requested_cost,
+    )
+    return EvidenceGapPlanningCapacityAudit(
+        advertised_max_search_queries=advertised_max_search_queries,
+        target_count=len(targets),
+        cached_note_count=len(notes),
+        prompt_chars=len(plan_prompt),
+        estimated_planning_input_tokens=planning_tokens,
+        estimated_planning_cost_usd=planning_cost,
+        max_planning_input_tokens=min(
+            budget.max_planning_input_tokens,
+            budget.max_tokens,
+        ),
+        max_planning_prompt_chars=budget.max_planning_prompt_chars,
+        planning_output_headroom_tokens=headroom_tokens,
+        planning_output_headroom_cost_usd=headroom_cost,
+        downstream_action_source_chars=budget.downstream_action_source_chars,
+        read_selection_estimated_tokens=read_tokens,
+        read_selection_estimated_cost_usd=read_cost,
+        reattribution_estimated_tokens=reattribution_tokens,
+        reattribution_estimated_cost_usd=reattribution_cost,
+        note_and_verification_estimated_tokens=action_tokens,
+        note_and_verification_estimated_cost_usd=action_cost,
+        downstream_action_estimated_tokens=downstream_action_tokens,
+        downstream_action_estimated_cost_usd=downstream_action_cost,
+        web_downstream_action_estimated_tokens=(
+            web_downstream_action_tokens
+        ),
+        web_downstream_action_estimated_cost_usd=(
+            web_downstream_action_cost
+        ),
+        reserved_tokens=reserved_tokens,
+        reserved_cost_usd=reserved_cost,
+        reserve_fully_funded=(
+            chosen is not None
+            and reserved_tokens >= desired_tokens
+            and reserved_cost + 1e-12 >= desired_cost
+        ),
+    )
+
+
+def _estimate_incremental_reattribution_allowance(
+    *,
+    claims: Sequence[AtomicClaim],
+    notes: Sequence[ResearchNote],
+    tracker: _BudgetTracker,
+    attribution_model: AttributionModelClient,
+    attribution_settings: AttributionSettings,
+    output_headroom_ratio: float,
+) -> tuple[int, float]:
+    """Estimate one incremental attribution turn plus provider headroom."""
+
+    if not claims or not notes:
+        return 0, 0.0
+    prompt = build_attribution_prompt(
+        claims,
+        notes,
+        page_size=attribution_settings.note_page_size,
+    )
+    estimated_tokens, estimated_cost = tracker._estimate(
+        attribution_model,
+        prompt,
+    )
+    return (
+        estimated_tokens
+        + math.ceil(estimated_tokens * output_headroom_ratio),
+        estimated_cost * (1.0 + output_headroom_ratio),
+    )
+
+
+def _prospective_gap_note(
+    *,
+    item_id: str,
+    url: str,
+    ordinal: int,
+) -> ResearchNote:
+    """Create a bounded placeholder for pre-note attribution capacity only."""
+
+    source_text = _capacity_probe_source(256)
+    note = create_note(
+        item_id=item_id,
+        finding="Potential evidence passage selected for this routed claim.",
+        quote=source_text.splitlines()[0],
+        url=url,
+        source_text=source_text,
+    )
+    return note.model_copy(update={"note_id": f"note-gap-probe-{ordinal:06d}"})
 
 
 def _estimate_verification_group(
@@ -1163,17 +1876,22 @@ def _reserve_verification_budget(
     prerequisite_stage: str | None = None,
     prerequisite_estimated_tokens: int = 0,
     prerequisite_estimated_cost_usd: float = 0.0,
+    minimum_action_estimated_tokens: int = 0,
+    minimum_action_estimated_cost_usd: float = 0.0,
+    incremental_reattribution_estimated_tokens: int = 0,
+    incremental_reattribution_estimated_cost_usd: float = 0.0,
     admitted_read_source_claims: (
         Mapping[str, Sequence[AtomicClaim]] | None
     ) = None,
 ) -> VerificationReserveAudit:
     """Reserve only verification work whose exact source text is known.
 
-    Cache hints are already grounded in a concrete source.  A newly read URL
-    joins the reserve only immediately before its note extraction and stays
-    only after it produces at least one note.  This releases the tail reserve
-    for a zero-note or too-large source before the next selected URL is
-    considered, rather than using an unrelated cache maximum as a proxy.
+    Cache hints are already grounded in a concrete source. A newly read URL
+    joins the exact reserve immediately before note extraction and stays only
+    after it produces a note. Before read selection, the caller may also hold
+    the explicitly audited bounded minimum-action probe; this is not inferred
+    from an unrelated cache entry and is replaced as soon as actual page text
+    exists.
     """
 
     claim_by_id = {target.claim.claim_id: target.claim for target in targets}
@@ -1222,13 +1940,36 @@ def _reserve_verification_budget(
         estimated_tokens += tokens
         estimated_cost += cost
 
+    # Reattribution is a required predecessor of verification for newly
+    # extracted notes.  It is additive: using max() here allowed note
+    # extraction to consume the attribution capacity while an unrelated
+    # verification reserve still appeared healthy.
+    required_downstream_tokens = (
+        estimated_tokens
+        + minimum_action_estimated_tokens
+        + incremental_reattribution_estimated_tokens
+    )
+    required_downstream_cost = (
+        estimated_cost
+        + minimum_action_estimated_cost_usd
+        + incremental_reattribution_estimated_cost_usd
+    )
     reserved_tokens, reserved_cost = tracker.reserve_verification(
-        tokens=estimated_tokens,
-        cost_usd=estimated_cost,
+        tokens=required_downstream_tokens,
+        cost_usd=required_downstream_cost,
         prerequisite_tokens=prerequisite_estimated_tokens,
         prerequisite_cost_usd=prerequisite_estimated_cost_usd,
     )
     return VerificationReserveAudit(
+        method=(
+            "actual_source_groups_plus_bounded_minimum_action"
+            if minimum_action_estimated_tokens
+            or minimum_action_estimated_cost_usd
+            else "actual_source_groups_plus_incremental_reattribution"
+            if incremental_reattribution_estimated_tokens
+            or incremental_reattribution_estimated_cost_usd
+            else "actual_cached_and_read_source_groups_after_prerequisite_allowance"
+        ),
         reference_source_url=None,
         reference_source_chars=0,
         cached_hint_batch_count=cached_batch_count,
@@ -1248,8 +1989,22 @@ def _reserve_verification_budget(
         prerequisite_stage=prerequisite_stage,
         prerequisite_estimated_tokens=prerequisite_estimated_tokens,
         prerequisite_estimated_cost_usd=prerequisite_estimated_cost_usd,
+        minimum_action_estimated_tokens=minimum_action_estimated_tokens,
+        minimum_action_estimated_cost_usd=minimum_action_estimated_cost_usd,
+        incremental_reattribution_estimated_tokens=(
+            incremental_reattribution_estimated_tokens
+        ),
+        incremental_reattribution_estimated_cost_usd=(
+            incremental_reattribution_estimated_cost_usd
+        ),
+        required_downstream_tokens=required_downstream_tokens,
+        required_downstream_cost_usd=required_downstream_cost,
         reserved_tokens=reserved_tokens,
         reserved_cost_usd=reserved_cost,
+        reserve_fully_funded=(
+            reserved_tokens >= required_downstream_tokens
+            and reserved_cost + 1e-12 >= required_downstream_cost
+        ),
     )
 
 
@@ -1270,7 +2025,7 @@ def _parse_plan(
 ]:
     target_by_id = {target.claim.claim_id: target for target in targets}
     note_by_id = {str(note.note_id): note for note in notes}
-    item_ids = {item.item_id for item in checklist.items}
+    item_ids = set(checklist.in_scope_item_ids)
     rejected: list[dict[str, Any]] = []
     accepted_hints: list[CachedCandidateHint] = []
     accepted_queries: list[GapSearchQuery] = []
@@ -1382,8 +2137,10 @@ def _parse_plan(
             error = "note_id/source_id mismatch"
         elif not hint.independent_from_existing_publishers:
             error = "model did not judge publisher independent"
-        elif _publisher_proxy(note.url, note.publisher) in existing_publishers:
-            error = "publisher domain proxy already supports this claim"
+        elif (
+            mechanical_error := _cached_route_mechanical_error(target, note)
+        ) is not None:
+            error = mechanical_error
         elif any(
             _identity_matches_proxy(hint.publisher_identity, proxy)
             for proxy in existing_publishers
@@ -1539,7 +2296,7 @@ def _parse_reads(
     tuple[dict[str, Any], ...],
 ]:
     target_by_id = {target.claim.claim_id: target for target in targets}
-    item_ids = {item.item_id for item in checklist.items}
+    item_ids = set(checklist.in_scope_item_ids)
     allowed: dict[str, set[tuple[str, str]]] = {}
     routed_elements: dict[tuple[str, str, str], list[str]] = {}
     for record in searches:
@@ -1635,6 +2392,12 @@ def _parse_reads(
                 claim_error = "unknown target claim_id"
             elif claim_id not in allowed_claim_ids:
                 claim_error = "claim was not routed to this URL by search"
+            elif _source_was_already_checked(
+                target_by_id[claim_id],
+                source_id=source_id_for_url(proposal.url),
+                url=proposal.url,
+            ):
+                claim_error = "source was already checked for this claim"
             elif publisher_proxy in set(
                 _supporting_publisher_proxy_sets(
                     target_by_id[claim_id]
@@ -1920,6 +2683,7 @@ def _incremental_attributions(
         _relation_identity(relation)
         for claim in initial_verification.claims
         for relation in claim.relations
+        if relation.status in _TERMINAL_RELATION_STATUSES
     }
     incremental: list[ClaimAttribution] = []
     for attribution in attributions:
@@ -2170,25 +2934,7 @@ async def run_evidence_gap_round(
             "explicit target elements require explicit target claim IDs"
         )
     if explicit_target_claim_ids is None:
-        targets = tuple(
-            result
-            for result in initial_verification.claims
-            if (
-                result.claim.citation_requirement
-                == CitationRequirement.EXTERNAL
-                and result.state in _TARGET_STATES
-                and (
-                    result.state
-                    not in {
-                        ClaimEvidenceState.SUPPORTED_SINGLE_DOMAIN_PROXY,
-                        ClaimEvidenceState.SUPPORTED_MULTIPLE_DOMAIN_PROXIES,
-                        ClaimEvidenceState.SUPPORTED_DISTRIBUTED_ELEMENT_EVIDENCE,
-                    }
-                    or result.publisher_domain_proxy_count
-                    < result.corroboration_target
-                )
-            )
-        )
+        targets = select_evidence_gap_targets(initial_verification)
     else:
         requested = tuple(dict.fromkeys(explicit_target_claim_ids))
         available = {
@@ -2264,10 +3010,12 @@ async def run_evidence_gap_round(
     acquisitions: list[GapSourceAcquisition] = []
     added_source_urls: list[str] = []
     added_note_ids: list[str] = []
+    incremental_routed_claim_ids: list[str] = []
     hints: tuple[CachedCandidateHint, ...] = ()
     deferred_targets: tuple[DeferredGapTarget, ...] = ()
     verification_reserve: VerificationReserveAudit | None = None
     verification_reserve_history: list[VerificationReserveAudit] = []
+    planning_capacity: EvidenceGapPlanningCapacityAudit | None = None
     plan_attempt_count = 0
     selected_planning_attempt: int | None = None
     unused_query_slots = 0
@@ -2277,19 +3025,143 @@ async def run_evidence_gap_round(
     active_verification_settings = (
         verification_settings or VerificationSettings()
     )
+    active_attribution_settings = attribution_settings or AttributionSettings()
 
     try:
         active_plan_builder = (
             plan_prompt_builder or build_evidence_gap_plan_prompt
         )
-        plan_prompt = active_plan_builder(
-            targets=targets,
-            notes=ledger.notes,
-            checklist=checklist,
-            max_queries=budget.max_search_queries,
-        )
+        supports_registry = plan_prompt_builder is None
+        if plan_prompt_builder is not None:
+            try:
+                plan_signature = inspect.signature(plan_prompt_builder)
+            except (TypeError, ValueError):
+                plan_signature = None
+            supports_registry = bool(
+                plan_signature is not None
+                and (
+                    "truth_condition_registry" in plan_signature.parameters
+                    or any(
+                        parameter.kind
+                        is inspect.Parameter.VAR_KEYWORD
+                        for parameter in plan_signature.parameters.values()
+                    )
+                )
+            )
+        def build_plan_prompt(max_queries: int) -> str:
+            plan_kwargs: dict[str, Any] = {
+                "targets": targets,
+                "notes": ledger.notes,
+                "checklist": checklist,
+                "max_queries": max_queries,
+            }
+            if supports_registry:
+                plan_kwargs["truth_condition_registry"] = (
+                    truth_condition_registry
+                )
+            return active_plan_builder(**plan_kwargs)
+
+        effective_max_queries = budget.max_search_queries
+        plan_prompt = build_plan_prompt(effective_max_queries)
         queries: tuple[GapSearchQuery, ...] = ()
         plan_attempt_count = 1
+        planning_capacity = _planning_capacity_audit(
+            plan_prompt=plan_prompt,
+            tracker=tracker,
+            budget=budget,
+            advertised_max_search_queries=effective_max_queries,
+            targets=targets,
+            notes=ledger.notes,
+            source_cache=ledger.source_cache,
+            checklist=checklist,
+            gap_model=gap_model,
+            note_model=note_model,
+            attribution_model=attribution_model,
+            verification_model=verification_model,
+            attribution_settings=active_attribution_settings,
+            truth_condition_registry=truth_condition_registry,
+            target_element_ids_by_claim=target_element_ids_by_claim,
+        )
+        if (
+            not planning_capacity.reserve_fully_funded
+            and effective_max_queries > 0
+            and _has_mechanically_executable_cached_route(
+                targets=targets,
+                notes=ledger.notes,
+                source_cache=ledger.source_cache,
+            )
+        ):
+            # A cache route is a real alternative only after web search is
+            # removed from the model's action space. Rebuild the unpaid prompt
+            # with an explicit zero-query budget, then prove that route. This
+            # preserves cache-first work without pretending it funds a web
+            # route the planner could otherwise select.
+            cache_only_prompt = build_plan_prompt(0)
+            cache_only_capacity = _planning_capacity_audit(
+                plan_prompt=cache_only_prompt,
+                tracker=tracker,
+                budget=budget,
+                advertised_max_search_queries=0,
+                targets=targets,
+                notes=ledger.notes,
+                source_cache=ledger.source_cache,
+                checklist=checklist,
+                gap_model=gap_model,
+                note_model=note_model,
+                attribution_model=attribution_model,
+                verification_model=verification_model,
+                attribution_settings=active_attribution_settings,
+                truth_condition_registry=truth_condition_registry,
+                target_element_ids_by_claim=target_element_ids_by_claim,
+            )
+            if cache_only_capacity.reserve_fully_funded:
+                effective_max_queries = 0
+                plan_prompt = cache_only_prompt
+                planning_capacity = cache_only_capacity
+                rejected.append(
+                    {
+                        "stage": "planning_capacity",
+                        "outcome": "downgraded_to_cache_only",
+                        "reason": (
+                            "a web route did not fit, so the unpaid plan was "
+                            "rebuilt with max_queries=0 before model execution"
+                        ),
+                    }
+                )
+        if len(plan_prompt) > budget.max_planning_prompt_chars:
+            raise _GapBudgetExhausted(
+                "gap budget: compacted planning prompt exceeds its "
+                "character bound; "
+                f"prompt_chars={len(plan_prompt)}; "
+                f"max={budget.max_planning_prompt_chars}"
+            )
+        if (
+            planning_capacity.estimated_planning_input_tokens
+            > min(budget.max_planning_input_tokens, budget.max_tokens)
+        ):
+            raise _GapBudgetExhausted(
+                "gap budget: compacted planning prompt exceeds its "
+                "input-token bound; "
+                "estimated_input_tokens="
+                f"{planning_capacity.estimated_planning_input_tokens}; "
+                "max="
+                f"{min(budget.max_planning_input_tokens, budget.max_tokens)}"
+            )
+        if not planning_capacity.reserve_fully_funded:
+            deferred_targets = _derive_capacity_deferrals(
+                target_claim_ids=tuple(
+                    target.claim.claim_id for target in targets
+                ),
+                routed_claim_ids=set(),
+                accepted_query_count=0,
+                query_cap=effective_max_queries,
+            )
+            unused_query_slots = effective_max_queries
+            raise _GapBudgetExhausted(
+                "planning cannot preserve output headroom plus one bounded "
+                "cached verification or web note-attribution-verification "
+                "route"
+            )
         plan_response = await tracker.call(
             gap_model,
             plan_prompt,
@@ -2308,7 +3180,7 @@ async def run_evidence_gap_round(
                 targets=targets,
                 notes=ledger.notes,
                 checklist=checklist,
-                max_queries=budget.max_search_queries,
+                max_queries=effective_max_queries,
                 target_element_ids_by_claim=target_element_ids_by_claim,
             )
         except (TypeError, ValidationError, ValueError) as exc:
@@ -2332,9 +3204,9 @@ async def run_evidence_gap_round(
             ),
             routed_claim_ids=routed_ids,
             accepted_query_count=len(queries),
-            query_cap=budget.max_search_queries,
+            query_cap=effective_max_queries,
         )
-        unused_query_slots = max(0, budget.max_search_queries - len(queries))
+        unused_query_slots = max(0, effective_max_queries - len(queries))
         for query in queries:
             try:
                 results = tuple(
@@ -2402,11 +3274,80 @@ async def run_evidence_gap_round(
                 targets=targets,
                 searches=searches,
                 max_reads=budget.max_reads,
+                truth_condition_registry=truth_condition_registry,
             )
             prerequisite_tokens, prerequisite_cost = tracker._estimate(
                 gap_model,
                 read_prompt,
             )
+            prerequisite_tokens += math.ceil(
+                prerequisite_tokens
+                * budget.planning_output_headroom_ratio
+            )
+            prerequisite_cost *= 1.0 + budget.planning_output_headroom_ratio
+
+        selected_web_allowances: tuple[tuple[int, float, int, float, int, float], ...] = ()
+        if read_prompt is not None:
+            routed_web_claim_ids = tuple(
+                dict.fromkeys(
+                    claim_id
+                    for query in queries
+                    for claim_id in query.claim_ids
+                )
+            )
+            selected_web_allowances = tuple(
+                _bounded_web_action_allowances(
+                    targets=targets,
+                    routed_claim_ids=routed_web_claim_ids,
+                    checklist=checklist,
+                    tracker=tracker,
+                    budget=budget,
+                    note_model=note_model,
+                    attribution_model=attribution_model,
+                    verification_model=verification_model,
+                    attribution_settings=active_attribution_settings,
+                    truth_condition_registry=truth_condition_registry,
+                    target_element_ids_by_claim=target_element_ids_by_claim,
+                ).values()
+            )
+
+        def selected_web_pressure(
+            allowance: tuple[int, float, int, float, int, float],
+        ) -> tuple[float, float, int, float]:
+            remaining_tokens = max(
+                0,
+                budget.max_tokens
+                - tracker.tokens_used
+                - prerequisite_tokens,
+            )
+            remaining_cost = max(
+                0.0,
+                budget.max_cost_usd
+                - tracker.cost_used
+                - prerequisite_cost,
+            )
+            token_ratio = (
+                allowance[4] / remaining_tokens
+                if remaining_tokens
+                else (0.0 if allowance[4] == 0 else math.inf)
+            )
+            cost_ratio = (
+                allowance[5] / remaining_cost
+                if remaining_cost
+                else (0.0 if allowance[5] <= 1e-12 else math.inf)
+            )
+            return (
+                max(token_ratio, cost_ratio),
+                token_ratio + cost_ratio,
+                allowance[4],
+                allowance[5],
+            )
+
+        selected_web_allowance = (
+            min(selected_web_allowances, key=selected_web_pressure)
+            if selected_web_allowances
+            else None
+        )
 
         # Verification is downstream of read selection. Reserving every
         # remaining token for verification before admitting that prerequisite
@@ -2429,6 +3370,16 @@ async def run_evidence_gap_round(
             ),
             prerequisite_estimated_tokens=prerequisite_tokens,
             prerequisite_estimated_cost_usd=prerequisite_cost,
+            minimum_action_estimated_tokens=(
+                selected_web_allowance[4]
+                if selected_web_allowance is not None
+                else 0
+            ),
+            minimum_action_estimated_cost_usd=(
+                selected_web_allowance[5]
+                if selected_web_allowance is not None
+                else 0.0
+            ),
         )
         verification_reserve_history.append(verification_reserve)
         ledger.record_evidence_gap(
@@ -2465,6 +3416,25 @@ async def run_evidence_gap_round(
                 sort_keys=True,
             ),
         )
+
+        if (
+            read_prompt is not None
+            and not verification_reserve.reserve_fully_funded
+        ):
+            stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
+            stop_detail = (
+                "read selection not admitted because the actual planning "
+                "usage and search-result prompt cannot preserve accepted "
+                "cached checks plus one bounded note-attribution-verification "
+                "action"
+            )
+            rejected.append(
+                {
+                    "stage": "read_selection",
+                    "error": stop_detail,
+                }
+            )
+            read_prompt = None
 
         if read_prompt is not None:
             try:
@@ -2535,7 +3505,7 @@ async def run_evidence_gap_round(
                         claim_ids=selection.claim_ids,
                         target_element_ids=selection.target_element_ids,
                         publisher_identity=selection.publisher_identity,
-                        cache_hit=False,
+                        cache_hit=cache_hit,
                         outcome="read_error",
                         error=error,
                     )
@@ -2548,32 +3518,6 @@ async def run_evidence_gap_round(
                 continue
             if not cache_hit:
                 added_source_urls.append(selection.url)
-
-            if cache_hit:
-                existing_note_ids = tuple(
-                    note_id
-                    for group in ledger.note_ids_for_url(selection.url).values()
-                    for note_id in group
-                )
-                acquisitions.append(
-                    GapSourceAcquisition(
-                        url=selection.url,
-                        claim_ids=selection.claim_ids,
-                        target_element_ids=selection.target_element_ids,
-                        publisher_identity=selection.publisher_identity,
-                        cache_hit=True,
-                        source_chars=len(source_text),
-                        note_ids=existing_note_ids,
-                        outcome="cache_hit_no_reanalysis",
-                    )
-                )
-                ledger.record_evidence_gap(
-                    event=ledger_event("source_cache_hit"),
-                    url=selection.url,
-                    note_ids=existing_note_ids,
-                    result_summary="cached source reused without note reanalysis",
-                )
-                continue
 
             selection_claims = tuple(
                 target_claim_by_id[claim_id]
@@ -2590,6 +3534,58 @@ async def run_evidence_gap_round(
             prospective_sources[selection.url] = tuple(
                 existing_group.values()
             )
+            existing_added_note_ids = set(added_note_ids)
+            prospective_incremental_notes = tuple(
+                note
+                for note in ledger.notes
+                if note.note_id in existing_added_note_ids
+            ) + tuple(
+                _prospective_gap_note(
+                    item_id=selection.item_id,
+                    url=selection.url,
+                    ordinal=len(added_note_ids) + offset,
+                )
+                for offset in (1, 2)
+            )
+            prospective_routed_ids = tuple(
+                dict.fromkeys(
+                    (*incremental_routed_claim_ids, *selection.claim_ids)
+                )
+            )
+            prospective_routed_claims = tuple(
+                target_claim_by_id[claim_id]
+                for claim_id in prospective_routed_ids
+            )
+            (
+                prospective_reattribution_tokens,
+                prospective_reattribution_cost,
+            ) = _estimate_incremental_reattribution_allowance(
+                claims=prospective_routed_claims,
+                notes=prospective_incremental_notes,
+                tracker=tracker,
+                attribution_model=attribution_model,
+                attribution_settings=active_attribution_settings,
+                output_headroom_ratio=budget.planning_output_headroom_ratio,
+            )
+            note_prompt = build_evidence_gap_note_prompt(
+                url=selection.url,
+                source_text=source_text,
+                claims=selection_claims,
+                checklist=checklist,
+                target_element_ids=selection.target_element_ids,
+                truth_condition_registry=truth_condition_registry,
+            )
+            note_prerequisite_tokens, note_prerequisite_cost = tracker._estimate(
+                note_model,
+                note_prompt,
+            )
+            note_prerequisite_tokens += math.ceil(
+                note_prerequisite_tokens
+                * budget.planning_output_headroom_ratio
+            )
+            note_prerequisite_cost *= (
+                1.0 + budget.planning_output_headroom_ratio
+            )
             verification_reserve = _reserve_verification_budget(
                 tracker=tracker,
                 queries=queries,
@@ -2602,20 +3598,53 @@ async def run_evidence_gap_round(
                 verification_settings=active_verification_settings,
                 truth_condition_registry=truth_condition_registry,
                 admitted_read_source_claims=prospective_sources,
+                prerequisite_stage="note_extraction",
+                prerequisite_estimated_tokens=note_prerequisite_tokens,
+                prerequisite_estimated_cost_usd=note_prerequisite_cost,
+                incremental_reattribution_estimated_tokens=(
+                    prospective_reattribution_tokens
+                ),
+                incremental_reattribution_estimated_cost_usd=(
+                    prospective_reattribution_cost
+                ),
             )
             verification_reserve_history.append(verification_reserve)
+
+            if not verification_reserve.reserve_fully_funded:
+                stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
+                stop_detail = (
+                    "actual source not admitted because note extraction "
+                    "cannot preserve incremental reattribution and "
+                    "verification capacity"
+                )
+                acquisitions.append(
+                    GapSourceAcquisition(
+                        url=selection.url,
+                        claim_ids=selection.claim_ids,
+                        target_element_ids=selection.target_element_ids,
+                        publisher_identity=selection.publisher_identity,
+                        cache_hit=cache_hit,
+                        source_chars=len(source_text),
+                        outcome=(
+                            "note_extraction_not_run_budget_after_actual_read"
+                        ),
+                        error=stop_detail,
+                    )
+                )
+                rejected.append(
+                    {
+                        "stage": "note_extraction",
+                        "url": selection.url,
+                        "source_chars": len(source_text),
+                        "error": stop_detail,
+                    }
+                )
+                continue
 
             try:
                 note_response = await tracker.call(
                     note_model,
-                    build_evidence_gap_note_prompt(
-                        url=selection.url,
-                        source_text=source_text,
-                        claims=selection_claims,
-                        checklist=checklist,
-                        target_element_ids=selection.target_element_ids,
-                        truth_condition_registry=truth_condition_registry,
-                    ),
+                    note_prompt,
                     stage="note_extraction",
                 )
                 note_content = _decode_response(note_response)
@@ -2653,6 +3682,10 @@ async def run_evidence_gap_round(
                 # next selected URL.  Do not let one large page turn a
                 # bounded pass into a silent all-or-nothing stop.
                 continue
+            except RunCostCapReached:
+                # The shared run controller, rather than this local source
+                # loop, owns absolute-cost termination and partial publishing.
+                raise
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
                 acquisitions.append(
@@ -2661,7 +3694,7 @@ async def run_evidence_gap_round(
                         claim_ids=selection.claim_ids,
                         target_element_ids=selection.target_element_ids,
                         publisher_identity=selection.publisher_identity,
-                        cache_hit=False,
+                        cache_hit=cache_hit,
                         source_chars=len(source_text),
                         outcome="note_model_error",
                         error=error,
@@ -2687,8 +3720,20 @@ async def run_evidence_gap_round(
                         "error": "notes must be an array",
                     }
                 )
+            elif len(raw_notes) > 2:
+                rejected.append(
+                    {
+                        "stage": "note_extraction",
+                        "url": selection.url,
+                        "error": (
+                            "note protocol permits at most two notes; "
+                            f"rejected {len(raw_notes) - 2} overflow entries"
+                        ),
+                    }
+                )
+                raw_notes = raw_notes[:2]
             created_ids: list[str] = []
-            allowed_items = {item.item_id for item in checklist.items}
+            allowed_items = set(checklist.in_scope_item_ids)
             for index, raw_note in enumerate(raw_notes):
                 try:
                     draft = _GapNoteDraft.model_validate(raw_note)
@@ -2734,6 +3779,9 @@ async def run_evidence_gap_round(
                 admitted_read_source_claims[selection.url] = tuple(
                     prospective_sources[selection.url]
                 )
+                for claim_id in selection.claim_ids:
+                    if claim_id not in incremental_routed_claim_ids:
+                        incremental_routed_claim_ids.append(claim_id)
             ledger.record_evidence_gap(
                 event=ledger_event("source_acquired"),
                 url=selection.url,
@@ -2769,31 +3817,113 @@ async def run_evidence_gap_round(
 
         target_claims = [target.claim for target in targets]
         if added_note_ids:
-            try:
-                refreshed = await attribute_claims(
-                    target_claims,
-                    blocks=blocks,
-                    notes=ledger.notes,
-                    model_client=_TrackedClient(
-                        attribution_model,
-                        tracker,
-                        "reattribution",
-                    ),
-                    settings=attribution_settings,
-                )
-            except _GapBudgetExhausted as exc:
+            added_note_id_set = set(added_note_ids)
+            incremental_notes = tuple(
+                note
+                for note in ledger.notes
+                if note.note_id in added_note_id_set
+            )
+            target_claim_by_id = {
+                claim.claim_id: claim for claim in target_claims
+            }
+            incremental_claims = tuple(
+                target_claim_by_id[claim_id]
+                for claim_id in incremental_routed_claim_ids
+            )
+            (
+                exact_reattribution_tokens,
+                exact_reattribution_cost,
+            ) = _estimate_incremental_reattribution_allowance(
+                claims=incremental_claims,
+                notes=incremental_notes,
+                tracker=tracker,
+                attribution_model=attribution_model,
+                attribution_settings=active_attribution_settings,
+                output_headroom_ratio=budget.planning_output_headroom_ratio,
+            )
+            combined_tail_reserve = _reserve_verification_budget(
+                tracker=tracker,
+                queries=queries,
+                hints=hints,
+                targets=targets,
+                notes=ledger.notes,
+                source_cache=ledger.source_cache,
+                max_reads=budget.max_reads,
+                verification_model=verification_model,
+                verification_settings=active_verification_settings,
+                truth_condition_registry=truth_condition_registry,
+                admitted_read_source_claims=admitted_read_source_claims,
+                incremental_reattribution_estimated_tokens=(
+                    exact_reattribution_tokens
+                ),
+                incremental_reattribution_estimated_cost_usd=(
+                    exact_reattribution_cost
+                ),
+            )
+            verification_reserve_history.append(combined_tail_reserve)
+            if not combined_tail_reserve.reserve_fully_funded:
                 stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
-                stop_detail = str(exc)
+                stop_detail = (
+                    "new notes preserved, but exact incremental "
+                    "reattribution plus verification exceeds the remaining "
+                    "gap budget"
+                )
                 rejected.append(
                     {
                         "stage": "reattribution",
-                        "error": str(exc),
+                        "error": stop_detail,
                     }
                 )
                 refreshed = AttributionResult(
                     attributions=(),
                     stop_reason=AttributionStopReason.COMPLETED,
                 )
+            else:
+                # The combined audit proves both tail actions fit. Release
+                # only the attribution allowance so the tracked attribution
+                # call can consume it while exact verification stays held.
+                verification_reserve = _reserve_verification_budget(
+                    tracker=tracker,
+                    queries=queries,
+                    hints=hints,
+                    targets=targets,
+                    notes=ledger.notes,
+                    source_cache=ledger.source_cache,
+                    max_reads=budget.max_reads,
+                    verification_model=verification_model,
+                    verification_settings=active_verification_settings,
+                    truth_condition_registry=truth_condition_registry,
+                    admitted_read_source_claims=admitted_read_source_claims,
+                )
+                verification_reserve_history.append(verification_reserve)
+                try:
+                    refreshed = await attribute_claims(
+                        incremental_claims,
+                        blocks=blocks,
+                        # Initial attribution is merged below and must not be
+                        # paid for a second time. This incremental pass routes
+                        # only notes created by this evidence-gap pass.
+                        notes=incremental_notes,
+                        model_client=_TrackedClient(
+                            attribution_model,
+                            tracker,
+                            "reattribution",
+                        ),
+                        settings=active_attribution_settings,
+                    )
+                except _GapBudgetExhausted as exc:
+                    stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
+                    stop_detail = str(exc)
+                    rejected.append(
+                        {
+                            "stage": "reattribution",
+                            "error": str(exc),
+                        }
+                    )
+                    refreshed = AttributionResult(
+                        attributions=(),
+                        stop_reason=AttributionStopReason.COMPLETED,
+                    )
         else:
             # The plan's mechanically validated hints already represent every
             # cache-only addition. Re-running attribution without new notes
@@ -2833,10 +3963,14 @@ async def run_evidence_gap_round(
             return tracker._estimate(verification_model, prompt)[1]
 
         if incremental_attributions:
-            incremental_claim_ids = {
+            # The verifier binds the truth-condition registry to the exact
+            # attribution denominator *and order*.  Preserve that sequence:
+            # a set can reorder an explicit bounded subset and make a valid
+            # incremental pass fail closed at the verifier boundary.
+            incremental_claim_ids = tuple(
                 attribution.claim.claim_id
                 for attribution in incremental_attributions
-            }
+            )
             refreshed_verification = await verify_attributions(
                 incremental_attributions,
                 source_cache=ledger.source_cache,
@@ -2910,6 +4044,11 @@ async def run_evidence_gap_round(
             stop_detail = (
                 "gap budget reached after the final admitted model call"
             )
+    except RunCostCapReached:
+        # The absolute run-level controller owns this boundary.  Converting it
+        # into a local model error hides the binding cap from the runner and
+        # defeats its partial-artifact path.
+        raise
     except _GapBudgetExhausted as exc:
         stop_reason = EvidenceGapStopReason.BUDGET_EXHAUSTED
         stop_detail = str(exc)
@@ -2951,7 +4090,7 @@ async def run_evidence_gap_round(
             f"routed target claims={routed_count}/{len(targets)}; "
             f"unrouted target claims={len(targets) - routed_count}; "
             f"code-derived unrouted records={len(deferred_targets)}; "
-            f"issued query slots={len(queries)}/{budget.max_search_queries}; "
+            f"issued query slots={len(queries)}/{effective_max_queries}; "
             "new completed claim-source relations="
             f"{information_yield.new_completed_relation_count}"
         )
@@ -3010,6 +4149,7 @@ async def run_evidence_gap_round(
         added_note_ids=tuple(added_note_ids),
         verification_reserve=verification_reserve,
         verification_reserve_history=tuple(verification_reserve_history),
+        planning_capacity=planning_capacity,
         information_yield=information_yield,
         usage=tuple(tracker.usage),
         stop_reason=stop_reason,

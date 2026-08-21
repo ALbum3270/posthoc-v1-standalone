@@ -115,6 +115,7 @@ from open_deep_research.harness.evidence_gap import (
     EvidenceGapBudget,
     EvidenceGapCallUsage,
     EvidenceGapInformationAudit,
+    EvidenceGapPlanningCapacityAudit,
     EvidenceGapResult,
     EvidenceGapStopReason,
     GapReadSelection,
@@ -128,6 +129,7 @@ from open_deep_research.harness.evidence_gap import (
     build_evidence_gap_plan_prompt,
     build_evidence_gap_read_prompt,
     run_evidence_gap_round,
+    select_evidence_gap_targets,
 )
 from open_deep_research.harness.edit import (
     EDITORIAL_TARGET_STATES,
@@ -437,6 +439,7 @@ __all__ = [
     "EvidenceGapBudget",
     "EvidenceGapCallUsage",
     "EvidenceGapInformationAudit",
+    "EvidenceGapPlanningCapacityAudit",
     "EvidenceGapLedgerRecord",
     "EvidenceGapResult",
     "EvidenceGapStopReason",
@@ -649,6 +652,7 @@ __all__ = [
     "render_verified_report",
     "run_harness",
     "run_evidence_gap_round",
+    "select_evidence_gap_targets",
     "revise_audited_draft",
     "run_disagreement_detection",
     "run_research_loop",

@@ -1,15 +1,23 @@
 import asyncio
 import json
 
+import pytest
+
 from open_deep_research.harness.attribution import (
     AttributionResult,
     AttributionStatus,
     AttributionStopReason,
     ClaimAttribution,
 )
+from open_deep_research.harness.budget import (
+    RunCostBudget,
+    RunCostCapReached,
+    RunCostController,
+)
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
     ChecklistItem,
+    ChecklistStatus,
     ResearchChecklist,
 )
 from open_deep_research.harness.claims import (
@@ -227,6 +235,42 @@ def test_prompts_distinguish_whole_claim_and_element_support_publishers() -> Non
         assert "used_supporting_publisher_domain_proxies" in prompt
         assert "whole.example" in prompt
         assert "element.example" in prompt
+
+
+def test_disagreement_plan_cannot_route_new_work_to_excluded_scope() -> None:
+    report = "# Report\n\nA measured value was reported."
+    claim = _claim(report)
+    _, verification = _initial((claim,))
+    checklist = ResearchChecklist(
+        topic="Explain the measured result.",
+        items=(
+            ChecklistItem(
+                item_id="what-1",
+                dimension=ChecklistDimension.WHAT,
+                question="What was measured?",
+                priority=1,
+                corroboration_target=1,
+            ),
+            ChecklistItem(
+                item_id="where-1",
+                dimension=ChecklistDimension.WHERE,
+                question="Where was the office?",
+                priority=2,
+                corroboration_target=1,
+                status=ChecklistStatus.OUT_OF_SCOPE,
+            ),
+        ),
+    )
+
+    prompt = build_disagreement_plan_prompt(
+        targets=verification.claims,
+        notes=(),
+        checklist=checklist,
+        max_queries=1,
+    )
+
+    assert '"what-1"' in prompt
+    assert '"where-1"' not in prompt
 
 
 def test_finance_13_malformed_selection_is_charged_and_retried_once() -> None:
@@ -669,3 +713,41 @@ def test_shared_cap_still_limits_gap_when_disagreement_is_disabled() -> None:
     assert allocation.evidence_gap_budget is not None
     assert allocation.evidence_gap_budget.max_tokens == 60_000
     assert allocation.evidence_gap_budget.max_cost_usd == 0.10
+
+
+def test_run_cost_cap_is_not_downgraded_to_disagreement_model_error() -> None:
+    report = "# Report\n\nA measured value was reported."
+    claim = _claim(report)
+    attribution, verification = _initial((claim,))
+    controller = RunCostController(RunCostBudget(max_cost_usd=1))
+    cap_error = RunCostCapReached(
+        "synthetic disagreement cap",
+        stage="disagreement",
+        audit=controller.audit(),
+    )
+
+    class CappedSelectionModel:
+        async def generate(self, _prompt):
+            raise cap_error
+
+    with pytest.raises(RunCostCapReached) as caught:
+        asyncio.run(
+            run_disagreement_detection(
+                canonical_draft=report,
+                checklist=_checklist(),
+                blocks=parse_markdown_blocks(report),
+                ledger=ResearchLedger(topic="A neutral topic"),
+                initial_attribution=attribution,
+                initial_verification=verification,
+                selection_model=CappedSelectionModel(),
+                note_model=UnusedModel(),
+                attribution_model=UnusedModel(),
+                verification_model=UnusedModel(),
+                tavily_client=EmptySearch(),
+                budget=DisagreementBudget(max_tokens=100, max_cost_usd=1),
+                estimate_input_tokens=_tokens,
+                estimate_cost_usd=_cost,
+            )
+        )
+
+    assert caught.value is cap_error

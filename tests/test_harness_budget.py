@@ -38,6 +38,16 @@ class UnestimatedEnvelopeModel:
         }
 
 
+class FreshCalibrationEnvelopeModel(UnestimatedEnvelopeModel):
+    """Production-shaped role whose first observation does not exist yet."""
+
+    def estimate_tokens(self, prompt: str) -> int:
+        raise RuntimeError("no observed usage is available for admission")
+
+    def estimate_cost_usd(self, prompt: str) -> float:
+        raise RuntimeError("no observed usage is available for admission")
+
+
 def test_verification_reserve_mechanically_rejects_an_early_call() -> None:
     controller = RunCostController(
         RunCostBudget(
@@ -99,6 +109,24 @@ def test_unestimated_bootstrap_call_is_counted_not_hidden() -> None:
     assert audit.unestimated_admitted_call_count == 1
     assert audit.admissions[0].estimator_available is False
     assert "no observation yet" in audit.admissions[0].reason
+
+
+def test_capacity_estimates_do_not_turn_fresh_calibration_into_zero() -> None:
+    controller = RunCostController(RunCostBudget(max_cost_usd=0.10))
+    model = FreshCalibrationEnvelopeModel()
+    wrapped = controller.wrap(model, stage="evidence_gap")
+
+    with pytest.raises(RuntimeError, match="token estimate is unavailable"):
+        wrapped.estimate_tokens("future multi-call route")
+    with pytest.raises(RuntimeError, match="cost estimate is unavailable"):
+        wrapped.estimate_cost_usd("future multi-call route")
+
+    # The distinction is deliberate: a single bootstrap call is still legal
+    # and remains explicitly visible in the run-level admission audit.
+    asyncio.run(wrapped.generate("first role-specific prompt"))
+    audit = controller.audit()
+    assert audit.admitted_call_count == 1
+    assert audit.unestimated_admitted_call_count == 1
 
 
 def test_absent_run_limit_is_explicit_in_audit() -> None:

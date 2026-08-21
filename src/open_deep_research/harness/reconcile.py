@@ -14,10 +14,16 @@ from pydantic import (
     Field,
     ValidationError,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
-from open_deep_research.harness.checklist import ResearchChecklist
+from open_deep_research.harness.budget import RunCostCapReached
+from open_deep_research.harness.checklist import (
+    ChecklistItem,
+    ChecklistStatus,
+    ResearchChecklist,
+)
 from open_deep_research.harness.claims import (
     AtomicClaim,
     ClaimNormalizationStatus,
@@ -40,6 +46,7 @@ class CoverageAssessmentStatus(str, Enum):
     COMPLETED = "completed"
     COMPLETED_WITH_ERRORS = "completed_with_errors"
     ASSESSMENT_FAILED = "assessment_failed"
+    SCOPE_EXCLUDED = "scope_excluded"
 
 
 class ChecklistCoverageReference(BaseModel):
@@ -76,9 +83,24 @@ class ChecklistCoverageRecord(BaseModel):
             self.assessment_status
             == CoverageAssessmentStatus.ASSESSMENT_FAILED
         )
-        if failed != (self.disposition is None):
+        scope_excluded = (
+            self.assessment_status
+            == CoverageAssessmentStatus.SCOPE_EXCLUDED
+        )
+        if (failed or scope_excluded) != (self.disposition is None):
             raise ValueError(
-                "only failed assessments may omit the final disposition"
+                "only failed or scope-excluded assessments may omit the "
+                "final disposition"
+            )
+        if scope_excluded and (
+            self.proposed_disposition is not None
+            or self.references
+            or self.proposed_claim_ids
+            or self.invalid_claim_ids
+        ):
+            raise ValueError(
+                "scope-excluded records cannot contain a model proposal or "
+                "report references"
             )
         if self.disposition in {
             ChecklistCoverageDisposition.COVERED,
@@ -101,15 +123,40 @@ class ChecklistCoverageSummary(BaseModel):
     partially_covered_items: int = Field(ge=0)
     not_covered_items: int = Field(ge=0)
     assessment_failed_items: int = Field(ge=0)
+    scope_excluded_items: int = Field(default=0, ge=0)
     covered_rate: float = Field(ge=0.0, le=1.0)
     partially_covered_item_ids: tuple[str, ...] = ()
     not_covered_item_ids: tuple[str, ...] = ()
     assessment_failed_item_ids: tuple[str, ...] = ()
+    scope_excluded_item_ids: tuple[str, ...] = ()
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_scope_extension(self, handler: Any) -> dict[str, Any]:
+        """Keep pre-scope serialized payloads byte-shape compatible.
+
+        ``Field(exclude_if=...)`` is unavailable in the repository's locked
+        Pydantic 2.11 runtime. A serializer provides the same additive-schema
+        behavior without embedding an unserializable callable in JSON Schema.
+        """
+
+        payload = handler(self)
+        if self.scope_excluded_items == 0:
+            payload.pop("scope_excluded_items", None)
+            payload.pop("scope_excluded_item_ids", None)
+        return payload
 
     @model_validator(mode="after")
     def _counts_are_consistent(self) -> ChecklistCoverageSummary:
-        if self.assessed_items + self.assessment_failed_items != self.total_items:
-            raise ValueError("assessed and failed counts must cover the checklist")
+        if (
+            self.assessed_items
+            + self.assessment_failed_items
+            + self.scope_excluded_items
+            != self.total_items
+        ):
+            raise ValueError(
+                "assessed, failed, and scope-excluded counts must cover the "
+                "frozen checklist"
+            )
         if (
             self.covered_items
             + self.partially_covered_items
@@ -127,14 +174,32 @@ class ChecklistCoverageSummary(BaseModel):
             self.assessment_failed_item_ids
         ):
             raise ValueError("failure count must match its item IDs")
+        if self.scope_excluded_items != len(self.scope_excluded_item_ids):
+            raise ValueError("scope-excluded count must match its item IDs")
+        coverage_denominator = self.total_items - self.scope_excluded_items
         expected_rate = (
-            self.covered_items / self.total_items
-            if self.total_items
+            self.covered_items / coverage_denominator
+            if coverage_denominator
             else 0.0
         )
         if abs(self.covered_rate - expected_rate) > 1e-12:
-            raise ValueError("covered_rate must equal covered_items/total_items")
+            raise ValueError(
+                "covered_rate must equal covered_items divided by the "
+                "non-scope-excluded checklist denominator"
+            )
         return self
+
+    @property
+    def coverage_denominator_items(self) -> int:
+        """Return frozen items eligible for report-coverage assessment."""
+
+        return self.total_items - self.scope_excluded_items
+
+    @property
+    def terminal_items(self) -> int:
+        """Return assessed plus upstream, code-recorded scope exclusions."""
+
+        return self.assessed_items + self.scope_excluded_items
 
 
 class ReconciliationCallUsage(BaseModel):
@@ -200,7 +265,7 @@ class _CoverageProposal(BaseModel):
 
 
 _PROMPT = """\
-Audit how the report addresses every frozen checklist item. This is a
+Audit how the report addresses every supplied checklist item. This is a
 read-only reconciliation pass: do not rewrite the report or checklist, do not
 suggest additions, and do not make evidence-support judgements.
 
@@ -221,7 +286,9 @@ event list or a numeric coverage threshold.
 For covered or partially_covered, cite one or more claim_id values from the
 registry that actually carry the answer. Reusing a claim_id is allowed.
 For not_covered, return an empty claim_ids list and explain what is absent.
-Return exactly one entry for every checklist item. Do not invent identifiers.
+Return exactly one entry for every supplied checklist item. Do not invent
+identifiers. Scope decisions are made upstream; do not add, remove, or infer
+scope exclusions in this reconciliation pass.
 Return JSON only:
 {{"items":[{{"item_id":"...","disposition":"covered|partially_covered|\
 not_covered","reason":"...","claim_ids":["claim-..."]}}]}}
@@ -246,7 +313,7 @@ def build_reconciliation_prompt(
                 "item_id": item.item_id,
                 "question": item.question,
             }
-            for item in checklist.items
+            for item in checklist.in_scope_items
         ],
         "report_blocks": [
             {
@@ -350,7 +417,10 @@ def _summary(
         record
         for record in records
         if record.assessment_status
-        != CoverageAssessmentStatus.ASSESSMENT_FAILED
+        in {
+            CoverageAssessmentStatus.COMPLETED,
+            CoverageAssessmentStatus.COMPLETED_WITH_ERRORS,
+        }
     ]
     covered = [
         record
@@ -374,7 +444,14 @@ def _summary(
         if record.assessment_status
         == CoverageAssessmentStatus.ASSESSMENT_FAILED
     ]
+    scope_excluded = [
+        record
+        for record in records
+        if record.assessment_status
+        == CoverageAssessmentStatus.SCOPE_EXCLUDED
+    ]
     total = len(records)
+    coverage_denominator = total - len(scope_excluded)
     return ChecklistCoverageSummary(
         total_items=total,
         assessed_items=len(completed),
@@ -382,7 +459,12 @@ def _summary(
         partially_covered_items=len(partial),
         not_covered_items=len(uncovered),
         assessment_failed_items=len(failed),
-        covered_rate=(len(covered) / total if total else 0.0),
+        scope_excluded_items=len(scope_excluded),
+        covered_rate=(
+            len(covered) / coverage_denominator
+            if coverage_denominator
+            else 0.0
+        ),
         partially_covered_item_ids=tuple(
             record.item_id for record in partial
         ),
@@ -392,6 +474,24 @@ def _summary(
         assessment_failed_item_ids=tuple(
             record.item_id for record in failed
         ),
+        scope_excluded_item_ids=tuple(
+            record.item_id for record in scope_excluded
+        ),
+    )
+
+
+def _scope_excluded_record(item: ChecklistItem) -> ChecklistCoverageRecord:
+    """Represent an upstream scope decision without asking the model again."""
+
+    return ChecklistCoverageRecord(
+        item_id=item.item_id,
+        question=item.question,
+        rationale=(
+            "Excluded from report-coverage assessment by the checklist's "
+            "upstream out_of_scope terminal status."
+        ),
+        assessment_status=CoverageAssessmentStatus.SCOPE_EXCLUDED,
+        diagnostics=("scope_excluded_by_checklist_status",),
     )
 
 
@@ -400,11 +500,17 @@ def _failed_records(
     diagnostic: str,
 ) -> tuple[ChecklistCoverageRecord, ...]:
     return tuple(
-        ChecklistCoverageRecord(
-            item_id=item.item_id,
-            question=item.question,
-            assessment_status=CoverageAssessmentStatus.ASSESSMENT_FAILED,
-            diagnostics=(diagnostic,),
+        (
+            _scope_excluded_record(item)
+            if item.status is ChecklistStatus.OUT_OF_SCOPE
+            else ChecklistCoverageRecord(
+                item_id=item.item_id,
+                question=item.question,
+                assessment_status=(
+                    CoverageAssessmentStatus.ASSESSMENT_FAILED
+                ),
+                diagnostics=(diagnostic,),
+            )
         )
         for item in checklist.items
     )
@@ -420,6 +526,16 @@ async def reconcile_checklist_report(
 ) -> ChecklistReportReconciliation:
     """Judge semantic coverage, then mechanically validate every citation."""
 
+    assessable_items = checklist.in_scope_items
+    if not assessable_items:
+        records = tuple(
+            _scope_excluded_record(item) for item in checklist.items
+        )
+        return ChecklistReportReconciliation(
+            records=records,
+            summary=_summary(records),
+        )
+
     prompt = build_reconciliation_prompt(
         checklist,
         blocks=blocks,
@@ -427,6 +543,10 @@ async def reconcile_checklist_report(
     )
     try:
         content, usage = await _call_model(model_client, prompt)
+    except RunCostCapReached:
+        # The runner persists a truthful partial artifact for an absolute-cap
+        # stop. Converting this to assessment_failed would misstate causality.
+        raise
     except Exception as exc:
         diagnostic = f"reconciliation_model_error: {exc}"
         records = _failed_records(checklist, diagnostic)
@@ -458,7 +578,12 @@ async def reconcile_checklist_report(
             diagnostics=(diagnostic,),
         )
 
-    checklist_by_id = {item.item_id: item for item in checklist.items}
+    checklist_by_id = {item.item_id: item for item in assessable_items}
+    scope_excluded_ids = {
+        item.item_id
+        for item in checklist.items
+        if item.status is ChecklistStatus.OUT_OF_SCOPE
+    }
     parsed_by_id: dict[str, list[_CoverageProposal]] = {}
     item_errors: dict[str, list[str]] = {}
     global_diagnostics: list[str] = []
@@ -473,6 +598,12 @@ async def reconcile_checklist_report(
             else:
                 global_diagnostics.append(diagnostic)
             continue
+        if proposal.item_id in scope_excluded_ids:
+            global_diagnostics.append(
+                f"scope_excluded_item_proposal_ignored[{index}]: "
+                f"{proposal.item_id}"
+            )
+            continue
         if proposal.item_id not in checklist_by_id:
             global_diagnostics.append(
                 f"unknown_item_id[{index}]: {proposal.item_id}"
@@ -484,6 +615,9 @@ async def reconcile_checklist_report(
     blocks_by_id = {block.block_id: block for block in blocks}
     records: list[ChecklistCoverageRecord] = []
     for item in checklist.items:
+        if item.status is ChecklistStatus.OUT_OF_SCOPE:
+            records.append(_scope_excluded_record(item))
+            continue
         proposals = parsed_by_id.get(item.item_id, [])
         diagnostics = list(item_errors.get(item.item_id, ()))
         if not proposals:

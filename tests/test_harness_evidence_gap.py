@@ -3,6 +3,8 @@ import json
 
 import pytest
 
+import open_deep_research.harness.evidence_gap as evidence_gap_module
+from open_deep_research.harness import EvidenceGapPlanningCapacityAudit
 from open_deep_research.harness.attribution import (
     AttributionResult,
     AttributionStatus,
@@ -11,9 +13,15 @@ from open_deep_research.harness.attribution import (
     ClaimAttribution,
     _note_reference,
 )
+from open_deep_research.harness.budget import (
+    RunCostBudget,
+    RunCostCapReached,
+    RunCostController,
+)
 from open_deep_research.harness.checklist import (
     ChecklistDimension,
     ChecklistItem,
+    ChecklistStatus,
     ResearchChecklist,
 )
 from open_deep_research.harness.claims import (
@@ -30,6 +38,7 @@ from open_deep_research.harness.evidence_gap import (
     GapSearchRecord,
     EvidenceGapStopReason,
     _merge_verifications,
+    build_evidence_gap_plan_prompt,
     run_evidence_gap_round,
 )
 from open_deep_research.harness.ledger import ResearchLedger
@@ -38,6 +47,7 @@ from open_deep_research.harness.notes import (
     QuoteSpan,
     create_note,
 )
+from open_deep_research.harness.tools import SearchResult
 from open_deep_research.harness.truth_conditions import (
     ElementAssessmentExecutionStatus,
     ElementVerificationVerdict,
@@ -372,7 +382,7 @@ def test_planner_uses_one_ordered_query_for_multiple_claims_within_hard_cap():
     assert "Return only semantic routes" in prompt
     assert "Do not return deferred_targets" in prompt
     assert "Code records every unrouted target" in prompt
-    assert '"corroboration_target": 2' in prompt
+    assert '"corroboration_target":2' in prompt
     assert result.verification_reserve is not None
     assert result.verification_reserve.planned_query_count == 1
     assert result.verification_reserve.planned_query_claim_count == 2
@@ -523,19 +533,15 @@ def test_model_cannot_manufacture_a_semantic_no_query_escape():
         )
     )
 
-    # With no search capacity, code—not the planner's semantic assertion—
-    # records the only legal deferral.  This is a completed bounded pass with
-    # zero executable capacity, not a budget admission failure.
-    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    # With no cache or search capacity there is no useful action to authorize.
+    # Code records the deferral without paying a planner that could only
+    # manufacture a semantic excuse for doing nothing.
+    assert result.stop_reason is EvidenceGapStopReason.BUDGET_EXHAUSTED
     assert result.routed_target_claim_ids == ()
     assert result.unrouted_target_claim_ids == (claims[0].claim_id,)
     assert result.deferred_targets[0].reason == "query_capacity_not_allocated"
-    assert any(
-        entry.get("error", "").startswith("planner_supplied_deferred_target")
-        for entry in result.rejected_entries
-    )
     assert result.deferred_targets[0].allocation_source == "code_derived"
-    assert len(gap_model.prompts) == 1
+    assert len(gap_model.prompts) == 0
 
 
 def test_incomplete_plan_executes_its_audited_partial_route_once():
@@ -1102,6 +1108,34 @@ def test_distributed_element_support_enters_whole_claim_corroboration_gap() -> N
         ),
         expected_source_ids=tuple(candidate.source_id for candidate in candidates),
     )
+    first_source_aggregate = aggregate_truth_condition_claim(
+        entry,
+        tuple(
+            element.as_assessment()
+            for element in relations[0].element_relations
+        ),
+        expected_source_ids=(candidates[0].source_id,),
+    )
+    focused_plan = build_evidence_gap_plan_prompt(
+        targets=(
+            build_claim_verification(
+                claim,
+                (relations[0],),
+                required_sources=2,
+                truth_condition_aggregate=first_source_aggregate,
+            ),
+        ),
+        notes=(),
+        checklist=_checklist(),
+        max_queries=1,
+        truth_condition_registry=registry,
+    )
+    assert '"truth_condition":"The event occurred."' in focused_plan
+    assert '"truth_condition":"The date was 2024."' in focused_plan
+    assert '"semantic_state":"supported"' in focused_plan
+    assert '"semantic_state":"not_supported"' in focused_plan
+    assert "supporting_source_ids" not in focused_plan
+    assert "not_supporting_source_ids" not in focused_plan
     initial_attribution = AttributionResult(
         attributions=(
             ClaimAttribution(
@@ -1311,6 +1345,187 @@ def test_cached_unused_source_adds_multi_domain_support_without_corroborating():
         "https://second.example/article",
     }
     assert ledger.evidence_gap_history[0].event == "cache_review"
+
+
+def test_explicit_incremental_subset_projects_registry_in_attribution_order(
+    monkeypatch,
+) -> None:
+    report = "# Report\n\nThe first event occurred. The second event occurred."
+    first_claim = _claim(
+        report,
+        claim_id="claim-0001",
+        text="The first event occurred.",
+    )
+    second_claim = _claim(
+        report,
+        claim_id="claim-0002",
+        text="The second event occurred.",
+    )
+    claims = (first_claim, second_claim)
+    registry = build_truth_condition_registry(
+        {claim.claim_id: claim.claim_text for claim in claims},
+        proposals=tuple(
+            ElementizationProposal(
+                claim_id=claim.claim_id,
+                elements=(claim.claim_text,),
+            )
+            for claim in claims
+        ),
+        reviews=tuple(
+            ElementizationReview(
+                claim_id=claim.claim_id,
+                semantic_status=ElementizationSemanticStatus.COMPLETE,
+                elements=(claim.claim_text,),
+                rationale="The claim has one complete truth condition.",
+            )
+            for claim in claims
+        ),
+    )
+    initial_attribution = AttributionResult(
+        attributions=tuple(
+            ClaimAttribution(
+                claim=claim,
+                status=AttributionStatus.NO_CANDIDATE_SOURCE,
+            )
+            for claim in claims
+        ),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+    initial_verification = VerificationResult(
+        claims=tuple(
+            build_claim_verification(
+                claim,
+                (),
+                required_sources=2,
+                attribution_status=AttributionStatus.NO_CANDIDATE_SOURCE,
+                truth_condition_aggregate=aggregate_truth_condition_claim(
+                    registry.entry_for(claim.claim_id),
+                    (),
+                    expected_source_ids=(),
+                ),
+            )
+            for claim in claims
+        ),
+        truth_condition_registry_sha256=truth_condition_registry_sha256(
+            registry
+        ),
+    )
+    ledger = ResearchLedger(topic="A neutral topic")
+    notes = {
+        first_claim.claim_id: _note(
+            ledger,
+            "https://first.example/record",
+            first_claim.claim_text,
+        ),
+        second_claim.claim_id: _note(
+            ledger,
+            "https://second.example/record",
+            second_claim.claim_text,
+        ),
+    }
+    selected_ids = (second_claim.claim_id, first_claim.claim_id)
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [
+                {
+                    "claim_id": claim_id,
+                    "note_id": notes[claim_id].note_id,
+                    "source_id": notes[claim_id].source_id,
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": notes[claim_id].publisher,
+                    "independence_rationale": "No existing publisher exists.",
+                }
+                for claim_id in selected_ids
+            ],
+            "queries": [],
+        }
+    )
+    observed_registry_orders: list[tuple[str, ...]] = []
+    real_select_registry = evidence_gap_module.select_truth_condition_registry
+
+    def select_exact_order(registry_arg, claim_ids):
+        # Capacity preflight estimates complete one-claim routes without
+        # mutating execution scope. The actual incremental verifier call must
+        # still preserve the model-routed order below.
+        if len(claim_ids) == 1:
+            return real_select_registry(registry_arg, claim_ids)
+        # A set may happen to iterate in the requested order under one hash
+        # seed, so also lock the caller contract to an ordered sequence.
+        assert isinstance(claim_ids, tuple)
+        assert claim_ids == selected_ids
+        return real_select_registry(registry_arg, claim_ids)
+
+    async def verify_exact_subset(attributions, *, registry, **_kwargs):
+        assert registry is not None
+        attribution_ids = tuple(
+            attribution.claim.claim_id for attribution in attributions
+        )
+        assert registry.denominator.selected_claim_ids == attribution_ids
+        observed_registry_orders.append(
+            registry.denominator.selected_claim_ids
+        )
+        return VerificationResult(
+            claims=tuple(
+                build_claim_verification(
+                    attribution.claim,
+                    (),
+                    required_sources=2,
+                    attribution_status=attribution.status,
+                    truth_condition_aggregate=aggregate_truth_condition_claim(
+                        registry.entry_for(attribution.claim.claim_id),
+                        (),
+                        expected_source_ids=tuple(
+                            candidate.source_id
+                            for candidate in attribution.candidates
+                        ),
+                    ),
+                )
+                for attribution in attributions
+            ),
+            truth_condition_registry_sha256=(
+                truth_condition_registry_sha256(registry)
+            ),
+        )
+
+    monkeypatch.setattr(
+        evidence_gap_module,
+        "verify_attributions",
+        verify_exact_subset,
+    )
+    monkeypatch.setattr(
+        evidence_gap_module,
+        "select_truth_condition_registry",
+        select_exact_order,
+    )
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=500,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=0,
+            ),
+            truth_condition_registry=registry,
+            explicit_target_claim_ids=selected_ids,
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    assert observed_registry_orders == [selected_ids]
 
 
 def test_budget_failure_for_new_relation_preserves_completed_initial_verdict():
@@ -1713,7 +1928,7 @@ def test_cache_failure_for_one_gap_source_is_recorded_and_does_not_escape(
 
 
 def test_grouped_read_rejects_only_claim_with_existing_publisher():
-    """Finance-13 grouped one useful and one duplicate claim on one URL."""
+    """A cached URL is re-analysed only for the claim it has not checked."""
 
     report = "# Report\n\nThe first event occurred. The second event occurred."
     first_claim = _claim(
@@ -1733,7 +1948,11 @@ def test_grouped_read_rejects_only_claim_with_existing_publisher():
         "The event occurred.",
     )
     selected_url = "https://sciencedirect.com/article"
-    duplicate_note = _note(ledger, selected_url, "The event occurred.")
+    duplicate_note = _note(
+        ledger,
+        selected_url,
+        "The event occurred.\nCACHE-ONLY-MARKER",
+    )
     first_attribution, first_verification = _initial(
         first_claim,
         candidate=_candidate(first_note),
@@ -1783,6 +2002,58 @@ def test_grouped_read_rejects_only_claim_with_existing_publisher():
             ]
         },
     )
+    note_model = ScriptedModel(
+        {
+            "notes": [
+                {
+                    "item_id": "what-1",
+                    "finding": "The source is relevant to the first event.",
+                    "quote": "The event occurred.",
+                }
+            ]
+        }
+    )
+
+    class NewClaimAttribution:
+        def __init__(self):
+            self.prompts = []
+
+        async def generate(self, _prompt):
+            self.prompts.append(_prompt)
+            new_note = ledger.notes[-1]
+            return {
+                "content": {
+                    "action": "attribute",
+                    "claims": [
+                        {
+                            "claim_id": first_claim.claim_id,
+                            "candidates": [
+                                {
+                                    "note_ref": _note_reference(new_note),
+                                    "inherited_from_claim_id": None,
+                                }
+                            ],
+                        }
+                    ],
+                },
+                "token_count": 5,
+                "cost_usd": 0.005,
+            }
+
+    attribution_model = NewClaimAttribution()
+    verifier = ScriptedModel(
+        {
+            "results": [
+                {
+                    "claim_id": first_claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "The cached source supports the claim.",
+                }
+            ]
+        }
+    )
     network = SearchAndReadNetwork(selected_url)
 
     result = asyncio.run(
@@ -1794,9 +2065,9 @@ def test_grouped_read_rejects_only_claim_with_existing_publisher():
             initial_attribution=initial_attribution,
             initial_verification=initial_verification,
             gap_model=gap_model,
-            note_model=ScriptedModel(),
-            attribution_model=ScriptedModel(),
-            verification_model=ScriptedModel(),
+            note_model=note_model,
+            attribution_model=attribution_model,
+            verification_model=verifier,
             tavily_client=network,
             budget=EvidenceGapBudget(
                 max_tokens=100,
@@ -1812,15 +2083,218 @@ def test_grouped_read_rejects_only_claim_with_existing_publisher():
     assert len(result.read_selections) == 1
     assert result.read_selections[0].claim_ids == (first_claim.claim_id,)
     assert result.acquisitions[0].claim_ids == (first_claim.claim_id,)
-    assert result.acquisitions[0].outcome == "cache_hit_no_reanalysis"
+    assert result.acquisitions[0].cache_hit is True
+    assert result.acquisitions[0].outcome == "notes_created"
+    assert len(result.acquisitions[0].note_ids) == 1
+    assert result.information_yield.new_completed_relation_count == 1
+    assert result.added_source_urls == ()
     assert network.extract_calls == 0
+    assert len(note_model.prompts) == 1
+    assert "CACHE-ONLY-MARKER" in note_model.prompts[0]
+    assert first_claim.claim_text in note_model.prompts[0]
+    assert duplicate_claim.claim_text not in note_model.prompts[0]
+    assert len(attribution_model.prompts) == 1
+    assert len(verifier.prompts) == 1
+    final_by_id = {
+        entry.claim.claim_id: entry for entry in result.final_verification.claims
+    }
+    assert len(final_by_id[duplicate_claim.claim_id].relations) == 1
+    assert final_by_id[duplicate_claim.claim_id].relations[0] == (
+        duplicate_verification.claims[0].relations[0]
+    )
     assert any(
         entry.get("stage") == "read_selection_claim"
         and entry.get("claim_id") == duplicate_claim.claim_id
         and entry.get("error")
-        == "publisher domain proxy already supports this claim"
+        == "source was already checked for this claim"
         for entry in result.rejected_entries
     )
+
+
+def test_cached_read_note_model_error_preserves_cache_provenance():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    selected_url = "https://cached.example/record"
+    _note(ledger, selected_url, "The event occurred.\nCACHE-ONLY-MARKER")
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "primary event record",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": selected_url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "cached.example",
+                    "independence_rationale": "No source has checked this claim.",
+                }
+            ]
+        },
+    )
+
+    class FailingNoteModel:
+        def __init__(self):
+            self.prompts = []
+
+        async def generate(self, prompt):
+            self.prompts.append(prompt)
+            raise ValueError("synthetic note failure")
+
+    note_model = FailingNoteModel()
+    network = SearchAndReadNetwork(selected_url)
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=note_model,
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=network,
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert len(result.acquisitions) == 1
+    assert result.acquisitions[0].outcome == "note_model_error"
+    assert result.acquisitions[0].cache_hit is True
+    assert "ValueError: synthetic note failure" in (
+        result.acquisitions[0].error or ""
+    )
+    assert len(note_model.prompts) == 1
+    assert "CACHE-ONLY-MARKER" in note_model.prompts[0]
+    assert network.extract_calls == 0
+
+
+def test_failed_cached_relation_can_be_retried_and_replaced():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    note = _note(
+        ledger,
+        "https://cached.example/record",
+        claim.claim_text,
+    )
+    candidate = _candidate(note)
+    attribution = AttributionResult(
+        attributions=(
+            ClaimAttribution(
+                claim=claim,
+                status=AttributionStatus.CANDIDATE_SOURCES,
+                candidates=(candidate,),
+            ),
+        ),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+    failed_relation = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id=note.source_id,
+        url=note.url,
+        publisher_domain_proxy=note.publisher,
+        candidate_note_ids=(note.note_id,),
+        candidate_source_ids=(note.source_id,),
+        status=VerificationRecordStatus.VERIFICATION_MODEL_ERROR,
+        error="temporary verifier failure",
+    )
+    failed_verification = VerificationResult(
+        claims=(
+            build_claim_verification(
+                claim,
+                (failed_relation,),
+                required_sources=2,
+                attribution_status=AttributionStatus.CANDIDATE_SOURCES,
+            ),
+        )
+    )
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [
+                {
+                    "claim_id": claim.claim_id,
+                    "note_id": note.note_id,
+                    "source_id": note.source_id,
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": note.publisher,
+                    "independence_rationale": (
+                        "Retrying a source whose prior verifier call failed."
+                    ),
+                }
+            ],
+            "queries": [],
+        }
+    )
+    verifier = ScriptedModel(
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "The cached record states the claim.",
+                }
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=attribution,
+            initial_verification=failed_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=verifier,
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=0,
+                max_reads=0,
+            ),
+            explicit_target_claim_ids=(claim.claim_id,),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert len(verifier.prompts) == 1
+    assert len(result.final_verification.claims[0].relations) == 1
+    repaired = result.final_verification.claims[0].relations[0]
+    assert repaired.status is VerificationRecordStatus.COMPLETED
+    assert repaired.semantic_verdict is VerificationVerdict.SUPPORTS
+    assert result.information_yield.new_completed_relation_count == 1
 
 
 def test_read_selection_is_not_reserved_against_unknown_source_length():
@@ -1871,7 +2345,14 @@ def test_read_selection_is_not_reserved_against_unknown_source_length():
             verification_model=verifier,
             tavily_client=network,
             budget=EvidenceGapBudget(
-                max_tokens=15,
+                # Planning must now preserve one bounded read -> note ->
+                # verification route.  The stage-sensitive estimates below
+                # require planning/read-selection headroom plus 5 + 5 + 6
+                # tokens for note, incremental attribution, and verification,
+                # so
+                # the historical 15-token envelope is intentionally no
+                # longer a valid admission shape.
+                max_tokens=30,
                 max_cost_usd=1,
                 max_search_queries=1,
                 max_reads=1,
@@ -1887,8 +2368,12 @@ def test_read_selection_is_not_reserved_against_unknown_source_length():
     pre_read_reserve = result.verification_reserve_history[0]
     assert pre_read_reserve.estimated_tokens == 0
     assert pre_read_reserve.prerequisite_stage == "read_selection"
-    assert pre_read_reserve.prerequisite_estimated_tokens == 5
-    assert pre_read_reserve.reserved_tokens == 0
+    assert pre_read_reserve.prerequisite_estimated_tokens == 6
+    # Unknown source length is still never extrapolated from an unrelated
+    # cache entry.  The separate minimum-action probe now protects one
+    # bounded note+verification route until the model has selected a URL.
+    assert pre_read_reserve.minimum_action_estimated_tokens == 18
+    assert pre_read_reserve.reserved_tokens == 18
     assert result.verification_reserve.estimated_tokens == 0
     assert result.verification_reserve.admitted_read_source_urls == ()
     assert result.stop_reason == EvidenceGapStopReason.COMPLETED
@@ -2070,6 +2555,18 @@ def test_large_selected_source_releases_reserve_so_later_small_source_can_finish
     )
     assert result.verification_reserve is not None
     assert result.verification_reserve.admitted_read_source_urls == (small_url,)
+    large_pre_note_reserve = result.verification_reserve_history[1]
+    assert large_pre_note_reserve.prerequisite_stage == "note_extraction"
+    assert large_pre_note_reserve.prerequisite_estimated_tokens == 42
+    assert (
+        large_pre_note_reserve.incremental_reattribution_estimated_tokens
+        > 0
+    )
+    assert large_pre_note_reserve.required_downstream_tokens == (
+        large_pre_note_reserve.estimated_tokens
+        + large_pre_note_reserve.incremental_reattribution_estimated_tokens
+    )
+    assert large_pre_note_reserve.reserve_fully_funded is False
     assert all(
         large_url not in reserve.admitted_read_source_urls
         for reserve in result.verification_reserve_history[2:]
@@ -2082,8 +2579,10 @@ def test_large_selected_source_releases_reserve_so_later_small_source_can_finish
         # The read helper normalizes trailing whitespace.  Audit the length
         # of that canonical cached text, not the pre-cleaning fixture input.
         and entry.get("source_chars") == large_acquisition.source_chars
-        and "actual source could not be admitted" in entry.get("error", "")
-        and "preserving the verification reserve" in entry.get("error", "")
+        and "actual source not admitted" in entry.get("error", "")
+        and "cannot preserve incremental reattribution" in entry.get(
+            "error", ""
+        )
         for entry in result.rejected_entries
     )
 
@@ -2488,7 +2987,1120 @@ def test_recovery_element_intent_survives_query_read_and_acquisition():
     assert target_element_id in note_model.prompts[0]
     assert "The event occurred." in note_model.prompts[0]
     assert any(
+        "https://capacity.invalid/evidence" in prompt
+        and target_element_id in prompt
+        and "The event occurred." in prompt
+        and "registered truth-condition element" in prompt
+        for prompt in estimated_prompts
+    )
+    assert any(
         target_element_id in prompt
         and "registered truth-condition element" in prompt
         for prompt in estimated_prompts
+    )
+
+
+def test_live_shape_compact_plan_preserves_one_complete_evidence_action():
+    """The finance-26 planning shape must not spend the whole 60k pass."""
+
+    report, claims, initial_attribution, initial_verification = (
+        _many_gap_targets(27)
+    )
+    ledger = ResearchLedger(topic="A neutral topic")
+    for index in range(176):
+        url = f"https://archive-{index:03d}.example/record"
+        # The finding size approximates the real 176-note registry without
+        # depending on a mutable paid-run artifact.
+        finding = (
+            f"Archived finding {index:03d}: "
+            + "contextual evidence remains available for model review. " * 5
+        )
+        source_text = f"Archived quotation {index:03d}. " + "context " * 25
+        ledger.cache_source(url, source_text)
+        ledger.add_note(
+            create_note(
+                item_id="what-1",
+                finding=finding,
+                quote=f"Archived quotation {index:03d}.",
+                url=url,
+                source_text=source_text,
+            )
+        )
+
+    selected_claim = claims[0]
+    selected_url = "https://new.example/live-shape-record"
+
+    class RatioModel:
+        def __init__(self, *contents):
+            self.contents = list(contents)
+            self.prompts = []
+
+        async def generate(self, prompt):
+            self.prompts.append(prompt)
+            if not self.contents:
+                raise AssertionError("unexpected model call")
+            # Reproduce the paid run's actual total-token/prompt-char ratio.
+            actual_tokens = max(
+                1,
+                (len(prompt) * 68_234 + 205_484) // 205_485,
+            )
+            return {
+                "content": json.dumps(self.contents.pop(0)),
+                "token_count": actual_tokens,
+                "cost_usd": 0.001,
+            }
+
+    gap_model = RatioModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [selected_claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "primary record for the first claim",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": selected_url,
+                    "item_id": "what-1",
+                    "claim_ids": [selected_claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "new.example",
+                    "independence_rationale": "A distinct primary record.",
+                }
+            ]
+        },
+    )
+    note_model = RatioModel(
+        {
+            "notes": [
+                {
+                    "item_id": "what-1",
+                    "finding": selected_claim.claim_text,
+                    "quote": selected_claim.claim_text,
+                }
+            ]
+        }
+    )
+
+    class RoutedAttributionModel:
+        def __init__(self):
+            self.prompts = []
+
+        async def generate(self, prompt):
+            self.prompts.append(prompt)
+            note = ledger.notes[-1]
+            return {
+                "content": {
+                    "action": "attribute",
+                    "claims": [
+                        {
+                            "claim_id": selected_claim.claim_id,
+                            "candidates": [
+                                {
+                                    "note_ref": _note_reference(note),
+                                    "inherited_from_claim_id": None,
+                                }
+                            ],
+                        }
+                    ],
+                },
+                "token_count": max(
+                    1,
+                    (len(prompt) * 68_234 + 205_484) // 205_485,
+                ),
+                "cost_usd": 0.001,
+            }
+
+    attribution_model = RoutedAttributionModel()
+    verifier = RatioModel(
+        {
+            "results": [
+                {
+                    "claim_id": selected_claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "The source states the selected claim.",
+                }
+            ]
+        }
+    )
+
+    class LiveShapeNetwork(SearchAndReadNetwork):
+        async def extract(self, urls, **kwargs):
+            self.extract_calls += 1
+            return {
+                "results": [
+                    {
+                        "url": self.url,
+                        "raw_content": selected_claim.claim_text,
+                    }
+                ]
+            }
+
+    def live_input_estimate(_client, prompt):
+        # Reproduce the paid run's input-estimate/prompt-char ratio.
+        return max(1, (len(prompt) * 59_673 + 205_484) // 205_485)
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=note_model,
+            attribution_model=attribution_model,
+            verification_model=verifier,
+            tavily_client=LiveShapeNetwork(selected_url),
+            budget=EvidenceGapBudget(
+                max_tokens=60_000,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=live_input_estimate,
+            estimate_cost_usd=lambda _client, _prompt: 0.001,
+        )
+    )
+
+    capacity = result.planning_capacity
+    assert isinstance(capacity, EvidenceGapPlanningCapacityAudit)
+    assert capacity.target_count == 27
+    assert capacity.cached_note_count == 176
+    assert capacity.prompt_chars < 120_000
+    assert capacity.estimated_planning_input_tokens <= 36_000
+    assert capacity.reserve_fully_funded is True
+    plan_prompt = gap_model.prompts[0]
+    assert "unused_by_target_claim_ids" not in plan_prompt
+    assert plan_prompt.count('"checked_for_target_claim_ids":') == 176
+    assert '"note_id":"note-000001"' in plan_prompt
+    assert '"note_id":"note-000176"' in plan_prompt
+    assert result.acquisitions[0].outcome == "notes_created"
+    assert result.information_yield.new_completed_relation_count == 1
+    assert [entry.stage for entry in result.usage] == [
+        "cache_review_and_search_plan",
+        "read_selection",
+        "note_extraction",
+        "reattribution",
+        "reverification",
+    ]
+
+
+def test_new_note_reattribution_is_limited_to_model_routed_claims():
+    report = "# Report\n\nClaim A was reported. Claim B was reported."
+    claim_a = _claim(
+        report,
+        claim_id="claim-0001",
+        text="Claim A was reported.",
+    )
+    claim_b = _claim(
+        report,
+        claim_id="claim-0002",
+        text="Claim B was reported.",
+    )
+    initial_pairs = tuple(
+        _initial(
+            claim,
+            candidate=None,
+            state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+        )
+        for claim in (claim_a, claim_b)
+    )
+    initial_attribution = AttributionResult(
+        attributions=tuple(pair[0].attributions[0] for pair in initial_pairs),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+    initial_verification = VerificationResult(
+        claims=tuple(pair[1].claims[0] for pair in initial_pairs)
+    )
+    ledger = ResearchLedger(topic="A neutral topic")
+    selected_url = "https://new.example/claim-b"
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim_b.claim_id],
+                    "item_id": "what-1",
+                    "query": "record for claim B",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": selected_url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim_b.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "new.example",
+                    "independence_rationale": "A distinct source.",
+                }
+            ]
+        },
+    )
+    note_model = ScriptedModel(
+        {
+            "notes": [
+                {
+                    "item_id": "what-1",
+                    "finding": claim_b.claim_text,
+                    "quote": claim_b.claim_text,
+                }
+            ]
+        }
+    )
+
+    class CaptureRoutedAttribution:
+        def __init__(self):
+            self.prompts = []
+
+        async def generate(self, prompt):
+            self.prompts.append(prompt)
+            note = ledger.notes[-1]
+            return {
+                "content": {
+                    "action": "attribute",
+                    "claims": [
+                        {
+                            "claim_id": claim_b.claim_id,
+                            "candidates": [
+                                {
+                                    "note_ref": _note_reference(note),
+                                    "inherited_from_claim_id": None,
+                                }
+                            ],
+                        }
+                    ],
+                },
+                "token_count": 5,
+                "cost_usd": 0.005,
+            }
+
+    attribution_model = CaptureRoutedAttribution()
+    verifier = ScriptedModel(
+        {
+            "results": [
+                {
+                    "claim_id": claim_b.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "The source states claim B.",
+                }
+            ]
+        }
+    )
+
+    class ClaimBNetwork(SearchAndReadNetwork):
+        async def extract(self, urls, **kwargs):
+            self.extract_calls += 1
+            return {
+                "results": [
+                    {"url": self.url, "raw_content": claim_b.claim_text}
+                ]
+            }
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=note_model,
+            attribution_model=attribution_model,
+            verification_model=verifier,
+            tavily_client=ClaimBNetwork(selected_url),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.acquisitions[0].claim_ids == (claim_b.claim_id,)
+    assert len(attribution_model.prompts) == 1
+    reattribution_prompt = attribution_model.prompts[0]
+    assert claim_b.claim_id in reattribution_prompt
+    assert claim_b.claim_text in reattribution_prompt
+    assert claim_a.claim_text not in reattribution_prompt
+    assert [entry.stage for entry in result.usage][-2:] == [
+        "reattribution",
+        "reverification",
+    ]
+
+
+def test_cached_only_plan_reserves_one_useful_verification_after_overrun():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    cached_note = _note(
+        ledger,
+        "https://cached.example/record",
+        claim.claim_text,
+    )
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+
+    class PlanningOverrunModel(ScriptedModel):
+        async def generate(self, prompt):
+            self.prompts.append(prompt)
+            if not self.contents:
+                raise AssertionError("unexpected model call")
+            return {
+                "content": json.dumps(self.contents.pop(0)),
+                # Estimate is 5; the explicit 20% headroom covers this sixth
+                # provider output/reasoning token without starving verify.
+                "token_count": 6,
+                "cost_usd": 0.0,
+            }
+
+    gap_model = PlanningOverrunModel(
+        {
+            "cached_candidates": [
+                {
+                    "claim_id": claim.claim_id,
+                    "note_id": cached_note.note_id,
+                    "source_id": cached_note.source_id,
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": cached_note.publisher,
+                    "independence_rationale": "No prior publisher exists.",
+                }
+            ],
+            "queries": [],
+        }
+    )
+    verifier = ScriptedModel(
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "The cached source states the claim.",
+                }
+            ]
+        }
+    )
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=verifier,
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=11,
+                max_cost_usd=1,
+                max_search_queries=0,
+                max_reads=0,
+            ),
+            estimate_input_tokens=lambda _client, _prompt: 5,
+            estimate_cost_usd=lambda _client, _prompt: 0.0,
+        )
+    )
+
+    assert result.planning_capacity is not None
+    assert result.planning_capacity.read_selection_estimated_tokens == 0
+    assert result.planning_capacity.downstream_action_estimated_tokens == 5
+    assert result.planning_capacity.reserve_fully_funded is True
+    assert [entry.stage for entry in result.usage] == [
+        "cache_review_and_search_plan",
+        "reverification",
+    ]
+    assert result.information_yield.new_completed_relation_count == 1
+
+
+def test_tight_budget_rebuilds_unpaid_plan_as_cache_only_before_model_call():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    cached_note = _note(
+        ledger,
+        "https://cached.example/record",
+        claim.claim_text,
+    )
+    checklist = ResearchChecklist(
+        topic="A neutral topic",
+        items=(
+            ChecklistItem(
+                item_id="what-2",
+                dimension=ChecklistDimension.WHAT,
+                question="What evidence resolves the active claim?",
+                priority=1,
+                required_source_count=1,
+            ),
+            ChecklistItem(
+                item_id="what-1",
+                dimension=ChecklistDimension.WHAT,
+                question="Which discarded framing first found the note?",
+                priority=2,
+                required_source_count=1,
+                status=ChecklistStatus.OUT_OF_SCOPE,
+            ),
+        ),
+    )
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [
+                {
+                    "claim_id": claim.claim_id,
+                    "note_id": cached_note.note_id,
+                    "source_id": cached_note.source_id,
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": cached_note.publisher,
+                    "independence_rationale": "No prior publisher exists.",
+                }
+            ],
+            "queries": [],
+        }
+    )
+    verifier = ScriptedModel(
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "The cached source states the claim.",
+                }
+            ]
+        }
+    )
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=checklist,
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=verifier,
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=12,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=lambda _client, _prompt: 5,
+            estimate_cost_usd=lambda _client, _prompt: 0.0,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    assert len(gap_model.prompts) == 1
+    assert "hard budget of at most 0 web search queries" in gap_model.prompts[0]
+    assert cached_note.note_id in gap_model.prompts[0]
+    assert 'Checklist item IDs:\n["what-2"]' in gap_model.prompts[0]
+    assert result.planning_capacity is not None
+    assert result.planning_capacity.advertised_max_search_queries == 0
+    assert result.planning_capacity.reserve_fully_funded is True
+    assert any(
+        entry.get("outcome") == "downgraded_to_cache_only"
+        for entry in result.rejected_entries
+    )
+    assert [entry.stage for entry in result.usage] == [
+        "cache_review_and_search_plan",
+        "reverification",
+    ]
+
+
+def test_pre_read_reserve_adds_cached_verification_and_one_web_action():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    cached_note = _note(
+        ledger,
+        "https://cached.example/record",
+        claim.claim_text,
+    )
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    selected_url = "https://new.example/candidate"
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [
+                {
+                    "claim_id": claim.claim_id,
+                    "note_id": cached_note.note_id,
+                    "source_id": cached_note.source_id,
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": cached_note.publisher,
+                    "independence_rationale": "No prior publisher exists.",
+                }
+            ],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "another independent account",
+                }
+            ],
+        },
+        {"reads": []},
+    )
+    verifier = ScriptedModel(
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "The cached source states the claim.",
+                }
+            ]
+        }
+    )
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=verifier,
+            tavily_client=SearchAndReadNetwork(selected_url),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    pre_read = result.verification_reserve_history[0]
+    assert pre_read.estimated_tokens == 1
+    assert pre_read.minimum_action_estimated_tokens == 5
+    assert pre_read.required_downstream_tokens == 6
+    assert pre_read.reserved_tokens == 6
+    assert pre_read.reserve_fully_funded is True
+    assert result.information_yield.new_completed_relation_count == 1
+
+
+def test_oversized_compact_plan_fails_explicitly_without_model_call():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    gap_model = ScriptedModel()
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_planning_prompt_chars=100,
+            ),
+            plan_prompt_builder=lambda **_kwargs: "x" * 101,
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.BUDGET_EXHAUSTED
+    assert "character bound" in result.stop_detail
+    assert result.planning_capacity is not None
+    assert result.planning_capacity.prompt_chars == 101
+    assert gap_model.prompts == []
+
+
+def test_legacy_plan_prompt_builder_without_registry_keyword_still_runs():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    builder_calls = []
+
+    def legacy_builder(*, targets, notes, checklist, max_queries):
+        builder_calls.append(max_queries)
+        return build_evidence_gap_plan_prompt(
+            targets=targets,
+            notes=notes,
+            checklist=checklist,
+            max_queries=max_queries,
+        )
+
+    gap_model = ScriptedModel({"cached_candidates": [], "queries": []})
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ResearchLedger(topic="A neutral topic"),
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=0,
+            ),
+            plan_prompt_builder=legacy_builder,
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.COMPLETED
+    assert builder_calls == [1]
+    assert len(gap_model.prompts) == 1
+
+
+def test_note_protocol_rejects_overflow_beyond_two_notes():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    selected_url = "https://new.example/record"
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "primary record for the event",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": selected_url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "new.example",
+                    "independence_rationale": "No prior publisher exists.",
+                }
+            ]
+        },
+    )
+    note_model = ScriptedModel(
+        {
+            "notes": [
+                {
+                    "item_id": "what-1",
+                    "finding": f"Evidence candidate {index}.",
+                    "quote": claim.claim_text,
+                }
+                for index in range(1, 4)
+            ]
+        }
+    )
+
+    class FirstNewNoteAttribution:
+        async def generate(self, _prompt):
+            return {
+                "content": {
+                    "action": "attribute",
+                    "claims": [
+                        {
+                            "claim_id": claim.claim_id,
+                            "candidates": [
+                                {
+                                    "note_ref": _note_reference(
+                                        ledger.notes[0]
+                                    ),
+                                    "inherited_from_claim_id": None,
+                                }
+                            ],
+                        }
+                    ],
+                },
+                "token_count": 5,
+                "cost_usd": 0.005,
+            }
+
+    verifier = ScriptedModel(
+        {
+            "results": [
+                {
+                    "claim_id": claim.claim_id,
+                    "verdict": "supports",
+                    "start_segment_id": "S000001",
+                    "end_segment_id": "S000001",
+                    "explanation": "The source states the claim.",
+                }
+            ]
+        }
+    )
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=initial_attribution,
+            initial_verification=initial_verification,
+            gap_model=gap_model,
+            note_model=note_model,
+            attribution_model=FirstNewNoteAttribution(),
+            verification_model=verifier,
+            tavily_client=SearchAndReadNetwork(selected_url),
+            budget=EvidenceGapBudget(
+                max_tokens=100,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            estimate_input_tokens=_estimate_tokens,
+            estimate_cost_usd=_estimate_cost,
+        )
+    )
+
+    assert len(result.added_note_ids) == 2
+    assert len(ledger.notes) == 2
+    assert any(
+        entry.get("stage") == "note_extraction"
+        and "rejected 1 overflow entries" in entry.get("error", "")
+        for entry in result.rejected_entries
+    )
+
+
+def test_run_cost_cap_exception_propagates_out_of_gap_round():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    controller = RunCostController(RunCostBudget(max_cost_usd=1))
+    cap_error = RunCostCapReached(
+        "synthetic run cap",
+        stage="evidence_gap_plan",
+        audit=controller.audit(),
+    )
+
+    class CappedModel:
+        async def generate(self, _prompt):
+            raise cap_error
+
+    with pytest.raises(RunCostCapReached) as caught:
+        asyncio.run(
+            run_evidence_gap_round(
+                canonical_draft=report,
+                checklist=_checklist(),
+                blocks=parse_markdown_blocks(report),
+                ledger=ResearchLedger(topic="A neutral topic"),
+                initial_attribution=initial_attribution,
+                initial_verification=initial_verification,
+                gap_model=CappedModel(),
+                note_model=ScriptedModel(),
+                attribution_model=ScriptedModel(),
+                verification_model=ScriptedModel(),
+                tavily_client=NoNetwork(),
+                budget=EvidenceGapBudget(
+                    max_tokens=100,
+                    max_cost_usd=1,
+                    max_search_queries=1,
+                    max_reads=0,
+                ),
+                estimate_input_tokens=_estimate_tokens,
+                estimate_cost_usd=_estimate_cost,
+            )
+        )
+
+    assert caught.value is cap_error
+
+
+def test_run_cost_cap_from_note_stage_is_not_downgraded_to_model_error():
+    report = "# Report\n\nThe event occurred."
+    claim = _claim(report)
+    initial_attribution, initial_verification = _initial(
+        claim,
+        candidate=None,
+        state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+    )
+    selected_url = "https://new.example/record"
+    gap_model = ScriptedModel(
+        {
+            "cached_candidates": [],
+            "queries": [
+                {
+                    "claim_ids": [claim.claim_id],
+                    "item_id": "what-1",
+                    "query": "primary event record",
+                }
+            ],
+        },
+        {
+            "reads": [
+                {
+                    "url": selected_url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": "new.example",
+                    "independence_rationale": "No prior publisher exists.",
+                }
+            ]
+        },
+    )
+    controller = RunCostController(RunCostBudget(max_cost_usd=1))
+    cap_error = RunCostCapReached(
+        "synthetic note-stage cap",
+        stage="evidence_gap_note",
+        audit=controller.audit(),
+    )
+
+    class CappedNoteModel:
+        async def generate(self, _prompt):
+            raise cap_error
+
+    with pytest.raises(RunCostCapReached) as caught:
+        asyncio.run(
+            run_evidence_gap_round(
+                canonical_draft=report,
+                checklist=_checklist(),
+                blocks=parse_markdown_blocks(report),
+                ledger=ResearchLedger(topic="A neutral topic"),
+                initial_attribution=initial_attribution,
+                initial_verification=initial_verification,
+                gap_model=gap_model,
+                note_model=CappedNoteModel(),
+                attribution_model=ScriptedModel(),
+                verification_model=ScriptedModel(),
+                tavily_client=SearchAndReadNetwork(selected_url),
+                budget=EvidenceGapBudget(
+                    max_tokens=100,
+                    max_cost_usd=1,
+                    max_search_queries=1,
+                    max_reads=1,
+                ),
+                estimate_input_tokens=_estimate_tokens,
+                estimate_cost_usd=_estimate_cost,
+            )
+        )
+
+    assert caught.value is cap_error
+
+
+def _already_checked_gap_state(report: str):
+    claim = _claim(report)
+    ledger = ResearchLedger(topic="A neutral topic")
+    note = _note(
+        ledger,
+        "https://checked.example/record",
+        claim.claim_text,
+    )
+    candidate = _candidate(note)
+    relation = VerifiedSourceRelation(
+        claim_id=claim.claim_id,
+        source_id=note.source_id,
+        url=note.url,
+        publisher_domain_proxy=note.publisher,
+        candidate_note_ids=(note.note_id,),
+        candidate_source_ids=(note.source_id,),
+        status=VerificationRecordStatus.COMPLETED,
+        semantic_verdict=VerificationVerdict.NOT_ENOUGH_INFORMATION,
+        explanation="The source was checked but did not resolve the claim.",
+    )
+    attribution = AttributionResult(
+        attributions=(
+            ClaimAttribution(
+                claim=claim,
+                status=AttributionStatus.CANDIDATE_SOURCES,
+                candidates=(candidate,),
+            ),
+        ),
+        stop_reason=AttributionStopReason.COMPLETED,
+    )
+    verification = VerificationResult(
+        claims=(
+            ClaimVerification(
+                claim=claim,
+                state=ClaimEvidenceState.NO_CANDIDATE_SOURCE,
+                corroboration_target=2,
+                relations=(relation,),
+                formal_supporting_evidence_count=0,
+                publisher_domain_proxy_count=0,
+            ),
+        )
+    )
+    return claim, ledger, note, attribution, verification
+
+
+def test_checked_cached_source_cannot_fund_or_enter_a_cache_only_plan():
+    report = "# Report\n\nThe event occurred."
+    claim, ledger, _note_record, attribution, verification = (
+        _already_checked_gap_state(report)
+    )
+    gap_model = ScriptedModel()
+
+    result = asyncio.run(
+        run_evidence_gap_round(
+            canonical_draft=report,
+            checklist=_checklist(),
+            blocks=parse_markdown_blocks(report),
+            ledger=ledger,
+            initial_attribution=attribution,
+            initial_verification=verification,
+            gap_model=gap_model,
+            note_model=ScriptedModel(),
+            attribution_model=ScriptedModel(),
+            verification_model=ScriptedModel(),
+            tavily_client=NoNetwork(),
+            budget=EvidenceGapBudget(
+                max_tokens=12,
+                max_cost_usd=1,
+                max_search_queries=1,
+                max_reads=1,
+            ),
+            explicit_target_claim_ids=(claim.claim_id,),
+            estimate_input_tokens=lambda _client, _prompt: 5,
+            estimate_cost_usd=lambda _client, _prompt: 0.0,
+        )
+    )
+
+    assert result.stop_reason is EvidenceGapStopReason.BUDGET_EXHAUSTED
+    assert gap_model.prompts == []
+    assert not any(
+        entry.get("outcome") == "downgraded_to_cache_only"
+        for entry in result.rejected_entries
+    )
+
+
+def test_checked_cached_hint_and_read_url_are_rejected_as_no_ops():
+    report = "# Report\n\nThe event occurred."
+    claim, ledger, note, _attribution, verification = (
+        _already_checked_gap_state(report)
+    )
+    target = verification.claims[0]
+    hints, _queries, _deferred, plan_rejected, _valid = (
+        evidence_gap_module._parse_plan(
+            {
+                "cached_candidates": [
+                    {
+                        "claim_id": claim.claim_id,
+                        "note_id": note.note_id,
+                        "source_id": note.source_id,
+                        "independent_from_existing_publishers": True,
+                        "publisher_identity": note.publisher,
+                        "independence_rationale": "A proposed cached route.",
+                    }
+                ],
+                "queries": [],
+            },
+            targets=(target,),
+            notes=ledger.notes,
+            checklist=_checklist(),
+            max_queries=1,
+        )
+    )
+    assert hints == ()
+    assert any(
+        entry.get("error") == "source was already checked for this claim"
+        for entry in plan_rejected
+    )
+
+    search = GapSearchRecord(
+        query=GapSearchQuery(
+            claim_ids=(claim.claim_id,),
+            item_id="what-1",
+            query="another record",
+        ),
+        results=(
+            SearchResult(
+                title="Already checked",
+                url=note.url,
+                snippet="The same source.",
+            ),
+        ),
+    )
+    selections, read_rejected = evidence_gap_module._parse_reads(
+        {
+            "reads": [
+                {
+                    "url": note.url,
+                    "item_id": "what-1",
+                    "claim_ids": [claim.claim_id],
+                    "independent_from_existing_publishers": True,
+                    "publisher_identity": note.publisher,
+                    "independence_rationale": "A proposed read route.",
+                }
+            ]
+        },
+        targets=(target,),
+        searches=(search,),
+        cached_hints=(),
+        checklist=_checklist(),
+        max_reads=1,
+    )
+    assert selections == ()
+    assert any(
+        entry.get("error") == "source was already checked for this claim"
+        for entry in read_rejected
     )
